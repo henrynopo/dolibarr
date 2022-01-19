@@ -104,6 +104,10 @@ if (GETPOST("account") || GETPOST("ref")) {
 
 	// Customer invoices
 	$sql = "SELECT 'invoice' as family, f.rowid as objid, f.ref as ref, f.total_ttc, f.type, f.date_lim_reglement as dlr,";
+	// Multicurrency Amount
+	if (!empty($conf->multicurrency->enabled) && ($object->currency_code!=$conf->currency)) {
+		$sql .= " f.multicurrency_total_ttc, f.multicurrency_code,";
+	}
 	$sql .= " s.rowid as socid, s.nom as name, s.fournisseur";
 	$sql .= " FROM ".MAIN_DB_PREFIX."facture as f";
 	$sql .= " LEFT JOIN ".MAIN_DB_PREFIX."societe as s ON f.fk_soc = s.rowid";
@@ -115,6 +119,10 @@ if (GETPOST("account") || GETPOST("ref")) {
 
 	// Supplier invoices
 	$sql = " SELECT 'invoice_supplier' as family, ff.rowid as objid, ff.ref as ref, ff.ref_supplier as ref_supplier, (-1*ff.total_ttc) as total_ttc, ff.type, ff.date_lim_reglement as dlr,";
+	// Multicurrency Amount
+	if (!empty($conf->multicurrency->enabled) && ($object->currency_code!=$conf->currency)) {
+		$sql .= " (-1*ff.multicurrency_total_ttc) as multicurrency_total_ttc, ff.multicurrency_code,";
+	}
 	$sql .= " s.rowid as socid, s.nom as name, s.fournisseur";
 	$sql .= " FROM ".MAIN_DB_PREFIX."facture_fourn as ff";
 	$sql .= " LEFT JOIN ".MAIN_DB_PREFIX."societe as s ON ff.fk_soc = s.rowid";
@@ -157,6 +165,12 @@ if (GETPOST("account") || GETPOST("ref")) {
 				$tmpobj->objid = $sqlobj->objid;
 				$tmpobj->ref = $sqlobj->ref;
 				$tmpobj->total_ttc = $sqlobj->total_ttc;
+
+				if (!empty($conf->multicurrency->enabled) && ($object->currency_code!=$conf->currency)) {
+					$tmpobj->multicurrency_total_ttc = $sqlobj->multicurrency_total_ttc;
+					$tmpobj->multicurrency_code = $sqlobj->multicurrency_code;
+				}
+
 				$tmpobj->type = $sqlobj->type;
 				$tmpobj->dlr = $db->jdate($sqlobj->dlr);
 				$tmpobj->socid = $sqlobj->socid;
@@ -186,9 +200,9 @@ if (GETPOST("account") || GETPOST("ref")) {
 
 	$solde = $object->solde(0);
 	if ($conf->global->MULTICOMPANY_INVOICE_SHARING_ENABLED) {
-		$colspan = 6;
+		$colspan = 7;
 	} else {
-		$colspan = 5;
+		$colspan = 6;
 	}
 
 	// Show next coming entries
@@ -203,14 +217,21 @@ if (GETPOST("account") || GETPOST("ref")) {
 		print '<td>'.$langs->trans("Entity").'</td>';
 	}
 	print '<td>'.$langs->trans("ThirdParty").'</td>';
+	print '<td>'.$langs->trans("Currency").'</td>';
 	print '<td class="right">'.$langs->trans("Debit").'</td>';
 	print '<td class="right">'.$langs->trans("Credit").'</td>';
-	print '<td class="right" width="80">'.$langs->trans("BankBalance").'</td>';
+	print '<td class="right">'.$langs->trans("BankBalance").'</td>';
 	print '</tr>';
 
 	// Current balance
 	print '<tr class="liste_total">';
-	print '<td class="left" colspan="5">'.$langs->trans("CurrentBalance").'</td>';
+	print '<td class="left" colspan="3">'.$langs->trans("CurrentBalance").'</td>';
+	if ($conf->global->MULTICOMPANY_INVOICE_SHARING_ENABLED) {
+		print '<td>&nbsp;</td>';
+	}
+	print '<td>'.$object->currency_code.'</td>';
+	print '<td>&nbsp;</td>';
+	print '<td>&nbsp;</td>';
 	print '<td class="nowrap right">'.price($solde).'</td>';
 	print '</tr>';
 
@@ -229,12 +250,12 @@ if (GETPOST("account") || GETPOST("ref")) {
 			$tmpobj = array_shift($tab_sqlobj);
 
 			if ($tmpobj->family == 'invoice_supplier') {
-				$showline = 1;
+			//	$showline = 1;
 				// Uncomment this line to avoid to count suppliers credit note (ff.type = 2)
 				//$showline=(($tmpobj->total_ttc < 0 && $tmpobj->type != 2) || ($tmpobj->total_ttc > 0 && $tmpobj->type == 2))
-				if ($showline) {
-					$ref = $tmpobj->ref;
-					$facturefournstatic->ref = $ref;
+			//	if ($showline) {
+				//	$ref = $tmpobj->ref;
+					$facturefournstatic->ref = $tmpobj->ref;
 					$facturefournstatic->id = $tmpobj->objid;
 					$facturefournstatic->type = $tmpobj->type;
 					$ref = $facturefournstatic->getNomUrl(1, '');
@@ -243,8 +264,17 @@ if (GETPOST("account") || GETPOST("ref")) {
 					$societestatic->name = $tmpobj->name;
 					$refcomp = $societestatic->getNomUrl(1, '', 24);
 
-					$totalpayment = -1 * $facturefournstatic->getSommePaiement(); // Payment already done
-				}
+					if (!empty($conf->multicurrency->enabled) && ($object->currency_code!=$conf->currency)) {
+						$totalpayment = -1 * $facturefournstatic->getSommePaiement(1);
+						$totalpayment += -1 * $facturefournstatic->getSumDepositsUsed(1);
+						$totalpayment += -1 * $facturefournstatic->getSumCreditNotesUsed(1);
+						$multicurrency_code = $tmpobj->multicurrency_code;
+					} else {
+						$totalpayment = -1 * $facturefournstatic->getSommePaiement(); // Payment already done
+						$totalpayment += -1 * $facturefournstatic->getSumDepositsUsed();
+						$totalpayment += -1 * $facturefournstatic->getSumCreditNotesUsed();
+					}
+			//	}
 			}
 			if ($tmpobj->family == 'invoice') {
 				$facturestatic->ref = $tmpobj->ref;
@@ -256,9 +286,16 @@ if (GETPOST("account") || GETPOST("ref")) {
 				$societestatic->name = $tmpobj->name;
 				$refcomp = $societestatic->getNomUrl(1, '', 24);
 
-				$totalpayment = $facturestatic->getSommePaiement(); // Payment already done
-				$totalpayment += $facturestatic->getSumDepositsUsed();
-				$totalpayment += $facturestatic->getSumCreditNotesUsed();
+				if (!empty($conf->multicurrency->enabled) && ($object->currency_code!=$conf->currency)) {
+					$totalpayment = $facturestatic->getSommePaiement(1);
+					$totalpayment += $facturestatic->getSumDepositsUsed(1);
+					$totalpayment += $facturestatic->getSumCreditNotesUsed(1);
+					$multicurrency_code = $tmpobj->multicurrency_code;
+				} else {
+					$totalpayment = $facturestatic->getSommePaiement(); // Payment already done
+					$totalpayment += $facturestatic->getSumDepositsUsed();
+					$totalpayment += $facturestatic->getSumCreditNotesUsed();
+				}
 			}
 			if ($tmpobj->family == 'social_contribution') {
 				$socialcontribstatic->ref = $tmpobj->ref;
@@ -267,9 +304,14 @@ if (GETPOST("account") || GETPOST("ref")) {
 				$ref = $socialcontribstatic->getNomUrl(1, 24);
 
 				$totalpayment = -1 * $socialcontribstatic->getSommePaiement(); // Payment already done
+
+				if (!empty($conf->multicurrency->enabled) && ($object->currency_code!=$conf->currency)) {
+					$totalpayment = -1 * $socialcontribstatic->getSommePaiement(); // Payment already done
+					$multicurrency_code = $conf->currency;
+				}
 			}
 
-			$parameters = array('obj' => $tmpobj, 'ref' => $ref, 'refcomp' => $refcomp, 'totalpayment' => $totalpayment);
+			$parameters = array('obj' => $tmpobj, 'ref' => $ref, 'refcomp' => $refcomp, 'multicurrency_code' => $multicurrency_code, 'totalpayment' => $totalpayment);
 			$reshook = $hookmanager->executeHooks('moreFamily', $parameters, $tmpobject, $action); // Note that $action and $tmpobject may have been modified by hook
 			if (empty($reshook)) {
 				$ref = isset($hookmanager->resArray['ref']) ? $hookmanager->resArray['ref'] : $ref;
@@ -277,9 +319,14 @@ if (GETPOST("account") || GETPOST("ref")) {
 				$totalpayment = isset($hookmanager->resArray['totalpayment']) ? $hookmanager->resArray['totalpayment'] : $totalpayment;
 			}
 
-			$total_ttc = $tmpobj->total_ttc;
+			if (!empty($conf->multicurrency->enabled) && ($object->currency_code!=$conf->currency)) {
+				$total_ttc = $tmpobj->multicurrency_total_ttc;
+			} else {
+				$total_ttc = $tmpobj->total_ttc;
+			}
+			
 			if ($totalpayment) {
-				$total_ttc = $tmpobj->total_ttc - $totalpayment;
+				$total_ttc -= $totalpayment;
 			}
 			$solde += $total_ttc;
 
@@ -304,6 +351,7 @@ if (GETPOST("account") || GETPOST("ref")) {
 					}
 				}
 				print "<td>".$refcomp."</td>";
+				print "<td>".($multicurrency_code?$multicurrency_code:$conf->currency)."</td>";
 				if ($tmpobj->total_ttc < 0) {
 					print '<td class="nowrap right">'.price(abs($total_ttc))."</td><td>&nbsp;</td>";
 				};

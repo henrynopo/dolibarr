@@ -56,6 +56,19 @@ foreach ($linkedObjectBlock as $key => $objectlink) {
 			if ($object->type == FactureFournisseur::TYPE_CREDIT_NOTE) {
 				$sign = -1;
 			}
+			if (!empty($conf->multicurrency->enabled)) {
+				if ($objectlink->statut != 3) {
+				// If not abandonned
+					$multicurrency_total = $multicurrency_total + $objectlink->multicurrency_total_ht;
+					echo price($objectlink->multicurrency_total_ht);
+					?></td>
+					<td class="right"><?php
+				} else {
+					echo '<strike>'.price($objectlink->multicurrency_total_ht).'</strike>';
+					?></td>
+					<td class="right"><?php
+				}
+			}
 			if ($objectlink->statut != 3) {
 				// If not abandonned
 				$total = $total + $sign * $objectlink->total_ht;
@@ -63,8 +76,9 @@ foreach ($linkedObjectBlock as $key => $objectlink) {
 			} else {
 				echo '<strike>'.price($objectlink->total_ht).'</strike>';
 			}
-		} ?></td>
-		<td class="right"><?php
+			?></td>
+			<td class="right"><?php
+		} 
 		if (method_exists($objectlink, 'getSommePaiement')) {
 			echo $objectlink->getLibStatut(3, $objectlink->getSommePaiement());
 		} else {
@@ -82,7 +96,13 @@ if (count($linkedObjectBlock) > 1) {
 		<td></td>
 		<td class="center"></td>
 		<td class="center"></td>
-		<td class="right"><?php echo price($total); ?></td>
+		<td class="right"><?php
+		if (!empty($conf->multicurrency->enabled)) {
+			echo price($multicurrency_total); 
+			?></td>
+			<td class="right"><?php
+		}
+        echo price($total); ?></td>
 		<td class="right"></td>
 		<td class="right"></td>
 	</tr>

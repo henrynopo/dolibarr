@@ -36,6 +36,9 @@ $langs->load("bills");
 $linkedObjectBlock = dol_sort_array($linkedObjectBlock, 'date', 'desc', 0, 0, 1);
 
 $total = 0;
+if (!empty($conf->multicurrency->enabled)) {
+    $multicurrency_total = 0;
+}
 $ilink = 0;
 foreach ($linkedObjectBlock as $key => $objectlink) {
 	$ilink++;
@@ -70,6 +73,23 @@ foreach ($linkedObjectBlock as $key => $objectlink) {
 	print '<td class="linkedcol-name nowraponall">'.$objectlink->getNomUrl(1).'</td>';
 	print '<td class="linkedcol-ref left">'.$objectlink->ref_client.'</td>';
 	print '<td class="linkedcol-date center">'.dol_print_date($objectlink->date, 'day').'</td>';
+    if (!empty($conf->multicurrency->enabled)) {
+        print '<td class="linkedcol-amount right">';
+	    if ($user->rights->facture->lire) {
+		    $sign = 1;
+		    if ($object->type == Facture::TYPE_CREDIT_NOTE) {
+		    	$sign = -1;
+		    }
+		    if ($objectlink->statut != 3) {
+		    	// If not abandonned
+		    	$multicurrency_total = $multicurrency_total + $sign * $objectlink->multicurrency_total_ht;
+		    	echo price($objectlink->multicurrency_total_ht).'</td>';
+		    } else {
+		    	echo '<strike>'.price($objectlink->multicurrency_total_ht).'</strike>';
+		    }
+	    }
+		print '</td>';
+    }
 	print '<td class="linkedcol-amount right">';
 	if ($user->rights->facture->lire) {
 		$sign = 1;
@@ -102,6 +122,9 @@ if (count($linkedObjectBlock) > 1) {
 	print '<td></td>';
 	print '<td class="center"></td>';
 	print '<td class="center"></td>';
+    if (!empty($conf->multicurrency->enabled)) {
+        print '<td class="right">'.price($multicurrency_total).'</td>';
+    }
 	print '<td class="right">'.price($total).'</td>';
 	print '<td class="right"></td>';
 	print '<td class="right"></td>';

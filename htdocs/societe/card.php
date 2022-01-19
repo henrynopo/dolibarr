@@ -465,6 +465,7 @@ if (empty($reshook)) {
 			$object->code_client			= GETPOSTISSET('customer_code') ?GETPOST('customer_code', 'alpha') : GETPOST('code_client', 'alpha');
 			$object->code_fournisseur = GETPOSTISSET('supplier_code') ?GETPOST('supplier_code', 'alpha') : GETPOST('code_fournisseur', 'alpha');
 			$object->capital				= GETPOST('capital', 'alphanohtml');
+			$object->capital_currency		= GETPOST('capital_currency', 'alphanohtml');
 			$object->barcode				= GETPOST('barcode', 'alphanohtml');
 
 			$object->tva_intra				= GETPOST('tva_intra', 'alphanohtml');
@@ -1043,6 +1044,7 @@ if (is_object($objcanvas) && $objcanvas->displayCanvasExists($action)) {
 		$object->email				= GETPOST('email', 'custom', 0, FILTER_SANITIZE_EMAIL);
 		$object->url				= GETPOST('url', 'custom', 0, FILTER_SANITIZE_URL);
 		$object->capital			= GETPOST('capital', 'alphanohtml');
+		$object->capital_currency	= GETPOST('capital_currency', 'alphanohtml');
 		$object->barcode			= GETPOST('barcode', 'alphanohtml');
 		$object->idprof1			= GETPOST('idprof1', 'alphanohtml');
 		$object->idprof2			= GETPOST('idprof2', 'alphanohtml');
@@ -1785,6 +1787,7 @@ if (is_object($objcanvas) && $objcanvas->displayCanvasExists($action)) {
 				$object->email					= GETPOST('email', 'custom', 0, FILTER_SANITIZE_EMAIL);
 				$object->url					= GETPOST('url', 'custom', 0, FILTER_SANITIZE_URL);
 				$object->capital				= GETPOST('capital', 'alphanohtml');
+				$object->capital_currency		= GETPOST('capital_currency', 'alphanohtml');
 				$object->idprof1				= GETPOST('idprof1', 'alphanohtml');
 				$object->idprof2				= GETPOST('idprof2', 'alphanohtml');
 				$object->idprof3				= GETPOST('idprof3', 'alphanohtml');
@@ -2756,7 +2759,11 @@ if (is_object($objcanvas) && $objcanvas->displayCanvasExists($action)) {
 		// Capital
 		print '<tr><td>'.$langs->trans('Capital').'</td><td>';
 		if ($object->capital) {
-			print price($object->capital, '', $langs, 0, -1, -1, $conf->currency);
+			if (!empty($conf->multicurrency->enabled) || !empty($object->capital_currency)) {
+				print price($object->capital, '', $langs, 0, -1, -1, $object->capital_currency);
+			} else {
+				print price($object->capital, '', $langs, 0, -1, -1, $conf_currency);
+			}
 		} else {
 			print '&nbsp;';
 		}

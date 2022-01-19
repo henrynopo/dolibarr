@@ -301,13 +301,13 @@ if (!empty($sql_select)) {
 	$sql = $sql_select;
 	$sql .= ' d.description as description';
 	if ($type_element != 'fichinter' && $type_element != 'contract' && $type_element != 'supplier_proposal') {
-		$sql .= ', d.label, d.fk_product as product_id, d.fk_product as fk_product, d.info_bits, d.date_start, d.date_end, d.qty, d.qty as prod_qty, d.total_ht as total_ht, ';
+		$sql .= ', d.label, d.fk_product as product_id, d.fk_product as fk_product, d.info_bits, d.date_start, d.date_end, d.qty, d.qty as prod_qty, d.total_ht as total_ht, d.multicurrency_code as multicurrency_code, d.multicurrency_total_ht as multicurrency_total_ht, ';
 	}
 	if ($type_element == 'supplier_proposal') {
-		$sql .= ', d.label, d.fk_product as product_id, d.fk_product as fk_product, d.info_bits, d.qty, d.qty as prod_qty, d.total_ht as total_ht, ';
+		$sql .= ', d.label, d.fk_product as product_id, d.fk_product as fk_product, d.info_bits, d.qty, d.qty as prod_qty, d.total_ht as total_ht,d.multicurrency_code as multicurrency_code, d.multicurrency_total_ht as multicurrency_total_ht,';
 	}
 	if ($type_element == 'contract') {
-		$sql .= ', d.label, d.fk_product as product_id, d.fk_product as fk_product, d.info_bits, d.date_ouverture as date_start, d.date_cloture as date_end, d.qty, d.qty as prod_qty, d.total_ht as total_ht, ';
+		$sql .= ', d.label, d.fk_product as product_id, d.fk_product as fk_product, d.info_bits, d.date_ouverture as date_start, d.date_cloture as date_end, d.qty, d.qty as prod_qty, d.total_ht as total_ht,d.multicurrency_code as multicurrency_code, d.multicurrency_total_ht as multicurrency_total_ht,';
 	}
 	if ($type_element != 'fichinter') {
 		$sql .= ' p.ref as ref, p.rowid as prod_id, p.rowid as fk_product, p.fk_product_type as prod_type, p.fk_product_type as fk_product_type, p.entity as pentity';
@@ -609,10 +609,19 @@ if ($sql_select) {
 		print '<td class="right">'.$objp->prod_qty.'</td>';
 		$total_qty += $objp->prod_qty;
 
-		print '<td class="right">'.price($objp->total_ht).'</td>';
+		print '<td class="right">';
+		if (!empty($conf->multicurrency->enabled)) {
+			print ''.$objp->multicurrency_code.price($objp->multicurrency_total_ht).' | ';
+			$multicurrency_total_ht += $objp->multicurrency_total_ht;
+		}
+		print ''.$conf->currency.price($objp->total_ht).'</td>';
 		$total_ht += $objp->total_ht;
 
-		print '<td class="right">'.price($objp->total_ht / (empty($objp->prod_qty) ? 1 : $objp->prod_qty)).'</td>';
+		print '<td class="right">';
+		if (!empty($conf->multicurrency->enabled)) {
+			print ''.$objp->multicurrency_code.price($objp->multicurrency_total_ht / (empty($objp->prod_qty) ? 1 : $objp->prod_qty)).' | ';
+		}
+        	print ''.$conf->currency.price($objp->total_ht / (empty($objp->prod_qty) ? 1 : $objp->prod_qty)).'</td>';
 
 		print "</tr>\n";
 		$i++;
@@ -623,8 +632,8 @@ if ($sql_select) {
 	print '<td colspan="3"></td>';
 	print '<td></td>';
 	print '<td class="right">'.$total_qty.'</td>';
-	print '<td class="right">'.price($total_ht).'</td>';
-	print '<td class="right">'.price($total_ht / (empty($total_qty) ? 1 : $total_qty)).'</td>';
+	print '<td class="right">'.$conf->currency.price($total_ht).'</td>';
+	print '<td class="right">'.$conf->currency.price($total_ht / (empty($total_qty) ? 1 : $total_qty)).'</td>';
 	print "</table>";
 	print '</div>';
 
