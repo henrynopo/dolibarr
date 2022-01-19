@@ -37,6 +37,9 @@ $langs->load("orders");
 $linkedObjectBlock = dol_sort_array($linkedObjectBlock, 'date', 'desc', 0, 0, 1);
 
 $total = 0;
+if (!empty($conf->multicurrency->enabled)) {
+    $multicurrency_total = 0;
+}
 $ilink = 0;
 foreach ($linkedObjectBlock as $key => $objectlink) {
 	$ilink++;
@@ -54,6 +57,14 @@ foreach ($linkedObjectBlock as $key => $objectlink) {
 	echo '<td class="linkedcol-name nowraponall" >'.$objectlink->getNomUrl(1).'</td>';
 	echo '<td class="linkedcol-ref" align="center">'.$objectlink->ref_client.'</td>';
 	echo '<td class="linkedcol-date" align="center">'.dol_print_date($objectlink->date, 'day').'</td>';
+    if (!empty($conf->multicurrency->enabled)) {
+        echo '<td class="linkedcol-amount right">';
+	    if ($user->rights->facture->lire) {
+		    $multicurrency_total = $multicurrency_total + $objectlink->multicurrency_total_ht;
+		    echo price($objectlink->multicurrency_total_ht);
+	    }
+        echo '</td>';
+    }
 	echo '<td class="linkedcol-amount right">';
 	if ($user->rights->commande->lire) {
 		$total = $total + $objectlink->total_ht;
@@ -75,6 +86,9 @@ if (count($linkedObjectBlock) > 1) {
 	echo '<td></td>';
 	echo '<td class="center"></td>';
 	echo '<td class="center"></td>';
+    if (!empty($conf->multicurrency->enabled)) {
+        echo '<td class="right">'.price($multicurrency_total).'</td>';
+    }
 	echo '<td class="right">'.price($total).'</td>';
 	echo '<td class="right"></td>';
 	echo '<td class="right"></td>';

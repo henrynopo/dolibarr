@@ -107,7 +107,7 @@ abstract class CommonInvoice extends CommonObject
 		$alreadypaid += $this->getSumDepositsUsed($multicurrency);
 		$alreadypaid += $this->getSumCreditNotesUsed($multicurrency);
 
-		$remaintopay = price2num($this->total_ttc - $alreadypaid, 'MT');
+		$remaintopay = price2num(($multicurrency?$this->multicurrency_total_ttc:$this->total_ttc) - $alreadypaid, 'MT');
 		if ($this->statut == self::STATUS_CLOSED && $this->close_code == 'discount_vat') {		// If invoice closed with discount for anticipated payment
 			$remaintopay = 0.0;
 		}
@@ -159,11 +159,6 @@ abstract class CommonInvoice extends CommonObject
 	 */
 	public function getSumDepositsUsed($multicurrency = 0)
 	{
-		if ($this->element == 'facture_fourn' || $this->element == 'invoice_supplier') {
-			// TODO
-			return 0.0;
-		}
-
 		require_once DOL_DOCUMENT_ROOT.'/core/class/discount.class.php';
 
 		$discountstatic = new DiscountAbsolute($this->db);

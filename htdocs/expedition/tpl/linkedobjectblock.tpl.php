@@ -35,6 +35,9 @@ $linkedObjectBlock = $GLOBALS['linkedObjectBlock'];
 $langs->load("sendings");
 
 $total = 0;
+if (!empty($conf->multicurrency->enabled)) {
+	$multicurrency_total = 0;
+}
 $ilink = 0;
 foreach ($linkedObjectBlock as $key => $objectlink) {
 	$ilink++;
@@ -50,6 +53,11 @@ foreach ($linkedObjectBlock as $key => $objectlink) {
 		<td></td>
 		<td class="center"><?php echo dol_print_date($objectlink->date_delivery, 'day'); ?></td>
 		<td class="right"><?php
+		if (!empty($conf->multicurrency->enabled)) {
+			$multicurrency_total = $multicurrency_total + $objectlink->multicurrency_total_ht;
+			echo price($objectlink->multicurrency_total_ht); ?></td>
+			<td class="right"><?php
+		} 
 		if ($user->rights->expedition->lire) {
 			$total = $total + $objectlink->total_ht;
 			echo price($objectlink->total_ht);
@@ -74,7 +82,12 @@ if (count($linkedObjectBlock) > 1) {
 		<td></td>
 		<td class="center"></td>
 		<td class="center"></td>
-		<td class="right"><?php echo price($total); ?></td>
+		<td class="right"><?php
+		if (!empty($conf->multicurrency->enabled)) {
+			echo price($multicurrency_total); ?></td>
+			<td class="right"><?php
+		} 
+		echo price($total); ?></td>
 		<td class="right"></td>
 		<td class="right"></td>
 	</tr>
