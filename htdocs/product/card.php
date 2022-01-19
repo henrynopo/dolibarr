@@ -584,7 +584,7 @@ if (empty($reshook)) {
 				}
 
 				// Fill array 'array_options' with data from add form
-				$ret = $extrafields->setOptionalsFromPost(null, $object);
+				$ret = $extrafields->setOptionalsFromPost(null, $object, '@GETPOSTISSET');
 				if ($ret < 0) {
 					$error++;
 				}
@@ -820,7 +820,7 @@ if (empty($reshook)) {
 			if (GETPOST('propalid') > 0) {
 				// Define cost price for margin calculation
 				$buyprice = 0;
-				if (($result = $propal->defineBuyPrice($pu_ht, price2num(GETPOST('remise_percent'), 2), $object->id)) < 0) {
+				if (($result = $propal->defineBuyPrice($pu_ht, price2num(GETPOST('remise_percent'), '', 2), $object->id)) < 0) {
 					dol_syslog($langs->trans('FailedToGetCostPrice'));
 					setEventMessages($langs->trans('FailedToGetCostPrice'), null, 'errors');
 				} else {
@@ -835,7 +835,7 @@ if (empty($reshook)) {
 					$localtax1_tx, // localtax1
 					$localtax2_tx, // localtax2
 					$object->id,
-					price2num(GETPOST('remise_percent'), 2),
+					price2num(GETPOST('remise_percent'), '', 2),
 					$price_base_type,
 					$pu_ttc,
 					0,
@@ -860,7 +860,7 @@ if (empty($reshook)) {
 			} elseif (GETPOST('commandeid') > 0) {
 				// Define cost price for margin calculation
 				$buyprice = 0;
-				if (($result = $commande->defineBuyPrice($pu_ht, GETPOST('remise_percent', 2), $object->id)) < 0) {
+				if (($result = $commande->defineBuyPrice($pu_ht, price2num(GETPOST('remise_percent'), '', 2), $object->id)) < 0) {
 					dol_syslog($langs->trans('FailedToGetCostPrice'));
 					setEventMessages($langs->trans('FailedToGetCostPrice'), null, 'errors');
 				} else {
@@ -875,7 +875,7 @@ if (empty($reshook)) {
 					$localtax1_tx, // localtax1
 					$localtax2_tx, // localtax2
 					$object->id,
-					price2num(GETPOST('remise_percent'), 2),
+					price2num(GETPOST('remise_percent'), '', 2),
 					'',
 					'',
 					$price_base_type,
@@ -894,13 +894,13 @@ if (empty($reshook)) {
 				);
 
 				if ($result > 0) {
-					header("Location: ".DOL_URL_ROOT."/commande/card.php?id=".$commande->id);
+					header("Location: ".DOL_URL_ROOT."/commande/card.php?id=".urlencode($commande->id));
 					exit;
 				}
 			} elseif (GETPOST('factureid') > 0) {
 				// Define cost price for margin calculation
 				$buyprice = 0;
-				if (($result = $facture->defineBuyPrice($pu_ht, GETPOST('remise_percent', 2), $object->id)) < 0) {
+				if (($result = $facture->defineBuyPrice($pu_ht, price2num(GETPOST('remise_percent'), '', 2), $object->id)) < 0) {
 					dol_syslog($langs->trans('FailedToGetCostPrice'));
 					setEventMessages($langs->trans('FailedToGetCostPrice'), null, 'errors');
 				} else {
@@ -915,7 +915,7 @@ if (empty($reshook)) {
 					$localtax1_tx,
 					$localtax2_tx,
 					$object->id,
-					price2num(GETPOST('remise_percent'), 2),
+					price2num(GETPOST('remise_percent'), '', 2),
 					'',
 					'',
 					'',
@@ -1241,8 +1241,7 @@ if (is_object($objcanvas) && $objcanvas->displayCanvasExists($action)) {
 			if (empty($conf->global->PRODUCT_DISABLE_NATURE)) {
 				// Nature
 				print '<tr><td>'.$form->textwithpicto($langs->trans("NatureOfProductShort"), $langs->trans("NatureOfProductDesc")).'</td><td>';
-				$statutarray = array('1' => $langs->trans("Finished"), '0' => $langs->trans("RowMaterial"));
-				print $form->selectarray('finished', $statutarray, GETPOST('finished', 'alpha'), 1);
+				print $formproduct->selectProductNature('finished', $object->finished);
 				print '</td></tr>';
 			}
 
@@ -1335,7 +1334,7 @@ if (is_object($objcanvas) && $objcanvas->displayCanvasExists($action)) {
 		$reshook = $hookmanager->executeHooks('formObjectOptions', $parameters, $object, $action); // Note that $action and $object may have been modified by hook
 		print $hookmanager->resPrint;
 		if (empty($reshook)) {
-			print $object->showOptionals($extrafields, 'edit', $parameters);
+			print $object->showOptionals($extrafields, 'create', $parameters);
 		}
 
 		// Note (private, no output on invoices, propales...)
@@ -1837,11 +1836,12 @@ if (is_object($objcanvas) && $objcanvas->displayCanvasExists($action)) {
 				print '<tr><td>'.$langs->trans("CountryOrigin").'</td>';
 				print '<td>';
 				print img_picto('', 'globe-americas', 'class="paddingrightonly"');
-				print $form->select_country($object->country_id, 'country_id', '', 0, 'minwidth100 maxwidthonsmartphone');
+				print $form->select_country(GETPOSTISSET('country_id') ? GETPOST('country_id', 'int') : $object->country_id, 'country_id', '', 0, 'minwidth100 maxwidthonsmartphone');
 				if ($user->admin) {
 					print info_admin($langs->trans("YouCanChangeValuesForThisListFromDictionarySetup"), 1);
 				}
 				print '</td></tr>';
+
 				// State
 				if (empty($conf->global->PRODUCT_DISABLE_STATE)) {
 					print '<tr>';
@@ -1852,7 +1852,7 @@ if (is_object($objcanvas) && $objcanvas->displayCanvasExists($action)) {
 					}
 
 					print img_picto('', 'state', 'class="pictofixedwidth"');
-					print $formcompany->select_state($object->state_id, $object->country_code);
+					print $formcompany->select_state(GETPOSTISSET('state_id') ? GETPOST('state_id', 'int') : $object->state_id, $object->country_code);
 					print '</td>';
 					print '</tr>';
 				}

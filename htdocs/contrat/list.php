@@ -271,7 +271,7 @@ if ($socid) {
 	$sql .= " AND s.rowid = ".((int) $socid);
 }
 if (!$user->rights->societe->client->voir && !$socid) {
-	$sql .= " AND s.rowid = sc.fk_soc AND sc.fk_user = ".$user->id;
+	$sql .= " AND s.rowid = sc.fk_soc AND sc.fk_user = ".((int) $user->id);
 }
 $sql .= dolSqlDateFilter('c.date_contrat', $day, $month, $year);
 if ($search_name) {
@@ -421,16 +421,16 @@ if ($search_dfyear != '') {
 if ($search_dfmonth != '') {
 	$param .= '&search_dfmonth='.urlencode($search_dfmonth);
 }
-if ($search_sale != '') {
+if ($search_sale > 0) {
 	$param .= '&search_sale='.urlencode($search_sale);
 }
-if ($search_user != '') {
+if ($search_user > 0) {
 	$param .= '&search_user='.urlencode($search_user);
 }
-if ($search_type_thirdparty != '' && $search_type_thirdparty > 0) {
+if ($search_type_thirdparty > 0) {
 	$param .= '&search_type_thirdparty='.urlencode($search_type_thirdparty);
 }
-if ($search_product_category != '') {
+if ($search_product_category > 0) {
 	$param .= '&search_product_category='.urlencode($search_product_category);
 }
 if ($show_files) {

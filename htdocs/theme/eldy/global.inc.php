@@ -295,6 +295,10 @@ input.buttonpayment, button.buttonpayment, div.buttonpayment {
 	cursor: pointer;
 	max-width: 350px;
 }
+.nofocusvisible:focus-visible {
+	outline: none;
+}
+
 div.buttonpayment input:focus {
 	color: #008;
 }
@@ -1191,7 +1195,7 @@ select.flat.selectlimit {
 }
 
 /* Styles for amount on card */
-table.paymenttable td.amountpaymentcomplete, table.paymenttable td.amountremaintopay {
+table.paymenttable td.amountpaymentcomplete, table.paymenttable td.amountremaintopay, table.paymenttable td.amountremaintopayback {
 	padding-top: 0px;
 	padding-bottom: 0px;
 }
@@ -1382,6 +1386,7 @@ table[summary="list_of_modules"] .fa-cog {
 .width400 { width: 400px; }
 .width500 { width: 500px; }
 .maxwidth25  { max-width: 25px; }
+.maxwidth40  { max-width: 40px; }
 .maxwidth50  { max-width: 50px; }
 .maxwidth75  { max-width: 75px; }
 .maxwidthdate  { max-width: 80px; }
@@ -1544,7 +1549,7 @@ select.widthcentpercentminusxx, span.widthcentpercentminusxx:not(.select2-select
 		height: 64px !important;
 	}
 
-	.divmainbodylarge { margin-left: 20px !important; margin-right: 20px !important; }
+	.divmainbodylarge { margin-left: 10px !important; margin-right: 10px !important; }
 
 	.tdoverflowonsmartphone {
 		max-width: 0;
@@ -1727,6 +1732,20 @@ td.showDragHandle {
 	display: inline-block;
 }
 
+/*
+.classforhorizontalscrolloftabs  .fiche .div-table-responsive
+{
+	transform:rotateX(180deg);
+	-ms-transform:rotateX(180deg);
+	-webkit-transform:rotateX(180deg);
+}
+.classforhorizontalscrolloftabs  .fiche .div-table-responsive-inside
+{
+	transform:rotateX(180deg);
+	-ms-transform:rotateX(180deg);
+	-webkit-transform:rotateX(180deg);
+}
+*/
 
 
 <?php if (empty($conf->global->THEME_DISABLE_STICKY_TOPMENU)) {  ?>
@@ -1837,10 +1856,11 @@ div.vmenu, td.vmenu {
 		display: none;
 	}
 
-	/* if no side-nav, we don't need to have width forced */
+	/* if no side-nav, we don't need to have width forced to calc(100% - 210px); */
 	.classforhorizontalscrolloftabs #id-right {
-		width: unset;
-		display: unset;
+		width: 100%;
+		/* width: unset; */
+		/* display: unset; */
 	}
 
 	body.sidebar-collapse .login_block {
@@ -2750,7 +2770,6 @@ img.login, img.printer, img.entity {
 	width: <?php echo $disableimages ? '26' : '30'; ?>px;
 	height: <?php echo $disableimages ? '26' : '30'; ?>px;
 	border-radius: 50%;
-	background-size: contain;
 	background-size: contain;
 	border: 1px solid;
 	border-color: rgba(255, 255, 255, 0.2);

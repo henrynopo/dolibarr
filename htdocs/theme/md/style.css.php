@@ -473,6 +473,10 @@ input.buttonpayment, button.buttonpayment, div.buttonpayment {
 	white-space: normal;
 	color: #888 !important;
 }
+.nofocusvisible:focus-visible {
+	outline: none;
+}
+
 div.buttonpayment input {
 	background-color: unset;
 	border-bottom: unset;
@@ -1427,6 +1431,7 @@ table[summary="list_of_modules"] .fa-cog {
 .width400 { width: 400px; }
 .width500 { width: 500px; }
 .maxwidth25  { max-width: 25px; }
+.maxwidth40  { max-width: 40px; }
 .maxwidth50  { max-width: 50px; }
 .maxwidth75  { max-width: 75px; }
 .maxwidth100 { max-width: 100px; }
@@ -1571,7 +1576,7 @@ table[summary="list_of_modules"] .fa-cog {
 		min-width: 150px !important;
 	}
 
-	.divmainbodylarge { margin-left: 20px; margin-right: 20px; }
+	.divmainbodylarge { margin-left: 10px; margin-right: 10px; }
 
 	.tdoverflowonsmartphone {
 		max-width: 0;
@@ -6814,6 +6819,10 @@ span.clipboardCPValue.hidewithsize {
 	}
 	li.tmenu, li.tmenusel {
 		min-width: 30px;
+	}
+
+	div.login_block {
+		border-right: 1px solid rgba(0,0,0,0.3);
 	}
 
 	div.tmenucenter {

@@ -203,7 +203,7 @@ class BonPrelevement extends CommonObject
 			 */
 			$sql = "SELECT rowid";
 			$sql .= " FROM  ".MAIN_DB_PREFIX."prelevement_lignes";
-			$sql .= " WHERE fk_prelevement_bons = ".$this->id;
+			$sql .= " WHERE fk_prelevement_bons = ".((int) $this->id);
 			$sql .= " AND fk_soc =".((int) $client_id);
 			$sql .= " AND code_banque = '".$this->db->escape($code_banque)."'";
 			$sql .= " AND code_guichet = '".$this->db->escape($code_guichet)."'";
@@ -334,74 +334,6 @@ class BonPrelevement extends CommonObject
 
 	// phpcs:disable PEAR.NamingConventions.ValidFunctionName.ScopeNotCamelCaps
 	/**
-	 * Set credite and set status of linked invoices. Still used ??
-	 *
-	 * @return		int		<0 if KO, >=0 if OK
-	 */
-	public function set_credite()
-	{
-		// phpcs:enable
-		global $user, $conf;
-
-		$error = 0;
-
-		if ($this->db->begin()) {
-			$sql = " UPDATE ".MAIN_DB_PREFIX."prelevement_bons";
-			$sql .= " SET statut = ".self::STATUS_TRANSFERED;
-			$sql .= " WHERE rowid = ".$this->id;
-			$sql .= " AND entity = ".$conf->entity;
-
-			$result = $this->db->query($sql);
-			if (!$result) {
-				dol_syslog(get_class($this)."::set_credite Erreur 1");
-				$error++;
-			}
-
-			if (!$error) {
-				$facs = array();
-				$facs = $this->getListInvoices();
-
-				$num = count($facs);
-				for ($i = 0; $i < $num; $i++) {
-					/* Tag invoice as paid */
-					dol_syslog(get_class($this)."::set_credite set_paid fac ".$facs[$i]);
-					$fac = new Facture($this->db);
-					$fac->fetch($facs[$i]);
-					$result = $fac->setPaid($user);
-				}
-			}
-
-			if (!$error) {
-				$sql = " UPDATE ".MAIN_DB_PREFIX."prelevement_lignes";
-				$sql .= " SET statut = 2";
-				$sql .= " WHERE fk_prelevement_bons = ".$this->id;
-
-				if (!$this->db->query($sql)) {
-					dol_syslog(get_class($this)."::set_credite Erreur 1");
-					$error++;
-				}
-			}
-
-			/*
-			 * End of procedure
-			 */
-			if (!$error) {
-				$this->db->commit();
-				return 0;
-			} else {
-				$this->db->rollback();
-				dol_syslog(get_class($this)."::set_credite ROLLBACK ");
-
-				return -1;
-			}
-		} else {
-			dol_syslog(get_class($this)."::set_credite Ouverture transaction SQL impossible ");
-			return -2;
-		}
-	}
-
-	// phpcs:disable PEAR.NamingConventions.ValidFunctionName.ScopeNotCamelCaps
-	/**
 	 *	Set direct debit or credit transfer order to "paid" status.
 	 *
 	 *	@param	User	$user			Id of user
@@ -429,7 +361,7 @@ class BonPrelevement extends CommonObject
 			$sql .= ", statut = ".self::STATUS_CREDITED;
 			$sql .= ", date_credit = '".$this->db->idate($date)."'";
 			$sql .= " WHERE rowid=".((int) $this->id);
-			$sql .= " AND entity = ".$conf->entity;
+			$sql .= " AND entity = ".((int) $conf->entity);
 			$sql .= " AND statut = ".self::STATUS_TRANSFERED;
 
 			$resql = $this->db->query($sql);
@@ -528,7 +460,7 @@ class BonPrelevement extends CommonObject
 				if (!$error) {
 					$sql = " UPDATE ".MAIN_DB_PREFIX."prelevement_lignes";
 					$sql .= " SET statut = 2";
-					$sql .= " WHERE fk_prelevement_bons = ".$this->id;
+					$sql .= " WHERE fk_prelevement_bons = ".((int) $this->id);
 
 					if (!$this->db->query($sql)) {
 						dol_syslog(get_class($this)."::set_infocredit Update lines Error");
@@ -582,8 +514,8 @@ class BonPrelevement extends CommonObject
 			$sql .= " , date_trans = '".$this->db->idate($date)."'";
 			$sql .= " , method_trans = ".((int) $method);
 			$sql .= " , statut = ".self::STATUS_TRANSFERED;
-			$sql .= " WHERE rowid = ".$this->id;
-			$sql .= " AND entity = ".$conf->entity;
+			$sql .= " WHERE rowid = ".((int) $this->id);
+			$sql .= " AND entity = ".((int) $conf->entity);
 			$sql .= " AND statut = 0";
 
 			if ($this->db->query($sql)) {
@@ -646,8 +578,8 @@ class BonPrelevement extends CommonObject
 		$sql .= " , ".MAIN_DB_PREFIX."prelevement_facture as pf";
 		$sql .= " WHERE pf.fk_prelevement_lignes = pl.rowid";
 		$sql .= " AND pl.fk_prelevement_bons = p.rowid";
-		$sql .= " AND p.rowid = ".$this->id;
-		$sql .= " AND p.entity = ".$conf->entity;
+		$sql .= " AND p.rowid = ".((int) $this->id);
+		$sql .= " AND p.entity = ".((int) $conf->entity);
 		if ($amounts) {
 			if ($this->type == 'bank-transfer') {
 				$sql .= " GROUP BY fk_facture_fourn";
@@ -989,7 +921,7 @@ class BonPrelevement extends CommonObject
 				$sql = "SELECT substring(ref from char_length(ref) - 1)";
 				$sql .= " FROM ".MAIN_DB_PREFIX."prelevement_bons";
 				$sql .= " WHERE ref LIKE '%".$this->db->escape($ref)."%'";
-				$sql .= " AND entity = ".$conf->entity;
+				$sql .= " AND entity = ".((int) $conf->entity);
 				$sql .= " ORDER BY ref DESC LIMIT 1";
 
 				dol_syslog(get_class($this)."::create sql=".$sql, LOG_DEBUG);
@@ -1076,7 +1008,7 @@ class BonPrelevement extends CommonObject
 						$sql = "UPDATE ".MAIN_DB_PREFIX."prelevement_facture_demande";
 						$sql .= " SET traite = 1";
 						$sql .= ", date_traite = '".$this->db->idate($now)."'";
-						$sql .= ", fk_prelevement_bons = ".$this->id;
+						$sql .= ", fk_prelevement_bons = ".((int) $this->id);
 						$sql .= " WHERE rowid = ".((int) $fac[1]);
 
 						$resql = $this->db->query($sql);
@@ -1141,7 +1073,7 @@ class BonPrelevement extends CommonObject
 				$sql = "UPDATE ".MAIN_DB_PREFIX."prelevement_bons";
 				$sql .= " SET amount = ".price2num($this->total);
 				$sql .= " WHERE rowid = ".((int) $this->id);
-				$sql .= " AND entity = ".$conf->entity;
+				$sql .= " AND entity = ".((int) $conf->entity);
 
 				$resql = $this->db->query($sql);
 				if (!$resql) {
@@ -1205,7 +1137,7 @@ class BonPrelevement extends CommonObject
 		}
 
 		if (!$error) {
-			$sql = "DELETE FROM ".MAIN_DB_PREFIX."prelevement_facture WHERE fk_prelevement_lignes IN (SELECT rowid FROM ".MAIN_DB_PREFIX."prelevement_lignes WHERE fk_prelevement_bons = ".$this->id.")";
+			$sql = "DELETE FROM ".MAIN_DB_PREFIX."prelevement_facture WHERE fk_prelevement_lignes IN (SELECT rowid FROM ".MAIN_DB_PREFIX."prelevement_lignes WHERE fk_prelevement_bons = ".((int) $this->id).")";
 			$resql1 = $this->db->query($sql);
 			if (!$resql1) {
 				dol_print_error($this->db);
@@ -1213,7 +1145,7 @@ class BonPrelevement extends CommonObject
 		}
 
 		if (!$error) {
-			$sql = "DELETE FROM ".MAIN_DB_PREFIX."prelevement_lignes WHERE fk_prelevement_bons = ".$this->id;
+			$sql = "DELETE FROM ".MAIN_DB_PREFIX."prelevement_lignes WHERE fk_prelevement_bons = ".((int) $this->id);
 			$resql2 = $this->db->query($sql);
 			if (!$resql2) {
 				dol_print_error($this->db);
@@ -1221,7 +1153,7 @@ class BonPrelevement extends CommonObject
 		}
 
 		if (!$error) {
-			$sql = "DELETE FROM ".MAIN_DB_PREFIX."prelevement_bons WHERE rowid = ".$this->id;
+			$sql = "DELETE FROM ".MAIN_DB_PREFIX."prelevement_bons WHERE rowid = ".((int) $this->id);
 			$resql3 = $this->db->query($sql);
 			if (!$resql3) {
 				dol_print_error($this->db);
@@ -1229,7 +1161,7 @@ class BonPrelevement extends CommonObject
 		}
 
 		if (!$error) {
-			$sql = "UPDATE ".MAIN_DB_PREFIX."prelevement_facture_demande SET fk_prelevement_bons = NULL, traite = 0 WHERE fk_prelevement_bons = ".$this->id;
+			$sql = "UPDATE ".MAIN_DB_PREFIX."prelevement_facture_demande SET fk_prelevement_bons = NULL, traite = 0 WHERE fk_prelevement_bons = ".((int) $this->id);
 			$resql4 = $this->db->query($sql);
 			if (!$resql4) {
 				dol_print_error($this->db);
@@ -1325,7 +1257,6 @@ class BonPrelevement extends CommonObject
 			$result .= $this->ref;
 		}
 		$result .= $linkend;
-		//if ($withpicto != 2) $result.=(($addlabel && $this->label) ? $sep . dol_trunc($this->label, ($addlabel > 1 ? $addlabel : 0)) : '');
 
 		global $action, $hookmanager;
 		$hookmanager->initHooks(array('banktransferdao'));
@@ -1491,7 +1422,7 @@ class BonPrelevement extends CommonObject
 				$sql .= " ".MAIN_DB_PREFIX."societe as soc,";
 				$sql .= " ".MAIN_DB_PREFIX."c_country as c,";
 				$sql .= " ".MAIN_DB_PREFIX."societe_rib as rib";
-				$sql .= " WHERE pl.fk_prelevement_bons = ".$this->id;
+				$sql .= " WHERE pl.fk_prelevement_bons = ".((int) $this->id);
 				$sql .= " AND pl.rowid = pf.fk_prelevement_lignes";
 				$sql .= " AND pf.fk_facture = f.rowid";
 				$sql .= " AND f.fk_soc = soc.rowid";
@@ -1607,7 +1538,7 @@ class BonPrelevement extends CommonObject
 				$sql .= " ".MAIN_DB_PREFIX."societe as soc,";
 				$sql .= " ".MAIN_DB_PREFIX."c_country as c,";
 				$sql .= " ".MAIN_DB_PREFIX."societe_rib as rib";
-				$sql .= " WHERE pl.fk_prelevement_bons = ".$this->id;
+				$sql .= " WHERE pl.fk_prelevement_bons = ".((int) $this->id);
 				$sql .= " AND pl.rowid = pf.fk_prelevement_lignes";
 				$sql .= " AND pf.fk_facture_fourn = f.rowid";
 				$sql .= " AND f.fk_soc = soc.rowid";
@@ -1697,7 +1628,7 @@ class BonPrelevement extends CommonObject
 				$sql .= " ".MAIN_DB_PREFIX."prelevement_lignes as pl,";
 				$sql .= " ".MAIN_DB_PREFIX."facture as f,";
 				$sql .= " ".MAIN_DB_PREFIX."prelevement_facture as pf";
-				$sql .= " WHERE pl.fk_prelevement_bons = ".$this->id;
+				$sql .= " WHERE pl.fk_prelevement_bons = ".((int) $this->id);
 				$sql .= " AND pl.rowid = pf.fk_prelevement_lignes";
 				$sql .= " AND pf.fk_facture = f.rowid";
 
@@ -1723,7 +1654,7 @@ class BonPrelevement extends CommonObject
 				$sql .= " ".MAIN_DB_PREFIX."prelevement_lignes as pl,";
 				$sql .= " ".MAIN_DB_PREFIX."facture_fourn as f,";
 				$sql .= " ".MAIN_DB_PREFIX."prelevement_facture as pf";
-				$sql .= " WHERE pl.fk_prelevement_bons = ".$this->id;
+				$sql .= " WHERE pl.fk_prelevement_bons = ".((int) $this->id);
 				$sql .= " AND pl.rowid = pf.fk_prelevement_lignes";
 				$sql .= " AND pf.fk_facture_fourn = f.rowid";
 
@@ -1898,7 +1829,7 @@ class BonPrelevement extends CommonObject
 			$XML_DEBITOR .= '			<DrctDbtTxInf>'.$CrLf;
 			$XML_DEBITOR .= '				<PmtId>'.$CrLf;
 			// Add EndToEndId. Must be a unique ID for each payment (for example by including bank, buyer or seller, date, checksum)
-			$XML_DEBITOR .= '					<EndToEndId>'.(($conf->global->PRELEVEMENT_END_TO_END != "") ? $conf->global->PRELEVEMENT_END_TO_END : ('DD-'.dol_trunc($row_idfac.'-'.$row_ref, 20)).'-'.$Rowing).'</EndToEndId>'.$CrLf; // ISO20022 states that EndToEndId has a MaxLength of 35 characters
+			$XML_DEBITOR .= '					<EndToEndId>'.(($conf->global->PRELEVEMENT_END_TO_END != "") ? $conf->global->PRELEVEMENT_END_TO_END : ('DD-'.dol_trunc($row_idfac.'-'.$row_ref, 20, 'right', 'UTF-8', 1)).'-'.$Rowing).'</EndToEndId>'.$CrLf; // ISO20022 states that EndToEndId has a MaxLength of 35 characters
 			$XML_DEBITOR .= '				</PmtId>'.$CrLf;
 			$XML_DEBITOR .= '				<InstdAmt Ccy="EUR">'.round($row_somme, 2).'</InstdAmt>'.$CrLf;
 			$XML_DEBITOR .= '				<DrctDbtTx>'.$CrLf;
@@ -1920,10 +1851,10 @@ class BonPrelevement extends CommonObject
 			$addressline1 = dol_string_unaccent(strtr($row_address, array(CHR(13) => ", ", CHR(10) => "")));
 			$addressline2 = dol_string_unaccent(strtr($row_zip.(($row_zip && $row_town) ? ' ' : ''.$row_town), array(CHR(13) => ", ", CHR(10) => "")));
 			if (trim($addressline1)) {
-				$XML_DEBITOR .= '						<AdrLine>'.dolEscapeXML(dol_trunc($addressline1, 70, 'right', 'UTF-8', true)).'</AdrLine>'.$CrLf;
+				$XML_DEBITOR .= '						<AdrLine>'.dolEscapeXML(dol_trunc($addressline1, 70, 'right', 'UTF-8', 1)).'</AdrLine>'.$CrLf;
 			}
 			if (trim($addressline2)) {
-				$XML_DEBITOR .= '						<AdrLine>'.dolEscapeXML(dol_trunc($addressline2, 70, 'right', 'UTF-8', true)).'</AdrLine>'.$CrLf;
+				$XML_DEBITOR .= '						<AdrLine>'.dolEscapeXML(dol_trunc($addressline2, 70, 'right', 'UTF-8', 1)).'</AdrLine>'.$CrLf;
 			}
 			$XML_DEBITOR .= '					</PstlAdr>'.$CrLf;
 			$XML_DEBITOR .= '				</Dbtr>'.$CrLf;
@@ -1934,7 +1865,7 @@ class BonPrelevement extends CommonObject
 			$XML_DEBITOR .= '				</DbtrAcct>'.$CrLf;
 			$XML_DEBITOR .= '				<RmtInf>'.$CrLf;
 			// A string with some information on payment - 140 max
-			$XML_DEBITOR .= '					<Ustrd>'.(($conf->global->PRELEVEMENT_USTRD != "") ? $conf->global->PRELEVEMENT_USTRD : dol_trunc($row_ref, 135)).'</Ustrd>'.$CrLf; // 140 max
+			$XML_DEBITOR .= '					<Ustrd>'.(($conf->global->PRELEVEMENT_USTRD != "") ? $conf->global->PRELEVEMENT_USTRD : dol_trunc($row_ref, 135, 'right', 'UTF-8', 1)).'</Ustrd>'.$CrLf; // 140 max
 			$XML_DEBITOR .= '				</RmtInf>'.$CrLf;
 			$XML_DEBITOR .= '			</DrctDbtTxInf>'.$CrLf;
 			return $XML_DEBITOR;
@@ -1944,7 +1875,7 @@ class BonPrelevement extends CommonObject
 			$XML_CREDITOR .= '			<CdtTrfTxInf>'.$CrLf;
 			$XML_CREDITOR .= '				<PmtId>'.$CrLf;
 			// Add EndToEndId. Must be a unique ID for each payment (for example by including bank, buyer or seller, date, checksum)
-			$XML_CREDITOR .= '					<EndToEndId>'.(($conf->global->PRELEVEMENT_END_TO_END != "") ? $conf->global->PRELEVEMENT_END_TO_END : ('CT-'.dol_trunc($row_idfac.'-'.$row_ref, 20)).'-'.$Rowing).'</EndToEndId>'.$CrLf; // ISO20022 states that EndToEndId has a MaxLength of 35 characters
+			$XML_CREDITOR .= '					<EndToEndId>'.(($conf->global->PRELEVEMENT_END_TO_END != "") ? $conf->global->PRELEVEMENT_END_TO_END : ('CT-'.dol_trunc($row_idfac.'-'.$row_ref, 20, 'right', 'UTF-8', 1)).'-'.$Rowing).'</EndToEndId>'.$CrLf; // ISO20022 states that EndToEndId has a MaxLength of 35 characters
 			$XML_CREDITOR .= '				</PmtId>'.$CrLf;
 			$XML_CREDITOR .= '				<Amt>'.$CrLf;
 			$XML_CREDITOR .= '					<InstdAmt Ccy="EUR">'.round($row_somme, 2).'</InstdAmt>'.$CrLf;
@@ -1971,10 +1902,10 @@ class BonPrelevement extends CommonObject
 			$addressline1 = dol_string_unaccent(strtr($row_address, array(CHR(13) => ", ", CHR(10) => "")));
 			$addressline2 = dol_string_unaccent(strtr($row_zip.(($row_zip && $row_town) ? ' ' : ''.$row_town), array(CHR(13) => ", ", CHR(10) => "")));
 			if (trim($addressline1)) {
-				$XML_CREDITOR .= '						<AdrLine>'.dolEscapeXML(dol_trunc($addressline1, 70, 'right', 'UTF-8', true)).'</AdrLine>'.$CrLf;
+				$XML_CREDITOR .= '						<AdrLine>'.dolEscapeXML(dol_trunc($addressline1, 70, 'right', 'UTF-8', 1)).'</AdrLine>'.$CrLf;
 			}
 			if (trim($addressline2)) {
-				$XML_CREDITOR .= '						<AdrLine>'.dolEscapeXML(dol_trunc($addressline2, 70, 'right', 'UTF-8', true)).'</AdrLine>'.$CrLf;
+				$XML_CREDITOR .= '						<AdrLine>'.dolEscapeXML(dol_trunc($addressline2, 70, 'right', 'UTF-8', 1)).'</AdrLine>'.$CrLf;
 			}
 			$XML_CREDITOR .= '					</PstlAdr>'.$CrLf;
 			$XML_CREDITOR .= '				</Cdtr>'.$CrLf;
@@ -1985,7 +1916,7 @@ class BonPrelevement extends CommonObject
 			$XML_CREDITOR .= '				</CdtrAcct>'.$CrLf;
 			$XML_CREDITOR .= '				<RmtInf>'.$CrLf;
 			// A string with some information on payment - 140 max
-			$XML_CREDITOR .= '					<Ustrd>'.(($conf->global->PRELEVEMENT_USTRD != "") ? $conf->global->PRELEVEMENT_USTRD : dol_trunc($row_ref, 135)).'</Ustrd>'.$CrLf; // 140 max
+			$XML_CREDITOR .= '					<Ustrd>'.(($conf->global->PRELEVEMENT_USTRD != "") ? $conf->global->PRELEVEMENT_USTRD : dol_trunc($row_ref, 135, 'right', 'UTF-8', 1)).'</Ustrd>'.$CrLf; // 140 max
 			$XML_CREDITOR .= '				</RmtInf>'.$CrLf;
 			$XML_CREDITOR .= '			</CdtTrfTxInf>'.$CrLf;
 			return $XML_CREDITOR;

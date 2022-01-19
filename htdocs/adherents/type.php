@@ -180,7 +180,7 @@ if ($action == 'update' && $user->rights->adherent->configurer) {
 	$object->vote = (boolean) trim($vote);
 
 	// Fill array 'array_options' with data from add form
-	$ret = $extrafields->setOptionalsFromPost(null, $object);
+	$ret = $extrafields->setOptionalsFromPost(null, $object, '@GETPOSTISSET');
 	if ($ret < 0) {
 		$error++;
 	}
@@ -318,6 +318,19 @@ if (!$rowid && $action != 'create' && $action != 'edit') {
 			print "</tr>";
 			$i++;
 		}
+
+		// If no record found
+		if ($num == 0) {
+			/*$colspan = 1;
+			foreach ($arrayfields as $key => $val) {
+				if (!empty($val['checked'])) {
+					$colspan++;
+				}
+			}*/
+			$colspan = 8;
+			print '<tr><td colspan="'.$colspan.'" class="opacitymedium">'.$langs->trans("NoRecordFound").'</td></tr>';
+		}
+
 		print "</table>";
 		print '</div>';
 

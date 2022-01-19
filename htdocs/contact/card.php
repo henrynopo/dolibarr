@@ -225,7 +225,7 @@ if (empty($reshook)) {
 			$action = 'create';
 		}
 
-		if (!empty($conf->mailing->enabled) && $conf->global->MAILING_CONTACT_DEFAULT_BULK_STATUS == -1 && $object->no_email == -1 && !empty($object->email)) {
+		if (!empty($conf->mailing->enabled) && $conf->global->MAILING_CONTACT_DEFAULT_BULK_STATUS == 2 && $object->no_email == -1 && !empty($object->email)) {
 			$error++;
 			$errors[] = $langs->trans("ErrorFieldRequired", $langs->transnoentities("No_Email"));
 			$action = 'create';
@@ -317,7 +317,7 @@ if (empty($reshook)) {
 			$action = 'edit';
 		}
 
-		if (!empty($conf->mailing->enabled) && $conf->global->MAILING_CONTACT_DEFAULT_BULK_STATUS == -1 && GETPOST("no_email", "int") == -1 && !empty(GETPOST('email', 'custom', 0, FILTER_SANITIZE_EMAIL))) {
+		if (!empty($conf->mailing->enabled) && $conf->global->MAILING_CONTACT_DEFAULT_BULK_STATUS == 2 && GETPOST("no_email", "int") == -1 && !empty(GETPOST('email', 'custom', 0, FILTER_SANITIZE_EMAIL))) {
 			$error++;
 			$errors[] = $langs->trans("ErrorFieldRequired", $langs->transnoentities("No_Email"));
 			$action = 'edit';
@@ -420,7 +420,7 @@ if (empty($reshook)) {
 			$object->roles = GETPOST("roles", 'array'); // Note GETPOSTISSET("role") is null when combo is empty
 
 			// Fill array 'array_options' with data from add form
-			$ret = $extrafields->setOptionalsFromPost(null, $object);
+			$ret = $extrafields->setOptionalsFromPost(null, $object, '@GETPOSTISSET');
 			if ($ret < 0) {
 				$error++;
 			}
@@ -780,7 +780,7 @@ if (is_object($objcanvas) && $objcanvas->displayCanvasExists($action)) {
 
 			// Unsubscribe
 			if (!empty($conf->mailing->enabled)) {
-				if ($conf->use_javascript_ajax && $conf->global->MAILING_CONTACT_DEFAULT_BULK_STATUS == -1) {
+				if ($conf->use_javascript_ajax && $conf->global->MAILING_CONTACT_DEFAULT_BULK_STATUS == 2) {
 					print "\n".'<script type="text/javascript" language="javascript">'."\n";
 					print '$(document).ready(function () {
 							$("#email").keyup(function() {
@@ -801,7 +801,9 @@ if (is_object($objcanvas) && $objcanvas->displayCanvasExists($action)) {
 				}
 				print '<tr>';
 				print '<td class="noemail"><label for="no_email">'.$langs->trans("No_Email").'</label></td>';
-				print '<td>'.$form->selectyesno('no_email', (GETPOSTISSET("no_email") ? GETPOST("no_email", 'int') : $conf->global->MAILING_CONTACT_DEFAULT_BULK_STATUS), 1, false, ($conf->global->MAILING_CONTACT_DEFAULT_BULK_STATUS == -1)).'</td>';
+				print '<td>';
+				print $form->selectyesno('no_email', (GETPOSTISSET("no_email") ? GETPOST("no_email", 'int') : $conf->global->MAILING_CONTACT_DEFAULT_BULK_STATUS), 1, false, ($conf->global->MAILING_CONTACT_DEFAULT_BULK_STATUS == 2));
+				print '</td>';
 				print '</tr>';
 			}
 
@@ -848,7 +850,7 @@ if (is_object($objcanvas) && $objcanvas->displayCanvasExists($action)) {
 			}
 
 			// Other attributes
-			$parameters = array('socid' => $socid, 'objsoc' => $objsoc, 'colspan' => ' colspan="3"', 'cols' => 3);
+			$parameters = array('socid' => $socid, 'objsoc' => $objsoc, 'colspan' => ' colspan="3"', 'cols' => 3, 'colspanvalue' => 3);
 			include DOL_DOCUMENT_ROOT.'/core/tpl/extrafields_add.tpl.php';
 
 			print "</table><br>";
@@ -1060,7 +1062,7 @@ if (is_object($objcanvas) && $objcanvas->displayCanvasExists($action)) {
 
 			// Unsubscribe
 			if (!empty($conf->mailing->enabled)) {
-				if ($conf->use_javascript_ajax && isset($conf->global->MAILING_CONTACT_DEFAULT_BULK_STATUS) && $conf->global->MAILING_CONTACT_DEFAULT_BULK_STATUS == -1) {
+				if ($conf->use_javascript_ajax && isset($conf->global->MAILING_CONTACT_DEFAULT_BULK_STATUS) && $conf->global->MAILING_CONTACT_DEFAULT_BULK_STATUS == 2) {
 					print "\n".'<script type="text/javascript" language="javascript">'."\n";
 
 					print '
@@ -1087,8 +1089,10 @@ if (is_object($objcanvas) && $objcanvas->displayCanvasExists($action)) {
 				}
 				print '<tr>';
 				print '<td class="noemail"><label for="no_email">'.$langs->trans("No_Email").'</label></td>';
-				$useempty = (isset($conf->global->MAILING_CONTACT_DEFAULT_BULK_STATUS) && ($conf->global->MAILING_CONTACT_DEFAULT_BULK_STATUS == -1));
-				print '<td>'.$form->selectyesno('no_email', (GETPOSTISSET("no_email") ? GETPOST("no_email", 'int') : $object->no_email), 1, false, $useempty).'</td>';
+				print '<td>';
+				$useempty = (isset($conf->global->MAILING_CONTACT_DEFAULT_BULK_STATUS) && ($conf->global->MAILING_CONTACT_DEFAULT_BULK_STATUS == 2));
+				print $form->selectyesno('no_email', (GETPOSTISSET("no_email") ? GETPOST("no_email", 'int') : $object->no_email), 1, false, $useempty);
+				print '</td>';
 				print '</tr>';
 			}
 
@@ -1157,32 +1161,32 @@ if (is_object($objcanvas) && $objcanvas->displayCanvasExists($action)) {
 			}
 
 			// Other attributes
-			$parameters = array('colspan' => ' colspan="3"', 'cols'=> '3');
+			$parameters = array('colspan' => ' colspan="3"', 'cols'=> '3', 'colspanvalue'=> '3');
 			include DOL_DOCUMENT_ROOT.'/core/tpl/extrafields_edit.tpl.php';
 
 			$object->load_ref_elements();
 
 			if (!empty($conf->commande->enabled)) {
 				print '<tr><td>'.$langs->trans("ContactForOrders").'</td><td colspan="3">';
-				print $object->ref_commande ? $object->ref_commande : $langs->trans("NoContactForAnyOrder");
+				print $object->ref_commande ? $object->ref_commande : ('<span class="opacitymedium">'.$langs->trans("NoContactForAnyOrder").'</span>');
 				print '</td></tr>';
 			}
 
 			if (!empty($conf->propal->enabled)) {
 				print '<tr><td>'.$langs->trans("ContactForProposals").'</td><td colspan="3">';
-				print $object->ref_propal ? $object->ref_propal : $langs->trans("NoContactForAnyProposal");
+				print $object->ref_propal ? $object->ref_propal : ('<span class="opacitymedium">'.$langs->trans("NoContactForAnyProposal").'</span>');
 				print '</td></tr>';
 			}
 
 			if (!empty($conf->contrat->enabled)) {
 				print '<tr><td>'.$langs->trans("ContactForContracts").'</td><td colspan="3">';
-				print $object->ref_contrat ? $object->ref_contrat : $langs->trans("NoContactForAnyContract");
+				print $object->ref_contrat ? $object->ref_contrat : ('<span class="opacitymedium">'.$langs->trans("NoContactForAnyContract").'</span>');
 				print '</td></tr>';
 			}
 
 			if (!empty($conf->facture->enabled)) {
 				print '<tr><td>'.$langs->trans("ContactForInvoices").'</td><td colspan="3">';
-				print $object->ref_facturation ? $object->ref_facturation : $langs->trans("NoContactForAnyInvoice");
+				print $object->ref_facturation ? $object->ref_facturation : ('<span class="opacitymedium">'.$langs->trans("NoContactForAnyInvoice").'</span>');
 				print '</td></tr>';
 			}
 
@@ -1193,7 +1197,7 @@ if (is_object($objcanvas) && $objcanvas->displayCanvasExists($action)) {
 				$result = $dolibarr_user->fetch($object->user_id);
 				print $dolibarr_user->getLoginUrl(1);
 			} else {
-				print $langs->trans("NoDolibarrAccess");
+				print '<span class="opacitymedium">'.$langs->trans("NoDolibarrAccess").'</span>';
 			}
 			print '</td></tr>';
 
@@ -1284,7 +1288,7 @@ if (is_object($objcanvas) && $objcanvas->displayCanvasExists($action)) {
 			if ($objsoc->id > 0) {
 				$morehtmlref .= $objsoc->getNomUrl(1, 'contact');
 			} else {
-				$morehtmlref .= $langs->trans("ContactNotLinkedToCompany");
+				$morehtmlref .= '<span class="opacitymedium">'.$langs->trans("ContactNotLinkedToCompany").'</span>';
 			}
 		}
 		$morehtmlref .= '</div>';
@@ -1319,7 +1323,13 @@ if (is_object($objcanvas) && $objcanvas->displayCanvasExists($action)) {
 			if ($result < 0) {
 				setEventMessages($object->error, $object->errors, 'errors');
 			}
-			print '<tr><td>'.$langs->trans("No_Email").'</td><td>'.yn($object->no_email).'</td></tr>';
+			print '<tr><td>'.$langs->trans("No_Email").'</td><td>';
+			if ($object->email) {
+				print yn($object->no_email);
+			} else {
+				print '<span class="opacitymedium">'.$langs->trans("EMailNotDefined").'</span>';
+			}
+			print '</td></tr>';
 		}
 
 		print '<tr><td>'.$langs->trans("ContactVisibility").'</td><td>';

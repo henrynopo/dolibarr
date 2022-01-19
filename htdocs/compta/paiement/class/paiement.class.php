@@ -483,7 +483,7 @@ class Paiement extends CommonObject
 
 		// Verifier si paiement porte pas sur une facture classee
 		// Si c'est le cas, on refuse la suppression
-		$billsarray = $this->getBillsArray('fk_statut > 1');
+		$billsarray = $this->getBillsArray('f.fk_statut > 1');
 		if (is_array($billsarray)) {
 			if (count($billsarray)) {
 				$this->error = "ErrorDeletePaymentLinkedToAClosedInvoiceNotPossible";
@@ -800,7 +800,7 @@ class Paiement extends CommonObject
 
 			$sql = "UPDATE ".MAIN_DB_PREFIX.'bank';
 			$sql .= " SET dateo = '".$this->db->idate($date)."', datev = '".$this->db->idate($date)."'";
-			$sql .= " WHERE rowid IN (SELECT fk_bank FROM ".MAIN_DB_PREFIX."bank_url WHERE type = '".$this->db->escape($type)."' AND url_id = ".$this->id.")";
+			$sql .= " WHERE rowid IN (SELECT fk_bank FROM ".MAIN_DB_PREFIX."bank_url WHERE type = '".$this->db->escape($type)."' AND url_id = ".((int) $this->id).")";
 			$sql .= " AND rappro = 0";
 
 			$result = $this->db->query($sql);

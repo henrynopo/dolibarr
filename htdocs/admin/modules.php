@@ -133,7 +133,7 @@ if ($action == 'install') {
 
 	// $original_file should match format module_modulename-x.y[.z].zip
 	$original_file = basename($_FILES["fileinstall"]["name"]);
-	$original_file = preg_replace('/\(\d+\)\.zip$/i', '.zip', $original_file);
+	$original_file = preg_replace('/\s*\(\d+\)\.zip$/i', '.zip', $original_file);
 	$newfile = $conf->admin->dir_temp.'/'.$original_file.'/'.$original_file;
 
 	if (!$original_file) {
@@ -526,7 +526,7 @@ if ($mode == 'common' || $mode == 'commonkanban') {
 
 	$moreforfilter = '<div class="valignmiddle">';
 
-	$moreforfilter .= '<div class="floatright right pagination --module-list"><ul><li>';
+	$moreforfilter .= '<div class="floatright right pagination paddingtop --module-list"><ul><li>';
 	$moreforfilter .= dolGetButtonTitle($langs->trans('CheckForModuleUpdate'), $langs->trans('CheckForModuleUpdate').'<br>'.$langs->trans('CheckForModuleUpdateHelp'), 'fa fa-sync', $_SERVER["PHP_SELF"].'?action=checklastversion&token='.newToken().'&mode='.$mode.$param, '', 1, array('morecss'=>'reposition'));
 	$moreforfilter .= dolGetButtonTitleSeparator();
 	$moreforfilter .= dolGetButtonTitle($langs->trans('ViewKanban'), '', 'fa fa-th-list imgforviewmode', $_SERVER["PHP_SELF"].'?mode=commonkanban'.$param, '', ($mode == 'commonkanban' ? 2 : 1), array('morecss'=>'reposition'));
@@ -588,6 +588,11 @@ if ($mode == 'common' || $mode == 'commonkanban') {
 		setEventMessages($hookmanager->error, $hookmanager->errors, 'errors');
 	}
 
+	$disabled_modules = array();
+	if (!empty($_SESSION["disablemodules"])) {
+		$disabled_modules = explode(',', $_SESSION["disablemodules"]);
+	}
+
 	// Show list of modules
 	$oldfamily = '';
 	$foundoneexternalmodulewithupdate = 0;
@@ -613,6 +618,7 @@ if ($mode == 'common' || $mode == 'commonkanban') {
 			continue;
 		}
 
+		$modulenameshort = strtolower(preg_replace('/^mod/i', '', get_class($objMod)));
 		$const_name = 'MAIN_MODULE_'.strtoupper(preg_replace('/^mod/i', '', get_class($objMod)));
 
 		// Check filters
@@ -754,6 +760,11 @@ if ($mode == 'common' || $mode == 'commonkanban') {
 		$codeenabledisable = '';
 		$codetoconfig = '';
 
+		// Force disable of module disabled into session (for demo for example)
+		if (in_array($modulenameshort, $disabled_modules)) {
+			$objMod->disabled = true;
+		}
+
 		// Activate/Disable and Setup (2 columns)
 		if (!empty($conf->global->$const_name)) {	// If module is already activated
 			// Set $codeenabledisable
@@ -761,6 +772,7 @@ if ($mode == 'common' || $mode == 'commonkanban') {
 			if (!empty($arrayofwarnings[$modName])) {
 				$codeenabledisable .= '<!-- This module has a warning to show when we activate it (note: your country is '.$mysoc->country_code.') -->'."\n";
 			}
+
 			if (!empty($objMod->disabled)) {
 				$codeenabledisable .= $langs->trans("Disabled");
 			} elseif (!empty($objMod->always_enabled) || ((!empty($conf->multicompany->enabled) && $objMod->core_enabled) && ($user->entity || $conf->entity != 1))) {
@@ -1013,16 +1025,16 @@ if ($mode == 'marketplace') {
 
 		print '<div class="liste_titre liste_titre_bydiv centpercent"><div class="divsearchfield">';
 
-		print '<form method="POST" class="centpercent" id="searchFormList" action="'.$dolistore->url.'">';
+		print '<form method="POST" class="centpercent" id="searchFormList" action="'.urlencode($dolistore->url).'">';
 		?>
 					<input type="hidden" name="token" value="<?php echo newToken(); ?>">
 					<input type="hidden" name="mode" value="marketplace">
 					<div class="divsearchfield">
-						<input name="search_keyword" placeholder="<?php echo $langs->trans('Keyword') ?>" id="search_keyword" type="text" class="minwidth200" value="<?php echo $options['search'] ?>"><br>
+						<input name="search_keyword" placeholder="<?php echo $langs->trans('Keyword') ?>" id="search_keyword" type="text" class="minwidth200" value="<?php echo dol_escape_htmltag($options['search']) ?>"><br>
 					</div>
 					<div class="divsearchfield">
 						<input class="button buttongen" value="<?php echo $langs->trans('Rechercher') ?>" type="submit">
-						<a class="buttonreset" href="<?php echo $dolistore->url ?>"><?php echo $langs->trans('Reset') ?></a>
+						<a class="buttonreset" href="<?php echo urlencode($dolistore->url) ?>"><?php echo $langs->trans('Reset') ?></a>
 
 						&nbsp;
 					</div>
@@ -1039,7 +1051,9 @@ if ($mode == 'marketplace') {
 
 			<div id="category-tree-left">
 				<ul class="tree">
-					<?php echo $dolistore->get_categories(); ?>
+					<?php
+					echo $dolistore->get_categories();	// Do not use dol_escape_htmltag here, it is already a structured content
+					?>
 				</ul>
 			</div>
 			<div id="listing-content">

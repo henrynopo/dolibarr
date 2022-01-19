@@ -144,11 +144,6 @@ if (!GETPOST('action', 'aZ09') || preg_match('/upgrade/i', GETPOST('action', 'aZ
 
 	$db = getDoliDBInstance($conf->db->type, $conf->db->host, $conf->db->user, $conf->db->pass, $conf->db->name, $conf->db->port);
 
-	// Create the global $hookmanager object
-	include_once DOL_DOCUMENT_ROOT.'/core/class/hookmanager.class.php';
-	$hookmanager = new HookManager($db);
-	$hookmanager->initHooks(array('upgrade'));
-
 	if (!$db->connected) {
 		print '<tr><td colspan="4">'.$langs->trans("ErrorFailedToConnectToDatabase", $conf->db->name).'</td><td class="right">'.$langs->trans('Error').'</td></tr>';
 		dolibarr_install_syslog('upgrade2: failed to connect to database :'.$conf->db->name.' on '.$conf->db->host.' for user '.$conf->db->user, LOG_ERR);
@@ -181,6 +176,11 @@ if (!GETPOST('action', 'aZ09') || preg_match('/upgrade/i', GETPOST('action', 'aZ
 		}
 		$conf->global->MAIN_ENABLE_LOG_TO_HTML = 1;
 	}
+
+	// Create the global $hookmanager object
+	include_once DOL_DOCUMENT_ROOT.'/core/class/hookmanager.class.php';
+	$hookmanager = new HookManager($db);
+	$hookmanager->initHooks(array('upgrade'));
 
 
 	/***************************************************************************************
@@ -530,7 +530,7 @@ if (!GETPOST('action', 'aZ09') || preg_match('/upgrade/i', GETPOST('action', 'aZ
 
 	// Can call a dedicated external upgrade process
 	if (!$error) {
-		$parameters = array('versionfrom'=>$versionfrom, 'versionto='.$versionto);
+		$parameters = array('versionfrom' => $versionfrom, 'versionto' => $versionto);
 		$object = new stdClass();
 		$action = "upgrade";
 		$reshook = $hookmanager->executeHooks('doUpgrade2', $parameters, $object, $action); // Note that $action and $object may have been modified by some hooks
@@ -790,7 +790,7 @@ function migrate_paiements_orphelins_1($db, $langs, $conf)
 				// On cherche facture sans lien paiement et du meme montant et pour meme societe.
 				$sql = " SELECT distinct f.rowid from ".MAIN_DB_PREFIX."facture as f";
 				$sql .= " LEFT JOIN ".MAIN_DB_PREFIX."paiement_facture as pf ON f.rowid = pf.fk_facture";
-				$sql .= " WHERE f.fk_statut in (2,3) AND fk_soc = ".$row[$i]['socid']." AND total_ttc = ".$row[$i]['pamount'];
+				$sql .= " WHERE f.fk_statut in (2,3) AND fk_soc = ".((int) $row[$i]['socid'])." AND total_ttc = ".((float) $row[$i]['pamount']);
 				$sql .= " AND pf.fk_facture IS NULL";
 				$sql .= " ORDER BY f.fk_statut";
 				//print $sql.'<br>';
@@ -803,7 +803,7 @@ function migrate_paiements_orphelins_1($db, $langs, $conf)
 						$facid = $obj->rowid;
 
 						$sql = "INSERT INTO ".MAIN_DB_PREFIX."paiement_facture (fk_facture, fk_paiement, amount)";
-						$sql .= " VALUES (".$facid.",".$row[$i]['paymentid'].",".$row[$i]['pamount'].")";
+						$sql .= " VALUES (".((int) $facid).",".((int) $row[$i]['paymentid']).",".$row[$i]['pamount'].")";
 
 						$res += $db->query($sql);
 
@@ -895,13 +895,13 @@ function migrate_paiements_orphelins_2($db, $langs, $conf)
 			$res = 0;
 			for ($i = 0; $i < $num; $i++) {
 				if ($conf->global->MAIN_FEATURES_LEVEL == 2) {
-					print '* '.$row[$i]['datec'].' paymentid='.$row[$i]['paymentid'].' '.$row[$i]['pamount'].' fk_bank='.$row[$i]['fk_bank'].' '.$row[$i]['bamount'].' socid='.$row[$i]['socid'].'<br>';
+					print '* '.$row[$i]['datec'].' paymentid='.$row[$i]['paymentid'].' pamount='.$row[$i]['pamount'].' fk_bank='.$row[$i]['fk_bank'].' '.$row[$i]['bamount'].' socid='.$row[$i]['socid'].'<br>';
 				}
 
 				// On cherche facture sans lien paiement et du meme montant et pour meme societe.
 				$sql = " SELECT distinct f.rowid from ".MAIN_DB_PREFIX."facture as f";
 				$sql .= " LEFT JOIN ".MAIN_DB_PREFIX."paiement_facture as pf ON f.rowid = pf.fk_facture";
-				$sql .= " WHERE f.fk_statut in (2,3) AND fk_soc = ".$row[$i]['socid']." AND total_ttc = ".$row[$i]['pamount'];
+				$sql .= " WHERE f.fk_statut in (2,3) AND fk_soc = ".((int) $row[$i]['socid'])." AND total_ttc = ".((float) $row[$i]['pamount']);
 				$sql .= " AND pf.fk_facture IS NULL";
 				$sql .= " ORDER BY f.fk_statut";
 				//print $sql.'<br>';
@@ -914,7 +914,8 @@ function migrate_paiements_orphelins_2($db, $langs, $conf)
 						$facid = $obj->rowid;
 
 						$sql = "INSERT INTO ".MAIN_DB_PREFIX."paiement_facture (fk_facture, fk_paiement, amount)";
-						$sql .= " VALUES (".$facid.",".$row[$i]['paymentid'].",".$row[$i]['pamount'].")";
+						$sql .= " VALUES (".((int) $facid).",".((int) $row[$i]['paymentid']).",".$row[$i]['pamount'].")";
+
 						$res += $db->query($sql);
 
 						print $langs->trans('MigrationProcessPaymentUpdate', 'facid='.$facid.'-paymentid='.$row[$i]['paymentid'].'-amount='.$row[$i]['pamount'])."<br>\n";

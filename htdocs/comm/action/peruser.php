@@ -426,7 +426,7 @@ $massactionbutton = '';
 $viewmode = '';
 $viewmode .= '<a class="btnTitle reposition" href="'.DOL_URL_ROOT.'/comm/action/list.php?action=show_list&restore_lastsearch_values=1'.$paramnoactionodate.'">';
 //$viewmode .= '<span class="fa paddingleft imgforviewmode valignmiddle btnTitle-icon">';
-$viewmode .= img_picto($langs->trans("List"), 'object_list', 'class="pictoactionview block"');
+$viewmode .= img_picto($langs->trans("List"), 'object_list', 'class="imgforviewmode pictoactionview block"');
 //$viewmode .= '</span>';
 $viewmode .= '<span class="valignmiddle text-plus-circle btnTitle-label hideonsmartphone">'.$langs->trans("ViewList").'</span></a>';
 
@@ -579,7 +579,7 @@ if ($pid) {
 	$sql .= " AND a.fk_project = ".((int) $pid);
 }
 if (!$user->rights->societe->client->voir && !$socid) {
-	$sql .= " AND (a.fk_soc IS NULL OR sc.fk_user = ".$user->id.")";
+	$sql .= " AND (a.fk_soc IS NULL OR sc.fk_user = ".((int) $user->id).")";
 }
 if ($socid > 0) {
 	$sql .= ' AND a.fk_soc = '.((int) $socid);
@@ -892,15 +892,23 @@ while ($currentdaytoshow < $lastdaytoshow) {
 		}
 	} else {
 		/* Use this list to have for all users */
-		$sql = "SELECT u.rowid, u.lastname as lastname, u.firstname, u.statut, u.login, u.admin, u.entity";
+		$sql = "SELECT DISTINCT u.rowid, u.lastname as lastname, u.firstname, u.statut, u.login, u.admin, u.entity";
 		$sql .= " FROM ".MAIN_DB_PREFIX."user as u";
-		if ($usergroup > 0) {
-			$sql .= " LEFT JOIN ".MAIN_DB_PREFIX."usergroup_user as ug ON u.rowid = ug.fk_user";
+		if (!empty($conf->multicompany->enabled) && !empty($conf->global->MULTICOMPANY_TRANSVERSE_MODE)) {
+			$sql .= ", ".MAIN_DB_PREFIX."usergroup_user as ug";
+			$sql .= " WHERE ug.entity IN (".getEntity('usergroup').")";
+			$sql .= " AND ug.fk_user = u.rowid ";
+		} else {
+			if ($usergroup > 0)	{
+				$sql .= " LEFT JOIN ".MAIN_DB_PREFIX."usergroup_user as ug ON u.rowid = ug.fk_user";
+			}
+			$sql .= " WHERE u.entity IN (".getEntity('user').")";
 		}
-		$sql .= " WHERE u.statut = 1 AND u.entity IN (".getEntity('user').")";
-		if ($usergroup > 0) {
+		$sql .= " AND u.statut = 1";
+		if ($usergroup > 0)	{
 			$sql .= " AND ug.fk_usergroup = ".((int) $usergroup);
 		}
+
 		//print $sql;
 		$resql = $db->query($sql);
 		if ($resql) {

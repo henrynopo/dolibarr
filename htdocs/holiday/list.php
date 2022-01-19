@@ -484,9 +484,16 @@ if ($resql) {
 
 		print '<div class="tabsAction">';
 
-		$canedit = (($user->id == $user_id && $user->rights->holiday->write) || ($user->id != $user_id && (!empty($conf->global->MAIN_USE_ADVANCED_PERMS) && !empty($user->rights->holiday->writeall_advance))));
+		$cancreate = 0;
+		if ((empty($conf->global->MAIN_USE_ADVANCED_PERMS) && !empty($user->rights->holiday->writeall))
+			|| (!empty($conf->global->MAIN_USE_ADVANCED_PERMS) && !empty($user->rights->holiday->writeall_advance))) {
+				$cancreate = 1;
+		}
+		if (!empty($user->rights->holiday->write) && in_array($user_id, $childids)) {
+			$cancreate = 1;
+		}
 
-		if ($canedit) {
+		if ($cancreate) {
 			print '<a href="'.DOL_URL_ROOT.'/holiday/card.php?action=create&fuserid='.$user_id.'" class="butAction">'.$langs->trans("AddCP").'</a>';
 		}
 
@@ -627,6 +634,12 @@ if ($resql) {
 		print '</td>';
 	}
 
+	// End date
+	if (!empty($arrayfields['cp.date_valid']['checked'])) {
+		print '<td class="liste_titre center nowraponall">';
+		print '</td>';
+	}
+
 	// Extra fields
 	include DOL_DOCUMENT_ROOT.'/core/tpl/extrafields_list_search_input.tpl.php';
 	// Fields from hook
@@ -686,6 +699,9 @@ if ($resql) {
 	}
 	if (!empty($arrayfields['cp.date_fin']['checked'])) {
 		print_liste_field_titre($arrayfields['cp.date_fin']['label'], $_SERVER["PHP_SELF"], "cp.date_fin", "", $param, '', $sortfield, $sortorder, 'center ');
+	}
+	if (!empty($arrayfields['cp.date_valid']['checked'])) {
+		print_liste_field_titre($arrayfields['cp.date_valid']['label'], $_SERVER["PHP_SELF"], "cp.date_valid", "", $param, '', $sortfield, $sortorder, 'center ');
 	}
 	// Extra fields
 	include DOL_DOCUMENT_ROOT.'/core/tpl/extrafields_list_search_title.tpl.php';
@@ -816,6 +832,18 @@ if ($resql) {
 					$totalarray['nbfield']++;
 				}
 			}
+			if (!empty($arrayfields['cp.date_valid']['checked'])) {		// date_valid is both date_valid but also date_approval
+				print '<td class="center">';
+				print dol_print_date($db->jdate($obj->date_valid), 'day');
+				print '</td>';
+				if (!$i) $totalarray['nbfield']++;
+			}
+			/*if (!empty($arrayfields['cp.date_approve']['checked'])) {
+				 print '<td class="center">';
+				 print dol_print_date($db->jdate($obj->date_approve), 'day');
+				 print '</td>';
+				 if (!$i) $totalarray['nbfield']++;
+			 }*/
 
 			// Extra fields
 			include DOL_DOCUMENT_ROOT.'/core/tpl/extrafields_list_print_fields.tpl.php';

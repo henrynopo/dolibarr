@@ -228,6 +228,7 @@ function restrictedArea($user, $features, $objectid = 0, $tableandshare = '', $f
 		$features = 'produit';
 	}
 
+
 	// Get more permissions checks from hooks
 	$parameters = array('features'=>$features, 'originalfeatures'=>$originalfeatures, 'objectid'=>$objectid, 'dbt_select'=>$dbt_select, 'idtype'=>$dbt_select, 'isdraft'=>$isdraft);
 	$reshook = $hookmanager->executeHooks('restrictedArea', $parameters);
@@ -489,9 +490,13 @@ function restrictedArea($user, $features, $objectid = 0, $tableandshare = '', $f
 				if (!$user->rights->fournisseur->commande->supprimer) {
 					$deleteok = 0;
 				}
-			} elseif ($feature == 'payment_supplier') {
+			} elseif ($feature == 'payment_supplier') {	// Permission to delete a payment of an invoice is permission to edit an invoice.
 				if (!$user->rights->fournisseur->facture->creer) {
 					$deleteok = 0;
+				}
+			} elseif ($feature == 'payment') {	// Permission to delete a payment of an invoice is permission to edit an invoice.
+				if (!$user->rights->facture->creer) {
+						$deleteok = 0;
 				}
 			} elseif ($feature == 'banque') {
 				if (!$user->rights->banque->modifier) {
@@ -513,8 +518,8 @@ function restrictedArea($user, $features, $objectid = 0, $tableandshare = '', $f
 				if (!$user->rights->salaries->delete) {
 					$deleteok = 0;
 				}
-			} elseif ($feature == 'salaries') {
-				if (!$user->rights->salaries->delete) {
+			} elseif ($feature == 'adherent') {
+				if (!$user->rights->adherent->supprimer) {
 					$deleteok = 0;
 				}
 			} elseif (!empty($feature2)) {							// This is for permissions on 2 levels
@@ -598,7 +603,7 @@ function checkUserAccessToObject($user, array $featuresarray, $objectid = 0, $ta
 	foreach ($featuresarray as $feature) {
 		$sql = '';
 
-		//var_dump($feature);
+		//var_dump($feature);exit;
 
 		// For backward compatibility
 		if ($feature == 'member') {
@@ -611,7 +616,7 @@ function checkUserAccessToObject($user, array $featuresarray, $objectid = 0, $ta
 			$feature = 'projet_task';
 		}
 
-		$check = array('adherent', 'banque', 'bom', 'don', 'mrp', 'user', 'usergroup', 'payment', 'payment_supplier', 'product', 'produit', 'service', 'produit|service', 'categorie', 'resource', 'expensereport', 'holiday', 'salary', 'website'); // Test on entity only (Objects with no link to company)
+		$check = array('adherent', 'banque', 'bom', 'don', 'mrp', 'user', 'usergroup', 'payment', 'payment_supplier', 'product', 'produit', 'service', 'produit|service', 'categorie', 'resource', 'expensereport', 'holiday', 'salaries', 'website'); // Test on entity only (Objects with no link to company)
 		$checksoc = array('societe'); // Test for societe object
 		$checkother = array('contact', 'agenda'); // Test on entity + link to third party on field $dbt_keyfield. Allowed if link is empty (Ex: contacts...).
 		$checkproject = array('projet', 'project'); // Test for project object
@@ -668,7 +673,7 @@ function checkUserAccessToObject($user, array $featuresarray, $objectid = 0, $ta
 				$sql .= " FROM (".MAIN_DB_PREFIX."societe_commerciaux as sc";
 				$sql .= ", ".MAIN_DB_PREFIX."societe as s)";
 				$sql .= " WHERE sc.fk_soc IN (".$db->sanitize($objectid, 1).")";
-				$sql .= " AND sc.fk_user = ".$user->id;
+				$sql .= " AND sc.fk_user = ".((int) $user->id);
 				$sql .= " AND sc.fk_soc = s.rowid";
 				$sql .= " AND s.entity IN (".getEntity($sharedelement, 1).")";
 			} elseif (!empty($conf->multicompany->enabled)) {
@@ -684,7 +689,7 @@ function checkUserAccessToObject($user, array $featuresarray, $objectid = 0, $ta
 				$sql = "SELECT COUNT(dbt.".$dbt_select.") as nb";
 				$sql .= " FROM ".MAIN_DB_PREFIX.$dbtablename." as dbt";
 				$sql .= " WHERE dbt.".$dbt_select." IN (".$db->sanitize($objectid, 1).")";
-				$sql .= " AND dbt.fk_soc = ".$user->socid;
+				$sql .= " AND dbt.fk_soc = ".((int) $user->socid);
 			} elseif (!empty($conf->societe->enabled) && ($user->rights->societe->lire && !$user->rights->societe->client->voir)) {
 				// If internal user: Check permission for internal users that are restricted on their objects
 				$sql = "SELECT COUNT(dbt.".$dbt_select.") as nb";
@@ -754,7 +759,7 @@ function checkUserAccessToObject($user, array $featuresarray, $objectid = 0, $ta
 				$sql = "SELECT COUNT(dbt.".$dbt_keyfield.") as nb";
 				$sql .= " FROM ".MAIN_DB_PREFIX.$dbtablename." as dbt";
 				$sql .= " WHERE dbt.rowid IN (".$db->sanitize($objectid, 1).")";
-				$sql .= " AND dbt.".$dbt_keyfield." = ".$user->socid;
+				$sql .= " AND dbt.".$dbt_keyfield." = ".((int) $user->socid);
 			} elseif (!empty($conf->societe->enabled) && !$user->rights->societe->client->voir) {
 				// If internal user: Check permission for internal users that are restricted on their objects
 				if ($feature != 'ticket') {
@@ -767,15 +772,15 @@ function checkUserAccessToObject($user, array $featuresarray, $objectid = 0, $ta
 					$sql .= " WHERE dbt.".$dbt_select." IN (".$db->sanitize($objectid, 1).")";
 					$sql .= " AND dbt.entity IN (".getEntity($sharedelement, 1).")";
 					$sql .= " AND sc.fk_soc = dbt.".$dbt_keyfield;
-					$sql .= " AND sc.fk_user = ".$user->id;
+					$sql .= " AND sc.fk_user = ".((int) $user->id);
 				} else {
 					// On ticket, the thirdparty is not mandatory, so we need a special test to accept record with no thirdparties.
 					$sql = "SELECT COUNT(dbt.".$dbt_select.") as nb";
 					$sql .= " FROM ".MAIN_DB_PREFIX.$dbtablename." as dbt";
-					$sql .= " LEFT JOIN ".MAIN_DB_PREFIX."societe_commerciaux as sc ON sc.fk_soc = dbt.".$dbt_keyfield." AND sc.fk_user = ".$user->id;
+					$sql .= " LEFT JOIN ".MAIN_DB_PREFIX."societe_commerciaux as sc ON sc.fk_soc = dbt.".$dbt_keyfield." AND sc.fk_user = ".((int) $user->id);
 					$sql .= " WHERE dbt.".$dbt_select." IN (".$db->sanitize($objectid, 1).")";
 					$sql .= " AND dbt.entity IN (".getEntity($sharedelement, 1).")";
-					$sql .= " AND (sc.fk_user = ".$user->id." OR sc.fk_user IS NULL)";
+					$sql .= " AND (sc.fk_user = ".((int) $user->id)." OR sc.fk_user IS NULL)";
 				}
 			} elseif (!empty($conf->multicompany->enabled)) {
 				// If multicompany and internal users with all permissions, check user is in correct entity

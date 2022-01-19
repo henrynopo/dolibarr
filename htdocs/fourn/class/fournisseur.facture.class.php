@@ -415,6 +415,7 @@ class FactureFournisseur extends CommonInvoice
 		$sql = "INSERT INTO ".MAIN_DB_PREFIX."facture_fourn (";
 		$sql .= "ref";
 		$sql .= ", ref_supplier";
+		$sql .= ", ref_ext";
 		$sql .= ", entity";
 		$sql .= ", type";
 		$sql .= ", libelle";
@@ -438,6 +439,7 @@ class FactureFournisseur extends CommonInvoice
 		$sql .= " VALUES (";
 		$sql .= "'(PROV)'";
 		$sql .= ", '".$this->db->escape($this->ref_supplier)."'";
+		$sql .= ", '".$this->db->escape($this->ref_ext)."'";
 		$sql .= ", ".$conf->entity;
 		$sql .= ", '".$this->db->escape($this->type)."'";
 		$sql .= ", '".$this->db->escape(isset($this->label) ? $this->label : (isset($this->libelle) ? $this->libelle : ''))."'";
@@ -647,6 +649,7 @@ class FactureFournisseur extends CommonInvoice
 		$sql .= " t.rowid,";
 		$sql .= " t.ref,";
 		$sql .= " t.ref_supplier,";
+		$sql .= " t.ref_ext,";
 		$sql .= " t.entity,";
 		$sql .= " t.type,";
 		$sql .= " t.fk_soc,";
@@ -708,6 +711,7 @@ class FactureFournisseur extends CommonInvoice
 				$this->ref = $obj->ref ? $obj->ref : $obj->rowid; // We take rowid if ref is empty for backward compatibility
 
 				$this->ref_supplier = $obj->ref_supplier;
+				$this->ref_ext			= $obj->ref_ext;
 				$this->entity				= $obj->entity;
 				$this->type					= empty($obj->type) ? self::TYPE_STANDARD : $obj->type;
 				$this->fk_soc				= $obj->fk_soc;
@@ -924,6 +928,9 @@ class FactureFournisseur extends CommonInvoice
 		if (isset($this->ref_supplier)) {
 			$this->ref_supplier = trim($this->ref_supplier);
 		}
+		if (isset($this->ref_ext)) {
+			$this->ref_ext = trim($this->ref_ext);
+		}
 		if (isset($this->entity)) {
 			$this->entity = trim($this->entity);
 		}
@@ -1013,6 +1020,7 @@ class FactureFournisseur extends CommonInvoice
 		$sql = "UPDATE ".MAIN_DB_PREFIX."facture_fourn SET";
 		$sql .= " ref=".(isset($this->ref) ? "'".$this->db->escape($this->ref)."'" : "null").",";
 		$sql .= " ref_supplier=".(isset($this->ref_supplier) ? "'".$this->db->escape($this->ref_supplier)."'" : "null").",";
+		$sql .= " ref_ext=".(isset($this->ref_ext) ? "'".$this->db->escape($this->ref_ext)."'" : "null").",";
 		$sql .= " entity=".(isset($this->entity) ? $this->entity : "null").",";
 		$sql .= " type=".(isset($this->type) ? $this->type : "null").",";
 		$sql .= " fk_soc=".(isset($this->fk_soc) ? $this->fk_soc : "null").",";
@@ -1949,8 +1957,8 @@ class FactureFournisseur extends CommonInvoice
 			$this->line->desc = $desc;
 			$this->line->ref_supplier = $ref_supplier;
 
-			$this->line->qty = ($this->type == self::TYPE_CREDIT_NOTE ?abs($qty) : $qty); // For credit note, quantity is always positive and unit price negative
-			$this->line->subprice = ($this->type == self::TYPE_CREDIT_NOTE ?-abs($pu_ht) : $pu_ht); // For credit note, unit price always negative, always positive otherwise
+			$this->line->qty = ($this->type == self::TYPE_CREDIT_NOTE ? abs($qty) : $qty); // For credit note, quantity is always positive and unit price negative
+			$this->line->subprice = ($this->type == self::TYPE_CREDIT_NOTE ? -abs($pu_ht) : $pu_ht); // For credit note, unit price always negative, always positive otherwise
 
 			$this->line->vat_src_code = $vat_src_code;
 			$this->line->tva_tx = $txtva;
@@ -1959,11 +1967,11 @@ class FactureFournisseur extends CommonInvoice
 			$this->line->localtax1_type = empty($localtaxes_type[0]) ? '' : $localtaxes_type[0];
 			$this->line->localtax2_type = empty($localtaxes_type[2]) ? '' : $localtaxes_type[2];
 
-			$this->line->total_ht = (($this->type == self::TYPE_CREDIT_NOTE || $qty < 0) ?-abs($total_ht) : $total_ht); // For credit note and if qty is negative, total is negative
-			$this->line->total_tva = (($this->type == self::TYPE_CREDIT_NOTE || $qty < 0) ?-abs($total_tva) : $total_tva);
-			$this->line->total_localtax1 = (($this->type == self::TYPE_CREDIT_NOTE || $qty < 0) ?-abs($total_localtax1) : $total_localtax1);
-			$this->line->total_localtax2 = (($this->type == self::TYPE_CREDIT_NOTE || $qty < 0) ?-abs($total_localtax2) : $total_localtax2);
-			$this->line->total_ttc = (($this->type == self::TYPE_CREDIT_NOTE || $qty < 0) ?-abs($total_ttc) : $total_ttc);
+			$this->line->total_ht = (($this->type == self::TYPE_CREDIT_NOTE || $qty < 0) ? -abs($total_ht) : $total_ht); // For credit note and if qty is negative, total is negative
+			$this->line->total_tva = (($this->type == self::TYPE_CREDIT_NOTE || $qty < 0) ? -abs($total_tva) : $total_tva); // For credit note and if qty is negative, total is negative
+			$this->line->total_localtax1 = (($this->type == self::TYPE_CREDIT_NOTE || $qty < 0) ? -abs($total_localtax1) : $total_localtax1); // For credit note and if qty is negative, total is negative
+			$this->line->total_localtax2 = (($this->type == self::TYPE_CREDIT_NOTE || $qty < 0) ? -abs($total_localtax2) : $total_localtax2); // For credit note and if qty is negative, total is negative
+			$this->line->total_ttc = (($this->type == self::TYPE_CREDIT_NOTE || $qty < 0) ? -abs($total_ttc) : $total_ttc); // For credit note and if qty is negative, total is negative
 
 			$this->line->fk_product = $fk_product;
 			$this->line->product_type = $type;
@@ -1984,10 +1992,11 @@ class FactureFournisseur extends CommonInvoice
 			// Multicurrency
 			$this->line->fk_multicurrency = $this->fk_multicurrency;
 			$this->line->multicurrency_code = $this->multicurrency_code;
-			$this->line->multicurrency_subprice		= $pu_ht_devise;
-			$this->line->multicurrency_total_ht 	= $multicurrency_total_ht;
-			$this->line->multicurrency_total_tva 	= $multicurrency_total_tva;
-			$this->line->multicurrency_total_ttc 	= $multicurrency_total_ttc;
+			$this->line->multicurrency_subprice	= ($this->type == self::TYPE_CREDIT_NOTE ? -abs($pu_ht_devise) : $pu_ht_devise); // For credit note, unit price always negative, always positive otherwise
+
+			$this->line->multicurrency_total_ht = (($this->type == self::TYPE_CREDIT_NOTE || $qty < 0) ? -abs($multicurrency_total_ht) : $multicurrency_total_ht); // For credit note and if qty is negative, total is negative
+			$this->line->multicurrency_total_tva = (($this->type == self::TYPE_CREDIT_NOTE || $qty < 0) ? -abs($multicurrency_total_tva) : $multicurrency_total_tva); // For credit note and if qty is negative, total is negative
+			$this->line->multicurrency_total_ttc = (($this->type == self::TYPE_CREDIT_NOTE || $qty < 0) ? -abs($multicurrency_total_ttc) : $multicurrency_total_ttc); // For credit note and if qty is negative, total is negative
 
 			if (is_array($array_options) && count($array_options) > 0) {
 				$this->line->array_options = $array_options;
@@ -2261,6 +2270,7 @@ class FactureFournisseur extends CommonInvoice
 		if ($result) {
 			if ($this->db->num_rows($result)) {
 				$obj = $this->db->fetch_object($result);
+
 				$this->id = $obj->rowid;
 				if ($obj->fk_user_author) {
 					$cuser = new User($this->db);
@@ -2277,8 +2287,8 @@ class FactureFournisseur extends CommonInvoice
 					$muser->fetch($obj->fk_user_modif);
 					$this->user_modification = $muser;
 				}
-				$this->date_creation     = $this->db->idate($obj->datec);
-				$this->date_modification = $this->db->idate($obj->datem);
+				$this->date_creation     = $this->db->jdate($obj->datec);
+				$this->date_modification = $this->db->jdate($obj->datem);
 				//$this->date_validation   = $obj->datev; // This field is not available. Should be store into log table and using this function should be replaced with showing content of log (like for supplier orders)
 			}
 			$this->db->free($result);
@@ -2314,7 +2324,7 @@ class FactureFournisseur extends CommonInvoice
 		$sql .= " AND pf.fk_paiementfourn IS NULL"; // Aucun paiement deja fait
 		$sql .= " AND ff.fk_statut IS NULL"; // Renvoi vrai si pas facture de remplacement
 		if ($socid > 0) {
-			$sql .= " AND f.fk_soc = ".$socid;
+			$sql .= " AND f.fk_soc = ".((int) $socid);
 		}
 		$sql .= " ORDER BY f.ref";
 
@@ -2362,7 +2372,7 @@ class FactureFournisseur extends CommonInvoice
 		$sql .= " AND ff.type=".self::TYPE_REPLACEMENT.")";
 		$sql .= " AND f.type != ".self::TYPE_CREDIT_NOTE; // Type non 2 si facture non avoir
 		if ($socid > 0) {
-			$sql .= " AND f.fk_soc = ".$socid;
+			$sql .= " AND f.fk_soc = ".((int) $socid);
 		}
 		$sql .= " ORDER BY f.ref";
 
@@ -2408,13 +2418,13 @@ class FactureFournisseur extends CommonInvoice
 			$sql .= ", ".MAIN_DB_PREFIX."societe_commerciaux as sc";
 		}
 		$sql .= ' WHERE ff.paye=0';
-		$sql .= ' AND ff.fk_statut > 0';
+		$sql .= ' AND ff.fk_statut = '.self::STATUS_VALIDATED;
 		$sql .= " AND ff.entity = ".$conf->entity;
 		if ($user->socid) {
 			$sql .= ' AND ff.fk_soc = '.$user->socid;
 		}
 		if (!$user->rights->societe->client->voir && !$user->socid) {
-			$sql .= " AND ff.fk_soc = sc.fk_soc AND sc.fk_user = ".$user->id;
+			$sql .= " AND ff.fk_soc = sc.fk_soc AND sc.fk_user = ".((int) $user->id);
 		}
 
 		$resql = $this->db->query($sql);
@@ -2440,7 +2450,7 @@ class FactureFournisseur extends CommonInvoice
 
 				if ($facturestatic->hasDelay()) {
 					$response->nbtodolate++;
-					$response->url_late = DOL_URL_ROOT.'/fourn/facture/list.php?option=late&mainmenu=billing&leftmenu=suppliers_bills';
+					$response->url_late = DOL_URL_ROOT.'/fourn/facture/list.php?search_option=late&mainmenu=billing&leftmenu=suppliers_bills';
 				}
 			}
 			$this->db->free($resql);
@@ -2761,7 +2771,7 @@ class FactureFournisseur extends CommonInvoice
 		$sql .= " LEFT JOIN ".MAIN_DB_PREFIX."societe as s ON f.fk_soc = s.rowid";
 		if (!$user->rights->societe->client->voir && !$user->socid) {
 			$sql .= " LEFT JOIN ".MAIN_DB_PREFIX."societe_commerciaux as sc ON s.rowid = sc.fk_soc";
-			$sql .= " WHERE sc.fk_user = ".$user->id;
+			$sql .= " WHERE sc.fk_user = ".((int) $user->id);
 			$clause = "AND";
 		}
 		$sql .= " ".$clause." f.entity = ".$conf->entity;
@@ -3387,19 +3397,10 @@ class SupplierInvoiceLine extends CommonObjectLine
 			$this->multicurrency_total_ttc = 0;
 		}
 
+		$fk_product = (int) $this->fk_product;
+		$fk_unit = (int) $this->fk_unit;
+
 		$this->db->begin();
-
-		if (empty($this->fk_product)) {
-			$fk_product = "null";
-		} else {
-			$fk_product = $this->fk_product;
-		}
-
-		if (empty($this->fk_unit)) {
-			$fk_unit = "null";
-		} else {
-			$fk_unit = "'".$this->db->escape($this->fk_unit)."'";
-		}
 
 		$sql = "UPDATE ".MAIN_DB_PREFIX."facture_fourn_det SET";
 		$sql .= "  description ='".$this->db->escape($this->description)."'";
@@ -3410,7 +3411,7 @@ class SupplierInvoiceLine extends CommonObjectLine
 		$sql .= ", pu_ttc = ".price2num($this->pu_ttc);
 		$sql .= ", qty = ".price2num($this->qty);
 		$sql .= ", remise_percent = ".price2num($this->remise_percent);
-		if ($this->fk_remise_except) $sql .= ", fk_remise_except=".((int) $this->fk_remise_except);
+		if ($this->fk_remise_except > 0) $sql .= ", fk_remise_except=".((int) $this->fk_remise_except);
 		else $sql .= ", fk_remise_except=null";
 		$sql .= ", vat_src_code = '".$this->db->escape(empty($this->vat_src_code) ? '' : $this->vat_src_code)."'";
 		$sql .= ", tva_tx = ".price2num($this->tva_tx);
@@ -3423,7 +3424,7 @@ class SupplierInvoiceLine extends CommonObjectLine
 		$sql .= ", total_localtax1= ".price2num($this->total_localtax1);
 		$sql .= ", total_localtax2= ".price2num($this->total_localtax2);
 		$sql .= ", total_ttc = ".price2num($this->total_ttc);
-		$sql .= ", fk_product = ".((int) $fk_product);
+		$sql .= ", fk_product = ".($fk_product > 0 ? (int) $fk_product : 'null');
 		$sql .= ", product_type = ".((int) $this->product_type);
 		$sql .= ", info_bits = ".((int) $this->info_bits);
 		$sql .= ", fk_unit = ".($fk_unit > 0 ? (int) $fk_unit : 'null');

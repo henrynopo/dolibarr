@@ -371,7 +371,7 @@ if ($action == 'create' || $action == 'confirm_paiement' || $action == 'add_paie
 	$sql .= ' WHERE f.fk_soc = s.rowid';
 	$sql .= ' AND f.rowid = '.((int) $facid);
 	if (!$user->rights->societe->client->voir && !$socid) {
-		$sql .= " AND s.rowid = sc.fk_soc AND sc.fk_user = ".$user->id;
+		$sql .= " AND s.rowid = sc.fk_soc AND sc.fk_user = ".((int) $user->id);
 	}
 	$resql = $db->query($sql);
 	if ($resql) {
@@ -689,11 +689,9 @@ if ($action == 'create' || $action == 'confirm_paiement' || $action == 'add_paie
 										}
 											print '<input type=hidden class="multicurrency_remain" name="'.$nameRemain.'" value="'.$multicurrency_remaintopay.'">';
 										print '<input type="text" size="8" class="multicurrency_amount" name="'.$namef.'" value="'.$_POST[$namef].'">';
-										//print '<input type="text" size="8" class="amount" name="'.$namef.'" value="'.dol_escape_htmltag(GETPOST($namef)).'">';	// class is requied to be used by javascript callForResult();
 									} else {
 										print '<input type="text" size="8" name="'.$namef.'_disabled" value="'.$_POST[$namef].'" disabled>';
 										print '<input type="hidden" name="'.$namef.'" value="'.$_POST[$namef].'">';
-										//print '<input type="hidden" class="amount" name="'.$namef.'" value="'.dol_escape_htmltag(GETPOST($namef)).'">';	// class is requied to be used by javascript callForResult();
 									}
 								}
 								print "</td>";
@@ -729,8 +727,6 @@ if ($action == 'create' || $action == 'confirm_paiement' || $action == 'add_paie
 								print '<input type="hidden" class="amount" name="'.$namef.'" value="'.dol_escape_htmltag(GETPOST($namef)).'">';	// class is requied to be used by javascript callForResult();
 							}
 							print "</td>";
-
-
 
 							print "</tr>\n";
 							$total += $objp->total_ht;

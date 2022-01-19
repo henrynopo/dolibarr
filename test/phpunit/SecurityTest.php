@@ -349,7 +349,8 @@ class SecurityTest extends PHPUnit\Framework\TestCase
 		$_POST["param1"]="333";
 		$_GET["param2"]='a/b#e(pr)qq-rr\cc';
 		$_GET["param3"]='"&#110;a/b#e(pr)qq-rr\cc';    // Same than param2 + " and &#110;
-		$_GET["param4"]='../dir';
+		$_GET["param4a"]='..&#47;../dir';
+		$_GET["param4b"]='..&#92;..\dirwindows';
 		$_GET["param5"]="a_1-b";
 		$_POST["param6"]="&quot;&gt;<svg o&#110;load='console.log(&quot;123&quot;)'&gt;";
 		$_POST["param6b"]='<<<../>../>../svg><<<../>../>../animate =alert(1)>abc';
@@ -394,9 +395,13 @@ class SecurityTest extends PHPUnit\Framework\TestCase
 		print __METHOD__." result=".$result."\n";
 		$this->assertEquals($result, 'na/b#e(pr)qq-rr\cc', 'Test on param3');
 
-		$result=GETPOST("param4", 'alpha');  // Must return string sanitized from ../
+		$result=GETPOST("param4a", 'alpha');  // Must return string sanitized from ../
 		print __METHOD__." result=".$result."\n";
 		$this->assertEquals($result, 'dir');
+
+		$result=GETPOST("param4b", 'alpha');  // Must return string sanitized from ../
+		print __METHOD__." result=".$result."\n";
+		$this->assertEquals($result, 'dirwindows');
 
 		// Test with aZ09
 
@@ -412,7 +417,11 @@ class SecurityTest extends PHPUnit\Framework\TestCase
 		print __METHOD__." result=".$result."\n";
 		$this->assertEquals($result, '');
 
-		$result=GETPOST("param4", 'aZ09');  // Must return '' as string contains car not in aZ09 definition
+		$result=GETPOST("param4a", 'aZ09');  // Must return '' as string contains car not in aZ09 definition
+		print __METHOD__." result=".$result."\n";
+		$this->assertEquals('', $result);
+
+		$result=GETPOST("param4b", 'aZ09');  // Must return '' as string contains car not in aZ09 definition
 		print __METHOD__." result=".$result."\n";
 		$this->assertEquals('', $result);
 
@@ -506,7 +515,7 @@ class SecurityTest extends PHPUnit\Framework\TestCase
 
 		$result=GETPOST("param14", 'restricthtml');
 		print __METHOD__." result=".$result."\n";
-		$this->assertEquals("Text with ' encoded with the numeric html entity converted into text entity &apos; (like when submited by CKEditor)", $result, 'Test 14');
+		$this->assertEquals("Text with ' encoded with the numeric html entity converted into text entity &#39; (like when submited by CKEditor)", $result, 'Test 14');
 
 		$result=GETPOST("param15", 'restricthtml');		// <img onerror<=alert(document.domain)> src=>0xbeefed
 		print __METHOD__." result=".$result."\n";
@@ -585,7 +594,7 @@ class SecurityTest extends PHPUnit\Framework\TestCase
 		print __METHOD__." login=".$login."\n";
 		$this->assertEquals($login, 'admin', 'The test to check if pass of user "admin" is "admin" has failed');
 
-		$login=checkLoginPassEntity('admin', 'admin', 1, array('http','dolibarr'));    // Should work because of second authetntication method
+		$login=checkLoginPassEntity('admin', 'admin', 1, array('http','dolibarr'));    // Should work because of second authentication method
 		print __METHOD__." login=".$login."\n";
 		$this->assertEquals($login, 'admin');
 
@@ -740,42 +749,42 @@ class SecurityTest extends PHPUnit\Framework\TestCase
 		$url = 'https://www.dolibarr.fr';	// This is a redirect 301 page
 		$tmp = getURLContent($url, 'GET', '', 0);	// We do NOT follow
 		print __METHOD__." url=".$url."\n";
-		$this->assertEquals(301, $tmp['http_code'], 'GET url 301 without following -> 301');
+		$this->assertEquals(301, $tmp['http_code'], 'Should GET url 301 without following -> 301');
 
 		$url = 'https://www.dolibarr.fr';	// This is a redirect 301 page
-		$tmp = getURLContent($url);		// We DO follow
+		$tmp = getURLContent($url);		// We DO follow a page with return 300 so result should be 200
 		print __METHOD__." url=".$url."\n";
-		$this->assertEquals(200, $tmp['http_code'], 'GET url 301 with following -> 200');	// Test error if return does not contains 'not supported'
+		$this->assertEquals(200, $tmp['http_code'], 'Should GET url 301 with following -> 200 but we get '.$tmp['http_code']);
 
 		$url = 'http://localhost';
 		$tmp = getURLContent($url, 'GET', '', 0, array(), array('http', 'https'), 0);		// Only external URL
 		print __METHOD__." url=".$url."\n";
-		$this->assertEquals(400, $tmp['http_code'], 'GET url to '.$url.' that resolves to a local URL');	// Test we receive an error because localtest.me is not an external URL
+		$this->assertEquals(400, $tmp['http_code'], 'Should GET url to '.$url.' that resolves to a local URL');	// Test we receive an error because localtest.me is not an external URL
 
 		$url = 'http://127.0.0.1';
 		$tmp = getURLContent($url, 'GET', '', 0, array(), array('http', 'https'), 0);		// Only external URL
 		print __METHOD__." url=".$url."\n";
-		$this->assertEquals(400, $tmp['http_code'], 'GET url to '.$url.' that is a local URL');	// Test we receive an error because 127.0.0.1 is not an external URL
+		$this->assertEquals(400, $tmp['http_code'], 'Should GET url to '.$url.' that is a local URL');	// Test we receive an error because 127.0.0.1 is not an external URL
 
 		$url = 'http://127.0.2.1';
 		$tmp = getURLContent($url, 'GET', '', 0, array(), array('http', 'https'), 0);		// Only external URL
 		print __METHOD__." url=".$url."\n";
-		$this->assertEquals(400, $tmp['http_code'], 'GET url to '.$url.' that is a local URL');	// Test we receive an error because 127.0.2.1 is not an external URL
+		$this->assertEquals(400, $tmp['http_code'], 'Should GET url to '.$url.' that is a local URL');	// Test we receive an error because 127.0.2.1 is not an external URL
 
 		$url = 'https://169.254.0.1';
 		$tmp = getURLContent($url, 'GET', '', 0, array(), array('http', 'https'), 0);		// Only external URL
 		print __METHOD__." url=".$url."\n";
-		$this->assertEquals(400, $tmp['http_code'], 'GET url to '.$url.' that is a local URL');	// Test we receive an error because 169.254.0.1 is not an external URL
+		$this->assertEquals(400, $tmp['http_code'], 'Should GET url to '.$url.' that is a local URL');	// Test we receive an error because 169.254.0.1 is not an external URL
 
 		$url = 'http://[::1]';
 		$tmp = getURLContent($url, 'GET', '', 0, array(), array('http', 'https'), 0);		// Only external URL
 		print __METHOD__." url=".$url."\n";
-		$this->assertEquals(400, $tmp['http_code'], 'GET url to '.$url.' that is a local URL');	// Test we receive an error because [::1] is not an external URL
+		$this->assertEquals(400, $tmp['http_code'], 'Should GET url to '.$url.' that is a local URL');	// Test we receive an error because [::1] is not an external URL
 
 		/*$url = 'localtest.me';
 		 $tmp = getURLContent($url, 'GET', '', 0, array(), array('http', 'https'), 0);		// Only external URL
 		 print __METHOD__." url=".$url."\n";
-		 $this->assertEquals(400, $tmp['http_code'], 'GET url to '.$url.' that resolves to a local URL');	// Test we receive an error because localtest.me is not an external URL
+		 $this->assertEquals(400, $tmp['http_code'], 'Should GET url to '.$url.' that resolves to a local URL');	// Test we receive an error because localtest.me is not an external URL
 		 */
 
 		return 0;

@@ -107,6 +107,13 @@ $extrafields = new ExtraFields($db);
 $extrafields->fetch_name_optionals_label($projectstatic->table_element);
 $extrafields->fetch_name_optionals_label($object->table_element);
 
+if ($id > 0 || $ref) {
+	$object->fetch($id, $ref);
+}
+
+restrictedArea($user, 'projet', $object->fk_project, 'projet&project');
+
+
 
 /*
  * Actions
@@ -722,7 +729,7 @@ if (($id > 0 || !empty($ref)) || $projectidforalltimes > 0) {
 			print '<div class="ficheaddleft">';
 			print '<div class="underbanner clearboth"></div>';
 
-			print '<table class="border tableforfield" width="100%">';
+			print '<table class="border tableforfield centpercent">';
 
 			// Description
 			print '<td class="titlefield tdtop">'.$langs->trans("Description").'</td><td>';
@@ -985,6 +992,7 @@ if (($id > 0 || !empty($ref)) || $projectidforalltimes > 0) {
 		print '<input type="hidden" name="projectid" value="'.$projectidforalltimes.'">';
 		print '<input type="hidden" name="withproject" value="'.$withproject.'">';
 		print '<input type="hidden" name="tab" value="'.$tab.'">';
+		print '<input type="hidden" name="page_y" value="">';
 
 		// Form to convert time spent into invoice
 		if ($massaction == 'generateinvoice') {
@@ -1073,6 +1081,7 @@ if (($id > 0 || !empty($ref)) || $projectidforalltimes > 0) {
 		$sql .= " LEFT JOIN ".MAIN_DB_PREFIX."facture as inv ON inv.rowid = il.fk_facture,";
 		$sql .= " ".MAIN_DB_PREFIX."projet_task as pt, ".MAIN_DB_PREFIX."user as u";
 		$sql .= " WHERE t.fk_user = u.rowid AND t.fk_task = pt.rowid";
+
 		if (empty($projectidforalltimes)) {
 			$sql .= " AND t.fk_task =".((int) $object->id);
 		} else {
@@ -1088,7 +1097,7 @@ if (($id > 0 || !empty($ref)) || $projectidforalltimes > 0) {
 			$sql .= natural_search('pt.label', $search_task_label);
 		}
 		if ($search_user > 0) {
-			$sql .= natural_search('t.fk_user', $search_user);
+			$sql .= natural_search('t.fk_user', $search_user, 2);
 		}
 		if ($search_valuebilled == '1') {
 			$sql .= ' AND t.invoice_id > 0';
@@ -1103,6 +1112,12 @@ if (($id > 0 || !empty($ref)) || $projectidforalltimes > 0) {
 		$nbtotalofrecords = '';
 		if (empty($conf->global->MAIN_DISABLE_FULL_SCANLIST)) {
 			$resql = $db->query($sql);
+
+			if (! $resql) {
+				dol_print_error($db);
+				exit;
+			}
+
 			$nbtotalofrecords = $db->num_rows($resql);
 			if (($page * $limit) > $nbtotalofrecords) {	// if total of record found is smaller than page * limit, goto and load page 0
 				$page = 0;
@@ -1221,7 +1236,7 @@ if (($id > 0 || !empty($ref)) || $projectidforalltimes > 0) {
 			print '</td>';
 
 			// Duration - Time spent
-			print '<td>';
+			print '<td class="nowraponall">';
 			$durationtouse = ($_POST['timespent_duration'] ? $_POST['timespent_duration'] : '');
 			if (GETPOSTISSET('timespent_durationhour') || GETPOSTISSET('timespent_durationmin')) {
 				$durationtouse = (GETPOST('timespent_durationhour') * 3600 + GETPOST('timespent_durationmin') * 60);
@@ -1488,7 +1503,7 @@ if (($id > 0 || !empty($ref)) || $projectidforalltimes > 0) {
 
 			// Time spent
 			if (!empty($arrayfields['t.task_duration']['checked'])) {
-				print '<td class="right">';
+				print '<td class="right nowraponall">';
 				if ($action == 'editline' && $_GET['lineid'] == $task_time->rowid) {
 					print '<input type="hidden" name="old_duration" value="'.$task_time->task_duration.'">';
 					print $form->select_duration('new_duration', $task_time->task_duration, 0, 'text');

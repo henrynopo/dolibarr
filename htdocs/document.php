@@ -194,8 +194,11 @@ if (!in_array($type, array('text/x-javascript')) && !dolIsAllowedForPreview($ori
 	$type = 'application/octet-stream';
 }
 
-// Security: Delete string ../ into $original_file
-$original_file = str_replace("../", "/", $original_file);
+// Security: Delete string ../ or ..\ into $original_file
+$original_file = preg_replace('/\.\.+/', '..', $original_file);	// Replace '... or more' with '..'
+$original_file = str_replace('../', '/', $original_file);
+$original_file = str_replace('..\\', '/', $original_file);
+
 
 // Find the subdirectory name as the reference
 $refname = basename(dirname($original_file)."/");

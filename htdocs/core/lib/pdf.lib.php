@@ -979,6 +979,7 @@ function pdf_pagefoot(&$pdf, $outputlangs, $paramfreetext, $fromcompany, $marge_
 
 	$outputlangs->load("dict");
 	$line = '';
+	$reg = array();
 
 	$dims = $pdf->getPageDimensions();
 
@@ -1273,6 +1274,7 @@ function pdf_writelinedesc(&$pdf, $object, $i, $outputlangs, $w, $h, $posx, $pos
 
 		// Fix bug of some HTML editors that replace links <img src="http://localhostgit/viewimage.php?modulepart=medias&file=image/efd.png" into <img src="http://localhostgit/viewimage.php?modulepart=medias&amp;file=image/efd.png"
 		// We make the reverse, so PDF generation has the real URL.
+		$nbrep = 0;
 		$labelproductservice = preg_replace('/(<img[^>]*src=")([^"]*)(&amp;)([^"]*")/', '\1\2&\4', $labelproductservice, -1, $nbrep);
 
 		//var_dump($labelproductservice);exit;
@@ -2085,9 +2087,9 @@ function pdf_getlineprogress($object, $i, $outputlangs, $hidedetails = 0, $hookm
 			return '';
 		}
 		if (empty($hidedetails) || $hidedetails > 1) {
-			if ($conf->global->SITUATION_DISPLAY_DIFF_ON_PDF) {
+			if (!empty($conf->global->SITUATION_DISPLAY_DIFF_ON_PDF)) {
 				$prev_progress = 0;
-				if (method_exists($object, 'get_prev_progress')) {
+				if (method_exists($object->lines[$i], 'get_prev_progress')) {
 					$prev_progress = $object->lines[$i]->get_prev_progress($object->id);
 				}
 				$result = round($object->lines[$i]->situation_percent - $prev_progress, 1).'%';

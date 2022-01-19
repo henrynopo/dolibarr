@@ -3,7 +3,7 @@
  * Copyright (C) 2002-2003 Jean-Louis Bergamo   <jlb@j1b.org>
  * Copyright (C) 2004-2020 Laurent Destailleur  <eldy@users.sourceforge.net>
  * Copyright (C) 2004      Eric Seigne          <eric.seigne@ryxeo.com>
- * Copyright (C) 2005-2018 Regis Houssin        <regis.houssin@inodbox.com>
+ * Copyright (C) 2005-2021 Regis Houssin        <regis.houssin@inodbox.com>
  * Copyright (C) 2005      Lionel Cousteix      <etm_ltd@tiscali.co.uk>
  * Copyright (C) 2011      Herve Prot           <herve.prot@symeos.com>
  * Copyright (C) 2012-2018 Juanjo Menent        <jmenent@2byte.es>
@@ -448,25 +448,21 @@ if (empty($reshook)) {
 				$object->lang = GETPOST('default_lang', 'aZ09');
 
 				// Do we update also ->entity ?
-				if (!empty($conf->multicompany->enabled)) {	// If multicompany is not enabled, we never update the entity of a user.
-					if (!empty($conf->global->MULTICOMPANY_TRANSVERSE_MODE)) {
-						$object->entity = 1; // all users are in master entity
+				if (!empty($conf->multicompany->enabled && $user->entity == 0 && !empty($user->admin))) {	// If multicompany is not enabled, we never update the entity of a user.
+					if (GETPOST('superadmin', 'int')) {
+						$object->entity = 0;
 					} else {
-						// A user should not be able to move a user into another entity. Only superadmin should be able to do this.
-						if ($user->entity == 0 && $user->admin) {
-							if (GETPOST("superadmin")) {
-								// We try to set the user as superadmin.
-								$object->entity = 0;
-							} else {
-								// We try to change the entity of user
-								$object->entity = (GETPOSTISSET('entity') ? GETPOSTINT('entity') : $object->entity);
-							}
+						if (!empty($conf->global->MULTICOMPANY_TRANSVERSE_MODE)) {
+							$object->entity = 1; // all users are in master entity
+						} else {
+							// We try to change the entity of user
+							$object->entity = (GETPOSTISSET('entity') ? GETPOSTINT('entity') : $object->entity);
 						}
 					}
 				}
 
 				// Fill array 'array_options' with data from add form
-				$ret = $extrafields->setOptionalsFromPost(null, $object);
+				$ret = $extrafields->setOptionalsFromPost(null, $object, '@GETPOSTISSET');
 				if ($ret < 0) {
 					$error++;
 				}
@@ -2290,7 +2286,7 @@ if ($action == 'create' || $action == 'adduserldap') {
 			}
 			if (preg_match('/dolibarr/', $dolibarr_main_authentication)) {
 				if ($caneditpassword) {
-					$valuetoshow .= ($valuetoshow ? (' '.$langs->trans("or").' ') : '').'<input maxlength="32" type="password" class="flat" name="password" value="'.$object->pass.'" autocomplete="new-password">';
+					$valuetoshow .= ($valuetoshow ? (' '.$langs->trans("or").' ') : '').'<input maxlength="128" type="password" class="flat" name="password" value="'.$object->pass.'" autocomplete="new-password">';
 				} else {
 					$valuetoshow .= ($valuetoshow ? (' '.$langs->trans("or").' ') : '').preg_replace('/./i', '*', $object->pass);
 				}

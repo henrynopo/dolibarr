@@ -447,7 +447,7 @@ if ($pid) {
 	$sql .= " AND a.fk_project=".((int) $pid);
 }
 if (!$user->rights->societe->client->voir && !$socid) {
-	$sql .= " AND (a.fk_soc IS NULL OR sc.fk_user = ".$user->id.")";
+	$sql .= " AND (a.fk_soc IS NULL OR sc.fk_user = ".((int) $user->id).")";
 }
 if ($socid > 0) {
 	$sql .= " AND s.rowid = ".((int) $socid);
@@ -608,7 +608,7 @@ if ($resql) {
 	$viewmode = '';
 	$viewmode .= '<a class="btnTitle btnTitleSelected reposition" href="'.DOL_URL_ROOT.'/comm/action/list.php?action=show_list&restore_lastsearch_values=1'.$paramnoactionodate.'">';
 	//$viewmode .= '<span class="fa paddingleft imgforviewmode valignmiddle btnTitle-icon">';
-	$viewmode .= img_picto($langs->trans("List"), 'object_list', 'class="pictoactionview block"');
+	$viewmode .= img_picto($langs->trans("List"), 'object_list', 'class="imgforviewmode pictoactionview block"');
 	//$viewmode .= '</span>';
 	$viewmode .= '<span class="valignmiddle text-plus-circle btnTitle-label hideonsmartphone">'.$langs->trans("ViewList").'</span></a>';
 
@@ -830,6 +830,8 @@ if ($resql) {
 		$actionstatic->label = $obj->label;
 		$actionstatic->location = $obj->location;
 		$actionstatic->note_private = dol_htmlentitiesbr($obj->note);
+		$actionstatic->datep = $db->jdate($obj->dp);
+		$actionstatic->percentage = $obj->percent;
 
 		// Initialize $this->userassigned && this->socpeopleassigned array && this->userownerid
 		// but only if we need it
@@ -902,16 +904,7 @@ if ($resql) {
 			print '<td class="center nowraponall">';
 			print dol_print_date($db->jdate($obj->dp), $formatToUse, 'tzuser');
 			$late = 0;
-			if ($obj->percent == 0 && $obj->dp && $db->jdate($obj->dp) < ($now - $delay_warning)) {
-				$late = 1;
-			}
-			if ($obj->percent == 0 && !$obj->dp && $obj->dp2 && $db->jdate($obj->dp) < ($now - $delay_warning)) {
-				$late = 1;
-			}
-			if ($obj->percent > 0 && $obj->percent < 100 && $obj->dp2 && $db->jdate($obj->dp2) < ($now - $delay_warning)) {
-				$late = 1;
-			}
-			if ($obj->percent > 0 && $obj->percent < 100 && !$obj->dp2 && $obj->dp && $db->jdate($obj->dp) < ($now - $delay_warning)) {
+			if ($actionstatic->hasDelay() && $actionstatic->percentage >= 0 && $actionstatic->percentage < 100 ) {
 				$late = 1;
 			}
 			if ($late) {

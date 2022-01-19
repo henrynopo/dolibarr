@@ -753,9 +753,9 @@ function checkVal($out = '', $check = 'alphanohtml', $filter = null, $options = 
 					$out = dol_string_nohtmltag($out, 0);
 					// Remove also other dangerous string sequences
 					// '"' is dangerous because param in url can close the href= or src= and add javascript functions.
-					// '../' is dangerous because it allows dir transversals
+					// '../' or '..\' is dangerous because it allows dir transversals
 					// Note &#38, '&#0000038', '&#x26'... is a simple char like '&' alone but there is no reason to accept such way to encode input data.
-					$out = str_ireplace(array('&#38', '&#0000038', '&#x26', '&quot', '&#34', '&#0000034', '&#x22', '"', '&#47', '&#0000047', '&#x2F', '../'), '', $out);
+					$out = str_ireplace(array('&#38', '&#0000038', '&#x26', '&quot', '&#34', '&#0000034', '&#x22', '"', '&#47', '&#0000047', '&#92', '&#0000092', '&#x2F', '../', '..\\'), '', $out);
 				} while ($oldstringtoclean != $out);
 				// keep lines feed
 			}
@@ -768,9 +768,9 @@ function checkVal($out = '', $check = 'alphanohtml', $filter = null, $options = 
 					// Remove html tags
 					$out = dol_html_entity_decode($out, ENT_COMPAT | ENT_HTML5, 'UTF-8');
 					// '"' is dangerous because param in url can close the href= or src= and add javascript functions.
-					// '../' is dangerous because it allows dir transversals
+					// '../' or '..\' is dangerous because it allows dir transversals
 					// Note &#38, '&#0000038', '&#x26'... is a simple char like '&' alone but there is no reason to accept such way to encode input data.
-					$out = str_ireplace(array('&#38', '&#0000038', '&#x26', '&quot', '&#34', '&#0000034', '&#x22', '"', '&#47', '&#0000047', '&#x2F', '../'), '', $out);
+					$out = str_ireplace(array('&#38', '&#0000038', '&#x26', '&quot', '&#34', '&#0000034', '&#x22', '"', '&#47', '&#0000047', '&#92', '&#0000092', '&#x2F', '../', '..\\'), '', $out);
 				} while ($oldstringtoclean != $out);
 			}
 			break;
@@ -799,14 +799,16 @@ function checkVal($out = '', $check = 'alphanohtml', $filter = null, $options = 
 					}
 				}
 
-				// Ckeditor use the numeric entitic for apostrophe so we force it to text entity (all other special chars are correctly
-				// encoded using text entities). This is a fix for CKeditor.
+				// Ckeditor use the numeric entitic for apostrophe so we force it to text entity (all other special chars are
+				// encoded using text entities) so we can then exclude all numeric entities.
 				$out = preg_replace('/&#39;/i', '&apos;', $out);
 
-				// We replace chars from a/A to z/Z encoded with numeric HTML entities with the real char so we won't loose the chars at the next step.
+				// We replace chars from a/A to z/Z encoded with numeric HTML entities with the real char so we won't loose the chars at the next step (preg_replace).
 				// No need to use a loop here, this step is not to sanitize (this is done at next step, this is to try to save chars, even if they are
 				// using a non coventionnel way to be encoded, to not have them sanitized just after)
 				$out = preg_replace_callback('/&#(x?[0-9][0-9a-f]+;?)/i', 'realCharForNumericEntities', $out);
+				//$out = preg_replace_callback('/&#(x?[0-9][0-9a-f]+;?)/i', function ($m) { return realCharForNumericEntities($m); }, $out);
+
 
 				// Now we remove all remaining HTML entities starting with a number. We don't want such entities.
 				$out = preg_replace('/&#x?[0-9]+/i', '', $out);	// For example if we have j&#x61vascript with an entities without the ; to hide the 'a' of 'javascript'.
@@ -818,6 +820,9 @@ function checkVal($out = '', $check = 'alphanohtml', $filter = null, $options = 
 					// Warning, the function may add a LF so we are forced to trim to compare with old $out without having always a difference and an infinit loop.
 					$out = trim(dol_string_onlythesehtmlattributes($out));
 				}
+
+				// Restore entity &apos; into &#39; (restricthtml is for html content so we can use html entity)
+				$out = preg_replace('/&apos;/i', "&#39;", $out);
 			} while ($oldstringtoclean != $out);
 			break;
 		case 'custom':
@@ -1052,7 +1057,7 @@ function dol_size($size, $type = '')
 
 /**
  *	Clean a string to use it as a file name.
- *  Replace also '--' and ' -' strings, they are used for parameters separation.
+ *  Replace also '--' and ' -' strings, they are used for parameters separation (Note: ' - ' is allowed).
  *
  *	@param	string	$str            String to clean
  * 	@param	string	$newstr			String to replace bad chars with.
@@ -1070,13 +1075,13 @@ function dol_sanitizeFileName($str, $newstr = '_', $unaccent = 1)
 	$filesystem_forbidden_chars = array('<', '>', '/', '\\', '?', '*', '|', '"', ':', '°', '$', ';');
 	$tmp = dol_string_nospecial($unaccent ? dol_string_unaccent($str) : $str, $newstr, $filesystem_forbidden_chars);
 	$tmp = preg_replace('/\-\-+/', '_', $tmp);
-	$tmp = preg_replace('/\s+\-/', ' _', $tmp);
+	$tmp = preg_replace('/\s+\-([^\s])/', ' _$1', $tmp);
 	return $tmp;
 }
 
 /**
  *	Clean a string to use it as a path name.
- *  Replace also '--' and ' -' strings, they are used for parameters separation.
+ *  Replace also '--' and ' -' strings, they are used for parameters separation (Note: ' - ' is allowed).
  *
  *	@param	string	$str            String to clean
  * 	@param	string	$newstr			String to replace bad chars with
@@ -1090,7 +1095,7 @@ function dol_sanitizePathName($str, $newstr = '_', $unaccent = 1)
 	$filesystem_forbidden_chars = array('<', '>', '?', '*', '|', '"', '°');
 	$tmp = dol_string_nospecial($unaccent ? dol_string_unaccent($str) : $str, $newstr, $filesystem_forbidden_chars);
 	$tmp = preg_replace('/\-\-+/', '_', $tmp);
-	$tmp = preg_replace('/\s+\-/', ' _', $tmp);
+	$tmp = preg_replace('/\s+\-([^\s])/', ' _$1', $tmp);
 	return $tmp;
 }
 
@@ -1280,19 +1285,18 @@ function dol_escape_json($stringtoescape)
  *  Returns text escaped for inclusion in HTML alt or title tags, or into values of HTML input fields.
  *
  *  @param      string		$stringtoescape			String to escape
- *  @param		int			$keepb					1=Keep b tags and escape them, 0=remove them
+ *  @param		int			$keepb					1=Keep b tags, 0=remove them completeley
  *  @param      int         $keepn              	1=Preserve \r\n strings (otherwise, replace them with escaped value). Set to 1 when escaping for a <textarea>.
- *  @param		string		$keepmoretags			'' or 'common' or list of tags
+ *  @param		string		$noescapetags			'' or 'common' or list of tags to not escape
  *  @param		int			$escapeonlyhtmltags		1=Escape only html tags, not the special chars like accents.
  *  @return     string     				 			Escaped string
  *  @see		dol_string_nohtmltag(), dol_string_nospecial(), dol_string_unaccent()
  */
-function dol_escape_htmltag($stringtoescape, $keepb = 0, $keepn = 0, $keepmoretags = '', $escapeonlyhtmltags = 0)
+function dol_escape_htmltag($stringtoescape, $keepb = 0, $keepn = 0, $noescapetags = '', $escapeonlyhtmltags = 0)
 {
-	if ($keepmoretags == 'common') {
-		$keepmoretags = 'html,body,a,b,em,i,u,ul,li,br,div,img,font,p,span,strong,table,tr,td,th,tbody';
+	if ($noescapetags == 'common') {
+		$noescapetags = 'html,body,a,b,em,i,u,ul,li,br,div,img,font,p,span,strong,table,tr,td,th,tbody';
 	}
-	// TODO Implement $keepmoretags
 
 	// escape quotes and backslashes, newlines, etc.
 	if ($escapeonlyhtmltags) {
@@ -1306,10 +1310,33 @@ function dol_escape_htmltag($stringtoescape, $keepb = 0, $keepn = 0, $keepmoreta
 	if (!$keepn) {
 		$tmp = strtr($tmp, array("\r"=>'\\r', "\n"=>'\\n'));
 	}
+
 	if ($escapeonlyhtmltags) {
 		return htmlspecialchars($tmp, ENT_COMPAT, 'UTF-8');
 	} else {
-		return htmlentities($tmp, ENT_COMPAT, 'UTF-8');
+		// Escape tags to keep
+		$tmparrayoftags = array();
+		if ($noescapetags) {
+			$tmparrayoftags = explode(',', $noescapetags);
+		}
+
+		if (count($tmparrayoftags)) {
+			foreach ($tmparrayoftags as $tagtoreplace) {
+				$tmp = str_ireplace('<'.$tagtoreplace.'>', '__BEGINTAGTOREPLACE'.$tagtoreplace.'__', $tmp);
+				$tmp = str_ireplace('</'.$tagtoreplace.'>', '__ENDTAGTOREPLACE'.$tagtoreplace.'__', $tmp);
+			}
+		}
+
+		$result = htmlentities($tmp, ENT_COMPAT, 'UTF-8');
+
+		if (count($tmparrayoftags)) {
+			foreach ($tmparrayoftags as $tagtoreplace) {
+				$result = str_ireplace('__BEGINTAGTOREPLACE'.$tagtoreplace.'__', '<'.$tagtoreplace.'>', $result);
+				$result = str_ireplace('__ENDTAGTOREPLACE'.$tagtoreplace.'__', '</'.$tagtoreplace.'>', $result);
+			}
+		}
+
+		return $result;
 	}
 }
 
@@ -2167,13 +2194,19 @@ function dol_format_address($object, $withcountry = 0, $sep = "\n", $outputlangs
 		if (!empty($object->state)) {
 			$ret .= "\n".$object->state;
 		}
+	} elseif (isset($object->country_code) && in_array($object->country_code, array('JP'))) {
+		// JP: In romaji, title firstname name\n address lines \n [state,] town zip \n country
+		// See https://www.sljfaq.org/afaq/addresses.html
+		$town = ($extralangcode ? $object->array_languages['town'][$extralangcode] : (empty($object->town) ? '' : $object->town));
+		$ret .= ($ret ? $sep : '').($object->state ? $object->state.', ' : '').$town.($object->zip ? ' ' : '').$object->zip;
 	} elseif (isset($object->country_code) && in_array($object->country_code, array('IT'))) {
-		// IT: tile firstname name\n address lines \n zip (Code Departement) \n country
+		// IT: title firstname name\n address lines \n zip town state_code \n country
 		$ret .= ($ret ? $sep : '').$object->zip;
 		$town = ($extralangcode ? $object->array_languages['town'][$extralangcode] : (empty($object->town) ? '' : $object->town));
 		$ret .= ($town ? (($object->zip ? ' ' : '').$town) : '');
 		$ret .= (empty($object->state_code) ? '' : (' '.$object->state_code));
-	} else { // Other: title firstname name \n address lines \n zip town \n country
+	} else {
+		// Other: title firstname name \n address lines \n zip town[, state] \n country
 		$town = ($extralangcode ? $object->array_languages['town'][$extralangcode] : (empty($object->town) ? '' : $object->town));
 		$ret .= !empty($object->zip) ? (($ret ? $sep : '').$object->zip) : '';
 		$ret .= ($town ? (($object->zip ? ' ' : ($ret ? $sep : '')).$town) : '');
@@ -2236,6 +2269,11 @@ function dol_print_date($time, $format = '', $tzoutput = 'auto', $outputlangs = 
 {
 	global $conf, $langs;
 
+	// If date undefined or "", we return ""
+	if (dol_strlen($time) == 0) {
+		return ''; // $time=0 allowed (it means 01/01/1970 00:00:00)
+	}
+
 	if ($tzoutput === 'auto') {
 		$tzoutput = (empty($conf) ? 'tzserver' : (isset($conf->tzuserinputkey) ? $conf->tzuserinputkey : 'tzserver'));
 	}
@@ -2254,8 +2292,17 @@ function dol_print_date($time, $format = '', $tzoutput = 'auto', $outputlangs = 
 			} elseif ($tzoutput == 'tzuser' || $tzoutput == 'tzuserrel') {
 				$to_gmt = true;
 				$offsettzstring = (empty($_SESSION['dol_tz_string']) ? 'UTC' : $_SESSION['dol_tz_string']); // Example 'Europe/Berlin' or 'Indian/Reunion'
-				$offsettz = (empty($_SESSION['dol_tz']) ? 0 : $_SESSION['dol_tz']) * 60 * 60; // Will not be used anymore
-				$offsetdst = (empty($_SESSION['dol_dst']) ? 0 : $_SESSION['dol_dst']) * 60 * 60; // Will not be used anymore
+
+				if (class_exists('DateTimeZone')) {
+					$user_date_tz = new DateTimeZone($offsettzstring);
+					$user_dt = new DateTime();
+					$user_dt->setTimezone($user_date_tz);
+					$user_dt->setTimestamp($tzoutput == 'tzuser' ? dol_now() : (int) $time);
+					$offsettz = $user_dt->getOffset();
+				} else {	// old method (The 'tzuser' was processed like the 'tzuserrel')
+					$offsettz = (empty($_SESSION['dol_tz']) ? 0 : $_SESSION['dol_tz']) * 60 * 60; // Will not be used anymore
+					$offsetdst = (empty($_SESSION['dol_dst']) ? 0 : $_SESSION['dol_dst']) * 60 * 60; // Will not be used anymore
+				}
 			}
 		}
 	}
@@ -2316,11 +2363,6 @@ function dol_print_date($time, $format = '', $tzoutput = 'auto', $outputlangs = 
 	if ($reduceformat) {
 		$format = str_replace('%Y', '%y', $format);
 		$format = str_replace('yyyy', 'yy', $format);
-	}
-
-	// If date undefined or "", we return ""
-	if (dol_strlen($time) == 0) {
-		return ''; // $time=0 allowed (it means 01/01/1970 00:00:00)
 	}
 
 	// Clean format
@@ -2457,7 +2499,7 @@ function dol_getdate($timestamp, $fast = false, $forcetimezone = '')
  *										False or 0 or 'tzserver' = local to server TZ
  *										'auto'
  *										'tzuser' = local to user TZ taking dst into account at the current date. Not yet implemented.
- *										'tzuserrel' = local to user TZ taking dst into account at the given date. Use this one to convert date input from user.
+ *										'tzuserrel' = local to user TZ taking dst into account at the given date. Use this one to convert date input from user into a GMT date.
  *										'tz,TimeZone' = use specified timezone
  *	@param	int			$check			0=No check on parameters (Can use day 32, etc...)
  *	@return	int|string					Date as a timestamp, '' or false if error
@@ -3565,7 +3607,7 @@ function img_picto($titlealt, $picto, $moreatt = '', $pictoisfullpath = false, $
 				'salary', 'shipment', 'state', 'supplier_invoice', 'supplier_invoicea', 'supplier_invoicer', 'supplier_invoiced',
 				'technic', 'ticket',
 				'error', 'warning',
-				'recent', 'reception', 'recruitmentcandidature', 'recruitmentjobposition', 'resource',
+				'recent', 'reception', 'recruitmentcandidature', 'recruitmentjobposition', 'resource', 'recurring',
 				'shapes', 'supplier', 'supplier_proposal', 'supplier_order', 'supplier_invoice',
 				'timespent', 'title_setup', 'title_accountancy', 'title_bank', 'title_hrm', 'title_agenda',
 				'uncheck', 'user-cog', 'website', 'workstation',
@@ -3611,7 +3653,7 @@ function img_picto($titlealt, $picto, $moreatt = '', $pictoisfullpath = false, $
 				'partnership'=>'handshake', 'payment'=>'money-check-alt', 'phoning'=>'phone', 'phoning_mobile'=>'mobile-alt', 'phoning_fax'=>'fax', 'previous'=>'arrow-alt-circle-left', 'printer'=>'print', 'product'=>'cube', 'service'=>'concierge-bell',
 				'recent' => 'question', 'reception'=>'dolly', 'recruitmentjobposition'=>'id-card-alt', 'recruitmentcandidature'=>'id-badge',
 				'resize'=>'crop', 'supplier_order'=>'dol-order_supplier', 'supplier_proposal'=>'file-signature',
-				'refresh'=>'redo', 'region'=>'map-marked', 'resource'=>'laptop-house',
+				'refresh'=>'redo', 'region'=>'map-marked', 'resource'=>'laptop-house', 'recurring'=>'history',
 				'state'=>'map-marked-alt', 'security'=>'key', 'salary'=>'wallet', 'shipment'=>'dolly', 'stock'=>'box-open', 'stats' => 'chart-bar', 'split'=>'code-branch', 'stripe'=>'stripe-s',
 				'supplier'=>'building', 'supplier_invoice'=>'file-invoice-dollar', 'technic'=>'cogs', 'ticket'=>'ticket-alt',
 				'timespent'=>'clock', 'title_setup'=>'tools', 'title_accountancy'=>'money-check-alt', 'title_bank'=>'university', 'title_hrm'=>'umbrella-beach',
@@ -3674,7 +3716,7 @@ function img_picto($titlealt, $picto, $moreatt = '', $pictoisfullpath = false, $
 				'action'=>'infobox-action', 'account'=>'infobox-bank_account', 'accountline'=>'infobox-bank_account', 'accountancy'=>'infobox-bank_account', 'asset'=>'infobox-bank_account',
 				'bank_account'=>'bg-infobox-bank_account',
 				'bill'=>'infobox-commande', 'billa'=>'infobox-commande', 'billr'=>'infobox-commande', 'billd'=>'infobox-commande',
-				'conferenceorbooth'=>'infobox-project',
+				'margin'=>'infobox-bank_account', 'conferenceorbooth'=>'infobox-project',
 				'cash-register'=>'infobox-bank_account', 'contract'=>'infobox-contrat', 'check'=>'font-status4', 'collab'=>'infobox-action', 'conversation'=>'infobox-contrat',
 				'donation'=>'infobox-commande', 'dolly'=>'infobox-commande',  'dollyrevert'=>'flip infobox-order_supplier',
 				'ecm'=>'infobox-action', 'eventorganization'=>'infobox-project',
@@ -5290,13 +5332,16 @@ function price2num($amount, $rounding = '', $option = 0)
 		if ($thousand != ',' && $thousand != '.') {
 			$amount = str_replace(',', '.', $amount); // To accept 2 notations for french users
 		}
+
 		$amount = str_replace(' ', '', $amount); // To avoid spaces
 		$amount = str_replace($thousand, '', $amount); // Replace of thousand before replace of dec to avoid pb if thousand is .
 		$amount = str_replace($dec, '.', $amount);
+
+		$amount = preg_replace('/[^0-9\-\.]/', '', $amount);	// Clean non numeric chars (so it clean some UTF8 spaces for example.
 	}
 	//print ' XX'.$amount.' '.$rounding;
 
-	// Now, make a rounding if required
+	// Now, $amount is a real PHP float number. We make a rounding if required.
 	if ($rounding) {
 		$nbofdectoround = '';
 		if ($rounding == 'MU') {
@@ -5304,7 +5349,7 @@ function price2num($amount, $rounding = '', $option = 0)
 		} elseif ($rounding == 'MT') {
 			$nbofdectoround = $conf->global->MAIN_MAX_DECIMALS_TOT;
 		} elseif ($rounding == 'MS') {
-			$nbofdectoround = empty($conf->global->MAIN_MAX_DECIMALS_STOCK) ? 5 : $conf->global->MAIN_MAX_DECIMALS_STOCK;
+			$nbofdectoround = isset($conf->global->MAIN_MAX_DECIMALS_STOCK) ? $conf->global->MAIN_MAX_DECIMALS_STOCK : 5;
 		} elseif ($rounding == 'CU') {
 			$nbofdectoround = max($conf->global->MAIN_MAX_DECIMALS_UNIT, 8);	// TODO Use param of currency
 		} elseif ($rounding == 'CT') {
@@ -5312,6 +5357,7 @@ function price2num($amount, $rounding = '', $option = 0)
 		} elseif (is_numeric($rounding)) {
 			$nbofdectoround = (int) $rounding;
 		}
+
 		//print " RR".$amount.' - '.$nbofdectoround.'<br>';
 		if (dol_strlen($nbofdectoround)) {
 			$amount = round(is_string($amount) ? (float) $amount : $amount, $nbofdectoround); // $nbofdectoround can be 0.
@@ -5336,9 +5382,12 @@ function price2num($amount, $rounding = '', $option = 0)
 		if ($thousand != ',' && $thousand != '.') {
 			$amount = str_replace(',', '.', $amount); // To accept 2 notations for french users
 		}
+
 		$amount = str_replace(' ', '', $amount); // To avoid spaces
 		$amount = str_replace($thousand, '', $amount); // Replace of thousand before replace of dec to avoid pb if thousand is .
 		$amount = str_replace($dec, '.', $amount);
+
+		$amount = preg_replace('/[^0-9\-\.]/', '', $amount);	// Clean non numeric chars (so it clean some UTF8 spaces for example.
 	}
 
 	return $amount;
@@ -6914,7 +6963,7 @@ function getCommonSubstitutionArray($outputlangs, $onlykey = 0, $exclude = null,
 			$substitutionarray['__SECUREKEYPAYMENT_MEMBER__'] = 'Security key for payment on a member subscription (one key per member)';
 			$substitutionarray['__SECUREKEYPAYMENT_ORDER__'] = 'Security key for payment on an order';
 			$substitutionarray['__SECUREKEYPAYMENT_INVOICE__'] = 'Security key for payment on an invoice';
-			$substitutionarray['__SECUREKEYPAYMENT_CONTRACTLINE__'] = 'Security key for payment on a a service';
+			$substitutionarray['__SECUREKEYPAYMENT_CONTRACTLINE__'] = 'Security key for payment on a service of a contract';
 
 			$substitutionarray['__DIRECTDOWNLOAD_URL_PROPOSAL__'] = 'Direct download url of a proposal';
 			$substitutionarray['__DIRECTDOWNLOAD_URL_ORDER__'] = 'Direct download url of an order';
@@ -8037,7 +8086,7 @@ function verifCond($strRights)
 
 	//print $strRights."<br>\n";
 	$rights = true;
-	if ($strRights != '') {
+	if (isset($strRights) && $strRights !== '') {
 		$str = 'if(!('.$strRights.')) { $rights = false; }';
 		dol_eval($str); // The dol_eval must contains all the global $xxx used into a condition
 	}
@@ -8162,8 +8211,8 @@ function picto_from_langcode($codelang, $moreatt = '')
  * Return default language from country code.
  * Return null if not found.
  *
- * @param 	string 	$countrycode	Country code like 'US', 'FR', 'CA', 'ES', 'MX', ...
- * @return	string					Value of locale like 'en_US', 'fr_FR', ...
+ * @param 	string 	$countrycode	Country code like 'US', 'FR', 'CA', 'ES', 'IN', 'MX', ...
+ * @return	string					Value of locale like 'en_US', 'fr_FR', ... or null if not found
  */
 function getLanguageCodeFromCountryCode($countrycode)
 {
@@ -8213,12 +8262,12 @@ function getLanguageCodeFromCountryCode($countrycode)
 		'ar-SY',
 		'ar-TN',
 		'ar-YE',
-		'as-IN',
+		//'as-IN',		// Moved after en-IN
 		'ba-RU',
 		'be-BY',
 		'bg-BG',
 		'bn-BD',
-		'bn-IN',
+		//'bn-IN',		// Moved after en-IN
 		'bo-CN',
 		'br-FR',
 		'ca-ES',
@@ -8239,6 +8288,8 @@ function getLanguageCodeFromCountryCode($countrycode)
 		'en-GB',
 		'en-IE',
 		'en-IN',
+		'as-IN',	// as-IN must be after en-IN (en in priority if country is IN)
+		'bn-IN',	// bn-IN must be after en-IN (en in priority if country is IN)
 		'en-JM',
 		'en-MY',
 		'en-NZ',
@@ -8376,7 +8427,7 @@ function getLanguageCodeFromCountryCode($countrycode)
 			$locale_language = locale_get_primary_language($locale);
 			$locale_region = locale_get_region($locale);
 			if (strtoupper($countrycode) == $locale_region) {
-				//var_dump($locale.'-'.$locale_language.'-'.$locale_region);
+				//var_dump($locale.' - '.$locale_language.' - '.$locale_region);
 				return strtolower($locale_language).'_'.strtoupper($locale_region);
 			}
 		}
@@ -8816,7 +8867,7 @@ function natural_search($fields, $value, $mode = 0, $nofirstand = 0)
 				if ($newcrit != '') {
 					$numnewcrit = price2num($newcrit);
 					if (is_numeric($numnewcrit)) {
-						$newres .= ($i2 > 0 ? ' OR ' : '').$field.' '.$operator.' '.$db->sanitize($numnewcrit); // should be a numeric
+						$newres .= ($i2 > 0 ? ' OR ' : '').$field.' '.$operator.' '.((float) $numnewcrit); // should be a numeric
 					} else {
 						$newres .= ($i2 > 0 ? ' OR ' : '').'1 = 2'; // force false
 					}
@@ -8875,7 +8926,7 @@ function natural_search($fields, $value, $mode = 0, $nofirstand = 0)
 					$newres .= (($i2 > 0 || $i3 > 0) ? ' OR ' : '');
 
 					if (preg_match('/\.(id|rowid)$/', $field)) {	// Special case for rowid that is sometimes a ref so used as a search field
-						$newres .= $field." = ".(is_numeric(trim($tmpcrit)) ?trim($tmpcrit) : '0');
+						$newres .= $field." = ".(is_numeric(trim($tmpcrit)) ? ((float) trim($tmpcrit)) : '0');
 					} else {
 						$newres .= $field." LIKE '";
 

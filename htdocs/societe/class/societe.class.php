@@ -1763,7 +1763,7 @@ class Societe extends CommonObject
 
 				$this->country_id   = $obj->country_id;
 				$this->country_code = $obj->country_id ? $obj->country_code : '';
-				$this->country = $obj->country_id ? ($langs->transnoentities('Country'.$obj->country_code) != 'Country'.$obj->country_code ? $langs->transnoentities('Country'.$obj->country_code) : $obj->country) : '';
+				$this->country = $obj->country_id ? (($langs->transnoentities('Country'.$obj->country_code) != 'Country'.$obj->country_code) ? $langs->transnoentities('Country'.$obj->country_code) : $obj->country) : '';
 
 				$this->state_id     = $obj->state_id;
 				$this->state_code   = $obj->state_code;
@@ -2486,9 +2486,10 @@ class Societe extends CommonObject
 	 *		@param	int		$maxlen			          Max length of name
 	 *      @param	int  	$notooltip		          1=Disable tooltip
 	 *      @param  int     $save_lastsearch_value    -1=Auto, 0=No save of lastsearch_values when clicking, 1=Save lastsearch_values whenclicking
+	 *      @param	int		$noaliasinname			  1=Do not add alias into the link ref
 	 *		@return	string					          String with URL
 	 */
-	public function getNomUrl($withpicto = 0, $option = '', $maxlen = 0, $notooltip = 0, $save_lastsearch_value = -1)
+	public function getNomUrl($withpicto = 0, $option = '', $maxlen = 0, $notooltip = 0, $save_lastsearch_value = -1, $noaliasinname = 0)
 	{
 		global $conf, $langs, $hookmanager;
 
@@ -2526,7 +2527,7 @@ class Societe extends CommonObject
 			}
 		}
 
-		if (!empty($this->name_alias)) {
+		if (!empty($this->name_alias) && empty($noaliasinname)) {
 			$name .= ' ('.$this->name_alias.')';
 		}
 
@@ -2580,13 +2581,13 @@ class Societe extends CommonObject
 			$label .= ' '.$this->getLibStatut(5);
 		}
 
-		if (!empty($this->name)) {
-			$label .= '<br><b>'.$langs->trans('Name').':</b> '.dol_escape_htmltag($this->name);
-			if (!empty($this->name_alias)) {
-				$label .= ' ('.dol_escape_htmltag($this->name_alias).')';
-			}
+		$label .= '<br><b>'.$langs->trans('Name').':</b> '.dol_escape_htmltag($this->name);
+		if (!empty($this->name_alias)) {
+			$label .= ' ('.dol_escape_htmltag($this->name_alias).')';
 		}
-		$label .= '<br><b>'.$langs->trans('Email').':</b> '.$this->email;
+		if ($this->email) {
+			$label .= '<br>'.img_picto('', 'email', 'class="pictofixedwidth"').$this->email;
+		}
 		if (!empty($this->phone) || !empty($this->fax)) {
 			$phonelist = array();
 			if ($this->phone) {
@@ -2595,7 +2596,7 @@ class Societe extends CommonObject
 			if ($this->fax) {
 				$phonelist[] = dol_print_phone($this->fax, $this->country_code, $this->id, 0, '', '&nbsp', 'fax');
 			}
-			$label .= '<br><b>'.$langs->trans('Phone').':</b> '.implode('&nbsp;', $phonelist);
+			$label .= '<br>'.implode('&nbsp;', $phonelist);
 		}
 		if (!empty($this->address)) {
 			$label .= '<br><b>'.$langs->trans("Address").':</b> '.dol_format_address($this, 1, ' ', $langs);	// Address + country
@@ -4350,10 +4351,10 @@ class Societe extends CommonObject
 	}
 
 	/**
-	 *  Return amount of order not paid and total
+	 *  Return amount of proposal not yet paid and total an dlist of all proposals
 	 *
 	 *  @param     string      $mode    'customer' or 'supplier'
-	 *  @return    array				array('opened'=>Amount, 'total'=>Total amount)
+	 *  @return    array				array('opened'=>Amount including tax that remains to pay, 'total_ht'=>Total amount without tax of all objects paid or not, 'total_ttc'=>Total amunt including tax of all object paid or not)
 	 */
 	public function getOutstandingProposals($mode = 'customer')
 	{
@@ -4394,10 +4395,10 @@ class Societe extends CommonObject
 	}
 
 	/**
-	 *  Return amount of order not paid and total
+	 *  Return amount of order not yet paid and total and list of all orders
 	 *
 	 *  @param     string      $mode    'customer' or 'supplier'
-	 *  @return		array				array('opened'=>Amount, 'total'=>Total amount)
+	 *  @return    array				array('opened'=>Amount including tax that remains to pay, 'total_ht'=>Total amount without tax of all objects paid or not, 'total_ttc'=>Total amunt including tax of all object paid or not)
 	 */
 	public function getOutstandingOrders($mode = 'customer')
 	{
@@ -4437,11 +4438,11 @@ class Societe extends CommonObject
 	}
 
 	/**
-	 *  Return amount of bill not paid and total
+	 *  Return amount of bill not yet paid and total of all invoices
 	 *
-	 *  @param     string      $mode    'customer' or 'supplier'
+	 *  @param     string   $mode    	'customer' or 'supplier'
 	 *  @param     int      $late    	0 => all invoice, 1=> only late
-	 *  @return		array				array('opened'=>Amount, 'total'=>Total amount)
+	 *  @return    array				array('opened'=>Amount including tax that remains to pay, 'total_ht'=>Total amount without tax of all objects paid or not, 'total_ttc'=>Total amunt including tax of all object paid or not)
 	 */
 	public function getOutstandingBills($mode = 'customer', $late = 0)
 	{
@@ -4475,6 +4476,7 @@ class Societe extends CommonObject
 			$outstandingTotal = 0;
 			$outstandingTotalIncTax = 0;
 			$arrayofref = array();
+			$arrayofrefopened = array();
 			if ($mode == 'supplier') {
 				require_once DOL_DOCUMENT_ROOT.'/fourn/class/fournisseur.facture.class.php';
 				$tmpobject = new FactureFournisseur($this->db);
@@ -4492,6 +4494,9 @@ class Societe extends CommonObject
 					$outstandingTotal += $obj->total_ht;
 					$outstandingTotalIncTax += $obj->total_ttc;
 				}
+
+				$remaintopay = 0;
+
 				if ($obj->paye == 0
 					&& $obj->status != $tmpobject::STATUS_DRAFT    		// Not a draft
 					&& $obj->status != $tmpobject::STATUS_ABANDONED	    // Not abandonned
@@ -4501,16 +4506,23 @@ class Societe extends CommonObject
 					$creditnotes = $tmpobject->getSumCreditNotesUsed();
 					$deposits = $tmpobject->getSumDepositsUsed();
 
-					$outstandingOpened += $obj->total_ttc - $paiement - $creditnotes - $deposits;
+					$remaintopay = ($obj->total_ttc - $paiement - $creditnotes - $deposits);
+					$outstandingOpened += $remaintopay;
 				}
 
 				//if credit note is converted but not used
 				// TODO Do this also for customer ?
 				if ($mode == 'supplier' && $obj->type == FactureFournisseur::TYPE_CREDIT_NOTE && $tmpobject->isCreditNoteUsed()) {
-					$outstandingOpened -= $tmpobject->getSumFromThisCreditNotesNotUsed();
+					$remainingcreditnote = $tmpobject->getSumFromThisCreditNotesNotUsed();
+					$remaintopay -= $remainingcreditnote;
+					$outstandingOpened -= $remainingcreditnote;
+				}
+
+				if ($remaintopay) {
+					$arrayofrefopened[$obj->rowid] = $obj->ref;
 				}
 			}
-			return array('opened'=>$outstandingOpened, 'total_ht'=>$outstandingTotal, 'total_ttc'=>$outstandingTotalIncTax, 'refs'=>$arrayofref); // 'opened' is 'incl taxes'
+			return array('opened'=>$outstandingOpened, 'total_ht'=>$outstandingTotal, 'total_ttc'=>$outstandingTotalIncTax, 'refs'=>$arrayofref, 'refsopened'=>$arrayofrefopened); // 'opened' is 'incl taxes'
 		} else {
 			dol_syslog("Sql error ".$this->db->lasterror, LOG_ERR);
 			return array();

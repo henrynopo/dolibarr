@@ -1,17 +1,18 @@
 <?php
-/* Copyright (C) 2013-2015  Jean-François FERRY     <hello@librethic.io>
- * Copyright (C) 2016       Christophe Battarel     <christophe@altairis.fr>
- * Copyright (C) 2019       Frédéric France         <frederic.france@netlogic.fr>
- * Copyright (C) 2021       Juanjo Menent			<jmenent@2byte.es>
+/* Copyright (C) 2013-2015 Jean-François FERRY     <hello@librethic.io>
+ * Copyright (C) 2016      Christophe Battarel     <christophe@altairis.fr>
+ * Copyright (C) 2019      Frédéric France         <frederic.france@netlogic.fr>
+ * Copyright (C) 2021      Juanjo Menent           <jmenent@2byte.es>
+ * Copyright (C) 2021      Alexandre Spangaro      <aspangaro@open-dsi.fr>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
+ * the Free Software Foundation; either version 3 of the License, or
  * (at your option) any later version.
  *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
@@ -263,7 +264,7 @@ class FormTicket
 			require_once DOL_DOCUMENT_ROOT.'/core/lib/security2.lib.php';
 			print '<tr><td class="titlefield"><label for="email"><span class="fieldrequired">'.$langs->trans("SecurityCode").'</span></label></td><td>';
 			print '<span class="span-icon-security inline-block">';
-			print '<input id="securitycode" placeholder="'.$langs->trans("SecurityCode").'" class="flat input-icon-security width150" type="text" maxlength="5" name="code" tabindex="3" />';
+			print '<input id="securitycode" placeholder="'.$langs->trans("SecurityCode").'" class="flat input-icon-security width125" type="text" maxlength="5" name="code" tabindex="3" />';
 			print '</span>';
 			print '<span class="nowrap inline-block">';
 			print '<img class="inline-block valignmiddle" src="'.DOL_URL_ROOT.'/core/antispamimage.php" border="0" width="80" height="32" id="img_securitycode" />';
@@ -429,11 +430,13 @@ class FormTicket
 			}
 		}
 
-		if (!empty($conf->projet->enabled) && !$this->ispublic) {
-			$formproject = new FormProjets($this->db);
-			print '<tr><td><label for="project"><span class="">'.$langs->trans("Project").'</span></label></td><td>';
-			print img_picto('', 'project').$formproject->select_projects(-1, GETPOST('projectid', 'int'), 'projectid', 0, 0, 1, 1, 0, 0, 0, '', 1, 0, 'maxwidth500');
-			print '</td></tr>';
+		if ($subelement != 'project') {
+			if (!empty($conf->projet->enabled) && !$this->ispublic) {
+				$formproject = new FormProjets($this->db);
+				print '<tr><td><label for="project"><span class="">'.$langs->trans("Project").'</span></label></td><td>';
+				print img_picto('', 'project').$formproject->select_projects(-1, GETPOST('projectid', 'int'), 'projectid', 0, 0, 1, 1, 0, 0, 0, '', 1, 0, 'maxwidth500');
+				print '</td></tr>';
+			}
 		}
 
 		// Other attributes
@@ -1050,7 +1053,7 @@ class FormTicket
 			}
 
 			// Subject
-			print '<tr class="email_line"><td class="titlefieldcreate">'.$langs->trans('Subject').'</td>';
+			print '<tr class="email_line"><td>'.$langs->trans('Subject').'</td>';
 			print '<td><input type="text" class="text minwidth500" name="subject" value="['.$conf->global->MAIN_INFO_SOCIETE_NOM.' - '.$langs->trans("Ticket").' '.$this->ref.'] '.$langs->trans('TicketNewMessage').'" />';
 			print '</td></tr>';
 

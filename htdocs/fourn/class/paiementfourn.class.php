@@ -224,9 +224,9 @@ class PaiementFourn extends Paiement
 							if ($closepaidinvoices) {
 								$paiement = $invoice->getSommePaiement();
 								$creditnotes=$invoice->getSumCreditNotesUsed();
-								// $creditnotes = 0;
+								//$creditnotes = 0;
 								$deposits=$invoice->getSumDepositsUsed();
-								// $deposits = 0;
+								//$deposits = 0;
 								$alreadypayed = price2num($paiement + $creditnotes + $deposits, 'MT');
 								$remaintopay = price2num($invoice->total_ttc - $paiement - $creditnotes - $deposits, 'MT');
 								if ($remaintopay == 0) {

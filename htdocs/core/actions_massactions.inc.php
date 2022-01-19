@@ -631,6 +631,8 @@ if ($massaction == 'confirm_createbills') {   // Create bills from orders.
 	$createbills_onebythird = GETPOST('createbills_onebythird', 'int');
 	$validate_invoices = GETPOST('validate_invoices', 'int');
 
+	$errors = array();
+
 	$TFact = array();
 	$TFactThird = array();
 
@@ -645,18 +647,19 @@ if ($massaction == 'confirm_createbills') {   // Create bills from orders.
 		if ($cmd->fetch($id_order) <= 0) {
 			continue;
 		}
+		$cmd->fetch_thirdparty();
 
 		$objecttmp = new Facture($db);
 		if (!empty($createbills_onebythird) && !empty($TFactThird[$cmd->socid])) {
-			$objecttmp = $TFactThird[$cmd->socid]; // If option "one bill per third" is set, we use already created order.
+			// If option "one bill per third" is set, and an invoice for this thirdparty was already created, we re-use it.
+			$objecttmp = $TFactThird[$cmd->socid];
 		} else {
-			// Load extrafields of order
-			$cmd->fetch_optionals();
-
+			// If we want one invoice per order or if there is no first invoice yet for this thirdparty.
 			$objecttmp->socid = $cmd->socid;
 			$objecttmp->type = $objecttmp::TYPE_STANDARD;
-			$objecttmp->cond_reglement_id	= $cmd->cond_reglement_id;
-			$objecttmp->mode_reglement_id	= $cmd->mode_reglement_id;
+			$objecttmp->cond_reglement_id = !empty($cmd->cond_reglement_id) ? $cmd->cond_reglement_id : $cmd->thirdparty->cond_reglement_id;
+			$objecttmp->mode_reglement_id = !empty($cmd->mode_reglement_id) ? $cmd->mode_reglement_id : $cmd->thirdparty->mode_reglement_id;
+
 			$objecttmp->fk_project = $cmd->fk_project;
 			$objecttmp->multicurrency_code = $cmd->multicurrency_code;
 			if (empty($createbills_onebythird)) {
@@ -680,23 +683,20 @@ if ($massaction == 'confirm_createbills') {   // Create bills from orders.
 				$nb_bills_created++;
 				$lastref = $objecttmp->ref;
 				$lastid = $objecttmp->id;
+
+				$TFactThird[$cmd->socid] = $objecttmp;
+			} else {
+				$langs->load("errors");
+				$errors[] = $cmd->ref.' : '.$langs->trans($objecttmp->error);
+				$error++;
 			}
 		}
 
 		if ($objecttmp->id > 0) {
-			$sql = "INSERT INTO ".MAIN_DB_PREFIX."element_element (";
-			$sql .= "fk_source";
-			$sql .= ", sourcetype";
-			$sql .= ", fk_target";
-			$sql .= ", targettype";
-			$sql .= ") VALUES (";
-			$sql .= $id_order;
-			$sql .= ", '".$db->escape($objecttmp->origin)."'";
-			$sql .= ", ".$objecttmp->id;
-			$sql .= ", '".$db->escape($objecttmp->element)."'";
-			$sql .= ")";
+			$res = $objecttmp->add_object_linked($objecttmp->origin, $id_order);
 
-			if (!$db->query($sql)) {
+			if ($res == 0) {
+				$errors[] = $objecttmp->error;
 				$error++;
 			}
 
@@ -845,7 +845,6 @@ if ($massaction == 'confirm_createbills') {   // Create bills from orders.
 			}
 
 			$id = $objecttmp->id; // For builddoc action
-			$object = $objecttmp;
 
 			// Builddoc
 			$donotredirect = 1;
@@ -854,7 +853,7 @@ if ($massaction == 'confirm_createbills') {   // Create bills from orders.
 
 			// Call action to build doc
 			$savobject = $object;
-				$object = $objecttmp;
+			$object = $objecttmp;
 			include DOL_DOCUMENT_ROOT.'/core/actions_builddoc.inc.php';
 			$object = $savobject;
 		}
@@ -949,6 +948,7 @@ if ($massaction == 'confirm_createbills') {   // Create bills from orders.
 		exit;
 	} else {
 		$db->rollback();
+
 		$action = 'create';
 		$_GET["origin"] = $_POST["origin"];
 		$_GET["originid"] = $_POST["originid"];
@@ -1298,6 +1298,12 @@ if (!$error && ($massaction == 'delete' || ($action == 'delete' && $confirm == '
 				continue;
 			}
 
+			if ($objectclass == 'Holiday' && ! in_array($objecttmp->statut, array(Holiday::STATUS_DRAFT, Holiday::STATUS_CANCELED, Holiday::STATUS_REFUSED))) {
+				$nbignored++;
+				$resaction .= '<div class="error">'.$langs->trans('ErrorLeaveRequestMustBeDraftCanceledOrRefusedToBeDeleted', $objecttmp->ref).'</div><br>';
+				continue;
+			}
+
 			if ($objectclass == "Task" && $objecttmp->hasChildren() > 0) {
 				$sql = "UPDATE ".MAIN_DB_PREFIX."projet_task SET fk_task_parent = 0 WHERE fk_task_parent = ".((int) $objecttmp->id);
 				$res = $db->query($sql);
@@ -1331,8 +1337,10 @@ if (!$error && ($massaction == 'delete' || ($action == 'delete' && $confirm == '
 	if (!$error) {
 		if ($nbok > 1) {
 			setEventMessages($langs->trans("RecordsDeleted", $nbok), null, 'mesgs');
+		} elseif ($nbok > 0) {
+			setEventMessages($langs->trans("RecordDeleted", $nbok), null, 'mesgs');
 		} else {
-			setEventMessages($langs->trans("RecordDeleted"), null, 'mesgs');
+			setEventMessages($langs->trans("NoRecordDeleted"), null, 'mesgs');
 		}
 		$db->commit();
 	} else {
