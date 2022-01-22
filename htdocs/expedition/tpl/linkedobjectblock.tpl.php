@@ -53,14 +53,13 @@ foreach ($linkedObjectBlock as $key => $objectlink) {
 		<td></td>
 		<td class="center"><?php echo dol_print_date($objectlink->date_delivery, 'day'); ?></td>
 		<td class="right"><?php
-		if (!empty($conf->multicurrency->enabled)) {
-			$multicurrency_total = $multicurrency_total + $objectlink->multicurrency_total_ht;
-			echo price($objectlink->multicurrency_total_ht); ?></td>
-			<td class="right"><?php
-		} 
 		if ($user->rights->expedition->lire) {
+			if (!empty($conf->multicurrency->enabled) & !empty($objectlink->multicurrency_code) & ($conf->currency!=$objectlink->multicurrency_code)) {
+				$multicurrency_total = $multicurrency_total + $objectlink->multicurrency_total_ht;
+				echo $objectlink->multicurrency_code.' '.price($objectlink->multicurrency_total_ht).'<br>';
+			}
 			$total = $total + $objectlink->total_ht;
-			echo price($objectlink->total_ht);
+			echo $conf->currency.' '.price($objectlink->total_ht);
 		} ?></td>
 		<td class="right"><?php echo $objectlink->getLibStatut(3); ?></td>
 		<td class="right">
@@ -82,12 +81,7 @@ if (count($linkedObjectBlock) > 1) {
 		<td></td>
 		<td class="center"></td>
 		<td class="center"></td>
-		<td class="right"><?php
-		if (!empty($conf->multicurrency->enabled)) {
-			echo price($multicurrency_total); ?></td>
-			<td class="right"><?php
-		} 
-		echo price($total); ?></td>
+		<td class="right"><?php echo $conf->currency.' '.price($total); ?></td>
 		<td class="right"></td>
 		<td class="right"></td>
 	</tr>

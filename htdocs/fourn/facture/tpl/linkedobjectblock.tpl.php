@@ -56,25 +56,16 @@ foreach ($linkedObjectBlock as $key => $objectlink) {
 			if ($object->type == FactureFournisseur::TYPE_CREDIT_NOTE) {
 				$sign = -1;
 			}
-			if (!empty($conf->multicurrency->enabled)) {
-				if ($objectlink->statut != 3) {
-				// If not abandonned
-					$multicurrency_total = $multicurrency_total + $objectlink->multicurrency_total_ht;
-					echo price($objectlink->multicurrency_total_ht);
-					?></td>
-					<td class="right"><?php
-				} else {
-					echo '<strike>'.price($objectlink->multicurrency_total_ht).'</strike>';
-					?></td>
-					<td class="right"><?php
-				}
-			}
 			if ($objectlink->statut != 3) {
 				// If not abandonned
+				if (!empty($conf->multicurrency->enabled) & !empty($objectlink->multicurrency_code) & ($conf->currency!=$objectlink->multicurrency_code)) {
+					$multicurrency_total = $multicurrency_total + $objectlink->multicurrency_total_ht;
+					echo $objectlink->multicurrency_code.' '.price($objectlink->multicurrency_total_ht).'<br>';
+				}
 				$total = $total + $sign * $objectlink->total_ht;
-				echo price($objectlink->total_ht);
+				echo $conf->currency.' '.price($objectlink->total_ht);
 			} else {
-				echo '<strike>'.price($objectlink->total_ht).'</strike>';
+				echo '<strike>'.((!empty($conf->multicurrency->enabled) & !empty($objectlink->multicurrency_code) & ($conf->currency!=$objectlink->multicurrency_code)) ? $objectlink->multicurrency_code.' '.price($objectlink->multicurrency_total_ht).'<br>'.$conf->currency.' '.price($objectlink->total_ht) : $conf->currency.' '.price($objectlink->total_ht)).'</strike>';
 			}
 			?></td>
 			<td class="right"><?php
@@ -96,13 +87,7 @@ if (count($linkedObjectBlock) > 1) {
 		<td></td>
 		<td class="center"></td>
 		<td class="center"></td>
-		<td class="right"><?php
-		if (!empty($conf->multicurrency->enabled)) {
-			echo price($multicurrency_total); 
-			?></td>
-			<td class="right"><?php
-		}
-        echo price($total); ?></td>
+		<td class="right"><?php echo $conf->currency.' '.price($total); ?></td>
 		<td class="right"></td>
 		<td class="right"></td>
 	</tr>

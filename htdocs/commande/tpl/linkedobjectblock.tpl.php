@@ -57,18 +57,14 @@ foreach ($linkedObjectBlock as $key => $objectlink) {
 	echo '<td class="linkedcol-name nowraponall" >'.$objectlink->getNomUrl(1).'</td>';
 	echo '<td class="linkedcol-ref" align="center">'.$objectlink->ref_client.'</td>';
 	echo '<td class="linkedcol-date" align="center">'.dol_print_date($objectlink->date, 'day').'</td>';
-    if (!empty($conf->multicurrency->enabled)) {
-        echo '<td class="linkedcol-amount right">';
-	    if ($user->rights->facture->lire) {
-		    $multicurrency_total = $multicurrency_total + $objectlink->multicurrency_total_ht;
-		    echo price($objectlink->multicurrency_total_ht);
-	    }
-        echo '</td>';
-    }
 	echo '<td class="linkedcol-amount right">';
 	if ($user->rights->commande->lire) {
+		if (!empty($conf->multicurrency->enabled) & !empty($objectlink->multicurrency_code) & ($conf->currency!=$objectlink->multicurrency_code)) {
+			$multicurrency_total = $multicurrency_total + $objectlink->multicurrency_total_ht;
+            echo $objectlink->multicurrency_code.' '.price($objectlink->multicurrency_total_ht).'<br>';
+		}
 		$total = $total + $objectlink->total_ht;
-		echo price($objectlink->total_ht);
+		echo $conf->currency.' '.price($objectlink->total_ht);
 	}
 	echo '</td>';
 	echo '<td class="linkedcol-statut right">'.$objectlink->getLibStatut(3).'</td>';
@@ -86,10 +82,7 @@ if (count($linkedObjectBlock) > 1) {
 	echo '<td></td>';
 	echo '<td class="center"></td>';
 	echo '<td class="center"></td>';
-    if (!empty($conf->multicurrency->enabled)) {
-        echo '<td class="right">'.price($multicurrency_total).'</td>';
-    }
-	echo '<td class="right">'.price($total).'</td>';
+	echo '<td class="right">'.$conf->currency.' '.price($total).'</td>';
 	echo '<td class="right"></td>';
 	echo '<td class="right"></td>';
 	echo "</tr>\n";

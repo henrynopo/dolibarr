@@ -73,23 +73,6 @@ foreach ($linkedObjectBlock as $key => $objectlink) {
 	print '<td class="linkedcol-name nowraponall">'.$objectlink->getNomUrl(1).'</td>';
 	print '<td class="linkedcol-ref left">'.$objectlink->ref_client.'</td>';
 	print '<td class="linkedcol-date center">'.dol_print_date($objectlink->date, 'day').'</td>';
-    if (!empty($conf->multicurrency->enabled)) {
-        print '<td class="linkedcol-amount right">';
-	    if ($user->rights->facture->lire) {
-		    $sign = 1;
-		    if ($object->type == Facture::TYPE_CREDIT_NOTE) {
-		    	$sign = -1;
-		    }
-		    if ($objectlink->statut != 3) {
-		    	// If not abandonned
-		    	$multicurrency_total = $multicurrency_total + $sign * $objectlink->multicurrency_total_ht;
-		    	echo price($objectlink->multicurrency_total_ht).'</td>';
-		    } else {
-		    	echo '<strike>'.price($objectlink->multicurrency_total_ht).'</strike>';
-		    }
-	    }
-		print '</td>';
-    }
 	print '<td class="linkedcol-amount right">';
 	if ($user->rights->facture->lire) {
 		$sign = 1;
@@ -98,13 +81,16 @@ foreach ($linkedObjectBlock as $key => $objectlink) {
 		}
 		if ($objectlink->statut != 3) {
 			// If not abandonned
+			if (!empty($conf->multicurrency->enabled) & !empty($objectlink->multicurrency_code) & ($conf->currency!=$objectlink->multicurrency_code)) {
+				$multicurrency_total = $multicurrency_total + $sign * $objectlink->multicurrency_total_ht;
+				echo $objectlink->multicurrency_code.' '.price($objectlink->multicurrency_total_ht).'<br>';
+			}
 			$total = $total + $sign * $objectlink->total_ht;
-			echo price($objectlink->total_ht);
+			echo $conf->currency.' '.price($objectlink->total_ht);
 		} else {
-			echo '<strike>'.price($objectlink->total_ht).'</strike>';
+			echo '<strike>'.((!empty($conf->multicurrency->enabled) & !empty($objectlink->multicurrency_code) & ($conf->currency!=$objectlink->multicurrency_code)) ? $objectlink->multicurrency_code.' '.price($objectlink->multicurrency_total_ht).'<br>'.$conf->currency.' '.price($objectlink->total_ht) : $conf->currency.' '.price($objectlink->total_ht)).'</strike>';
 		}
 	}
-
 	print '</td>';
 	print '<td class="linkedcol-statut right">';
 	if (method_exists($objectlink, 'getSommePaiement')) {
@@ -122,10 +108,7 @@ if (count($linkedObjectBlock) > 1) {
 	print '<td></td>';
 	print '<td class="center"></td>';
 	print '<td class="center"></td>';
-    if (!empty($conf->multicurrency->enabled)) {
-        print '<td class="right">'.price($multicurrency_total).'</td>';
-    }
-	print '<td class="right">'.price($total).'</td>';
+	print '<td class="right">'.$conf->currency.' '.price($total).'</td>';
 	print '<td class="right"></td>';
 	print '<td class="right"></td>';
 	print '</tr>';
