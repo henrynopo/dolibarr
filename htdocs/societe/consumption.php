@@ -332,13 +332,13 @@ if (!empty($sql_select)) {
 	$sql = $sql_select;
 	$sql .= ' d.description as description,';
 	if ($type_element != 'fichinter' && $type_element != 'contract' && $type_element != 'supplier_proposal') {
-		$sql .= ' d.label, d.fk_product as product_id, d.fk_product as fk_product, d.info_bits, d.date_start, d.date_end, d.qty, d.qty as prod_qty, d.total_ht as total_ht, d.multicurrency_code as multicurrency_code, d.multicurrency_total_ht as multicurrency_total_ht, ';
+		$sql .= ' d.label, d.fk_product as product_id, d.fk_product as fk_product, d.info_bits, d.date_start, d.date_end, d.qty, d.qty as prod_qty, d.total_ht as total_ht, ';
 	}
 	if ($type_element == 'supplier_proposal') {
-		$sql .= ' d.label, d.fk_product as product_id, d.fk_product as fk_product, d.info_bits, d.qty, d.qty as prod_qty, d.total_ht as total_ht, d.multicurrency_code as multicurrency_code, d.multicurrency_total_ht as multicurrency_total_ht,';
+		$sql .= ' d.label, d.fk_product as product_id, d.fk_product as fk_product, d.info_bits, d.qty, d.qty as prod_qty, d.total_ht as total_ht, ';
 	}
 	if ($type_element == 'contract') {
-		$sql .= ' d.label, d.fk_product as product_id, d.fk_product as fk_product, d.info_bits, d.date_ouverture as date_start, d.date_cloture as date_end, d.qty, d.qty as prod_qty, d.total_ht as total_ht, d.multicurrency_code as multicurrency_code, d.multicurrency_total_ht as multicurrency_total_ht, ';
+		$sql .= ' d.label, d.fk_product as product_id, d.fk_product as fk_product, d.info_bits, d.date_ouverture as date_start, d.date_cloture as date_end, d.qty, d.qty as prod_qty, d.total_ht as total_ht, ';
 	}
 	if ($type_element != 'fichinter') {
 		$sql .= ' p.ref as ref, p.rowid as prod_id, p.rowid as fk_product, p.fk_product_type as prod_type, p.fk_product_type as fk_product_type, p.entity as pentity,';
@@ -444,13 +444,13 @@ if ($sql_select) {
 	print '<td class="liste_titre center">';
 	print '</td>';
 	print '<td class="liste_titre left">';
-	print '<input class="flat" type="text" name="sprod_fulldescr" size="20" value="'.dol_escape_htmltag($sprod_fulldescr).'">';
+	print '<input class="flat" type="text" name="sprod_fulldescr" size="15" value="'.dol_escape_htmltag($sprod_fulldescr).'">';
 	print '</td>';
 	print '<td class="liste_titre center">';
 	print '</td>';
 	print '<td class="liste_titre center">';
 	print '</td>';
-	print '<td class="liste_titre right">';
+	print '<td class="liste_titre maxwidthsearch">';
 	$searchpicto = $form->showFilterAndCheckAddButtons(0);
 	print $searchpicto;
 	print '</td>';
@@ -651,10 +651,10 @@ if ($sql_select) {
 		print '<td class="right"><span class="amount">'.$objp->prod_qty.'</span></td>';
 		$total_qty += $objp->prod_qty;
 
-		print '<td class="right"><span class="amount">'.(!empty($conf->multicurrency->enabled) ? $objp->multicurrency_code.' '.price($objp->multicurrency_total_ht).'<br>'.$conf->currency.' '.price($objp->total_ht) : $conf->currency.' '.price($objp->total_ht)).'</span></td>';
+		print '<td class="right"><span class="amount">'.price($objp->total_ht).'</span></td>';
 		$total_ht += $objp->total_ht;
 
-		print '<td class="right">'.(!empty($conf->multicurrency->enabled) ? $objp->multicurrency_code.' '.price($objp->multicurrency_total_ht / (empty($objp->prod_qty) ? 1 : $objp->prod_qty)).'<br>'.$conf->currency.' '.price($objp->total_ht / (empty($objp->prod_qty) ? 1 : $objp->prod_qty)) : $conf->currency.' '.price($objp->total_ht / (empty($objp->prod_qty) ? 1 : $objp->prod_qty))).'</td>';
+		print '<td class="right">'.price($objp->total_ht / (empty($objp->prod_qty) ? 1 : $objp->prod_qty)).'</td>';
 
 		print "</tr>\n";
 		$i++;
@@ -664,8 +664,8 @@ if ($sql_select) {
 	print '<td>'.$langs->trans('Total').'</td>';
 	print '<td colspan="3"></td>';
 	print '<td class="right">'.$total_qty.'</td>';
-	print '<td class="right">'.$conf->currency.' '.price($total_ht).'</td>';
-	print '<td class="right">'.$conf->currency.' '.price($total_ht / (empty($total_qty) ? 1 : $total_qty)).'</td>';
+	print '<td class="right">'.price($total_ht).'</td>';
+	print '<td class="right">'.price($total_ht / (empty($total_qty) ? 1 : $total_qty)).'</td>';
 	print "</table>";
 	print '</div>';
 
