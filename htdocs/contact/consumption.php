@@ -409,7 +409,7 @@ if ($sql_select) {
 	print '<td class="liste_titre center">';
 	print '</td>';
 	print '<td class="liste_titre left">';
-	print '<input class="flat" type="text" name="sprod_fulldescr" size="15" value="'.dol_escape_htmltag($sprod_fulldescr).'">';
+	print '<input class="flat" type="text" name="sprod_fulldescr" size="20" value="'.dol_escape_htmltag($sprod_fulldescr).'">';
 	print '</td>';
 	print '<td class="liste_titre center">'; // TODO: Add filters !
 	print '</td>';
@@ -417,7 +417,7 @@ if ($sql_select) {
 	print '</td>';
 	print '<td class="liste_titre center">';
 	print '</td>';
-	print '<td class="liste_titre maxwidthsearch">';
+	print '<td class="liste_titre right">';
 	$searchpicto = $form->showFilterAndCheckAddButtons(0);
 	print $searchpicto;
 	print '</td>';
@@ -609,19 +609,10 @@ if ($sql_select) {
 		print '<td class="right">'.$objp->prod_qty.'</td>';
 		$total_qty += $objp->prod_qty;
 
-		print '<td class="right">';
-		if (!empty($conf->multicurrency->enabled)) {
-			print ''.$objp->multicurrency_code.price($objp->multicurrency_total_ht).' | ';
-			$multicurrency_total_ht += $objp->multicurrency_total_ht;
-		}
-		print ''.$conf->currency.price($objp->total_ht).'</td>';
+		print '<td class="right"><span class="amount">'.(!empty($conf->multicurrency->enabled) ? $objp->multicurrency_code.' '.price($objp->multicurrency_total_ht).'<br>'.$conf->currency.' '.price($objp->total_ht) : $conf->currency.' '.price($objp->total_ht)).'</span></td>';
 		$total_ht += $objp->total_ht;
 
-		print '<td class="right">';
-		if (!empty($conf->multicurrency->enabled)) {
-			print ''.$objp->multicurrency_code.price($objp->multicurrency_total_ht / (empty($objp->prod_qty) ? 1 : $objp->prod_qty)).' | ';
-		}
-        	print ''.$conf->currency.price($objp->total_ht / (empty($objp->prod_qty) ? 1 : $objp->prod_qty)).'</td>';
+		print '<td class="right">'.(!empty($conf->multicurrency->enabled) ? $objp->multicurrency_code.' '.price($objp->multicurrency_total_ht / (empty($objp->prod_qty) ? 1 : $objp->prod_qty)).'<br>'.$conf->currency.' '.price($objp->total_ht / (empty($objp->prod_qty) ? 1 : $objp->prod_qty)) : $conf->currency.' '.price($objp->total_ht / (empty($objp->prod_qty) ? 1 : $objp->prod_qty))).'</td>';
 
 		print "</tr>\n";
 		$i++;
@@ -632,8 +623,8 @@ if ($sql_select) {
 	print '<td colspan="3"></td>';
 	print '<td></td>';
 	print '<td class="right">'.$total_qty.'</td>';
-	print '<td class="right">'.$conf->currency.price($total_ht).'</td>';
-	print '<td class="right">'.$conf->currency.price($total_ht / (empty($total_qty) ? 1 : $total_qty)).'</td>';
+	print '<td class="right">'.$conf->currency.' '.price($total_ht).'</td>';
+	print '<td class="right">'.$conf->currency.' '.price($total_ht / (empty($total_qty) ? 1 : $total_qty)).'</td>';
 	print "</table>";
 	print '</div>';
 
