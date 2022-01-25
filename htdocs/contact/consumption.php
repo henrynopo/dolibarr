@@ -29,6 +29,7 @@ require "../main.inc.php";
 require_once DOL_DOCUMENT_ROOT.'/core/lib/contact.lib.php';
 require_once DOL_DOCUMENT_ROOT.'/core/class/html.formother.class.php';
 require_once DOL_DOCUMENT_ROOT.'/core/lib/date.lib.php';
+require_once DOL_DOCUMENT_ROOT.'/core/lib/functions.lib.php';
 require_once DOL_DOCUMENT_ROOT.'/fourn/class/fournisseur.class.php';
 require_once DOL_DOCUMENT_ROOT.'/contact/class/contact.class.php';
 
@@ -68,6 +69,8 @@ $sref = GETPOST("sref");
 $sprod_fulldescr = GETPOST("sprod_fulldescr");
 $month = GETPOST('month', 'int');
 $year = GETPOST('year', 'int');
+$search_status = GETPOST('search_status', 'intcomma');
+$search_total_ht = GETPOST('search_total_ht', 'alpha');
 
 // Clean up on purge search criteria ?
 if (GETPOST('button_removefilter_x', 'alpha') || GETPOST('button_removefilter.x', 'alpha') || GETPOST('button_removefilter', 'alpha')) { // Both test are required to be compatible with all browsers
@@ -75,6 +78,8 @@ if (GETPOST('button_removefilter_x', 'alpha') || GETPOST('button_removefilter.x'
 	$sprod_fulldescr = '';
 	$year = '';
 	$month = '';
+	$search_status = '';
+	$search_total_ht = '';
 }
 // Customer or supplier selected in drop box
 $thirdTypeSelect = GETPOST("third_select_id");
@@ -333,6 +338,9 @@ if (!empty($sql_select)) {
 		}
 		$sql .= ")";
 	}
+	if ($search_total_ht != '') {
+		$sql .= " AND (d.total_ht = ".$search_total_ht." OR d.multicurrency_total_ht = ".$search_total_ht.")";
+	}
 	$sql .= $db->order($sortfield, $sortorder);
 	$resql = $db->query($sql);
 	$totalnboflines = $db->num_rows($resql);
@@ -358,6 +366,8 @@ $param .= "&year=".urlencode($year);
 $param .= "&sprod_fulldescr=".urlencode($sprod_fulldescr);
 $param .= "&socid=".urlencode($socid);
 $param .= "&type_element=".urlencode($type_element);
+$param .= "&search_total_ht=".urlencode($search_total_ht);
+$param .= "&search_status=".urlencode($search_status);
 
 $total_qty = 0;
 
@@ -391,6 +401,12 @@ if ($sql_select) {
 	if ($optioncss != '') {
 		$param .= '&optioncss='.urlencode($optioncss);
 	}
+	if ($search_total_ht != '') {
+		$param .= '&search_total_ht='.urlencode($search_total_ht);
+	}
+	if ($search_status != '') {
+		$param .= '&search_status='.urlencode($search_status);
+	}
 
 	print_barre_liste($langs->trans('ProductsIntoElements').' '.$typeElementString.' '.$button, $page, $_SERVER["PHP_SELF"], $param, $sortfield, $sortorder, '', $num, $totalnboflines, '', 0, '', '', $limit);
 
@@ -415,7 +431,8 @@ if ($sql_select) {
 	print '</td>';
 	print '<td class="liste_titre center">';
 	print '</td>';
-	print '<td class="liste_titre center">';
+	print '<td class="liste_titre right">';
+	print '<input class="flat" type="text" size="8" name="search_total_ht" value="'.dol_escape_htmltag($search_total_ht).'">';
 	print '</td>';
 	print '<td class="liste_titre right">';
 	$searchpicto = $form->showFilterAndCheckAddButtons(0);
