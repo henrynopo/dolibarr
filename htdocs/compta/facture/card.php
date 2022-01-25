@@ -3868,15 +3868,6 @@ if ($action == 'create') {
 	// $resteapayer=bcadd($object->total_ttc,$totalpaye,$conf->global->MAIN_MAX_DECIMALS_TOT);
 	// $resteapayer=bcadd($resteapayer,$totalavoir,$conf->global->MAIN_MAX_DECIMALS_TOT);
 	$resteapayer = price2num($object->total_ttc - $totalpaye - $totalcreditnotes - $totaldeposits, 'MT');
-	// Multicurrency
-	if (!empty($conf->multicurrency->enabled)) {
-		$multicurrency_totalpaye = $object->getSommePaiement(1);
-		$multicurrency_totalcreditnotes = $object->getSumCreditNotesUsed(1);
-		$multicurrency_totaldeposits = $object->getSumDepositsUsed(1);
-		$multicurrency_resteapayer = price2num($object->multicurrency_total_ttc - $multicurrency_totalpaye - $multicurrency_totalcreditnotes - $multicurrency_totaldeposits, 'MT');
-		$resteapayer = price2num($multicurrency_resteapayer / $object->multicurrency_tx, 'MT');
-	}	
-	
 
 	// Multicurrency
 	if (!empty($conf->multicurrency->enabled)) {
@@ -3885,15 +3876,21 @@ if ($action == 'create') {
 		$multicurrency_totaldeposits = $object->getSumDepositsUsed(1);
 		$multicurrency_resteapayer = price2num($object->multicurrency_total_ttc - $multicurrency_totalpaye - $multicurrency_totalcreditnotes - $multicurrency_totaldeposits, 'MT');
 		// Code to fix case of corrupted data
-		if ($resteapayer == 0 && $multicurrency_resteapayer != 0) {
+		if ($resteapayer != 0 && $multicurrency_resteapayer == 0) {
 			$resteapayer = price2num($multicurrency_resteapayer / $object->multicurrency_tx, 'MT');
 		}
 	}
 
 	if ($object->paye) {
 		$resteapayer = 0;
+		if (!empty($conf->multicurrency->enabled)) {
+			$multicurrency_resteapayer = 0;
+		}
 	}
 	$resteapayeraffiche = $resteapayer;
+	if (!empty($conf->multicurrency->enabled)) {
+		$multicurrency_resteapayeraffiche = $multicurrency_resteapayer;
+	}
 
 	if (!empty($conf->global->FACTURE_DEPOSITS_ARE_JUST_PAYMENTS)) {	// Never use this
 		$filterabsolutediscount = "fk_facture_source IS NULL"; // If we want deposit to be substracted to payments only and not to total of final invoice
@@ -5035,6 +5032,9 @@ if ($action == 'create') {
 		print '</span></td><td class="right'.(($totalpaye > 0) ? ' amountalreadypaid' : '').'">'.price($totalpaye).'</td><td>&nbsp;</td></tr>';
 
 		$resteapayeraffiche = $resteapayer;
+		if (!empty($conf->multicurrency->enabled)) {
+			$multicurrency_resteapayeraffiche = $multicurrency_resteapayer;
+		}
 		$cssforamountpaymentcomplete = 'amountpaymentcomplete';
 
 		// Loop on each credit note or deposit amount applied
@@ -5106,6 +5106,9 @@ if ($action == 'create') {
             }
 			print '</td><td class="right"><span class="amount">'.price(price2num($object->total_ttc - $creditnoteamount - $depositamount - $totalpaye, 'MT')).'</span></td><td>&nbsp;</td></tr>';
 			$resteapayeraffiche = 0;
+			if (!empty($conf->multicurrency->enabled)) {
+				$multicurrency_resteapayeraffiche = 0;
+			}
 			$cssforamountpaymentcomplete = 'amountpaymentneutral';
 		}
 		// Paye partiellement ou Abandon 'badcustomer'
@@ -5132,6 +5135,9 @@ if ($action == 'create') {
             }
 			print '</td><td class="right"><span class="amount">'.price(price2num($object->total_ttc - $creditnoteamount - $depositamount - $totalpaye, 'MT')).'</span></td><td>&nbsp;</td></tr>';
 			$resteapayeraffiche = 0;
+			if (!empty($conf->multicurrency->enabled)) {
+				$multicurrency_resteapayeraffiche = 0;
+			}
 			$cssforamountpaymentcomplete = 'amountpaymentneutral';
 		}
 		// Paye partiellement ou Abandon 'abandon'
@@ -5148,7 +5154,9 @@ if ($action == 'create') {
                 print '</td><td class="right"><span class="amount">'.price(price2num($object->multicurrency_total_ttc - $multicurrency_creditnoteamount - $multicurrency_depositamount - $multicurrency_totalpaye, 'MT')).'</span></td>';
             }
 			print '</td><td class="right"><span class="amount">'.price(price2num($object->total_ttc - $creditnoteamount - $depositamount - $totalpaye, 'MT')).'</span></td><td>&nbsp;</td></tr>';
-			$resteapayeraffiche = 0;
+			if (!empty($conf->multicurrency->enabled)) {
+				$multicurrency_resteapayeraffiche = 0;
+			}
 			$cssforamountpaymentcomplete = 'amountpaymentneutral';
 		}
 
@@ -5163,7 +5171,7 @@ if ($action == 'create') {
 		// Remainder to pay
 		print '<tr><td colspan="'.$nbcols.'" class="right">';
 		print '<span class="opacitymedium">';
-		if ($resteapayeraffiche >= 0) {
+		if ((!empty($conf->multicurrency->enabled) ? $multicurrency_resteapayeraffiche : $resteapayeraffiche) >= 0) {
 			print $langs->trans('RemainderToPay');
 		} else {
 			print $langs->trans('ExcessReceived');
@@ -5171,25 +5179,10 @@ if ($action == 'create') {
 		print '</span>';
 		print '</td>';
         if ($object->multicurrency_code != $conf->currency || $object->multicurrency_tx != 1) {
-            print '<td class="right'.($resteapayeraffiche ? ' amountremaintopay' : (' '.$cssforamountpaymentcomplete)).'">'.price(price2num($sign * $resteapayeraffiche * $object->multicurrency_tx, 'MT')).'</td>';
+            print '<td class="right'.($resteapayeraffiche ? ' amountremaintopay' : (' '.$cssforamountpaymentcomplete)).'">'.price($sign * $multicurrency_resteapayeraffiche).'</td>';
         }
-		print '<td class="right'.($resteapayeraffiche ? ' amountremaintopay' : (' '.$cssforamountpaymentcomplete)).'">'.price($resteapayeraffiche).'</td><td>&nbsp;</td></tr>';
+		print '<td class="right'.($resteapayeraffiche ? ' amountremaintopay' : (' '.$cssforamountpaymentcomplete)).'">'.price($sign * $resteapayeraffiche).'</td><td>&nbsp;</td></tr>';
 
-		// Remainder to pay Multicurrency
-		/*
-        if ($object->multicurrency_code != $conf->currency || $object->multicurrency_tx != 1) {
-			print '<tr><td colspan="'.$nbcols.'" class="right">';
-			print '<span class="opacitymedium">';
-			if ($resteapayeraffiche >= 0) {
-				print $langs->trans('RemainderToPayMulticurrency');
-			} else {
-				print $langs->trans('ExcessReceivedMulticurrency');
-			}
-			print '</span>';
-			print '</td>';
-			print '<td class="right'.($resteapayeraffiche ? ' amountremaintopay' : (' '.$cssforamountpaymentcomplete)).'">'.(!empty($object->multicurrency_code) ? $object->multicurrency_code : $conf->currency).' '.price(price2num($sign * $resteapayeraffiche * $object->multicurrency_tx, 'MT')).'</td><td>&nbsp;</td></tr>';
-		}
-		*/
 		// Retained warranty : usualy use on construction industry
 		if (!empty($object->situation_final) && !empty($object->retained_warranty) && $displayWarranty) {
 			// Billed - retained warranty
@@ -5212,6 +5205,9 @@ if ($action == 'create') {
 		}
 	} else { // Credit note
 		$resteapayeraffiche = $resteapayer;
+		if (!empty($conf->multicurrency->enabled)) {
+			$multicurrency_resteapayeraffiche = $multicurrency_resteapayer;
+		}
 		$cssforamountpaymentcomplete = 'amountpaymentneutral';
 
 		// Total already paid back
@@ -5231,31 +5227,16 @@ if ($action == 'create') {
 
 		// Remainder to pay back
 		print '<tr><td colspan="'.$nbcols.'" class="right">';
-		if ($resteapayeraffiche <= 0) {
+		if ((!empty($conf->multicurrency->enabled) ? $multicurrency_resteapayeraffiche : $resteapayeraffiche) <= 0) {
 			print $langs->trans('RemainderToPayBack');
 		} else {
 			print $langs->trans('ExcessPaid');
 		}
 		print ' :</td>';
         if ($object->multicurrency_code != $conf->currency || $object->multicurrency_tx != 1) {
-            print '<td class="right'.($resteapayeraffiche ? ' amountremaintopay' : (' '.$cssforamountpaymentcomplete)).'">'.price(price2num($sign * $resteapayeraffiche * $object->multicurrency_tx, 'MT')).'</td>';
+            print '<td class="right'.($multicurrency_resteapayeraffiche ? ' amountremaintopay' : (' '.$cssforamountpaymentcomplete)).'">'.price($sign * $multicurrency_resteapayeraffiche).'</td>';
         }
 		print '<td class="right'.($resteapayeraffiche ? ' amountremaintopayback' : (' '.$cssforamountpaymentcomplete)).'">'.price($sign * $resteapayeraffiche).'</td><td>&nbsp;</td></tr>';
-
-		// Remainder to pay back Multicurrency
-	/*	if ($object->multicurrency_code != $conf->currency || $object->multicurrency_tx != 1) {
-			print '<tr><td colspan="'.$nbcols.'" class="right">';
-			print '<span class="opacitymedium">';
-			if ($resteapayeraffiche <= 0) {
-				print $langs->trans('RemainderToPayBackMulticurrency');
-			} else {
-				print $langs->trans('ExcessPaidMulticurrency');
-			}
-			print '</span>';
-			print '</td>';
-			print '<td class="right'.($resteapayeraffiche ? ' amountremaintopayback' : (' '.$cssforamountpaymentcomplete)).'">'.(!empty($object->multicurrency_code) ? $object->multicurrency_code : $conf->currency).' '.price(price2num($sign * $resteapayeraffiche * $object->multicurrency_tx, 'MT')).'</td><td>&nbsp;</td></tr>';
-		}
-        */
 
 		// Sold credit note
 		// print '<tr><td colspan="'.$nbcols.'" class="right">'.$langs->trans('TotalTTC').' :</td>';
@@ -5448,7 +5429,7 @@ if ($action == 'create') {
 
 			// Request a direct debit order
 			if ($object->statut > Facture::STATUS_DRAFT && $object->paye == 0 && $num == 0) {
-				if ($resteapayer > 0) {
+				if ((!empty($conf->multicurrency->enabled) ? $multicurrency_resteapayeraffiche : $resteapayeraffiche) > 0) {
 					if ($usercancreatewithdrarequest) {
 						if (!$objectidnext && $object->close_code != 'replaced') { 				// Not replaced by another invoice
 							print '<a class="butAction" href="'.DOL_URL_ROOT.'/compta/facture/prelevement.php?facid='.$object->id.'" title="'.dol_escape_htmltag($langs->trans("MakeWithdrawRequest")).'">'.$langs->trans("MakeWithdrawRequest").'</a>';
@@ -5475,7 +5456,7 @@ if ($action == 'create') {
 				if ($objectidnext) {
 					print '<span class="butActionRefused classfortooltip" title="'.$langs->trans("DisabledBecauseReplacedInvoice").'">'.$langs->trans('DoPayment').'</span>';
 				} else {
-					if ($object->type == Facture::TYPE_DEPOSIT && $resteapayer == 0) {
+					if ($object->type == Facture::TYPE_DEPOSIT && (!empty($conf->multicurrency->enabled) ? $multicurrency_resteapayer : $resteapayer) == 0) {
 						// For down payment, we refuse to receive more than amount to pay.
 						print '<span class="butActionRefused" title="'.$langs->trans("DisabledBecauseRemainderToPayIsZero").'">'.$langs->trans('DoPayment').'</span>';
 					} else {
@@ -5492,7 +5473,7 @@ if ($action == 'create') {
 			if ($object->type == Facture::TYPE_CREDIT_NOTE || $object->type == Facture::TYPE_DEPOSIT || $object->type == Facture::TYPE_STANDARD || $object->type == Facture::TYPE_SITUATION) {
 				// For credit note only
 				if ($object->type == Facture::TYPE_CREDIT_NOTE && $object->statut == Facture::STATUS_VALIDATED && $object->paye == 0 && $usercanissuepayment) {
-					if ($resteapayer == 0) {
+					if ((!empty($conf->multicurrency->enabled) ?$multicurrency_resteapayer : $resteapayer) == 0) {
 						print '<span class="butActionRefused classfortooltip" title="'.$langs->trans("DisabledBecauseRemainderToPayIsZero").'">'.$langs->trans('DoPaymentBack').'</span>';
 					} else {
 						print '<a class="butAction" href="'.DOL_URL_ROOT.'/compta/paiement.php?facid='.$object->id.'&amp;action=create&amp;accountid='.$object->fk_account.'">'.$langs->trans('DoPaymentBack').'</a>';
@@ -5500,7 +5481,7 @@ if ($action == 'create') {
 				}
 
 				// For standard invoice with excess received
-				if (($object->type == Facture::TYPE_STANDARD || $object->type == Facture::TYPE_SITUATION) && $object->statut == Facture::STATUS_VALIDATED && empty($object->paye) && $resteapayer < 0 && $usercancreate && empty($discount->id)) {
+				if (($object->type == Facture::TYPE_STANDARD || $object->type == Facture::TYPE_SITUATION) && $object->statut == Facture::STATUS_VALIDATED && empty($object->paye) && (!empty($conf->multicurrency->enabled) ? $multicurrency_resteapayer : $resteapayer) < 0 && $usercancreate && empty($discount->id)) {
 					print '<a class="butAction'.($conf->use_javascript_ajax ? ' reposition' : '').'" href="'.$_SERVER["PHP_SELF"].'?facid='.$object->id.'&amp;action=converttoreduc">'.$langs->trans('ConvertExcessReceivedToReduc').'</a>';
 				}
 				// For credit note
@@ -5511,7 +5492,7 @@ if ($action == 'create') {
 				}
 				// For deposit invoice
 				if ($object->type == Facture::TYPE_DEPOSIT && $usercancreate && $object->statut > Facture::STATUS_DRAFT && empty($discount->id)) {
-					if (price2num($object->total_ttc, 'MT') == price2num($sumofpaymentall, 'MT')) {
+					if (price2num($object->total_ttc, 'MT') == price2num($sumofpaymentall, 'MT') || $object->statut == Facture::STATUS_CLOSED ) {
 						// We can close a down payment only if paid amount is same than amount of down payment (by definition)
 						print '<a class="butAction'.($conf->use_javascript_ajax ? ' reposition' : '').'" href="'.$_SERVER["PHP_SELF"].'?facid='.$object->id.'&amp;action=converttoreduc">'.$langs->trans('ConvertToReduc').'</a>';
 					} else {
@@ -5521,8 +5502,8 @@ if ($action == 'create') {
 			}
 
 			// Classify paid
-			if (($object->statut == Facture::STATUS_VALIDATED && $object->paye == 0 && $usercanissuepayment
-				&& (($object->type != Facture::TYPE_CREDIT_NOTE && $object->type != Facture::TYPE_DEPOSIT && $resteapayer <= 0) || ($object->type == Facture::TYPE_CREDIT_NOTE && $resteapayer >= 0) || ($object->type == Facture::TYPE_DEPOSIT && $object->total_ttc > 0)))
+			if (($object->statut == Facture::STATUS_VALIDATED && $object->paye == 0 && $usercanissuepayment && (($object->type != Facture::TYPE_CREDIT_NOTE && $object->type != Facture::TYPE_DEPOSIT && (!empty($conf->multicurrency->enabled) ? $multicurrency_resteapayer : $resteapayer) <= 0) || ($object->type == Facture::TYPE_CREDIT_NOTE && (!empty($conf->multicurrency->enabled) ? $multicurrency_resteapayer : $resteapayer) >= 0)))
+				|| ($object->type == Facture::TYPE_DEPOSIT && $object->paye == 0 && $object->total_ttc > 0 && (!empty($conf->multicurrency->enabled) ? $multicurrency_resteapayer : $resteapayer) == 0 && $usercanissuepayment && empty($discount->id))
 			) {
 				if ($object->type == Facture::TYPE_DEPOSIT && price2num($object->total_ttc, 'MT') != price2num($sumofpaymentall, 'MT')) {
 					// We can close a down payment only if paid amount is same than amount of down payment (by definition)
@@ -5533,7 +5514,7 @@ if ($action == 'create') {
 			}
 
 			// Classify 'closed not completely paid' (possible if validated and not yet filed paid)
-			if ($object->statut == Facture::STATUS_VALIDATED && $object->paye == 0 && ($sign * $resteapayer) > 0 && $usercanissuepayment) {
+			if ($object->statut == Facture::STATUS_VALIDATED && $object->paye == 0 && ($sign * (!empty($conf->multicurrency->enabled) ? $multicurrency_resteapayer : $resteapayer)) > 0 && $usercanissuepayment) {
 				if (($sign * $totalpaye) > 0 || $totalcreditnotes > 0) {
 					// If one payment or one credit note was linked to this invoice
 					print '<a class="butAction'.($conf->use_javascript_ajax ? ' reposition' : '').'" href="'.$_SERVER['PHP_SELF'].'?facid='.$object->id.'&amp;action=paid">'.$langs->trans('ClassifyPaidPartially').'</a>';
