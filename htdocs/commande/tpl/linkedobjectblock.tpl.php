@@ -59,7 +59,7 @@ foreach ($linkedObjectBlock as $key => $objectlink) {
 	echo '<td class="linkedcol-date" align="center">'.dol_print_date($objectlink->date, 'day').'</td>';
 	echo '<td class="linkedcol-amount right">';
 	if ($user->rights->commande->lire) {
-		if (!empty($conf->multicurrency->enabled) & !empty($objectlink->multicurrency_code) & ($conf->currency!=$objectlink->multicurrency_code)) {
+		if (!empty($conf->multicurrency->enabled) && !empty($objectlink->multicurrency_code) && ($conf->currency!=$objectlink->multicurrency_code)) {
 			$multicurrency_total = $multicurrency_total + $objectlink->multicurrency_total_ht;
             echo $objectlink->multicurrency_code.' '.price($objectlink->multicurrency_total_ht).'<br>';
 		}

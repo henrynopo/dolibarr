@@ -58,7 +58,7 @@ foreach ($linkedObjectBlock as $key => $objectlink) {
 	// start and end date that change with time andd that may be different that the period of reference for price.
 	// So price of a contract does often means nothing. Prices is on the different invoices done on same contract.
 	if ($user->rights->contrat->lire && empty($conf->global->CONTRACT_SHOW_TOTAL_OF_PRODUCT_AS_PRICE)) {
-		if (!empty($conf->multicurrency->enabled) & !empty($objectlink->multicurrency_code) & ($conf->currency!=$objectlink->multicurrency_code)) {
+		if (!empty($conf->multicurrency->enabled) && !empty($objectlink->multicurrency_code) && ($conf->currency!=$objectlink->multicurrency_code)) {
 			$multicurrency_totalcontrat = 0;
 			foreach ($objectlink->lines as $linecontrat) {
 				$multicurrency_totalcontrat = $multicurrency_totalcontrat + $linecontrat->multicurrency_total_ht;

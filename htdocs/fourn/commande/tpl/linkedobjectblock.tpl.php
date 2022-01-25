@@ -54,7 +54,7 @@ foreach ($linkedObjectBlock as $key => $objectlink) {
 		<td class="center"><?php echo dol_print_date($objectlink->date, 'day'); ?></td>
 		<td class="right"><?php
 		if ($user->rights->expedition->lire) {
-			if (!empty($conf->multicurrency->enabled) & !empty($objectlink->multicurrency_code) & ($conf->currency!=$objectlink->multicurrency_code)) {
+			if (!empty($conf->multicurrency->enabled) && !empty($objectlink->multicurrency_code) && ($conf->currency!=$objectlink->multicurrency_code)) {
 				$multicurrency_total = $multicurrency_total + $objectlink->multicurrency_total_ht;
 				echo $objectlink->multicurrency_code.' '.price($objectlink->multicurrency_total_ht).'<br>';
 			}
