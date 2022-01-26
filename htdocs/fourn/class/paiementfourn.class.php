@@ -609,10 +609,27 @@ class PaiementFourn extends Paiement
 
 		$label = img_picto('', $this->picto).' <u>'.$langs->trans("Payment").'</u><br>';
 		$label .= '<strong>'.$langs->trans("Ref").':</strong> '.$text;
-		if ($this->datepaye ? $this->datepaye : $this->date) {
-			$label .= '<br><strong>'.$langs->trans("Date").':</strong> '.dol_print_date($this->datepaye ? $this->datepaye : $this->date, 'dayhour', 'tzuser');
+		$dateofpayment = ($this->datepaye ? $this->datepaye : $this->date);
+		if ($dateofpayment) {
+			$label .= '<br><strong>'.$langs->trans("Date").':</strong> ';
+			$tmparray = dol_getdate($dateofpayment);
+			if ($tmparray['seconds'] == 0 && $tmparray['minutes'] == 0 && ($tmparray['hours'] == 0 || $tmparray['hours'] == 12)) {  // We set hours to 0:00 or 12:00 because we don't know it
+				$label .= dol_print_date($dateofpayment, 'day');
+			} else {    // Hours was set to real date of payment (special case for POS for example)
+				$label .= dol_print_date($dateofpayment, 'dayhour', 'tzuser');
+			}
 		}
-
+		if ($mode == 'withlistofinvoices') {
+			$arraybill = $this->getBillsArray();
+			if (is_array($arraybill) && count($arraybill) > 0) {
+				include_once DOL_DOCUMENT_ROOT.'/fourn/class/fournisseur.facture.class.php';
+				$facturestatic = new FactureFournisseur($this->db);
+				foreach ($arraybill as $billid) {
+					$facturestatic->fetch($billid);
+					$label .= '<br> '.$facturestatic->getNomUrl(1, '', 0, 0, '', 1).' '.$facturestatic->getLibStatut(2, 1);
+				}
+			}
+		}
 		$linkclose = '';
 		if (empty($notooltip)) {
 			if (!empty($conf->global->MAIN_OPTIMIZEFORTEXTBROWSER)) {
@@ -633,8 +650,8 @@ class PaiementFourn extends Paiement
 		if ($withpicto) {
 			$result .= img_object(($notooltip ? '' : $label), ($this->picto ? $this->picto : 'generic'), ($notooltip ? (($withpicto != 2) ? 'class="paddingright"' : '') : 'class="'.(($withpicto != 2) ? 'paddingright ' : '').'classfortooltip"'), 0, 0, $notooltip ? 0 : 1);
 		}
-		if ($withpicto != 2) {
-			$result .= $this->ref;
+		if ($withpicto && $withpicto != 2) {
+			$result .= ($this->ref ? $this->ref : $this->id);
 		}
 		$result .= $linkend;
 
