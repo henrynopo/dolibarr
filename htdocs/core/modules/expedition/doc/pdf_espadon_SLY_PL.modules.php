@@ -514,7 +514,7 @@ class pdf_espadon_SLY_PL extends ModelePdfExpedition
 					}
 					
 					if ($this->getColumnStatus('qty_shipped')) {
-						$this->printStdColumnContent($pdf, $curY, 'qty_shipped', $object->lines[$i]->qty_shipped);
+						$this->printStdColumnContent($pdf, $curY, 'qty_shipped', price($object->lines[$i]->qty_shipped, 0, '', 1, 3));
 						$nexY = max($pdf->GetY(), $nexY);
 					}
 					
@@ -677,7 +677,7 @@ class pdf_espadon_SLY_PL extends ModelePdfExpedition
 		}
 
 		if ($this->getColumnStatus('qty_shipped') && $totalToShip) {
-		    $this->printStdColumnContent($pdf, $tab2_top, 'qty_shipped', $totalToShip);
+		    $this->printStdColumnContent($pdf, $tab2_top, 'qty_shipped', price($totalToShip, 0, '', 1, 3));
 		}
 
 		if ($this->getColumnStatus('weight_gross')) {

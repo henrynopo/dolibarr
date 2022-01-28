@@ -761,7 +761,7 @@ class pdf_sponge_SLY_consignee extends ModelePDFFactures
 	                if ($this->getColumnStatus('qty'))
 	                {
 	                    $qty = pdf_getlineqty($object, $i, $outputlangs, $hidedetails);
-	                    $this->printStdColumnContent($pdf, $curY, 'qty', $qty);
+	                    $this->printStdColumnContent($pdf, $curY, 'qty', price($qty, 0, '', 1, 0));
 	                    $nexY = max($pdf->GetY(), $nexY);
 	                }
 
@@ -1405,7 +1405,7 @@ class pdf_sponge_SLY_consignee extends ModelePDFFactures
 		            $facSign = $fac->total_ht >= 0 ? '+' : '';
 		        }
 
-		        $displayAmount = ' '.$facSign.' '.price($fac->total_ht, 0, $outputlangs);
+		        $displayAmount = ' '.$facSign.' '.price($fac->total_ht, 0, $outputlangs, 1, -1, -1, $object->multicurrency_code);
 
 		        $pdf->MultiCell($largcol2, $tab2_hl, $displayAmount, 0, 'R', 1);
 
@@ -1443,7 +1443,7 @@ class pdf_sponge_SLY_consignee extends ModelePDFFactures
 		    $pdf->MultiCell($col2x - $col1x, $tab2_hl, $outputlangs->transnoentities("SituationTotalProgress", $avancementGlobal), 0, 'L', 1);
 
 		    $pdf->SetXY($col2x, $posy);
-		    $pdf->MultiCell($largcol2, $tab2_hl, price($total_a_payer * $avancementGlobal / 100, 0, $outputlangs), 0, 'R', 1);
+		    $pdf->MultiCell($largcol2, $tab2_hl, price($total_a_payer * $avancementGlobal / 100, 0, $outputlangs, 1, -1, -1, $object->multicurrency_code), 0, 'R', 1);
 		    $pdf->SetFont('', '', $default_font_size - 2);
 
 		    $posy += $tab2_hl;
@@ -1476,7 +1476,7 @@ class pdf_sponge_SLY_consignee extends ModelePDFFactures
 		        $pdf->SetXY($col1x, $tab2_top + $tab2_hl);
 		        $pdf->MultiCell($col2x - $col1x, $tab2_hl, $outputlangs->transnoentities("TotalDiscount").(is_object($outputlangsbis) ? ' / '.$outputlangsbis->transnoentities("TotalDiscount") : ''), 0, 'L', 1);
 		        $pdf->SetXY($col2x, $tab2_top + $tab2_hl);
-		        $pdf->MultiCell($largcol2, $tab2_hl, price($total_line_remise, 0, $outputlangs), 0, 'R', 1);
+		        $pdf->MultiCell($largcol2, $tab2_hl, price($total_line_remise, 0, $outputlangs, 1, -1, -1, $object->multicurrency_code), 0, 'R', 1);
 
 		        $index++;
 		    }
@@ -1486,7 +1486,7 @@ class pdf_sponge_SLY_consignee extends ModelePDFFactures
 		        $pdf->SetXY($col1x, $tab2_top + 0);
 		        $pdf->MultiCell($col2x - $col1x, $tab2_hl, $outputlangs->transnoentities("TotalHTBeforeDiscount").(is_object($outputlangsbis) ? ' / '.$outputlangsbis->transnoentities("TotalHTBeforeDiscount") : ''), 0, 'L', 1);
                 $pdf->SetXY($col2x, $tab2_top + 0);
-		        $pdf->MultiCell($largcol2, $tab2_hl, price($total_line_remise + $total_ht, 0, $outputlangs), 0, 'R', 1);
+		        $pdf->MultiCell($largcol2, $tab2_hl, price($total_line_remise + $total_ht, 0, $outputlangs, 1, -1, -1, $object->multicurrency_code), 0, 'R', 1);
 
 		        $index++;
 		    }
@@ -1499,7 +1499,7 @@ class pdf_sponge_SLY_consignee extends ModelePDFFactures
 
 		$total_ht = (($conf->multicurrency->enabled && isset($object->multicurrency_tx) && $object->multicurrency_tx != 1) ? $object->multicurrency_total_ht : $object->total_ht);
 		$pdf->SetXY($col2x, $tab2_top + $tab2_hl * $index);
-		$pdf->MultiCell($largcol2, $tab2_hl, price($sign * ($total_ht + (!empty($object->remise) ? $object->remise : 0)), 0, $outputlangs), 0, 'R', 1);
+		$pdf->MultiCell($largcol2, $tab2_hl, price($sign * ($total_ht + (!empty($object->remise) ? $object->remise : 0)), 0, $outputlangs, 1, -1, -1, $object->multicurrency_code), 0, 'R', 1);
 
 		// Show VAT by rates and total
 		$pdf->SetFillColor(248, 248, 248);
@@ -1547,7 +1547,7 @@ class pdf_sponge_SLY_consignee extends ModelePDFFactures
 							$pdf->MultiCell($col2x - $col1x, $tab2_hl, $totalvat, 0, 'L', 1);
 
 							$pdf->SetXY($col2x, $tab2_top + $tab2_hl * $index);
-							$pdf->MultiCell($largcol2, $tab2_hl, price($tvaval, 0, $outputlangs), 0, 'R', 1);
+							$pdf->MultiCell($largcol2, $tab2_hl, price($tvaval, 0, $outputlangs, 1, -1, -1, $object->multicurrency_code), 0, 'R', 1);
 						}
 					}
 				}
@@ -1580,7 +1580,7 @@ class pdf_sponge_SLY_consignee extends ModelePDFFactures
 							$pdf->MultiCell($col2x - $col1x, $tab2_hl, $totalvat, 0, 'L', 1);
 
 							$pdf->SetXY($col2x, $tab2_top + $tab2_hl * $index);
-							$pdf->MultiCell($largcol2, $tab2_hl, price($tvaval, 0, $outputlangs), 0, 'R', 1);
+							$pdf->MultiCell($largcol2, $tab2_hl, price($tvaval, 0, $outputlangs, 1, -1, -1, $object->multicurrency_code), 0, 'R', 1);
 						}
 					}
 				}
@@ -1631,7 +1631,7 @@ class pdf_sponge_SLY_consignee extends ModelePDFFactures
 						$pdf->MultiCell($col2x - $col1x, $tab2_hl, $totalvat, 0, 'L', 1);
 
 						$pdf->SetXY($col2x, $tab2_top + $tab2_hl * $index);
-						$pdf->MultiCell($largcol2, $tab2_hl, price($tvaval, 0, $outputlangs), 0, 'R', 1);
+						$pdf->MultiCell($largcol2, $tab2_hl, price($tvaval, 0, $outputlangs, 1, -1, -1, $object->multicurrency_code), 0, 'R', 1);
 					}
 				}
 
@@ -1663,7 +1663,7 @@ class pdf_sponge_SLY_consignee extends ModelePDFFactures
 
 							$pdf->MultiCell($col2x - $col1x, $tab2_hl, $totalvat, 0, 'L', 1);
 							$pdf->SetXY($col2x, $tab2_top + $tab2_hl * $index);
-							$pdf->MultiCell($largcol2, $tab2_hl, price($tvaval, 0, $outputlangs), 0, 'R', 1);
+							$pdf->MultiCell($largcol2, $tab2_hl, price($tvaval, 0, $outputlangs, 1, -1, -1, $object->multicurrency_code), 0, 'R', 1);
 						}
 					}
 				}
@@ -1723,7 +1723,7 @@ class pdf_sponge_SLY_consignee extends ModelePDFFactures
 				$pdf->MultiCell($col2x - $col1x, $tab2_hl, $outputlangs->transnoentities("TotalTTC").(is_object($outputlangsbis) ? ' / '.$outputlangsbis->transnoentities("TotalTTC") : ''), $useborder, 'L', 1);
 
 				$pdf->SetXY($col2x, $tab2_top + $tab2_hl * $index);
-				$pdf->MultiCell($largcol2, $tab2_hl, price($sign * $total_ttc, 0, $outputlangs), $useborder, 'R', 1);
+				$pdf->MultiCell($largcol2, $tab2_hl, price($sign * $total_ttc, 0, $outputlangs, 1, -1, -1, $object->multicurrency_code), $useborder, 'R', 1);
 
 
 
@@ -1774,7 +1774,7 @@ class pdf_sponge_SLY_consignee extends ModelePDFFactures
 			$pdf->SetXY($col1x, $tab2_top + $tab2_hl * $index);
 			$pdf->MultiCell($col2x - $col1x, $tab2_hl, $outputlangs->transnoentities("Paid").(is_object($outputlangsbis) ? ' / '.$outputlangsbis->transnoentities("Paid") : ''), 0, 'L', 0);
 			$pdf->SetXY($col2x, $tab2_top + $tab2_hl * $index);
-			$pdf->MultiCell($largcol2, $tab2_hl, price($deja_regle + $depositsamount, 0, $outputlangs), 0, 'R', 0);
+			$pdf->MultiCell($largcol2, $tab2_hl, price($deja_regle + $depositsamount, 0, $outputlangs, 1, -1, -1, $object->multicurrency_code), 0, 'R', 0);
 
 			// Credit note
 			if ($creditnoteamount)
@@ -1785,7 +1785,7 @@ class pdf_sponge_SLY_consignee extends ModelePDFFactures
 				$pdf->SetXY($col1x, $tab2_top + $tab2_hl * $index);
 				$pdf->MultiCell($col2x - $col1x, $tab2_hl, $labeltouse, 0, 'L', 0);
 				$pdf->SetXY($col2x, $tab2_top + $tab2_hl * $index);
-				$pdf->MultiCell($largcol2, $tab2_hl, price($creditnoteamount, 0, $outputlangs), 0, 'R', 0);
+				$pdf->MultiCell($largcol2, $tab2_hl, price($creditnoteamount, 0, $outputlangs, 1, -1, -1, $object->multicurrency_code), 0, 'R', 0);
 			}
 
 			// Escompte
@@ -1797,7 +1797,7 @@ class pdf_sponge_SLY_consignee extends ModelePDFFactures
 				$pdf->SetXY($col1x, $tab2_top + $tab2_hl * $index);
 				$pdf->MultiCell($col2x - $col1x, $tab2_hl, $outputlangs->transnoentities("EscompteOfferedShort").(is_object($outputlangsbis) ? ' / '.$outputlangsbis->transnoentities("EscompteOfferedShort") : ''), $useborder, 'L', 1);
 				$pdf->SetXY($col2x, $tab2_top + $tab2_hl * $index);
-				$pdf->MultiCell($largcol2, $tab2_hl, price($object->total_ttc - $deja_regle - $creditnoteamount - $depositsamount, 0, $outputlangs), $useborder, 'R', 1);
+				$pdf->MultiCell($largcol2, $tab2_hl, price($object->total_ttc - $deja_regle - $creditnoteamount - $depositsamount, 0, $outputlangs, 1, -1, -1, $object->multicurrency_code), $useborder, 'R', 1);
 
 				$resteapayer = 0;
 			}
@@ -1808,7 +1808,7 @@ class pdf_sponge_SLY_consignee extends ModelePDFFactures
 			$pdf->SetXY($col1x, $tab2_top + $tab2_hl * $index);
 			$pdf->MultiCell($col2x - $col1x, $tab2_hl, $outputlangs->transnoentities("RemainderToPay").(is_object($outputlangsbis) ? ' / '.$outputlangsbis->transnoentities("RemainderToPay") : ''), $useborder, 'L', 1);
 			$pdf->SetXY($col2x, $tab2_top + $tab2_hl * $index);
-			$pdf->MultiCell($largcol2, $tab2_hl, price($resteapayer, 0, $outputlangs), $useborder, 'R', 1);
+			$pdf->MultiCell($largcol2, $tab2_hl, price($resteapayer, 0, $outputlangs, 1, -1, -1, $object->multicurrency_code), $useborder, 'R', 1);
 
 			$pdf->SetFont('', '', $default_font_size - 1);
 			$pdf->SetTextColor(0, 0, 0);
