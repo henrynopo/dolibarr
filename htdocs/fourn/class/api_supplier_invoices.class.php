@@ -185,6 +185,18 @@ class SupplierInvoices extends DolibarrApi
 				$obj = $this->db->fetch_object($result);
 				$invoice_static = new FactureFournisseur($this->db);
 				if ($invoice_static->fetch($obj->rowid)) {
+					// Get payment details
+					$invoice_static->totalpaid = $invoice_static->getSommePaiement();
+					$invoice_static->totalcreditnotes = $invoice_static->getSumCreditNotesUsed();
+					$invoice_static->totaldeposits = $invoice_static->getSumDepositsUsed();
+					$invoice_static->remaintopay = $invoice_static->getRemainToPay();
+					$invoice_static->multicurrency_totalpaid = $invoice_static->getSommePaiement(1);
+					$invoice_static->multicurrency_totalcreditnotes = $invoice_static->getSumCreditNotesUsed(1);
+					$invoice_static->multicurrency_totaldeposits = $invoice_static->getSumDepositsUsed(1);
+					$invoice_static->multicurrency_remaintopay = $invoice_static->getRemainToPay(1);
+					// Add external contacts ids
+					$invoice_static->contacts_ids = $invoice_static->liste_contact(-1, 'external', 0, 'BILLING');
+
 					$obj_ret[] = $this->_cleanObjectDatas($invoice_static);
 				}
 				$i++;
