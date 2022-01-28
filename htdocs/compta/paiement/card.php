@@ -246,7 +246,7 @@ print $object->num_payment ? ' - '.$object->num_payment : '';
 print '</td></tr>';
 
 // Amount
-print '<tr><td>'.$langs->trans('Amount').'<td>'.$conf->currency.' '.price(price2num($object->amount, 'MT')).'</td></tr>';
+print '<tr><td>'.$langs->trans('Amount').'</td><td>'.$conf->currency.' '.price(price2num($object->amount, 'MT')).'</td></tr>';
 
 $disable_delete = 0;
 // Bank account
@@ -369,17 +369,11 @@ if ($resql) {
 	print '<table class="noborder centpercent">';
 
 	print '<tr class="liste_titre">';
-	print '<td class="center">'.$langs->trans('Bill').'</td>';
-	print '<td class="center">'.$langs->trans('Order').'</td>';
-	print '<td class="center">'.$langs->trans('Company').'</td>';
+	print '<td class="left">'.$langs->trans('Bill').'</td>';
+	print '<td class="left">'.$langs->trans('Order').'</td>';
+	print '<td class="left">'.$langs->trans('Company').'</td>';
 	if (!empty($conf->multicompany->enabled) && !empty($conf->global->MULTICOMPANY_INVOICE_SHARING_ENABLED)) {
 		print '<td>'.$langs->trans('Entity').'</td>';
-	}
-	if (!empty($conf->multicurrency->enabled)) {
-		print '<td class="center">'.$langs->trans('Currency').'</td>';
-		print '<td class="center">'.$langs->trans('ExpectedToPayMulticurrency').'</td>';
-		print '<td class="center">'.$langs->trans('PayedByThisPaymentMulticurrency').'</td>';
-		print '<td class="center">'.$langs->trans('RemainderToPayMulticurrency').'</td>';		
 	}
 	print '<td class="center">'.$langs->trans('ExpectedToPay').'</td>';
 	print '<td class="center">'.$langs->trans('PayedByThisPayment').'</td>';
@@ -396,19 +390,11 @@ if ($resql) {
 			$invoice = new Facture($db);
 			$invoice->fetch($objp->facid);
 
-			$paiement = $invoice->getSommePaiement();
-			$creditnotes = $invoice->getSumCreditNotesUsed();
-			$deposits = $invoice->getSumDepositsUsed();
-			$alreadypayed = price2num($paiement + $creditnotes + $deposits, 'MT');
-			$remaintopay = price2num($invoice->total_ttc - $paiement - $creditnotes - $deposits, 'MT');
+			$remaintopay = $invoice->getRemainToPay();
 
 			// Multicurrency
 			if (!empty($conf->multicurrency->enabled)) {
-				$multicurrency_payment = $invoice->getSommePaiement(1);
-				$multicurrency_creditnotes = $invoice->getSumCreditNotesUsed(1);
-				$multicurrency_deposits = $invoice->getSumDepositsUsed(1);
-				$multicurrency_alreadypayed = price2num($multicurrency_payment + $multicurrency_creditnotes + $multicurrency_deposits, 'MT');
-				$multicurrency_remaintopay = price2num($invoice->multicurrency_total_ttc - $multicurrency_payment - $multicurrency_creditnotes - $multicurrency_deposits, 'MT');
+				$multicurrency_remaintopay = $invoice->getRemainToPay(1);
 			}
 
 			print '<tr class="oddeven">';
@@ -417,10 +403,10 @@ if ($resql) {
 			print '<td>';
 			print $invoice->getNomUrl(1);
 			print "</td>\n";
-
-            // Ref Order
-            $invoice->fetchObjectLinked();
-            print '<td>'.end($invoice->linkedObjects['commande'])->getNomUrl(1).'</td>';
+			
+			// Ref Order
+			$invoice->fetchObjectLinked();
+			print '<td>'.end($invoice->linkedObjects['commande'])->getNomUrl(1).'</td>';
 
 			// Third party
 			print '<td class="tdoverflowmax150">';
@@ -435,25 +421,14 @@ if ($resql) {
 				print '</td>';
 			}
 
-			// Multicurrency
-			if (!empty($conf->multicurrency->enabled)) {
-				print '<td class="center">'.$objp->multicurrency_code.'</td>';
-				// Multicurrency Expected to pay
-				print '<td class="center">'.price($objp->multicurrency_total_ttc).'</td>';
-				// Multicurrency Amount payed
-				print '<td class="center">'.price($objp->multicurrency_amount).'</td>';
-				// Multicurrency Remain to pay
-				print '<td class="center"><span class="amount">'.price($multicurrency_remaintopay).'</span></td>';
-			}
-
 			// Expected to pay
-			print '<td class="center">'.price($objp->total_ttc).'</td>';
+			print '<td class="center">'.(!empty($conf->multicurrency->enabled) ? $objp->multicurrency_code.' '.price($objp->multicurrency_total_ttc).'<br>'.$conf->currency.' '.price($objp->total_ttc) : $conf->currency.' '.price($objp->total_ttc)).'</td>';
 
 			// Amount payed
-			print '<td class="center">'.price($objp->amount).'</td>';
+			print '<td class="center">'.(!empty($conf->multicurrency->enabled) ? $objp->multicurrency_code.' '.price($objp->multicurrency_amount).'<br>'.$conf->currency.' '.price($objp->amount) : $conf->currency.' '.price($objp->amount)).'</td>';
 
 			// Remain to pay
-			print '<td class="center"><span class="amount">'.price($remaintopay).'</span></td>';
+			print '<td class="center"><span class="amount">'.(!empty($conf->multicurrency->enabled) ? $objp->multicurrency_code.' '.price($objp->multicurrency_remaintopay).'<br>'.$conf->currency.' '.price($objp->remaintopay) : $conf->currency.' '.price($objp->remaintopay)).'</span></td>';
 
 			// Status
 			print '<td class="center">'.$invoice->getLibStatut(5, $alreadypayed).'</td>';
