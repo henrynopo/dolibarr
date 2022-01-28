@@ -406,7 +406,7 @@ if ($resql) {
 			
 			// Ref Order
 			$invoice->fetchObjectLinked();
-			print '<td>'.end($invoice->linkedObjects['commande'])->getNomUrl(1).'</td>';
+			print '<td>'.($invoice->linkedObjects['commande'] > 0 ? end($invoice->linkedObjects['commande'])->getNomUrl(1) : '').'</td>';
 
 			// Third party
 			print '<td class="tdoverflowmax150">';
@@ -428,7 +428,7 @@ if ($resql) {
 			print '<td class="center">'.(!empty($conf->multicurrency->enabled) ? $objp->multicurrency_code.' '.price($objp->multicurrency_amount).'<br>'.$conf->currency.' '.price($objp->amount) : $conf->currency.' '.price($objp->amount)).'</td>';
 
 			// Remain to pay
-			print '<td class="center"><span class="amount">'.(!empty($conf->multicurrency->enabled) ? $objp->multicurrency_code.' '.price($objp->multicurrency_remaintopay).'<br>'.$conf->currency.' '.price($objp->remaintopay) : $conf->currency.' '.price($objp->remaintopay)).'</span></td>';
+			print '<td class="center"><span class="amount">'.(!empty($conf->multicurrency->enabled) ? $objp->multicurrency_code.' '.price($multicurrency_remaintopay).'<br>'.$conf->currency.' '.price($remaintopay) : $conf->currency.' '.price($remaintopay)).'</span></td>';
 
 			// Status
 			print '<td class="center">'.$invoice->getLibStatut(5, $alreadypayed).'</td>';

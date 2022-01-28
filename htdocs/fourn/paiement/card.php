@@ -291,18 +291,12 @@ if ($result > 0) {
 		print "</tr>\n";
 
 		if ($num > 0) {
-			$facturestatic = new FactureFournisseur($db);
-
 			while ($i < $num) {
 				$objp = $db->fetch_object($resql);
 
-				$facturestatic->id = $objp->facid;
-				$facturestatic->ref = ($objp->ref ? $objp->ref : $objp->rowid);
-				$facturestatic->date = $db->jdate($objp->date);
-				$facturestatic->type = $objp->type;
-
-				$facturestatic->statut = $objp->status;
-				$facturestatic->alreadypaid = -1; // unknown
+				$facturestatic = new FactureFournisseur($db);
+				$facturestatic->fetch($objp->facid);
+				
 				$remaintopay = $facturestatic->getRemainToPay();
 				// Multicurrency
 				if (!empty($conf->multicurrency->enabled)) {
@@ -316,7 +310,8 @@ if ($result > 0) {
 				print "</td>\n";		
 				// Ref Order
 				$facturestatic->fetchObjectLinked();
-				print '<td>'.end($facturestatic->linkedObjects['order_supplier'])->getNomUrl(1).'</td>';
+				print '<td>'.($facturestatic->linkedObjects['order_supplier'] > 0 ? end($facturestatic->linkedObjects['order_supplier'])->getNomUrl(1) : '').'</td>';
+
 				// Ref supplier
 				print '<td>'.$objp->ref_supplier."</td>\n";
 				// Third party
@@ -326,7 +321,7 @@ if ($result > 0) {
 				// Paid
 				print '<td class="center">'.(!empty($conf->multicurrency->enabled) ? $objp->multicurrency_code.' '.price($objp->multicurrency_amount).'<br>'.$conf->currency.' '.price($objp->amount) : $conf->currency.' '.price($objp->amount)).'</td>';
 				// Remain to pay
-				print '<td class="center"><span class="amount">'.(!empty($conf->multicurrency->enabled) ? $objp->multicurrency_code.' '.price($objp->multicurrency_remaintopay).'<br>'.$conf->currency.' '.price($objp->remaintopay) : $conf->currency.' '.price($objp->remaintopay)).'</span></td>';
+				print '<td class="center"><span class="amount">'.(!empty($conf->multicurrency->enabled) ? $objp->multicurrency_code.' '.price($multicurrency_remaintopay).'<br>'.$conf->currency.' '.price($remaintopay) : $conf->currency.' '.price($remaintopay)).'</span></td>';
 				// Status
 				print '<td class="center">'.$facturestatic->LibStatut($objp->paye, $objp->status, 6, 1).'</td>';
 				print "</tr>\n";
