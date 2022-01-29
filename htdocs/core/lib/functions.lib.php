@@ -5251,13 +5251,13 @@ function price($amount, $form = 0, $outlangs = '', $trunc = 1, $rounding = -1, $
 		$listofcurrenciesbefore = array('AUD', 'CAD', 'CNY', 'COP', 'CLP', 'GBP', 'HKD', 'MXN', 'PEN', 'USD');
 		$listoflanguagesbefore = array('nl_NL');
 		if (!empty($conf->global->MAIN_CURRENCY_SYMBOL_BEFORE_VALUE) || in_array($currency_code, $listofcurrenciesbefore) || in_array($outlangs->defaultlang, $listoflanguagesbefore)) {
-			$cursymbolbefore .= $outlangs->getCurrencySymbol($currency_code).' ';
+			$cursymbolbefore .= $outlangs->getCurrencySymbol($currency_code);
 		} else {
 			$tmpcur = $outlangs->getCurrencySymbol($currency_code);
 			$cursymbolafter .= ($tmpcur == $currency_code ? ' '.$tmpcur : $tmpcur);
 		}
 	}
-	$output = $cursymbolbefore.$output.$end.($cursymbolafter ? ' ' : '').$cursymbolafter;
+	$output = $cursymbolbefore.$output.$end.($cursymbolafter ? '' : '').$cursymbolafter;
 
 	return $output;
 }
