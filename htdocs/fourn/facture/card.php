@@ -2415,10 +2415,10 @@ if ($action == 'create') {
 			$multicurrency_totaldeposits = $object->getSumDepositsUsed(1);
 			$multicurrency_resteapayer = price2num($object->multicurrency_total_ttc - $multicurrency_totalpaye - $multicurrency_totalcreditnotes - $multicurrency_totaldeposits, 'MT');
 			// Code to fix case of corrupted data
-			if ($resteapayer != 0 && $multicurrency_resteapayer == 0) {
+/*			if ($resteapayer != 0 && $multicurrency_resteapayer == 0) {
 				$resteapayer = price2num($multicurrency_resteapayer / $object->multicurrency_tx, 'MT');
 			}
-		}
+*/		}
 
 		if ($object->paye) {
 			$resteapayer = 0;
@@ -3310,9 +3310,9 @@ if ($action == 'create') {
 			print $langs->trans("Billed");
 			print '</span>';
 			if ($object->multicurrency_code != $conf->currency || $object->multicurrency_tx != 1) {
-				print '</td><td class="right">'.price($object->multicurrency_total_ttc);
+				print '</td><td class="right">'.price($object->multicurrency_total_ttc, 0, '', 1, -1, -1, $object->multicurrency_code);
 			}
-			print '</td><td class="right">'.price($object->total_ttc).'</td><td>&nbsp;</td></tr>';
+			print '</td><td class="right">'.price($object->total_ttc, 0, '', 1, -1, -1, $conf->currency).'</td><td>&nbsp;</td></tr>';
 
 			// Remainder to pay
 			print '<tr><td colspan="'.$nbcols.'" class="right">';
@@ -3344,9 +3344,9 @@ if ($action == 'create') {
 			// Billed
 			print '<tr><td colspan="'.$nbcols.'" class="right">'.$langs->trans("Billed").' :</td>';
             if ($object->multicurrency_code != $conf->currency || $object->multicurrency_tx != 1) {
-				print '<td class="right">'.price($sign * $object->multicurrency_total_ttc).'</td>';
+				print '<td class="right">'.price($sign * $object->multicurrency_total_ttc, 0, '', 1, -1, -1, $object->multicurrency_code).'</td>';
 			}
-            print '<td class="right">'.price($sign * $object->total_ttc).'</td><td>&nbsp;</td></tr>';
+            print '<td class="right">'.price($sign * $object->total_ttc, 0, '', 1, -1, -1, $conf->currency).'</td><td>&nbsp;</td></tr>';
 
 			// Remainder to pay back
 			print '<tr><td colspan="'.$nbcols.'" class="right">';
