@@ -1322,7 +1322,7 @@ class pdf_sponge_SLY_consignee extends ModelePDFFactures
 
         $tab2_top = $posy;
 		$tab2_hl = 4;
-		$pdf->SetFont('', 'B', $default_font_size); //Adjusted font to 'B' with default size instead of default-1. SLY 13/11/2020
+		$pdf->SetFont('', 'B', $default_font_size-1); //Adjusted font to 'B' with default size instead of default-1. SLY 13/11/2020
 
 		// Total table
 		$col1x = 118; $col2x = 170; //adjuste col1x from 120 to 150. SLY 13/11/2020 //adjuste col1x from 120 to 118. SLY 2021.2.3
