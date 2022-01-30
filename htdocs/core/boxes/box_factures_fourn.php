@@ -94,6 +94,12 @@ class box_factures_fourn extends ModeleBoxes
 			$sql .= ", f.total_ht";
 			$sql .= ", f.total_tva";
 			$sql .= ", f.total_ttc";
+			if ($conf->multicurrency->enabled) {
+				$sql .= ", f.multicurrency_total_ht";
+				$sql .= ", f.multicurrency_total_tva";
+				$sql .= ", f.multicurrency_total_ttc";
+				$sql .= ", f.multicurrency_code";
+			}
 			$sql .= ", f.paye, f.fk_statut as status";
 			$sql .= ', f.datef as df';
 			$sql .= ', f.datec as datec';
@@ -184,7 +190,7 @@ class box_factures_fourn extends ModeleBoxes
 
 					$this->info_box_contents[$line][] = array(
 						'td' => 'class="right nowraponall"',
-						'text' => price($objp->total_ht, 0, $langs, 0, -1, -1, $conf->currency),
+						'text' => (!empty($conf->multicurrency->enabled) ? price($objp->multicurrency_total_ht, 0, $langs, 0, -1, -1, $objp->multicurrency_code) : price($objp->total_ht, 0, $langs, 0, -1, -1, $conf->currency)),
 					);
 
 					$this->info_box_contents[$line][] = array(

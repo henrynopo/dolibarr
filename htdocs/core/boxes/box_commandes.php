@@ -99,6 +99,12 @@ class box_commandes extends ModeleBoxes
 			$sql .= ", c.total_ht";
 			$sql .= ", c.total_tva";
 			$sql .= ", c.total_ttc";
+			if ($conf->multicurrency->enabled) {
+				$sql .= ", c.multicurrency_total_ht";
+				$sql .= ", c.multicurrency_total_tva";
+				$sql .= ", c.multicurrency_total_ttc";
+				$sql .= ", c.multicurrency_code";
+			}
 			$sql .= " FROM ".MAIN_DB_PREFIX."societe as s";
 			$sql .= ", ".MAIN_DB_PREFIX."commande as c";
 			if (!$user->rights->societe->client->voir && !$user->socid) {
@@ -164,7 +170,7 @@ class box_commandes extends ModeleBoxes
 
 					$this->info_box_contents[$line][] = array(
 						'td' => 'class="nowraponall right"',
-						'text' => price($objp->total_ht, 0, $langs, 0, -1, -1, $conf->currency),
+						'text' => (!empty($objp->multicurrency_code) ? price($objp->multicurrency_total_ht, 0, $langs, 0, -1, -1, $objp->multicurrency_code) : price($objp->total_ht, 0, $langs, 0, -1, -1, $conf->currency)),
 					);
 
 					if (!empty($conf->global->ORDER_BOX_LAST_ORDERS_SHOW_VALIDATE_USER)) {
