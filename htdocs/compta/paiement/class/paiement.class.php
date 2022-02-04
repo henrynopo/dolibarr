@@ -315,13 +315,13 @@ class Paiement extends CommonObject
 
 						// If we want to closed payed invoices
 						if ($closepaidinvoices) {
-							$paiement = $invoice->getSommePaiement();
+						/*	$paiement = $invoice->getSommePaiement();
 							$creditnotes = $invoice->getSumCreditNotesUsed();
 							$deposits = $invoice->getSumDepositsUsed();
 							$alreadypayed = price2num($paiement + $creditnotes + $deposits, 'MT');
 							$remaintopay = price2num($invoice->total_ttc - $paiement - $creditnotes - $deposits, 'MT');
 
-							//var_dump($invoice->total_ttc.' - '.$paiement.' -'.$creditnotes.' - '.$deposits.' - '.$remaintopay);exit;
+						*/	//var_dump($invoice->total_ttc.' - '.$paiement.' -'.$creditnotes.' - '.$deposits.' - '.$remaintopay);exit;
 
 							//Invoice types that are eligible for changing status to paid
 							$affected_types = array(
@@ -334,7 +334,7 @@ class Paiement extends CommonObject
 
 							if (!in_array($invoice->type, $affected_types)) {
 								dol_syslog("Invoice ".$facid." is not a standard, nor replacement invoice, nor credit note, nor deposit invoice, nor situation invoice. We do nothing more.");
-							} elseif ($remaintopay) {
+							} elseif ((!empty($conf->multicurrency->enabled) ? price2num($invoice->getRemainToPay(1), 'MT') : price2num($invoice->getRemainToPay(), 'MT')) {
 								dol_syslog("Remain to pay for invoice ".$facid." not null. We do nothing more.");
 								// } else if ($mustwait) dol_syslog("There is ".$mustwait." differed payment to process, we do nothing more.");
 							} else {

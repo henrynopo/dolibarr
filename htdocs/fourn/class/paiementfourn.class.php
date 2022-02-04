@@ -222,14 +222,14 @@ class PaiementFourn extends Paiement
 
 							// If we want to closed paid invoices
 							if ($closepaidinvoices) {
-								$paiement = $invoice->getSommePaiement();
+							/*	$paiement = $invoice->getSommePaiement();
 								$creditnotes=$invoice->getSumCreditNotesUsed();
 								//$creditnotes = 0;
 								$deposits=$invoice->getSumDepositsUsed();
 								//$deposits = 0;
 								$alreadypayed = price2num($paiement + $creditnotes + $deposits, 'MT');
 								$remaintopay = price2num($invoice->total_ttc - $paiement - $creditnotes - $deposits, 'MT');
-								if ($remaintopay == 0) {
+							*/	if ((!empty($conf->multicurrency->enabled) ? price2num($invoice->getRemainToPay(1), 'MT') : price2num($invoice->getRemainToPay(), 'MT')) == 0) {
 									// If invoice is a down payment, we also convert down payment to discount
 									if ($invoice->type == FactureFournisseur::TYPE_DEPOSIT) {
 										$amount_ht = $amount_tva = $amount_ttc = array();
