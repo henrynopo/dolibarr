@@ -122,6 +122,9 @@ if ($tmp) {
  */
 if (!empty($conf->propal->enabled) && $user->rights->propal->lire) {
 	$sql = "SELECT p.rowid, p.ref, p.ref_client, p.total_ht, p.total_tva, p.total_ttc, p.fk_statut as status";
+	if (!empty($conf->multicurrency->enabled)) {
+		$sql .= ", p.multicurrency_total_ht, p.multicurrency_total_tva, p.multicurrency_total_ttc, p.multicurrency_code";
+	}
 	$sql .= ", s.rowid as socid, s.nom as name, s.name_alias";
 	$sql .= ", s.code_client, s.code_compta, s.client";
 	$sql .= ", s.code_fournisseur, s.code_compta_fournisseur, s.fournisseur";
@@ -188,7 +191,11 @@ if (!empty($conf->propal->enabled) && $user->rights->propal->lire) {
 				print '<tr class="oddeven">';
 				print '<td class="nowrap tdoverflowmax100">'.$propalstatic->getNomUrl(1).'</td>';
 				print '<td class="nowrap tdoverflowmax100">'.$companystatic->getNomUrl(1, 'customer').'</td>';
-				print '<td class="nowrap right tdamount amount">'.price((!empty($conf->global->MAIN_DASHBOARD_USE_TOTAL_HT) ? $obj->total_ht : $obj->total_ttc)).'</td>';
+				if (!empty($obj->multicurrency_code)) {
+					print '<td class="nowrap right tdamount amount">'.price((!empty($conf->global->MAIN_DASHBOARD_USE_TOTAL_HT) ? $obj->multicurrency_total_ht : $obj->multicurrency_total_ttc), 0, '', 1, -1, -1, $obj->multicurrency_code).'</td>';
+				} else {
+					print '<td class="nowrap right tdamount amount">'.price((!empty($conf->global->MAIN_DASHBOARD_USE_TOTAL_HT) ? $obj->total_ht : $obj->total_ttc), 0, '', 1, -1, -1, $conf->currency).'</td>';
+				}
 				print '</tr>';
 
 				$i++;
@@ -219,6 +226,9 @@ if (!empty($conf->propal->enabled) && $user->rights->propal->lire) {
  */
 if (!empty($conf->supplier_proposal->enabled) && $user->rights->supplier_proposal->lire) {
 	$sql = "SELECT p.rowid, p.ref, p.total_ht, p.total_tva, p.total_ttc, p.fk_statut as status";
+	if (!empty($conf->multicurrency->enabled)) {
+		$sql .= ", p.multicurrency_total_ht, p.multicurrency_total_tva, p.multicurrency_total_ttc, p.multicurrency_code";
+	}
 	$sql .= ", s.rowid as socid, s.nom as name, s.name_alias";
 	$sql .= ", s.code_client, s.code_compta, s.client";
 	$sql .= ", s.code_fournisseur, s.code_compta_fournisseur, s.fournisseur";
@@ -284,7 +294,11 @@ if (!empty($conf->supplier_proposal->enabled) && $user->rights->supplier_proposa
 				print '<tr class="oddeven">';
 				print '<td class="nowrap tdoverflowmax100">'.$supplierproposalstatic->getNomUrl(1).'</td>';
 				print '<td class="nowrap tdoverflowmax100">'.$companystatic->getNomUrl(1, 'supplier').'</td>';
-				print '<td class="nowrap right tdamount amount">'.price(!empty($conf->global->MAIN_DASHBOARD_USE_TOTAL_HT) ? $obj->total_ht : $obj->total_ttc).'</td>';
+				if (!empty($obj->multicurrency_code)) {
+					print '<td class="nowrap right tdamount amount">'.price((!empty($conf->global->MAIN_DASHBOARD_USE_TOTAL_HT) ? $obj->multicurrency_total_ht : $obj->multicurrency_total_ttc), 0, '', 1, -1, -1, $obj->multicurrency_code).'</td>';
+				} else {
+					print '<td class="nowrap right tdamount amount">'.price((!empty($conf->global->MAIN_DASHBOARD_USE_TOTAL_HT) ? $obj->total_ht : $obj->total_ttc), 0, '', 1, -1, -1, $conf->currency).'</td>';
+				}
 				print '</tr>';
 
 				$i++;
@@ -315,6 +329,9 @@ if (!empty($conf->supplier_proposal->enabled) && $user->rights->supplier_proposa
  */
 if (!empty($conf->commande->enabled) && $user->rights->commande->lire) {
 	$sql = "SELECT c.rowid, c.ref, c.ref_client, c.total_ht, c.total_tva, c.total_ttc, c.fk_statut as status";
+	if (!empty($conf->multicurrency->enabled)) {
+		$sql .= ", c.multicurrency_total_ht, c.multicurrency_total_tva, c.multicurrency_total_ttc, c.multicurrency_code";
+	}
 	$sql .= ", s.rowid as socid, s.nom as name, s.name_alias";
 	$sql .= ", s.code_client, s.code_compta, s.client";
 	$sql .= ", s.code_fournisseur, s.code_compta_fournisseur, s.fournisseur";
@@ -381,7 +398,11 @@ if (!empty($conf->commande->enabled) && $user->rights->commande->lire) {
 				print '<tr class="oddeven">';
 				print '<td class="nowrap tdoverflowmax100">'.$orderstatic->getNomUrl(1).'</td>';
 				print '<td class="nowrap tdoverflowmax100">'.$companystatic->getNomUrl(1, 'customer').'</td>';
-				print '<td class="nowrap right tdamount amount">'.price(!empty($conf->global->MAIN_DASHBOARD_USE_TOTAL_HT) ? $obj->total_ht : $obj->total_ttc).'</td>';
+				if (!empty($obj->multicurrency_code)) {
+					print '<td class="nowrap right tdamount amount">'.price((!empty($conf->global->MAIN_DASHBOARD_USE_TOTAL_HT) ? $obj->multicurrency_total_ht : $obj->multicurrency_total_ttc), 0, '', 1, -1, -1, $obj->multicurrency_code).'</td>';
+				} else {
+					print '<td class="nowrap right tdamount amount">'.price((!empty($conf->global->MAIN_DASHBOARD_USE_TOTAL_HT) ? $obj->total_ht : $obj->total_ttc), 0, '', 1, -1, -1, $conf->currency).'</td>';
+				}
 				print '</tr>';
 
 				$i++;
@@ -412,6 +433,9 @@ if (!empty($conf->commande->enabled) && $user->rights->commande->lire) {
  */
 if ((!empty($conf->fournisseur->enabled) && empty($conf->global->MAIN_USE_NEW_SUPPLIERMOD) && $user->rights->fournisseur->commande->lire) || (!empty($conf->supplier_order->enabled) && $user->rights->supplier_order->lire)) {
 	$sql = "SELECT cf.rowid, cf.ref, cf.ref_supplier, cf.total_ht, cf.total_tva, cf.total_ttc, cf.fk_statut as status";
+	if (!empty($conf->multicurrency->enabled)) {
+		$sql .= ", cf.multicurrency_total_ht, cf.multicurrency_total_tva, cf.multicurrency_total_ttc, cf.multicurrency_code";
+	}
 	$sql .= ", s.rowid as socid, s.nom as name, s.name_alias";
 	$sql .= ", s.code_client, s.code_compta, s.client";
 	$sql .= ", s.code_fournisseur, s.code_compta_fournisseur, s.fournisseur";
@@ -478,7 +502,11 @@ if ((!empty($conf->fournisseur->enabled) && empty($conf->global->MAIN_USE_NEW_SU
 				print '<tr class="oddeven">';
 				print '<td class="nowrap tdoverflowmax100">'.$supplierorderstatic->getNomUrl(1).'</td>';
 				print '<td class="nowrap tdoverflowmax100">'.$companystatic->getNomUrl(1, 'supplier').'</td>';
-				print '<td class="nowrap right tdamount amount">'.price(!empty($conf->global->MAIN_DASHBOARD_USE_TOTAL_HT) ? $obj->total_ht : $obj->total_ttc).'</td>';
+				if (!empty($obj->multicurrency_code)) {
+					print '<td class="nowrap right tdamount amount">'.price((!empty($conf->global->MAIN_DASHBOARD_USE_TOTAL_HT) ? $obj->multicurrency_total_ht : $obj->multicurrency_total_ttc), 0, '', 1, -1, -1, $obj->multicurrency_code).'</td>';
+				} else {
+					print '<td class="nowrap right tdamount amount">'.price((!empty($conf->global->MAIN_DASHBOARD_USE_TOTAL_HT) ? $obj->total_ht : $obj->total_ttc), 0, '', 1, -1, -1, $conf->currency).'</td>';
+				}
 				print '</tr>';
 
 				$i++;
@@ -786,6 +814,9 @@ if (!empty($conf->contrat->enabled) && $user->rights->contrat->lire && 0) { // T
  */
 if (!empty($conf->propal->enabled) && $user->rights->propal->lire) {
 	$sql = "SELECT p.rowid as propalid, p.entity, p.total_ttc, p.total_ht, p.total_tva, p.ref, p.ref_client, p.fk_statut, p.datep as dp, p.fin_validite as dfv";
+	if (!empty($conf->multicurrency->enabled)) {
+		$sql .= ", p.multicurrency_total_ht, p.multicurrency_total_tva, p.multicurrency_total_ttc, p.multicurrency_code";
+	}
 	$sql .= ", s.rowid as socid, s.nom as name, s.name_alias";
 	$sql .= ", s.code_client, s.code_compta, s.client";
 	$sql .= ", s.code_fournisseur, s.code_compta_fournisseur, s.fournisseur";
@@ -868,7 +899,11 @@ if (!empty($conf->propal->enabled) && $user->rights->propal->lire) {
 
 				print '<td class="nowrap">'.$companystatic->getNomUrl(1, 'customer', 44).'</td>';
 				print '<td class="right tddate">'.dol_print_date($db->jdate($obj->dp), 'day').'</td>';
-				print '<td class="right tdamount amount">'.price(!empty($conf->global->MAIN_DASHBOARD_USE_TOTAL_HT) ? $obj->total_ht : $obj->total_ttc).'</td>';
+				if (!empty($obj->multicurrency_code)) {
+					print '<td class="nowrap right tdamount amount">'.price((!empty($conf->global->MAIN_DASHBOARD_USE_TOTAL_HT) ? $obj->multicurrency_total_ht : $obj->multicurrency_total_ttc), 0, '', 1, -1, -1, $obj->multicurrency_code).'</td>';
+				} else {
+					print '<td class="nowrap right tdamount amount">'.price((!empty($conf->global->MAIN_DASHBOARD_USE_TOTAL_HT) ? $obj->total_ht : $obj->total_ttc), 0, '', 1, -1, -1, $conf->currency).'</td>';
+				}
 				print '<td align="center" width="14">'.$propalstatic->LibStatut($obj->fk_statut, 3).'</td>';
 
 				print '</tr>';
@@ -902,6 +937,9 @@ if (!empty($conf->propal->enabled) && $user->rights->propal->lire) {
  */
 if (!empty($conf->commande->enabled) && $user->rights->commande->lire) {
 	$sql = "SELECT c.rowid as commandeid, c.total_ttc, c.total_ht, c.total_tva, c.ref, c.ref_client, c.fk_statut, c.date_valid as dv, c.facture as billed";
+	if (!empty($conf->multicurrency->enabled)) {
+		$sql .= ", c.multicurrency_total_ht, c.multicurrency_total_tva, c.multicurrency_total_ttc, c.multicurrency_code";
+	}
 	$sql .= ", s.rowid as socid, s.nom as name, s.name_alias";
 	$sql .= ", s.code_client, s.code_compta, s.client";
 	$sql .= ", s.code_fournisseur, s.code_compta_fournisseur, s.fournisseur";
@@ -985,7 +1023,11 @@ if (!empty($conf->commande->enabled) && $user->rights->commande->lire) {
 
 				print '<td class="nowrap">'.$companystatic->getNomUrl(1, 'customer', 44).'</td>';
 				print '<td class="right tddate">'.dol_print_date($db->jdate($obj->dv), 'day').'</td>';
-				print '<td class="right tdamount amount">'.price(!empty($conf->global->MAIN_DASHBOARD_USE_TOTAL_HT) ? $obj->total_ht : $obj->total_ttc).'</td>';
+				if (!empty($obj->multicurrency_code)) {
+					print '<td class="nowrap right tdamount amount">'.price((!empty($conf->global->MAIN_DASHBOARD_USE_TOTAL_HT) ? $obj->multicurrency_total_ht : $obj->multicurrency_total_ttc), 0, '', 1, -1, -1, $obj->multicurrency_code).'</td>';
+				} else {
+					print '<td class="nowrap right tdamount amount">'.price((!empty($conf->global->MAIN_DASHBOARD_USE_TOTAL_HT) ? $obj->total_ht : $obj->total_ttc), 0, '', 1, -1, -1, $conf->currency).'</td>';
+				}
 				print '<td align="center" width="14">'.$orderstatic->LibStatut($obj->fk_statut, $obj->billed, 3).'</td>';
 
 				print '</tr>';

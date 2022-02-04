@@ -121,6 +121,9 @@ if (!empty($conf->facture->enabled) && !empty($user->rights->facture->lire)) {
 	$tmpinvoice = new Facture($db);
 
 	$sql = "SELECT f.rowid, f.ref, f.fk_statut as status, f.type, f.total_ht, f.total_tva, f.total_ttc, f.paye, f.tms";
+	if (!empty($conf->multicurrency->enabled)) {
+		$sql .= ", f.multicurrency_total_ht, f.multicurrency_total_tva, f.multicurrency_total_ttc, f.multicurrency_code";
+	}
 	$sql .= ", f.date_lim_reglement as datelimite";
 	$sql .= ", s.nom as name";
 	$sql .= ", s.rowid as socid";
@@ -146,6 +149,9 @@ if (!empty($conf->facture->enabled) && !empty($user->rights->facture->lire)) {
 	$sql .= $hookmanager->resPrint;
 
 	$sql .= " GROUP BY f.rowid, f.ref, f.fk_statut, f.type, f.total_ht, f.total_tva, f.total_ttc, f.paye, f.tms, f.date_lim_reglement,";
+	if (!empty($conf->multicurrency->enabled)) {
+		$sql .= " f.multicurrency_total_ht, f.multicurrency_total_tva, f.multicurrency_total_ttc, f.multicurrency_code,";
+	}
 	$sql .= " s.nom, s.rowid, s.code_client, s.code_compta, s.email,";
 	$sql .= " cc.rowid, cc.code";
 	$sql .= " ORDER BY f.tms DESC";
@@ -228,9 +234,9 @@ if (!empty($conf->facture->enabled) && !empty($user->rights->facture->lire)) {
 				print $thirdpartystatic->getNomUrl(1, 'customer', 44);
 				print '</td>';
 				if (!empty($conf->global->MAIN_SHOW_HT_ON_SUMMARY)) {
-					print '<td class="nowrap right"><span class="amount">'.price($obj->total_ht).'</span></td>';
+					print '<td class="nowrap right"><span class="amount">'.(!empty($obj->multicurrency_code) ? price($obj->multicurrency_total_ht, 0, '', 1, -1, -1, $obj->multicurrency_code) : price($obj->total_ht, 0, '', 1, -1, -1, $conf->currency)).'</span></td>';
 				}
-				print '<td class="nowrap right"><span class="amount">'.price($obj->total_ttc).'</span></td>';
+				print '<td class="nowrap right"><span class="amount">'.(!empty($obj->multicurrency_code) ? price($obj->multicurrency_total_ttc, 0, '', 1, -1, -1, $obj->multicurrency_code) : price($obj->total_ttc, 0, '', 1, -1, -1, $conf->currency)).'</span></td>';
 
 				print '<td class="right">'.dol_print_date($db->jdate($obj->tms), 'day').'</td>';
 
@@ -273,6 +279,9 @@ if ((!empty($conf->fournisseur->enabled) && empty($conf->global->MAIN_USE_NEW_SU
 	$facstatic = new FactureFournisseur($db);
 
 	$sql = "SELECT ff.rowid, ff.ref, ff.fk_statut as status, ff.type, ff.libelle, ff.total_ht, ff.total_tva, ff.total_ttc, ff.tms, ff.paye, ff.ref_supplier";
+	if (!empty($conf->multicurrency->enabled)) {
+		$sql .= ", ff.multicurrency_total_ht, ff.multicurrency_total_tva, ff.multicurrency_total_ttc, ff.multicurrency_code";
+	}
 	$sql .= ", s.nom as name";
 	$sql .= ", s.rowid as socid";
 	$sql .= ", s.code_fournisseur, s.code_compta_fournisseur, s.email";
@@ -296,6 +305,9 @@ if ((!empty($conf->fournisseur->enabled) && empty($conf->global->MAIN_USE_NEW_SU
 	$sql .= $hookmanager->resPrint;
 
 	$sql .= " GROUP BY ff.rowid, ff.ref, ff.fk_statut, ff.type, ff.libelle, ff.total_ht, ff.tva, ff.total_tva, ff.total_ttc, ff.tms, ff.paye, ff.ref_supplier,";
+	if (!empty($conf->multicurrency->enabled)) {
+		$sql .= " ff.multicurrency_total_ht, ff.multicurrency_total_tva, ff.multicurrency_total_ttc, ff.multicurrency_code,";
+	}
 	$sql .= " s.nom, s.rowid, s.code_fournisseur, s.code_compta_fournisseur, s.email";
 	$sql .= " ORDER BY ff.tms DESC ";
 	$sql .= $db->plimit($max, 0);
@@ -359,9 +371,9 @@ if ((!empty($conf->fournisseur->enabled) && empty($conf->global->MAIN_USE_NEW_SU
 				print $thirdpartystatic->getNomUrl(1, 'supplier');
 				print '</td>';
 				if (!empty($conf->global->MAIN_SHOW_HT_ON_SUMMARY)) {
-					print '<td class="right"><span class="amount">'.price($obj->total_ht).'</span></td>';
+					print '<td class="right"><span class="amount">'.(!empty($obj->multicurrency_code) ? price($obj->multicurrency_total_ht, 0, '', 1, -1, -1, $obj->multicurrency_code) : price($obj->total_ht, 0, '', 1, -1, -1, $conf->currency)).'</span></td>';
 				}
-				print '<td class="nowrap right"><span class="amount">'.price($obj->total_ttc).'</span></td>';
+				print '<td class="nowrap right"><span class="amount">'.(!empty($obj->multicurrency_code) ? price($obj->multicurrency_total_ttc, 0, '', 1, -1, -1, $obj->multicurrency_code) : price($obj->total_ttc, 0, '', 1, -1, -1, $conf->currency)).'</span></td>';
 				print '<td class="right">'.dol_print_date($db->jdate($obj->tms), 'day').'</td>';
 				print '<td>'.$facstatic->getLibStatut(3).'</td>';
 				print '</tr>';
@@ -582,10 +594,16 @@ if (!empty($conf->facture->enabled) && !empty($conf->commande->enabled) && $user
 	$langs->load("orders");
 
 	$sql = "SELECT sum(f.total_ht) as tot_fht, sum(f.total_ttc) as tot_fttc";
+	if (!empty($conf->multicurrency->enabled)) {
+		$sql .= ", sum(f.multicurrency_total_ht) as multicurrency_tot_fht, sum(f.multicurrency_total_ttc) as multicurrency_tot_fttc";
+	}
 	$sql .= ", s.nom as name, s.email";
 	$sql .= ", s.rowid as socid";
 	$sql .= ", s.code_client, s.code_compta";
 	$sql .= ", c.rowid, c.ref, c.facture, c.fk_statut as status, c.total_ht, c.total_tva, c.total_ttc,";
+	if (!empty($conf->multicurrency->enabled)) {
+		$sql .= " c.multicurrency_total_ht, c.multicurrency_total_tva, c.multicurrency_total_ttc, c.multicurrency_code,";
+	}
 	$sql .= " cc.rowid as country_id, cc.code as country_code";
 	$sql .= " FROM ".MAIN_DB_PREFIX."societe as s LEFT JOIN ".MAIN_DB_PREFIX."c_country as cc ON cc.rowid = s.fk_pays";
 	if (!$user->rights->societe->client->voir && !$socid) {
@@ -610,6 +628,9 @@ if (!empty($conf->facture->enabled) && !empty($conf->commande->enabled) && $user
 	$sql .= $hookmanager->resPrint;
 
 	$sql .= " GROUP BY s.nom, s.email, s.rowid, s.code_client, s.code_compta, c.rowid, c.ref, c.facture, c.fk_statut, c.total_ht, c.total_tva, c.total_ttc, cc.rowid, cc.code";
+	if (!empty($conf->multicurrency->enabled)) {
+		$sql .= ", c.multicurrency_total_ht, c.multicurrency_total_tva, c.multicurrency_total_ttc, c.multicurrency_code";
+	}
 
 	$resql = $db->query($sql);
 	if ($resql) {
@@ -690,10 +711,10 @@ if (!empty($conf->facture->enabled) && !empty($conf->commande->enabled) && $user
 				print $societestatic->getNomUrl(1, 'customer');
 				print '</td>';
 				if (!empty($conf->global->MAIN_SHOW_HT_ON_SUMMARY)) {
-					print '<td class="right"><span class="amount">'.price($obj->total_ht).'</span></td>';
+					print '<td class="right"><span class="amount">'.(!empty($obj->multicurrency_code) ? price($obj->multicurrency_total_ht, 0, '', 1, -1, -1, $obj->multicurrency_code) : price($obj->total_ht, 0, '', 1, -1, -1, $conf->currency)).'</span></td>';
 				}
-				print '<td class="nowrap right"><span class="amount">'.price($obj->total_ttc).'</span></td>';
-				print '<td class="nowrap right"><span class="amount">'.price($obj->total_ttc - $obj->tot_fttc).'</span></td>';
+				print '<td class="nowrap right"><span class="amount">'.(!empty($obj->multicurrency_code) ? price($obj->multicurrency_total_ttc, 0, '', 1, -1, -1, $obj->multicurrency_code) : price($obj->total_ttc, 0, '', 1, -1, -1, $conf->currency)).'</span></td>';
+				print '<td class="nowrap right"><span class="amount">'.(!empty($obj->multicurrency_code) ? price($obj->multicurrency_total_ttc - $objt->multicurrency_tot_fttc, 0, '', 1, -1, -1, $obj->multicurrency_code) : price($obj->total_ttc - $obj->tot_fttc, 0, '', 1, -1, -1, $conf->currency)).'</span></td>';
 				print '<td>'.$commandestatic->getLibStatut(3).'</td>';
 				print '</tr>';
 				$tot_ht += $obj->total_ht;
