@@ -227,7 +227,7 @@ if ($result > 0) {
             // Multicurrency Amount
             if (!empty($conf->multicurrency->enabled) && ($accountstatic->currency_code!=$conf->currency)) {
                 print '<td>&nbsp;</td>';
-	            print '<td>'.$accountstatic->currency_code.' '.price($object->multicurrency_amount).'</td></tr>';
+	            print '<td>'.$accountstatic->currency_code.' '.price(-$bankline->amount).'</td></tr>';
             }
 
 			print '<tr>';
