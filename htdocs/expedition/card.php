@@ -2481,11 +2481,11 @@ if ($action == 'create') {
 			}
 
 			// Modify
-	/*	if ($object->statut == Expedition::STATUS_VALIDATED && $user->rights->expedition->creer && $user->rights->expedition->shipping_advance->validate) {
+		if ($object->statut == Expedition::STATUS_VALIDATED && $user->rights->expedition->creer && $user->rights->expedition->shipping_advance->validate) {
 				print '<a class="butAction" href="'.$_SERVER["PHP_SELF"].'?id='.$object->id.'&amp;action=modif">'.$langs->trans("Modify").'</a>';
 			}
 
-	*/		// Send
+			// Send
 			if (empty($user->socid)) {
 				if ($object->statut > 0) {
 					if (empty($conf->global->MAIN_USE_ADVANCED_PERMS) || $user->rights->expedition->shipping_advance->send) {
