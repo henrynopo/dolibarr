@@ -28,6 +28,8 @@
 
 require '../main.inc.php';
 require_once DOL_DOCUMENT_ROOT.'/expedition/class/expedition.class.php';
+require_once DOL_DOCUMENT_ROOT.'/expedition/class/ShipsGo_API.class.php';
+require_once DOL_DOCUMENT_ROOT.'/core/class/extrafields.class.php';
 require_once DOL_DOCUMENT_ROOT.'/core/class/html.formfile.class.php';
 require_once DOL_DOCUMENT_ROOT.'/core/class/html.formother.class.php';
 require_once DOL_DOCUMENT_ROOT.'/core/class/html.formcompany.class.php';
@@ -157,9 +159,46 @@ $error = 0;
 if (GETPOST('cancel', 'alpha')) {
 	$action = 'list'; $massaction = '';
 }
-if (!GETPOST('confirmmassaction', 'alpha') && $massaction != 'presend' && $massaction != 'confirm_presend') {
+if (!GETPOST('confirmmassaction', 'alpha') && $massaction != 'presend' && $massaction != 'confirm_presend' && $massaction != 'updateships') {
 	$massaction = '';
 }
+
+if ($massaction === 'updateships') {
+	$db->begin();
+
+	$objecttmp = new Expedition($db);
+	$shipsGotmp = new ShipsGo_API($conf->global->API_KEY_SHIPSGO);
+	$error = 0;
+	$i = 0;
+	foreach ($toselect as $checked) {
+		$result = $objecttmp->fetch($toselect[$i]);
+		if ($result > 0) {
+			$ContainerNumber = $objecttmp->tracking_number;
+			if (!empty($objecttmp->array_options['options_requestid']) && $objecttmp->array_options['options_sailingstatusid'] != 4 ) {
+				$ship_status = $shipsGotmp->GetContainerInfo(!empty($objecttmp->array_options['options_requestid']) ? $objecttmp->array_options['options_requestid'] : $ContainerNumber)[0];
+				if ($ship_status['Message'] == 'Success') {
+					$objecttmp->array_options['options_sailingstatusid']  = $ship_status['SailingStatusId'];
+					$objecttmp->array_options['options_pol'] = $ship_status['Pol'];
+					$objecttmp->array_options['options_atd'] = strtotime(str_replace('/', '-', $ship_status['DepartureDate']));
+					$objecttmp->array_options['options_pod'] = $ship_status['Pod'];
+					$objecttmp->array_options['options_ata'] = strtotime(str_replace('/', '-', $ship_status['ArrivalDate']));
+					$objecttmp->array_options['options_livemapurl'] = $ship_status['LiveMapUrl'];
+					$objecttmp->array_options['options_updatedtime'] = dol_now();
+					$objecttmp->updateExtraField('sailingstatusid');
+					$objecttmp->updateExtraField('pol');
+					$objecttmp->updateExtraField('atd');
+					$objecttmp->updateExtraField('pod');
+					$objecttmp->updateExtraField('ata');
+					$objecttmp->updateExtraField('livemapurl');
+					$objecttmp->updateExtraField('updatedtime');
+				}
+			}
+		}
+		$i++;
+	}
+	$db->commit();
+}
+
 
 $parameters = array('socid'=>$socid);
 $reshook = $hookmanager->executeHooks('doActions', $parameters, $object, $action); // Note that $action and $object may have been modified by some hooks
@@ -481,6 +520,7 @@ $arrayofmassactions = array(
 	'builddoc' => img_picto('', 'pdf', 'class="pictofixedwidth"').$langs->trans("PDFMerge"),
 	//'classifyclose'=>$langs->trans("Close"), TODO massive close shipment ie: when truck is charged
 	'presend'  => img_picto('', 'email', 'class="pictofixedwidth"').$langs->trans("SendByMail"),
+	'updateships' => img_picto('', 'calendar', 'class="pictofixedwidth"').$langs->trans("UpdateShips"),
 );
 if (in_array($massaction, array('presend'))) {
 	$arrayofmassactions = array();
