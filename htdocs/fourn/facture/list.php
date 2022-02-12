@@ -41,6 +41,7 @@ require_once DOL_DOCUMENT_ROOT.'/core/class/html.formcompany.class.php';
 require_once DOL_DOCUMENT_ROOT.'/compta/bank/class/account.class.php';
 require_once DOL_DOCUMENT_ROOT.'/fourn/class/fournisseur.facture.class.php';
 require_once DOL_DOCUMENT_ROOT.'/fourn/class/fournisseur.class.php';
+require_once DOL_DOCUMENT_ROOT.'/fourn/class/fournisseur.commande.class.php';
 require_once DOL_DOCUMENT_ROOT.'/core/lib/date.lib.php';
 require_once DOL_DOCUMENT_ROOT.'/core/lib/company.lib.php';
 require_once DOL_DOCUMENT_ROOT.'/projet/class/project.class.php';
@@ -73,6 +74,7 @@ $search_amount_no_tax = GETPOST("search_amount_no_tax", "alpha");
 $search_amount_all_tax = GETPOST("search_amount_all_tax", "alpha");
 $search_product_category = GETPOST('search_product_category', 'int');
 $search_ref = GETPOST('sf_ref') ?GETPOST('sf_ref', 'alpha') : GETPOST('search_ref', 'alpha');
+$search_supplierorder = GETPOST('search_supplierorder', 'alpha');
 $search_refsupplier = GETPOST('search_refsupplier', 'alpha');
 $search_type = GETPOST('search_type', 'int');
 $search_project = GETPOST('search_project', 'alpha');
@@ -150,6 +152,7 @@ $now = dol_now();
 $object = new FactureFournisseur($db);
 $hookmanager->initHooks(array('supplierinvoicelist'));
 $extrafields = new ExtraFields($db);
+$supplierorder = new CommandeFournisseur($db);
 
 // fetch optionals attributes and labels
 $extrafields->fetch_name_optionals_label($object->table_element);
@@ -159,6 +162,7 @@ $search_array_options = $extrafields->getOptionalsFromPost($object->table_elemen
 // List of fields to search into when doing a "search in all"
 $fieldstosearchall = array(
 	'f.ref'=>'Ref',
+	'c.ref'=>'SupplierOrder',
 	'f.ref_supplier'=>'RefSupplier',
 	'pd.description'=>'Description',
 	's.nom'=>"ThirdParty",
@@ -171,6 +175,7 @@ if (empty($user->socid)) {
 $checkedtypetiers = 0;
 $arrayfields = array(
 	'f.ref'=>array('label'=>"Ref", 'checked'=>1),
+	'c.ref'=>array('label'=>"SupplierOrder", 'checked'=>1),
 	'f.ref_supplier'=>array('label'=>"RefSupplier", 'checked'=>1),
 	'f.type'=>array('label'=>"Type", 'checked'=>0),
 	'f.label'=>array('label'=>"Label", 'checked'=>0),
@@ -247,6 +252,7 @@ if (empty($reshook)) {
 		$search_sale = '';
 		$search_product_category = '';
 		$search_ref = "";
+		$search_supplierorder = "";
 		$search_refsupplier = "";
 		$search_type = "";
 		$search_label = "";
@@ -408,6 +414,7 @@ if ($search_all || $search_product_category > 0) {
 	$sql = 'SELECT DISTINCT';
 }
 $sql .= " f.rowid as facid, f.ref, f.ref_supplier, f.type, f.datef, f.date_lim_reglement as datelimite, f.fk_mode_reglement, f.fk_cond_reglement,";
+$sql .= " c.rowid as orderid, c.ref as supplierorder,";
 $sql .= " f.total_ht, f.total_ttc, f.total_tva as total_vat, f.paye as paye, f.fk_statut as fk_statut, f.libelle as label, f.datec as date_creation, f.tms as date_update,";
 $sql .= " f.localtax1 as total_localtax1, f.localtax2 as total_localtax2,";
 $sql .= ' f.fk_multicurrency, f.multicurrency_code, f.multicurrency_tx, f.multicurrency_total_ht, f.multicurrency_total_tva as multicurrency_total_vat, f.multicurrency_total_ttc,';
@@ -460,6 +467,12 @@ if ($search_product_category > 0) {
 }
 $sql .= ' LEFT JOIN '.MAIN_DB_PREFIX.'user AS u ON f.fk_user_author = u.rowid';
 $sql .= " LEFT JOIN ".MAIN_DB_PREFIX."projet as p ON p.rowid = f.fk_projet";
+$sql .= ' LEFT JOIN (';
+$sql .= " SELECT ee1.fk_source as fk_source, ee1.fk_target as fk_target FROM ".MAIN_DB_PREFIX."element_element as ee1 WHERE (ee1.sourcetype = 'order_supplier' AND ee1.targettype = 'invoice_supplier')";
+$sql .= ' UNION ';
+$sql .= " SELECT ee2.fk_target as fk_source, ee2.fk_source as fk_target FROM ".MAIN_DB_PREFIX."element_element as ee2 WHERE (ee2.targettype = 'order_supplier' AND ee2.sourcetype = 'invoice_supplier')";
+$sql .= ' ) as eecommande ON (f.rowid = eecommande.fk_target)';
+$sql .= " LEFT JOIN ".MAIN_DB_PREFIX."commande_fournisseur as c on (c.rowid = eecommande.fk_source)";
 // We'll need this table joined to the select in order to filter by sale
 if ($search_sale > 0 || (!$user->rights->societe->client->voir && !$socid)) {
 	$sql .= ", ".MAIN_DB_PREFIX."societe_commerciaux as sc";
@@ -492,6 +505,9 @@ if ($search_ref) {
 }
 if ($search_ref) {
 	$sql .= natural_search('f.ref', $search_ref);
+}
+if ($search_supplierorder) {
+	$sql .= natural_search('c.ref', $search_refsupplier);
 }
 if ($search_refsupplier) {
 	$sql .= natural_search('f.ref_supplier', $search_refsupplier);
@@ -624,6 +640,7 @@ $sql .= $hookmanager->resPrint;
 
 if (!$search_all) {
 	$sql .= " GROUP BY f.rowid, f.ref, f.ref_supplier, f.type, f.datef, f.date_lim_reglement, f.fk_mode_reglement, f.fk_cond_reglement,";
+	$sql .= " c.ref,";
 	$sql .= " f.total_ht, f.total_ttc, f.total_tva, f.paye, f.fk_statut, f.libelle, f.datec, f.tms,";
 	$sql .= " f.localtax1, f.localtax2,";
 	$sql .= ' f.fk_multicurrency, f.multicurrency_code, f.multicurrency_tx, f.multicurrency_total_ht, f.multicurrency_total_tva, f.multicurrency_total_ttc,';
@@ -744,6 +761,9 @@ if ($resql) {
 	}
 	if ($search_ref) {
 		$param .= '&search_ref='.urlencode($search_ref);
+	}
+	if ($search_supplierorder) {
+		$param .= '&search_supplierorder='.urlencode($search_supplierorder);
 	}
 	if ($search_refsupplier) {
 		$param .= '&search_refsupplier='.urlencode($search_refsupplier);
@@ -978,6 +998,12 @@ if ($resql) {
 		print '<input class="flat maxwidth50" type="text" name="search_ref" value="'.$search_ref.'">';
 		print '</td>';
 	}
+	// Supplier Order
+	if (!empty($arrayfields['c.ref']['checked'])) {
+		print '<td class="liste_titre">';
+		print '<input class="flat maxwidth50" type="text" name="search_supplierorder" value="'.$search_supplierorder.'">';
+		print '</td>';
+	}
 	// Ref supplier
 	if (!empty($arrayfields['f.ref_supplier']['checked'])) {
 		print '<td class="liste_titre">';
@@ -1199,6 +1225,9 @@ if ($resql) {
 	if (!empty($arrayfields['f.ref']['checked'])) {
 		print_liste_field_titre($arrayfields['f.ref']['label'], $_SERVER['PHP_SELF'], 'f.ref,f.rowid', '', $param, '', $sortfield, $sortorder);
 	}
+	if (!empty($arrayfields['c.ref']['checked'])) {
+		print_liste_field_titre($arrayfields['c.ref']['label'], $_SERVER["PHP_SELF"], 'c.ref', '', $param, '', $sortfield, $sortorder);
+	}
 	if (!empty($arrayfields['f.ref_supplier']['checked'])) {
 		print_liste_field_titre($arrayfields['f.ref_supplier']['label'], $_SERVER["PHP_SELF"], 'f.ref_supplier', '', $param, '', $sortfield, $sortorder);
 	}
@@ -1356,7 +1385,9 @@ if ($resql) {
 			$facturestatic->paye = $obj->paye;
 			$facturestatic->statut = $obj->fk_statut;
 			$facturestatic->type = $obj->type;
-
+			
+			$supplierorder->id = $obj->orderid;
+			$supplierorder->ref = $obj->supplierorder;
 
 			//If invoice has been converted and the conversion has been used, we dont have remain to pay on invoice
 			if ($facturestatic->type == FactureFournisseur::TYPE_CREDIT_NOTE) {
@@ -1385,7 +1416,17 @@ if ($resql) {
 					$totalarray['nbfield']++;
 				}
 			}
-
+			
+			// Ref Order
+			if (!empty($arrayfields['c.ref']['checked'])) {
+				print "<td>";
+				print $supplierorder->id ? $supplierorder->getNomUrl(1) : '';
+				print "</td>\n";
+				if (!$i) {
+					$totalarray['nbfield']++;
+				}
+			}
+			
 			// Supplier ref
 			if (!empty($arrayfields['f.ref_supplier']['checked'])) {
 				print '<td class="nowrap tdoverflowmax150" title="'.dol_escape_htmltag($obj->ref_supplier).'">';

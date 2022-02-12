@@ -55,6 +55,7 @@ require_once DOL_DOCUMENT_ROOT.'/projet/class/project.class.php';
 if (!empty($conf->commande->enabled)) {
 	require_once DOL_DOCUMENT_ROOT.'/commande/class/commande.class.php';
 }
+require_once DOL_DOCUMENT_ROOT.'/commande/class/commande.class.php';
 
 // Load translation files required by the page
 $langs->loadLangs(array('bills', 'companies', 'products', 'categories'));
@@ -81,6 +82,7 @@ $lineid = GETPOST('lineid', 'int');
 $userid = GETPOST('userid', 'int');
 $search_product_category = GETPOST('search_product_category', 'int');
 $search_ref = GETPOST('sf_ref') ?GETPOST('sf_ref', 'alpha') : GETPOST('search_ref', 'alpha');
+$search_reforder = GETPOST('search_reforder', 'alpha');
 $search_refcustomer = GETPOST('search_refcustomer', 'alpha');
 $search_type = GETPOST('search_type', 'int');
 $search_project_ref = GETPOST('search_project_ref', 'alpha');
@@ -176,6 +178,7 @@ $result = restrictedArea($user, 'facture', $id, '', '', 'fk_soc', $fieldid);
 $diroutputmassaction = $conf->facture->dir_output.'/temp/massgeneration/'.$user->id;
 
 $object = new Facture($db);
+$order = new Commande($db);
 
 $now = dol_now();
 
@@ -192,6 +195,7 @@ $search_array_options = $extrafields->getOptionalsFromPost($object->table_elemen
 // List of fields to search into when doing a "search in all"
 $fieldstosearchall = array(
 	'f.ref'=>'Ref',
+	'c.ref'=>'Order',
 	'f.ref_client'=>'RefCustomer',
 	'pd.description'=>'Description',
 	's.nom'=>"ThirdParty",
@@ -207,6 +211,7 @@ if (empty($user->socid)) {
 $checkedtypetiers = 0;
 $arrayfields = array(
 	'f.ref'=>array('label'=>"Ref", 'checked'=>1, 'position'=>5),
+	'c.ref'=>array('label'=>"RefOrder", 'checked'=>1, 'position'=>10),
 	'f.ref_client'=>array('label'=>"RefCustomer", 'checked'=>-1, 'position'=>10),
 	'f.type'=>array('label'=>"Type", 'checked'=>0, 'position'=>15),
 	'f.datef'=>array('label'=>"DateInvoice", 'checked'=>1, 'position'=>20),
@@ -306,6 +311,7 @@ if (GETPOST('button_removefilter_x', 'alpha') || GETPOST('button_removefilter', 
 	$search_sale = '';
 	$search_product_category = '';
 	$search_ref = '';
+	$search_reforder = '';
 	$search_refcustomer = '';
 	$search_type = '';
 	$search_project_ref = '';
@@ -485,6 +491,7 @@ if ($sall || $search_product_category > 0 || $search_user > 0) {
 	$sql = 'SELECT DISTINCT';
 }
 $sql .= ' f.rowid as id, f.ref, f.ref_client, f.fk_soc, f.type, f.note_private, f.note_public, f.increment, f.fk_mode_reglement, f.fk_cond_reglement, f.total_ht, f.total_tva, f.total_ttc,';
+$sql .= ' c.rowid as orderid, c.ref as reforder,';
 $sql .= ' f.localtax1 as total_localtax1, f.localtax2 as total_localtax2,';
 $sql .= ' f.fk_user_author,';
 $sql .= ' f.fk_multicurrency, f.multicurrency_code, f.multicurrency_tx, f.multicurrency_total_ht, f.multicurrency_total_tva as multicurrency_total_vat, f.multicurrency_total_ttc,';
@@ -539,6 +546,12 @@ if ($search_product_category > 0) {
 }
 $sql .= " LEFT JOIN ".MAIN_DB_PREFIX."projet as p ON p.rowid = f.fk_projet";
 $sql .= ' LEFT JOIN '.MAIN_DB_PREFIX.'user AS u ON f.fk_user_author = u.rowid';
+$sql .= ' LEFT JOIN (';
+$sql .= " SELECT ee1.fk_source as fk_source, ee1.fk_target as fk_target FROM ".MAIN_DB_PREFIX."element_element as ee1 WHERE (ee1.sourcetype = 'commande' AND ee1.targettype = 'facture')";
+$sql .= ' UNION ';
+$sql .= " SELECT ee2.fk_target as fk_source, ee2.fk_source as fk_target FROM ".MAIN_DB_PREFIX."element_element as ee2 WHERE (ee2.targettype = 'commande' AND ee2.sourcetype = 'facture')";
+$sql .= ' ) as eecommande ON (f.rowid = eecommande.fk_target)';
+$sql .= " LEFT JOIN ".MAIN_DB_PREFIX."commande as c on (c.rowid = eecommande.fk_source)";
 // We'll need this table joined to the select in order to filter by sale
 if ($search_sale > 0 || (!$user->rights->societe->client->voir && !$socid)) {
 	$sql .= ", ".MAIN_DB_PREFIX."societe_commerciaux as sc";
@@ -572,6 +585,9 @@ if ($userid) {
 }
 if ($search_ref) {
 	$sql .= natural_search('f.ref', $search_ref);
+}
+if ($search_reforder) {
+	$sql .= natural_search('c.ref', $search_reforder);
 }
 if ($search_refcustomer) {
 	$sql .= natural_search('f.ref_client', $search_refcustomer);
@@ -859,6 +875,9 @@ if ($resql) {
 	if ($search_ref) {
 		$param .= '&search_ref='.urlencode($search_ref);
 	}
+	if ($search_reforder) {
+		$param .= '&search_reforder='.urlencode($search_reforder);
+	}
 	if ($search_refcustomer) {
 		$param .= '&search_refcustomer='.urlencode($search_refcustomer);
 	}
@@ -1088,6 +1107,12 @@ if ($resql) {
 	if (!empty($arrayfields['f.ref']['checked'])) {
 		print '<td class="liste_titre" align="left">';
 		print '<input class="flat maxwidth50imp" type="text" name="search_ref" value="'.dol_escape_htmltag($search_ref).'">';
+		print '</td>';
+	}
+	// Ref Order
+	if (!empty($arrayfields['c.ref']['checked'])) {
+		print '<td class="liste_titre">';
+		print '<input class="flat maxwidth50imp" type="text" name="search_reforder" value="'.dol_escape_htmltag($search_reforder).'">';
 		print '</td>';
 	}
 	// Ref customer
@@ -1371,6 +1396,9 @@ if ($resql) {
 	if (!empty($arrayfields['f.ref']['checked'])) {
 		print_liste_field_titre($arrayfields['f.ref']['label'], $_SERVER['PHP_SELF'], 'f.ref', '', $param, '', $sortfield, $sortorder);
 	}
+	if (!empty($arrayfields['c.ref']['checked'])) {
+		print_liste_field_titre($arrayfields['c.ref']['label'], $_SERVER["PHP_SELF"], 'c.ref', '', $param, '', $sortfield, $sortorder);
+	}
 	if (!empty($arrayfields['f.ref_client']['checked'])) {
 		print_liste_field_titre($arrayfields['f.ref_client']['label'], $_SERVER["PHP_SELF"], 'f.ref_client', '', $param, '', $sortfield, $sortorder);
 	}
@@ -1530,6 +1558,8 @@ if ($resql) {
 
 			$facturestatic->id = $obj->id;
 			$facturestatic->ref = $obj->ref;
+			$facturestatic->id = $obj->id;
+			$facturestatic->ref = $obj->ref;
 			$facturestatic->ref_client = $obj->ref_client;
 			$facturestatic->type = $obj->type;
 			$facturestatic->total_ht = $obj->total_ht;
@@ -1607,6 +1637,9 @@ if ($resql) {
 
 			$facturestatic->alreadypaid = $paiement;
 
+			$order->id = $obj->orderid;
+			$order->ref = $obj->reforder;
+
 			$marginInfo = array();
 			if (!empty($conf->margin->enabled)) {
 				$facturestatic->fetch_lines();
@@ -1645,6 +1678,16 @@ if ($resql) {
 				print '</tr>';
 				print '</table>';
 
+				print "</td>\n";
+				if (!$i) {
+					$totalarray['nbfield']++;
+				}
+			}
+			
+			// Ref Order
+			if (!empty($arrayfields['c.ref']['checked'])) {
+				print "<td>";
+				print $order->getNomUrl(1, 'commande');
 				print "</td>\n";
 				if (!$i) {
 					$totalarray['nbfield']++;
