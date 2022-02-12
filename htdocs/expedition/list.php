@@ -36,6 +36,7 @@ require_once DOL_DOCUMENT_ROOT.'/core/class/html.formcompany.class.php';
 require_once DOL_DOCUMENT_ROOT.'/core/lib/date.lib.php';
 require_once DOL_DOCUMENT_ROOT.'/core/lib/company.lib.php';
 require_once DOL_DOCUMENT_ROOT.'/core/lib/product.lib.php';
+require_once DOL_DOCUMENT_ROOT.'/commande/class/commande.class.php';
 
 // Load translation files required by the page
 $langs->loadLangs(array("sendings", "deliveries", 'companies', 'bills', 'products'));
@@ -55,9 +56,9 @@ if ($user->socid) {
 	$socid = $user->socid;
 }
 $result = restrictedArea($user, 'expedition', $expeditionid, '');
-
 $search_ref_exp = GETPOST("search_ref_exp", 'alpha');
 $search_ref_liv = GETPOST('search_ref_liv', 'alpha');
+$search_reforder = GETPOST('search_reforder', 'alpha');
 $search_ref_customer = GETPOST('search_ref_customer', 'alpha');
 $search_company = GETPOST("search_company", 'alpha');
 $search_tracking = GETPOST("search_tracking", 'alpha');
@@ -126,6 +127,7 @@ if (empty($user->socid)) {
 $checkedtypetiers = 0;
 $arrayfields = array(
 	'e.ref'=>array('label'=>$langs->trans("Ref"), 'checked'=>1),
+	'c.ref'=>array('label'=>$langs->trans("Order"), 'checked'=>1),
 	'e.ref_customer'=>array('label'=>$langs->trans("RefCustomer"), 'checked'=>1),
 	's.nom'=>array('label'=>$langs->trans("ThirdParty"), 'checked'=>1),
 	's.town'=>array('label'=>$langs->trans("Town"), 'checked'=>1),
@@ -216,6 +218,7 @@ if (GETPOST('button_removefilter_x', 'alpha') || GETPOST('button_removefilter.x'
 	$search_product_category = '';
 	$search_ref_exp = '';
 	$search_ref_liv = '';
+	$search_reforder = '';
 	$search_ref_customer = '';
 	$search_company = '';
 	$search_town = '';
@@ -259,6 +262,7 @@ $formfile = new FormFile($db);
 $companystatic = new Societe($db);
 $formcompany = new FormCompany($db);
 $shipment = new Expedition($db);
+$order = new Commande($db);
 
 $helpurl = 'EN:Module_Shipments|FR:Module_Exp&eacute;ditions|ES:M&oacute;dulo_Expediciones';
 llxHeader('', $langs->trans('ListOfSendings'), $helpurl);
@@ -277,6 +281,7 @@ $sql .= " u.login";
 if (($search_categ_cus > 0) || ($search_categ_cus == -2)) {
 	$sql .= ", cc.fk_categorie, cc.fk_soc";
 }
+$sql .= ", c.rowid as orderid, c.ref as reforder";
 // Add fields from extrafields
 if (!empty($extrafields->attributes[$object->table_element]['label'])) {
 	foreach ($extrafields->attributes[$object->table_element]['label'] as $key => $val) {
@@ -311,6 +316,8 @@ $sql .= ' LEFT JOIN '.MAIN_DB_PREFIX.'user as u ON e.fk_user_author = u.rowid';
 if ($search_user > 0) {		// Get link to order to get the order id in eesource.fk_source
 	$sql .= " LEFT JOIN ".MAIN_DB_PREFIX."element_element as eesource ON eesource.fk_target = e.rowid AND eesource.targettype = 'shipping' AND eesource.sourcetype = 'commande'";
 }
+$sql .= " LEFT JOIN ".MAIN_DB_PREFIX."element_element as eecommande ON (e.rowid = eecommande.fk_target AND eecommande.sourcetype = 'commande' AND eecommande.targettype = 'shipping')";
+$sql .= " LEFT JOIN ".MAIN_DB_PREFIX."commande as c on (c.rowid = eecommande.fk_source)";
 // We'll need this table joined to the select in order to filter by sale
 if ($search_sale > 0 || (!$user->rights->societe->client->voir && !$socid)) {
 	$sql .= ", ".MAIN_DB_PREFIX."societe_commerciaux as sc";
@@ -341,6 +348,9 @@ if ($socid) {
 }
 if ($search_status <> '' && $search_status >= 0) {
 	$sql .= " AND e.fk_statut = ".((int) $search_status);
+}
+if ($search_reforder != '') {
+	$sql .= natural_search('c.ref', $search_reforder);
 }
 if ($search_ref_customer != '') {
 	$sql .= natural_search('e.ref_customer', $search_ref_customer);
@@ -459,6 +469,9 @@ if ($search_ref_exp) {
 }
 if ($search_ref_liv) {
 	$param .= "&search_ref_liv=".urlencode($search_ref_liv);
+}
+if ($search_reforder) {
+	$param .= "&search_reforder=".urlencode($search_reforder);
 }
 if ($search_ref_customer) {
 	$param .= "&search_ref_customer=".urlencode($search_ref_customer);
@@ -629,6 +642,12 @@ if (!empty($arrayfields['e.ref']['checked'])) {
 	print '<input class="flat" size="6" type="text" name="search_ref_exp" value="'.$search_ref_exp.'">';
 	print '</td>';
 }
+// Ref Order
+if (!empty($arrayfields['c.ref']['checked'])) {
+	print '<td class="liste_titre">';
+	print '<input class="flat" size="6" type="text" name="search_reforder" value="'.$search_reforder.'">';
+	print '</td>';
+}
 // Ref customer
 if (!empty($arrayfields['e.ref_customer']['checked'])) {
 	print '<td class="liste_titre">';
@@ -747,6 +766,9 @@ print '<tr class="liste_titre">';
 if (!empty($arrayfields['e.ref']['checked'])) {
 	print_liste_field_titre($arrayfields['e.ref']['label'], $_SERVER["PHP_SELF"], "e.ref", "", $param, '', $sortfield, $sortorder);
 }
+if (!empty($arrayfields['c.ref']['checked'])) {
+	print_liste_field_titre($arrayfields['c.ref']['label'], $_SERVER["PHP_SELF"], "c.ref", "", $param, '', $sortfield, $sortorder);
+}
 if (!empty($arrayfields['e.ref_customer']['checked'])) {
 	print_liste_field_titre($arrayfields['e.ref_customer']['label'], $_SERVER["PHP_SELF"], "e.ref_customer", "", $param, '', $sortfield, $sortorder);
 }
@@ -812,6 +834,8 @@ while ($i < min($num, $limit)) {
 
 	$shipment->id = $obj->rowid;
 	$shipment->ref = $obj->ref;
+	$order->id = $obj->orderid;
+	$order->ref = $obj->reforder;
 
 	$companystatic->id = $obj->socid;
 	$companystatic->ref = $obj->name;
@@ -826,6 +850,16 @@ while ($i < min($num, $limit)) {
 	if (!empty($arrayfields['e.ref']['checked'])) {
 		print '<td class="nowraponall">';
 		print $shipment->getNomUrl(1);
+		print "</td>\n";
+		if (!$i) {
+			$totalarray['nbfield']++;
+		}
+	}
+
+	// Ref Order
+	if (!empty($arrayfields['c.ref']['checked'])) {
+		print "<td>";
+		print $order->getNomUrl(1, 'commande');
 		print "</td>\n";
 		if (!$i) {
 			$totalarray['nbfield']++;
