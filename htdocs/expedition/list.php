@@ -166,8 +166,6 @@ if (!GETPOST('confirmmassaction', 'alpha') && $massaction != 'presend' && $massa
 }
 
 if ($massaction === 'updateships') {
-	$db->begin();
-
 	$objecttmp = new Expedition($db);
 	$shipsGotmp = new ShipsGo_API($conf->global->API_KEY_SHIPSGO);
 	$error = 0;
@@ -198,7 +196,6 @@ if ($massaction === 'updateships') {
 		}
 		$i++;
 	}
-	$db->commit();
 }
 
 
