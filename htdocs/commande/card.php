@@ -503,6 +503,28 @@ if (empty($reshook)) {
 		if ($result < 0) {
 			setEventMessages($object->error, $object->errors, 'errors');
 		}
+	} elseif (!empty($conf->global->MAIN_CAN_EDIT_CUSTOMER_ON_SALES_ORDER) && $action == 'set_thirdparty' && $usercancreate && $object->statut == Commande::STATUS_DRAFT) {
+		// Edit Thirdparty
+		$new_socid = GETPOST('new_socid', 'int');
+		if (!empty($new_socid) && $new_socid != $object->thirdparty->id) {
+			$db->begin();
+
+			// Update customer
+			$sql = 'UPDATE '.MAIN_DB_PREFIX.'commande';
+			$sql .= ' SET fk_soc='.$new_socid;
+			$sql .= ' WHERE fk_soc='.$object->thirdparty->id;
+			$sql .= ' AND rowid='.$object->id;
+
+			$res = $db->query($sql);
+
+			if (!$res) {
+				$db->rollback();
+			} else {
+				$db->commit();
+			}
+		}
+		header('Location: '.$_SERVER['PHP_SELF'].'?id='.$object->id);
+		exit;
 	} elseif ($action == 'setremise' && $usercancreate) {
 		$result = $object->setDiscount($user, price2num(GETPOST('remise'), 2));
 		if ($result < 0) {
@@ -2026,12 +2048,27 @@ if ($action == 'create' && $usercancreate) {
 
 		$morehtmlref = '<div class="refidno">';
 		// Ref customer
-		$morehtmlref .= $form->editfieldkey("RefCustomer", 'ref_client', $object->ref_client, $object, $usercancreate, 'string', '', 0, 1);
-		$morehtmlref .= $form->editfieldval("RefCustomer", 'ref_client', $object->ref_client, $object, $usercancreate, 'string', '', null, null, '', 1);
+		$morehtmlref .= $form->editfieldkey("RefCustomer", 'ref_client', $object->ref_client, $object, $usercanvalidate, 'string', '', 0, 1);
+		$morehtmlref .= $form->editfieldval("RefCustomer", 'ref_client', $object->ref_client, $object, $usercanvalidate, 'string', '', null, null, '', 1);
 		// Thirdparty
-		$morehtmlref .= '<br>'.$langs->trans('ThirdParty').' : '.$soc->getNomUrl(1);
-		if (empty($conf->global->MAIN_DISABLE_OTHER_LINK) && $object->thirdparty->id > 0) {
-			$morehtmlref .= ' (<a href="'.DOL_URL_ROOT.'/commande/list.php?socid='.$object->thirdparty->id.'&search_societe='.urlencode($object->thirdparty->name).'">'.$langs->trans("OtherOrders").'</a>)';
+		$morehtmlref .= '<br>'.$langs->trans('ThirdParty');
+		if (!empty($conf->global->MAIN_CAN_EDIT_CUSTOMER_ON_SALES_ORDER) && !empty($usercancreate) && $action == 'edit_thirdparty') {
+			$morehtmlref .= ' : ';
+			$morehtmlref .= '<form method="post" action="'.$_SERVER['PHP_SELF'].'?id='.$object->id.'">';
+			$morehtmlref .= '<input type="hidden" name="action" value="set_thirdparty">';
+			$morehtmlref .= '<input type="hidden" name="token" value="'.newToken().'">';
+			$morehtmlref .= $form->select_company($object->thirdparty->id, 'new_socid', '(s.client = 1 OR s.client = 2 OR s.client = 3)', '', 0, 0, array(), 0, 'minwidth300');
+			$morehtmlref .= '<input type="submit" class="button valignmiddle" value="'.$langs->trans("Modify").'">';
+			$morehtmlref .= '</form>';
+		}
+		if (empty($conf->global->MAIN_CAN_EDIT_CUSTOMER_ON_SALES_ORDER) || $action != 'edit_thirdparty') {
+			if (!empty($conf->global->MAIN_CAN_EDIT_CUSTOMER_ON_SALES_ORDER) && $object->statut == Commande::STATUS_DRAFT) {
+				$morehtmlref .= '<a class="editfielda" href="'.$_SERVER['PHP_SELF'].'?action=edit_thirdparty&amp;id='.$object->id.'">'.img_edit($langs->transnoentitiesnoconv('SetThirdParty')).'</a>';
+			}
+			$morehtmlref .= ' : '.$object->thirdparty->getNomUrl(1);
+			if (empty($conf->global->MAIN_DISABLE_OTHER_LINK) && $object->thirdparty->id > 0) {
+				$morehtmlref .= ' (<a href="'.DOL_URL_ROOT.'/commande/list.php?socid='.$object->thirdparty->id.'&search_company='.urlencode($object->thirdparty->name).'">'.$langs->trans("OtherOrders").'</a>)';
+			}
 		}
 		// Project
 		if (!empty($conf->projet->enabled)) {
