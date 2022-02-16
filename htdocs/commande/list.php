@@ -127,7 +127,7 @@ $offset = $limit * $page;
 $pageprev = $page - 1;
 $pagenext = $page + 1;
 if (!$sortfield) {
-	$sortfield = 'c.date_commande';
+	$sortfield = 'c.ref';
 }
 if (!$sortorder) {
 	$sortorder = 'DESC';
