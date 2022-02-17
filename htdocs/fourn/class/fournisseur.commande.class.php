@@ -3098,8 +3098,7 @@ class CommandeFournisseur extends CommonOrder
 		$outputlangs->load("products");
 
 		if (!dol_strlen($modele)) {
-			$modele = 'muscadet';
-
+			$modele = '';
 			if ($this->model_pdf) {
 				$modele = $this->model_pdf;
 			} elseif (!empty($conf->global->COMMANDE_SUPPLIER_ADDON_PDF)) {
@@ -3107,9 +3106,12 @@ class CommandeFournisseur extends CommonOrder
 			}
 		}
 
-		$modelpath = "core/modules/supplier_order/doc/";
-
-		return $this->commonGenerateDocument($modelpath, $modele, $outputlangs, $hidedetails, $hidedesc, $hideref, $moreparams);
+		if (empty($modele)) {
+			return 0;
+		} else {
+			$modelpath = "core/modules/supplier_order/doc/";
+			return $this->commonGenerateDocument($modelpath, $modele, $outputlangs, $hidedetails, $hidedesc, $hideref, $moreparams);
+		}
 	}
 
 	/**
