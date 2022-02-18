@@ -846,7 +846,13 @@ while ($i < min($num, $limit)) {
 	// Ref
 	if (!empty($arrayfields['e.ref']['checked'])) {
 		print '<td class="nowraponall">';
+		// Picto + Ref
 		print $shipment->getNomUrl(1);
+		// Other picto tool
+		$filename = dol_sanitizeFileName($object->ref);
+		$filedir = $conf->expedition->dir_output."/sending/".dol_sanitizeFileName($object->ref);
+		print $formfile->getDocumentsLink('expedition', $filename, $filedir);
+		
 		print "</td>\n";
 		if (!$i) {
 			$totalarray['nbfield']++;
