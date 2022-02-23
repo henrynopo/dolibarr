@@ -194,7 +194,7 @@ $(document).ready(function() {
 		var idcap=echeance-1;
 		idcap = '#hi_capital'+idcap;
 		var capital=price2numjs($(idcap).val());
-		console.log("Change montly amount echeance="+echeance+" idcap="+idcap+" capital="+capital);
+		console.log("Change monthly amount echeance="+echeance+" idcap="+idcap+" capital="+capital);
 		$.ajax({
 			  method: "GET",
 			  dataType: 'json',
@@ -268,13 +268,13 @@ if ($object->nbterm > 0 && count($echeances->lines) == 0) {
 	$regulInsurance = price2num($object->insurance_amount - ($insurance * $object->nbterm));
 	while ($i < $object->nbterm + 1) {
 		$mens = price2num($echeances->calcMonthlyPayments($capital, $object->rate / 100, $object->nbterm - $i + 1), 'MT');
-		$int = ($capital * ($object->rate / 12)) / 100;
+		$int = ($capital * ($object->rate / 100 / 365 * ((dol_time_plus_duree($object->datestart, $i, 'm') - dol_time_plus_duree($object->datestart, $i-1, 'm')) / 86400)));
 		$int = price2num($int, 'MT');
 		$insu = ($insurance + (($i == 1) ? $regulInsurance : 0));
 		$cap_rest = price2num($capital - ($mens - $int), 'MT');
 		print '<tr>';
 		print '<td class="center" id="n'.$i.'">'.$i.'</td>';
-		print '<td class="center" id ="date'.$i.'"><input type="hidden" name="hi_date'.$i.'" id ="hi_date'.$i.'" value="'.dol_time_plus_duree($object->datestart, $i - 1, 'm').'">'.dol_print_date(dol_time_plus_duree($object->datestart, $i - 1, 'm'), 'day').'</td>';
+		print '<td class="center" id ="date'.$i.'"><input type="hidden" name="hi_date'.$i.'" id ="hi_date'.$i.'" value="'.dol_time_plus_duree($object->datestart, $i, 'm').'">'.dol_print_date(dol_time_plus_duree($object->datestart, $i, 'm'), 'day').'</td>';
 		print '<td class="center" id="insurance'.$i.'">'.price($insurance + (($i == 1) ? $regulInsurance : 0), 0, '', 1, -1, -1, $conf->currency).'</td><input type="hidden" name="hi_insurance'.$i.'" id ="hi_insurance'.$i.'" value="'.($insurance + (($i == 1) ? $regulInsurance : 0)).'">';
 		print '<td class="center" id="interets'.$i.'">'.price($int, 0, '', 1, -1, -1, $conf->currency).'</td><input type="hidden" name="hi_interets'.$i.'" id ="hi_interets'.$i.'" value="'.$int.'">';
 		print '<td class="center"><input name="mens'.$i.'" id="mens'.$i.'" size="5" value="'.$mens.'" ech="'.$i.'"></td>';
