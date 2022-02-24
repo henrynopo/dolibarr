@@ -1959,7 +1959,7 @@ if ($action == 'create') {
 		print $langs->trans('SendingMethod');
 		print '</td>';
 
-		if ($action != 'editshipping_method_id' && $object->fk_status > 0) {
+		if ($action != 'editshipping_method_id' && $object->statut == 0) {
 			print '<td class="right"><a class="editfielda" href="'.$_SERVER["PHP_SELF"].'?action=editshipping_method_id&amp;id='.$object->id.'">'.img_edit($langs->trans('SetSendingMethod'), 1).'</a></td>';
 		}
 		print '</tr></table>';
@@ -2541,7 +2541,7 @@ if ($action == 'create') {
 			}
 
 			// Modify
-			if ($object->statut == Expedition::STATUS_VALIDATED && $user->rights->expedition->creer && $user->rights->expedition->shipping_advance->validate) {
+			if (($object->statut == Expedition::STATUS_VALIDATED || ($object->statut == Expedition::STATUS_CLOSED && !$object->billed)) && $user->rights->expedition->creer && $user->rights->expedition->shipping_advance->validate) {
 				print '<a class="butAction" href="'.$_SERVER["PHP_SELF"].'?id='.$object->id.'&amp;action=modif">'.$langs->trans("Modify").'</a>';
 			}
 
@@ -2572,10 +2572,10 @@ if ($action == 'create') {
 			}
 			// Close
 			if ($object->statut == Expedition::STATUS_VALIDATED || ($object->statut == Expedition::STATUS_CLOSED && !$object->billed)) {
-				if ($user->rights->expedition->creer && $object->statut > 0 && !$object->billed) {
+				if ($user->rights->expedition->creer && $object->statut > 0 && (($object->statut == Expedition::STATUS_VALIDATED && $object->billed) || !$object->billed)) {
 					$label = "Close"; $paramaction = 'classifyclosed'; // = Transferred/Received
 					// Label here should be "Close" or "ClassifyBilled" if we decided to make bill on shipments instead of orders
-					if (!empty($conf->facture->enabled) && !empty($conf->global->WORKFLOW_BILL_ON_SHIPMENT)) {  // Quand l'option est on, il faut avoir le bouton en plus et non en remplacement du Close ?
+					if (!empty($conf->facture->enabled) && !empty($conf->global->WORKFLOW_BILL_ON_SHIPMENT) && !$object->billed) {  // Quand l'option est on, il faut avoir le bouton en plus et non en remplacement du Close ?
 						$label = "ClassifyBilled";
 						$paramaction = 'classifybilled';
 					}
