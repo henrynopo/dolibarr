@@ -423,7 +423,7 @@ if (empty($reshook)) {
 		$ShippingLine = $object->meths[$object->shipping_method_id];
 		$email = !empty($user->email) ? $user->email : '';
 		$Referance = $so_ref.' / '.$object->ref;
-		if (!empty($ContainerNumber) && !empty($ShippingLine) && !empty($Referance)) {
+		if (!empty($ContainerNumber) && !empty($ShippingLine) && !empty($Referance) && empty($object->array_options['options_requestid'])) {
 			$object->array_options['options_requestid'] = $shipsGo->PostContainerInfo($ContainerNumber, $ShippingLine, $email, $Referance);
 			$object->array_options['options_requestid'] = $result[RequestId];
 			$object->updateExtraField('requestid');
@@ -1709,7 +1709,7 @@ if ($action == 'create') {
 				}
 			}
 			if ($object->array_options['options_sailingstatusid'] != 4 ) {
-				$ship_status = $shipsGo->GetContainerInfo(!empty($object->array_options['options_requestid']) ? $object->array_options['options_requestid'] : $ContainerNumber)[0];	
+				$ship_status = $shipsGo->GetContainerInfo($ContainerNumber)[0];	
 				if ($ship_status['Message'] == 'Success') {
 					$object->array_options['options_sailingstatusid']  = $ship_status['SailingStatusId'];
 					$object->array_options['options_pol'] = $ship_status['Pol'];
