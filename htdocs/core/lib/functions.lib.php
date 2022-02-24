@@ -2170,7 +2170,12 @@ function dol_format_address($object, $withcountry = 0, $sep = "\n", $outputlangs
 		$town = ($extralangcode ? $object->array_languages['town'][$extralangcode] : (empty($object->town) ? '' : $object->town));
 		$ret .= ($ret ? $sep : '').$town;
 		if (!empty($object->state))	{
-			$state = ($langs->trans("State".$object->state) != "State".$object->state) ? $langs->trans("State".$object->state) : $object->state;
+			if(is_object($outputlangs)){
+				$outputlangs->load("dict");
+				$state = ($outputlangs->trans("State".$object->state) != "State".$object->state) ? $outputlangs->trans("State".$object->state) : $object->state;
+			} else {
+				$state = ($langs->trans("State".$object->state) != "State".$object->state) ? $langs->trans("State".$object->state) : $object->state;
+			}
 			$ret .= ($ret ? ", " : '').$state;
 		}
 		if (!empty($object->zip)) {
@@ -5254,7 +5259,7 @@ function price($amount, $form = 0, $outlangs = '', $trunc = 1, $rounding = -1, $
 			$cursymbolbefore .= $outlangs->getCurrencySymbol($currency_code);
 		} else {
 			$tmpcur = $outlangs->getCurrencySymbol($currency_code);
-			$cursymbolafter .= ($tmpcur == $currency_code ? ' '.$tmpcur : $tmpcur);
+			$cursymbolafter .= ($tmpcur == $currency_code ? ''.$tmpcur : $tmpcur);
 		}
 	}
 	$output = $cursymbolbefore.$output.$end.($cursymbolafter ? '' : '').$cursymbolafter;
