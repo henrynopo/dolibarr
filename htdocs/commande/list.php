@@ -161,6 +161,7 @@ if (empty($user->socid)) {
 
 $checkedtypetiers = 0;
 $arrayfields = array(
+	'ec.fk_socpeople'=>array('label'=>"BySalesRepresentative", 'checked'=>1, 'position'=>1),
 	'c.ref'=>array('label'=>"Ref", 'checked'=>1, 'position'=>5),
 	'c.ref_client'=>array('label'=>"RefCustomerOrder", 'checked'=>-1, 'position'=>10),
 	'p.ref'=>array('label'=>"ProjectRef", 'checked'=>-1, 'enabled'=>(empty($conf->projet->enabled) ? 0 : 1), 'position'=>20),
@@ -426,6 +427,7 @@ $sql .= ' c.fk_multicurrency, c.multicurrency_code, c.multicurrency_tx, c.multic
 $sql .= ' c.date_valid, c.date_commande, c.note_public, c.note_private, c.date_livraison as date_delivery, c.fk_statut, c.facture as billed,';
 $sql .= ' c.date_creation as date_creation, c.tms as date_update, c.date_cloture as date_cloture,';
 $sql .= ' p.rowid as project_id, p.ref as project_ref, p.title as project_label,';
+$sql .= ' ec.fk_socpeople,';
 $sql .= ' u.login, u.lastname, u.firstname, u.email as user_email, u.statut as user_statut, u.entity, u.photo, u.office_phone, u.office_fax, u.user_mobile, u.job, u.gender,';
 $sql .= ' c.fk_cond_reglement,c.fk_mode_reglement,c.fk_shipping_method,';
 $sql .= ' c.fk_input_reason';
@@ -466,11 +468,11 @@ $sql .= ' LEFT JOIN '.MAIN_DB_PREFIX.'user as u ON c.fk_user_author = u.rowid';
 if ($search_sale > 0 || (!$user->rights->societe->client->voir && !$socid)) {
 	$sql .= ", ".MAIN_DB_PREFIX."societe_commerciaux as sc";
 }
-if ($search_user > 0) {
+// if ($search_user > 0) {	//deprecated to show sales representative
 	$sql .= ", ".MAIN_DB_PREFIX."element_contact as ec";
 	$sql .= ", ".MAIN_DB_PREFIX."c_type_contact as tc";
-}
 
+// } 	//deprecated to show sales representative
 // Add table from hooks
 $parameters = array();
 $reshook = $hookmanager->executeHooks('printFieldListFrom', $parameters, $object); // Note that $action and $object may have been modified by hook
@@ -565,6 +567,8 @@ if ($search_sale > 0) {
 }
 if ($search_user > 0) {
 	$sql .= " AND ec.fk_c_type_contact = tc.rowid AND tc.element='commande' AND tc.source='internal' AND ec.element_id = c.rowid AND ec.fk_socpeople = ".((int) $search_user);
+} else {
+	$sql .= " AND ec.fk_c_type_contact = tc.rowid AND tc.element='commande' AND tc.source='internal' AND ec.element_id = c.rowid";
 }
 if ($search_total_ht != '') {
 	$sql .= natural_search('c.total_ht', $search_total_ht, 1);
@@ -1031,6 +1035,12 @@ if ($resql) {
 	print '<table class="tagtable liste'.($moreforfilter ? " listwithfilterbefore" : "").'">'."\n";
 
 	print '<tr class="liste_titre_filter">';
+	// Salesperson
+	if (!empty($arrayfields['ec.fk_socpeople']['checked'])) {
+		print '<td class="liste_titre">';
+		print '&nbsp;';
+		print '</td>';
+	}
 	// Ref
 	if (!empty($arrayfields['c.ref']['checked'])) {
 		print '<td class="liste_titre">';
@@ -1267,6 +1277,9 @@ if ($resql) {
 
 	// Fields title
 	print '<tr class="liste_titre">';
+	if (!empty($arrayfields['ec.fk_socpeople']['checked'])) {
+		print_liste_field_titre($arrayfields['ec.fk_socpeople']['label'], $_SERVER["PHP_SELF"], 'ec.fk_socpeople', '', $param, '', $sortfield, $sortorder);
+	}
 	if (!empty($arrayfields['c.ref']['checked'])) {
 		print_liste_field_titre($arrayfields['c.ref']['label'], $_SERVER["PHP_SELF"], 'c.ref', '', $param, '', $sortfield, $sortorder);
 	}
@@ -1388,6 +1401,7 @@ if ($resql) {
 	$generic_commande = new Commande($db);
 	$generic_product = new Product($db);
 	$userstatic = new User($db);
+	$salespersonstatic = new User($db);
 	$i = 0;
 	$totalarray = array('nbfield' => 0, 'val' => array(), 'pos' => array());
 	while ($i < min($num, $limit)) {
@@ -1433,7 +1447,20 @@ if ($resql) {
 		$projectstatic->title = $obj->project_label;
 
 		print '<tr class="oddeven">';
-
+		// Salesperson
+		$salespersonstatic->fetch($obj->fk_socpeople);
+		if (!empty($arrayfields['ec.fk_socpeople']['checked'])) {
+			print '<td class="tdoverflowmax150">';
+			if ($salespersonstatic->id) {
+				print $salespersonstatic->getNomUrl(-1);
+			} else {
+				print '&nbsp;';
+			}
+			print "</td>\n";
+			if (!$i) {
+				$totalarray['nbfield']++;
+			}
+		}
 		// Ref
 		if (!empty($arrayfields['c.ref']['checked'])) {
 			print '<td class="nowraponall">';
@@ -1457,7 +1484,7 @@ if ($resql) {
 
 		// Ref customer
 		if (!empty($arrayfields['c.ref_client']['checked'])) {
-			print '<td class="nowrap tdoverflowmax200">'.$obj->ref_client.'</td>';
+			print '<td class="nowrap tdoverflowmax150">'.$obj->ref_client.'</td>';
 			if (!$i) {
 				$totalarray['nbfield']++;
 			}
@@ -1710,7 +1737,7 @@ if ($resql) {
 
 		// Author
 		if (!empty($arrayfields['u.login']['checked'])) {
-			print '<td class="tdoverflowmax200">';
+			print '<td class="tdoverflowmax150">';
 			if ($userstatic->id) {
 				print $userstatic->getNomUrl(-1);
 			} else {
