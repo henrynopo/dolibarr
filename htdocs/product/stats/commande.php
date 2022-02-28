@@ -137,6 +137,9 @@ if ($id > 0 || !empty($ref)) {
 
 		if ($user->rights->commande->lire) {
 			$sql = "SELECT DISTINCT s.nom as name, s.rowid as socid, s.code_client, c.rowid, d.total_ht as total_ht, c.ref,";
+			if($conf->multicurrency->enabled){
+				$sql .= " d.multicurrency_total_ht as multicurrency_total_ht, d.multicurrency_code as multicurrency_code,";
+			}
 			$sql .= " c.ref_client,";
 			$sql .= " c.date_commande, c.fk_statut as statut, c.facture, c.rowid as commandeid, d.rowid, d.qty";
 			if (!$user->rights->societe->client->voir && !$socid) {
@@ -257,7 +260,7 @@ if ($id > 0 || !empty($ref)) {
 						print '<td class="center">';
 						print dol_print_date($db->jdate($objp->date_commande), 'dayhour')."</td>";
 						print  '<td class="center">'.$objp->qty."</td>\n";
-						print '<td align="right">'.price($objp->total_ht)."</td>\n";
+						print '<td align="right">'.(!empty($conf->multicurrency->enabled) ? $objp->multicurrency_code.' '.price($objp->multicurrency_total_ht).'<br>'.$conf->currency.' '.price($objp->total_ht) : $conf->currency.' '.price($objp->total_ht))."</td>\n";
 						print '<td align="right">'.$orderstatic->LibStatut($objp->statut, $objp->facture, 5).'</td>';
 						print "</tr>\n";
 						$i++;
@@ -271,7 +274,7 @@ if ($id > 0 || !empty($ref)) {
 				}
 				print '<td colspan="3"></td>';
 				print '<td class="center">'.$total_qty.'</td>';
-				print '<td align="right">'.price($total_ht).'</td>';
+				print '<td align="right">'.$conf->currency.' '.price($total_ht).'</td>';
 				print '<td></td>';
 				print "</table>";
 				print "</div>";

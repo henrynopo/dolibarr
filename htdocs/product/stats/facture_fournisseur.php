@@ -139,6 +139,9 @@ if ($id > 0 || !empty($ref)) {
 		if ($user->rights->fournisseur->facture->lire) {
 			$sql = "SELECT DISTINCT s.nom as name, s.rowid as socid, s.code_client, d.rowid, d.total_ht as line_total_ht,";
 			$sql .= " f.rowid as facid, f.ref, f.ref_supplier, f.datef, f.libelle as label, f.total_ht, f.total_ttc, f.total_tva, f.paye, f.fk_statut as statut, d.qty";
+			if($conf->multicurrency->enabled){
+				$sql .= " , f.multicurrency_total_ht as multicurrency_line_total_ht, f.multicurrency_code as multicurrency_code";
+			}
 			if (!$user->rights->societe->client->voir && !$socid) {
 				$sql .= ", sc.fk_soc, sc.fk_user ";
 			}
@@ -262,7 +265,7 @@ if ($id > 0 || !empty($ref)) {
 						print '<td class="center">';
 						print dol_print_date($db->jdate($objp->datef), 'dayhour')."</td>";
 						print '<td class="center">'.$objp->qty."</td>\n";
-						print '<td align="right">'.price($objp->line_total_ht)."</td>\n";
+						print '<td align="right">'.(!empty($conf->multicurrency->enabled) ? $objp->multicurrency_code.' '.price($objp->multicurrency_line_total_ht).'<br>'.$conf->currency.' '.price($objp->line_total_ht) : $conf->currency.' '.price($objp->line_total_ht))."</td>\n";
 						print '<td align="right">'.$supplierinvoicestatic->LibStatut($objp->paye, $objp->statut, 5).'</td>';
 						print "</tr>\n";
 						$i++;
@@ -276,7 +279,7 @@ if ($id > 0 || !empty($ref)) {
 				}
 				print '<td colspan="3"></td>';
 				print '<td class="center">'.$total_qty.'</td>';
-				print '<td align="right">'.price($total_ht).'</td>';
+				print '<td align="right">'.$conf->currency.' '.price($total_ht).'</td>';
 				print '<td></td>';
 				print "</table>";
 				print '</div>';

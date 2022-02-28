@@ -156,6 +156,9 @@ if ($id > 0 || !empty($ref)) {
 			$sql = "SELECT DISTINCT s.nom as name, s.rowid as socid, s.code_client,";
 			$sql .= " f.ref, f.datef, f.paye, f.type, f.fk_statut as statut, f.rowid as facid,";
 			$sql .= " d.rowid, d.total_ht as total_ht, d.qty"; // We must keep the d.rowid here to not loose record because of the distinct used to ignore duplicate line when link on societe_commerciaux is used
+			if($conf->multicurrency->enabled){
+				$sql .= " , d.multicurrency_total_ht as multicurrency_total_ht, d.multicurrency_code as multicurrency_code";
+			}
 			if (!$user->rights->societe->client->voir && !$socid) {
 				$sql .= ", sc.fk_soc, sc.fk_user ";
 			}
@@ -277,7 +280,7 @@ if ($id > 0 || !empty($ref)) {
 						print '<td class="center">';
 						print dol_print_date($db->jdate($objp->datef), 'dayhour')."</td>";
 						print '<td class="center">'.$objp->qty."</td>\n";
-						print '<td align="right">'.price($objp->total_ht)."</td>\n";
+						print '<td align="right">'.(!empty($conf->multicurrency->enabled) ? $objp->multicurrency_code.' '.price($objp->multicurrency_total_ht).'<br>'.$conf->currency.' '.price($objp->total_ht) : $conf->currency.' '.price($objp->total_ht))."</td>\n";
 						print '<td align="right">'.$invoicestatic->LibStatut($objp->paye, $objp->statut, 5, $paiement, $objp->type).'</td>';
 						print "</tr>\n";
 						$i++;
@@ -291,7 +294,7 @@ if ($id > 0 || !empty($ref)) {
 				}
 				print '<td colspan="3"></td>';
 				print '<td class="center">'.$total_qty.'</td>';
-				print '<td align="right">'.price($total_ht).'</td>';
+				print '<td align="right">'.$conf->currency.' '.price($objp->total_ht).'</td>';
 				print '<td></td>';
 				print "</table>";
 				print '</div>';
