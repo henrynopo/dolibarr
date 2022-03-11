@@ -469,9 +469,11 @@ if ($search_sale > 0 || (!$user->rights->societe->client->voir && !$socid)) {
 	$sql .= ", ".MAIN_DB_PREFIX."societe_commerciaux as sc";
 }
 // if ($search_user > 0) {	//deprecated to show sales representative
-	$sql .= ", ".MAIN_DB_PREFIX."element_contact as ec";
-	$sql .= ", ".MAIN_DB_PREFIX."c_type_contact as tc";
-
+$sql .= " LEFT JOIN (";
+$sql .= " SELECT ec1.element_id, ec1.fk_socpeople FROM ".MAIN_DB_PREFIX."element_contact as ec1";
+$sql .= " LEFT JOIN ".MAIN_DB_PREFIX."c_type_contact as tc ON ec1.fk_c_type_contact = tc.rowid";
+$sql .= " WHERE tc.element='commande' AND tc.source='internal'";
+$sql .= " ) AS ec on ec.element_id = c.rowid";
 // } 	//deprecated to show sales representative
 // Add table from hooks
 $parameters = array();
@@ -566,9 +568,7 @@ if ($search_sale > 0) {
 	$sql .= " AND s.rowid = sc.fk_soc AND sc.fk_user = ".((int) $search_sale);
 }
 if ($search_user > 0) {
-	$sql .= " AND ec.fk_c_type_contact = tc.rowid AND tc.element='commande' AND tc.source='internal' AND ec.element_id = c.rowid AND ec.fk_socpeople = ".((int) $search_user);
-} else {
-	$sql .= " AND ec.fk_c_type_contact = tc.rowid AND tc.element='commande' AND tc.source='internal' AND ec.element_id = c.rowid";
+	$sql .= " AND ec.fk_socpeople = ".((int) $search_user);
 }
 if ($search_total_ht != '') {
 	$sql .= natural_search('c.total_ht', $search_total_ht, 1);
