@@ -426,7 +426,9 @@ if (empty($reshook)) {
 		if (!empty($ContainerNumber) && !empty($ShippingLine) && !empty($Referance) && empty($object->array_options['options_requestid'])) {
 			$object->array_options['options_requestid'] = $shipsGo->PostContainerInfo($ContainerNumber, $ShippingLine, $email, $Referance);
 			$object->array_options['options_requestid'] = $result[RequestId];
+			$object->array_options['options_updatedtime'] = dol_now();
 			$object->updateExtraField('requestid');
+			$object->updateExtraField('updatedtime');
 		}
 
 		if ($result < 0) {

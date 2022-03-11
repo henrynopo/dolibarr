@@ -174,8 +174,8 @@ if ($massaction === 'updateships') {
 		$result = $objecttmp->fetch($toselect[$i]);
 		if ($result > 0) {
 			$ContainerNumber = $objecttmp->tracking_number;
-			if (!empty($objecttmp->array_options['options_requestid']) && $objecttmp->array_options['options_sailingstatusid'] != 4 ) {
-				$ship_status = $shipsGotmp->GetContainerInfo(!empty($objecttmp->array_options['options_requestid']) ? $objecttmp->array_options['options_requestid'] : $ContainerNumber)[0];
+			if ($objecttmp->array_options['options_sailingstatusid'] != 4 ) {
+				$ship_status = $shipsGotmp->GetContainerInfo($ContainerNumber)[0];
 				if ($ship_status['Message'] == 'Success') {
 					$objecttmp->array_options['options_sailingstatusid']  = $ship_status['SailingStatusId'];
 					$objecttmp->array_options['options_pol'] = $ship_status['Pol'];
