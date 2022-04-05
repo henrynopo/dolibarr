@@ -1710,7 +1710,7 @@ if ($action == 'create') {
 					$object->updateExtraField('requestid');
 				}
 			}
-			if ($object->array_options['options_sailingstatusid'] != 4 ) {
+			if ($object->array_options['options_sailingstatusid'] != 3 && $object->array_options['options_sailingstatusid'] != 4) {
 				$ship_status = $shipsGo->GetContainerInfo($ContainerNumber)[0];	
 				if ($ship_status['Message'] == 'Success') {
 					$object->array_options['options_sailingstatusid']  = $ship_status['SailingStatusId'];
