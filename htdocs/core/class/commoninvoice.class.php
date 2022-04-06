@@ -283,7 +283,7 @@ abstract class CommonInvoice extends CommonObject
 	 *	@param		string	$filtertype		1 to filter on type of payment == 'PRE'
 	 *  @return     array					Array with list of payments
 	 */
-	public function getListOfPayments($filtertype = '')
+	public function getListOfPayments($multicurrency = 0, $filtertype = '')
 	{
 		$retarray = array();
 
@@ -320,7 +320,7 @@ abstract class CommonInvoice extends CommonObject
 			$i = 0;
 			while ($i < $num) {
 				$obj = $this->db->fetch_object($resql);
-				$tmp = array('amount'=>$obj->amount, 'type'=>$obj->code, 'date'=>$obj->datep, 'num'=>$obj->num, 'ref'=>$obj->ref);
+				$tmp = array('amount'=>$obj->amount,'multicurrency_amount'=>$obj->multicurrency_amount,  'type'=>$obj->code, 'date'=>$obj->datep, 'num'=>$obj->num, 'ref'=>$obj->ref);
 				if (!empty($field3)) {
 					$tmp['ref_ext'] = $obj->ref_ext;
 				}
@@ -351,7 +351,7 @@ abstract class CommonInvoice extends CommonObject
 					while ($i < $num) {
 						$obj = $this->db->fetch_object($resql);
 						if ($multicurrency) {
-							$retarray[] = array('amount'=>$obj->multicurrency_amount, 'type'=>$obj->type, 'date'=>$obj->date, 'num'=>'0', 'ref'=>$obj->ref);
+							$retarray[] = array('amount'=>$obj->amount, 'multicurrency_amount'=>$obj->multicurrency_amount, 'type'=>$obj->type, 'date'=>$obj->date, 'num'=>'0', 'ref'=>$obj->ref);
 						} else {
 							$retarray[] = array('amount'=>$obj->amount, 'type'=>$obj->type, 'date'=>$obj->date, 'num'=>'', 'ref'=>$obj->ref);
 						}
