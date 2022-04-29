@@ -172,6 +172,7 @@ class Shipments extends DolibarrApi
 				$obj = $this->db->fetch_object($result);
 				$shipment_static = new Expedition($this->db);
 				if ($shipment_static->fetch($obj->rowid)) {
+					$shipment_static->fetchObjectLinked();
 					$obj_ret[] = $this->_cleanObjectDatas($shipment_static);
 				}
 				$i++;

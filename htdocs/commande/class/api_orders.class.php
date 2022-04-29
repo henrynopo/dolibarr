@@ -230,6 +230,7 @@ class Orders extends DolibarrApi
 					// Add external contacts ids
 					$commande_static->contacts_ids_external = $commande_static->liste_contact(-1, 'external', 0);
 					$commande_static->contacts_ids_internal = $commande_static->liste_contact(-1, 'internal', 0);
+					$commande_static->fetchObjectLinked();
 					$obj_ret[] = $this->_cleanObjectDatas($commande_static);
 				}
 				$i++;

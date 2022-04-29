@@ -204,6 +204,7 @@ class SupplierOrders extends DolibarrApi
 					// Add external contacts ids
 					$order_static->contacts_ids_external = $order_static->liste_contact(-1, 'external', 0);
 					$order_static->contacts_ids_internal = $order_static->liste_contact(-1, 'internal', 0);
+					$order_static->fetchObjectLinked();
 					$obj_ret[] = $this->_cleanObjectDatas($order_static);
 				}
 				$i++;

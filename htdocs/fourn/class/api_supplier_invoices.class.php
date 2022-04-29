@@ -196,7 +196,11 @@ class SupplierInvoices extends DolibarrApi
 					$invoice_static->multicurrency_remaintopay = $invoice_static->getRemainToPay(1);
 					// Add external contacts ids
 					$invoice_static->contacts_ids = $invoice_static->liste_contact(-1, 'external', 0, 'BILLING');
-
+					$invoice_static->fetchObjectLinked();
+					$invoice_static->listofpayments = $invoice_static->getListOfPayments(1);
+					if($invoice_static->listofpayments[0][date]){
+						$invoice_static->datep_max = max(array(strtotime($invoice_static->listofpayments[0][date])));
+					}
 					$obj_ret[] = $this->_cleanObjectDatas($invoice_static);
 				}
 				$i++;
