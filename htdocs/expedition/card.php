@@ -411,12 +411,12 @@ if (empty($reshook)) {
 		|| (!empty($conf->global->MAIN_USE_ADVANCED_PERMS) && !empty($user->rights->expedition->shipping_advance->validate)))
 	) {
 		$object->fetch_thirdparty();
-
 		$result = $object->valid($user);
 
 		//ShipsGo Posting Container Info
 		$shipsGo = new ShipsGo_API($conf->global->API_KEY_SHIPSGO);
 		$ContainerNumber = $object->tracking_number;
+		$blno = $object->array_options['options_blno'];
 		$object->fetchObjectLinked();
 		$so_ref = end($object->linkedObjects['commande'])->ref;
 		$object->fetch_delivery_methods();		
@@ -424,13 +424,19 @@ if (empty($reshook)) {
 		$email = !empty($user->email) ? $user->email : '';
 		$Referance = $so_ref.' / '.$object->ref;
 		if (!empty($ContainerNumber) && !empty($ShippingLine) && !empty($Referance) && empty($object->array_options['options_requestid'])) {
-			$object->array_options['options_requestid'] = $shipsGo->PostContainerInfo($ContainerNumber, $ShippingLine, $email, $Referance);
-			$object->array_options['options_requestid'] = $result[RequestId];
-			$object->array_options['options_updatedtime'] = dol_now();
-			$object->updateExtraField('requestid');
-			$object->updateExtraField('updatedtime');
-		}
+			if (!empty($blno)) {
+				$ship_result = $shipsGo->PostContainerInfoWithBl($ContainerNumber, $blno, $ShippingLine, $email, $Referance);
+			} else {
+				$ship_result = $shipsGo->PostContainerInfo($ContainerNumber, $ShippingLine, $email, $Referance);
+			}
 
+			$updatesql = "UPDATE ".MAIN_DB_PREFIX."expedition_extrafields SET";
+			$updatesql .= " requestid = ".$ship_result['RequestId'];
+			$updatesql .= ", updatedtime = '".date('Y-m-d H:i:s', dol_now())."'";
+			$updatesql .= " WHERE fk_object = ".$object->id;
+			$db->query($updatesql);
+		}
+		
 		if ($result < 0) {
 			setEventMessages($object->error, $object->errors, 'errors');
 		} else {
@@ -1696,6 +1702,7 @@ if ($action == 'create') {
 		// Update ShipsGo Status
 		if ($action == 'updateships') {
 			$ContainerNumber = $object->tracking_number;
+			$blno = $object->array_options['options_blno'];
 			$shipsGo = new ShipsGo_API($conf->global->API_KEY_SHIPSGO);
 			if (empty($object->array_options['options_requestid']) && (date($object->array_options['options_eta']) - dol_now()) > 864000) {
 				$object->fetchObjectLinked();
@@ -1705,12 +1712,20 @@ if ($action == 'create') {
 				$email = !empty($user->email) ? $user->email : '';
 				$Referance = $so_ref.' / '.$object->ref;
 				if (!empty($ContainerNumber) && !empty($ShippingLine) && !empty($Referance)) {
-					$result = $shipsGo->PostContainerInfo($ContainerNumber, $ShippingLine, $email, $Referance);
-					$object->array_options['options_requestid'] = $result[RequestId];
-					$object->updateExtraField('requestid');
+					if (!empty($blno)) {
+						$ship_result = $shipsGo->PostContainerInfoWithBl($ContainerNumber, $blno, $ShippingLine, $email, $Referance);
+					} else {
+						$ship_result = $shipsGo->PostContainerInfo($ContainerNumber, $ShippingLine, $email, $Referance);
+					}
+					$object->array_options['options_updatedtime'] = dol_now();
+
+					$updatesql = "UPDATE ".MAIN_DB_PREFIX."expedition_extrafields SET";
+					$updatesql .= " requestid = ".$ship_result['RequestId'];
+					$updatesql .= ", updatedtime = '".date('Y-m-d H:i:s', $object->array_options['options_updatedtime'])."'";
+					$updatesql .= " WHERE fk_object = ".$object->id;
+					$db->query($updatesql);
 				}
-			}
-			if ($object->array_options['options_sailingstatusid'] != 3 && $object->array_options['options_sailingstatusid'] != 4) {
+			} else if ($object->array_options['options_sailingstatusid'] != 3 && $object->array_options['options_sailingstatusid'] != 4) {
 				$ship_status = $shipsGo->GetContainerInfo($ContainerNumber)[0];	
 				if ($ship_status['Message'] == 'Success') {
 					$object->array_options['options_sailingstatusid']  = $ship_status['SailingStatusId'];
@@ -1720,13 +1735,21 @@ if ($action == 'create') {
 					$object->array_options['options_ata'] = strtotime(str_replace('/', '-', $ship_status['ArrivalDate']));
 					$object->array_options['options_livemapurl'] = $ship_status['LiveMapUrl'];
 					$object->array_options['options_updatedtime'] = dol_now();
-					$object->updateExtraField('sailingstatusid');
-					$object->updateExtraField('pol');
-					$object->updateExtraField('atd');
-					$object->updateExtraField('pod');
-					$object->updateExtraField('ata');
-					$object->updateExtraField('livemapurl');
-					$object->updateExtraField('updatedtime');
+
+					$updatesql = "UPDATE ".MAIN_DB_PREFIX."expedition_extrafields SET";
+					$updatesql .= " sailingstatusid = ".$ship_status['SailingStatusId'];
+					$updatesql .= ", pol = '".$ship_status['Pol']."'";
+					if (!empty($ship_status['DepartureDate'])) {
+						$updatesql .= ", atd = '".date('Y-m-d', strtotime(str_replace('/', '-', $ship_status['DepartureDate'])))."'";
+					}
+					$updatesql .= ", pod = '".$ship_status['Pod']."'";
+					if (!empty($ship_status['ArrivalDate'])) {
+						$updatesql .= ", ata = '".date('Y-m-d', strtotime(str_replace('/', '-', $ship_status['ArrivalDate'])))."'";						
+					}
+					$updatesql .= ", livemapurl = '".$ship_status['LiveMapUrl']."'";
+					$updatesql .= ", updatedtime = '".date('Y-m-d H:i:s', $object->array_options['options_updatedtime'])."'";
+					$updatesql .= " WHERE fk_object = ".$object->id;
+					$db->query($updatesql);
 				}
 			}
 		}

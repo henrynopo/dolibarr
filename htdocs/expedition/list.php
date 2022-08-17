@@ -177,20 +177,20 @@ if ($massaction === 'updateships') {
 			if ($objecttmp->array_options['options_sailingstatusid'] != 3 && $objecttmp->array_options['options_sailingstatusid'] != 4) {
 				$ship_status = $shipsGotmp->GetContainerInfo($ContainerNumber)[0];
 				if ($ship_status['Message'] == 'Success') {
-					$objecttmp->array_options['options_sailingstatusid']  = $ship_status['SailingStatusId'];
-					$objecttmp->array_options['options_pol'] = $ship_status['Pol'];
-					$objecttmp->array_options['options_atd'] = strtotime(str_replace('/', '-', $ship_status['DepartureDate']));
-					$objecttmp->array_options['options_pod'] = $ship_status['Pod'];
-					$objecttmp->array_options['options_ata'] = strtotime(str_replace('/', '-', $ship_status['ArrivalDate']));
-					$objecttmp->array_options['options_livemapurl'] = $ship_status['LiveMapUrl'];
-					$objecttmp->array_options['options_updatedtime'] = dol_now();
-					$objecttmp->updateExtraField('sailingstatusid');
-					$objecttmp->updateExtraField('pol');
-					$objecttmp->updateExtraField('atd');
-					$objecttmp->updateExtraField('pod');
-					$objecttmp->updateExtraField('ata');
-					$objecttmp->updateExtraField('livemapurl');
-					$objecttmp->updateExtraField('updatedtime');
+					$updatesql = "UPDATE ".MAIN_DB_PREFIX."expedition_extrafields SET";
+					$updatesql .= " sailingstatusid = ".$ship_status['SailingStatusId'];
+					$updatesql .= ", pol = '".$ship_status['Pol']."'";
+					if (!empty($ship_status['DepartureDate'])) {
+						$updatesql .= ", atd = '".date('Y-m-d', strtotime(str_replace('/', '-', $ship_status['DepartureDate'])))."'";
+					}
+					$updatesql .= ", pod = '".$ship_status['Pod']."'";
+					if (!empty($ship_status['ArrivalDate'])) {
+						$updatesql .= ", ata = '".date('Y-m-d', strtotime(str_replace('/', '-', $ship_status['ArrivalDate'])))."'";						
+					}
+					$updatesql .= ", livemapurl = '".$ship_status['LiveMapUrl']."'";
+					$updatesql .= ", updatedtime = '".date('Y-m-d H:i:s', dol_now())."'";
+					$updatesql .= " WHERE fk_object = ".$toselect[$i];
+					$db->query($updatesql);
 				}
 			}
 		}
