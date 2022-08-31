@@ -54,9 +54,11 @@ if (substr($sapi_type, 0, 3) == 'cgi') {
 	exit(-1);
 }
 
-require_once $path."../../htdocs/master.inc.php";
+require_once $path."../../dolibarr/master.inc.php";
 require_once DOL_DOCUMENT_ROOT."/cron/class/cronjob.class.php";
 require_once DOL_DOCUMENT_ROOT.'/user/class/user.class.php';
+
+@date_default_timezone_set("Asia/Singapore");	//define php script time zone to Singapore
 
 // Check parameters
 if (!isset($argv[1]) || !$argv[1]) {
@@ -86,12 +88,6 @@ $now = dol_now();
 
 @set_time_limit(0);
 print "***** ".$script_file." (".$version.") pid=".dol_getmypid()." ***** userlogin=".$userlogin." ***** ".dol_print_date($now, 'dayhourrfc')." *****\n";
-
-// Check module cron is activated
-if (empty($conf->cron->enabled)) {
-	print "Error: module Scheduled jobs (cron) not activated\n";
-	exit(-1);
-}
 
 // Check module cron is activated
 if (empty($conf->cron->enabled)) {
