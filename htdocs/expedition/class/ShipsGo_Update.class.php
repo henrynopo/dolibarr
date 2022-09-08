@@ -42,7 +42,7 @@ class ShipmentStatus
 		$sql .= ' ON b.fk_object = a.rowid';
 		$sql .= ' WHERE b.updatedtime IS NOT NULL';
 		$sql .= ' AND ((b.SailingStatusID <> 3 AND b.SailingStatusID <> 4) OR b.SailingStatusID IS NULL)';
-		$sql .= ' AND ('.$time.' - unix_timestamp(b.updatedtime) > 86400)';
+		$sql .= ' AND ('.$time.' - unix_timestamp(b.updatedtime) > 86300)';
 
 		$resql = $this->db->query($sql);
 
@@ -57,20 +57,30 @@ class ShipmentStatus
 				$this->db->begin();
 
 				$shipsGotmp = new ShipsGo_API($conf->global->API_KEY_SHIPSGO);
-				$ship_status = $shipsGotmp->GetContainerInfo($line->tracking_number)[0];
-
-				if ($ship_status['Message'] == 'Success') {
+				
+				$ship_status = $shipsGotmp->GetContainerInfo($line->tracking_number);
+				if (!empty($ship_status['Message'])) {
 					$updatesql = "UPDATE ".MAIN_DB_PREFIX."expedition_extrafields SET";
-					$updatesql .= " sailingstatusid = ".$ship_status['SailingStatusId'];
-					$updatesql .= ", pol = '".$ship_status['Pol']."'";
-					if (!empty($ship_status['DepartureDate'])) {
-						$updatesql .= ", atd = '".date('Y-m-d', strtotime(str_replace('/', '-', $ship_status['DepartureDate'])))."'";
+					$updatesql .= " sailingstatusid = 0";
+					$updatesql .= " WHERE fk_object = ".$line->rowid;
+					if ($this->db->query($updatesql)) {
+						$this->db->commit();
+						$count++;
+					} else {
+						$this->db->rollback();
 					}
-					$updatesql .= ", pod = '".$ship_status['Pod']."'";
-					if (!empty($ship_status['ArrivalDate'])) {
-						$updatesql .= ", ata = '".date('Y-m-d', strtotime(str_replace('/', '-', $ship_status['ArrivalDate'])))."'";						
+				} elseif ($ship_status[0]['Message'] == 'Success') {
+					$updatesql = "UPDATE ".MAIN_DB_PREFIX."expedition_extrafields SET";
+					$updatesql .= " sailingstatusid = ".$ship_status[0]['SailingStatusId'];
+					$updatesql .= ", pol = '".$ship_status[0]['Pol']."'";
+					if (!empty($ship_status[0]['DepartureDate'])) {
+						$updatesql .= ", atd = '".date('Y-m-d', strtotime(str_replace('/', '-', $ship_status[0]['DepartureDate'])))."'";
 					}
-					$updatesql .= ", livemapurl = '".$ship_status['LiveMapUrl']."'";
+					$updatesql .= ", pod = '".$ship_status[0]['Pod']."'";
+					if (!empty($ship_status[0]['ArrivalDate'])) {
+						$updatesql .= ", ata = '".date('Y-m-d', strtotime(str_replace('/', '-', $ship_status[0]['ArrivalDate'])))."'";						
+					}
+					$updatesql .= ", livemapurl = '".$ship_status[0]['LiveMapUrl']."'";
 					$updatesql .= ", updatedtime = '".date('Y-m-d H:i:s', dol_now())."'";
 					$updatesql .= " WHERE fk_object = ".$line->rowid;
 					if ($this->db->query($updatesql)) {
