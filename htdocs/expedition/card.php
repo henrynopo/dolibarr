@@ -38,6 +38,7 @@
 require '../main.inc.php';
 require_once DOL_DOCUMENT_ROOT.'/core/class/html.formfile.class.php';
 require_once DOL_DOCUMENT_ROOT.'/expedition/class/expedition.class.php';
+require_once DOL_DOCUMENT_ROOT.'/expedition/class/ShipsGo_API.class.php';
 require_once DOL_DOCUMENT_ROOT.'/product/class/html.formproduct.class.php';
 require_once DOL_DOCUMENT_ROOT.'/core/lib/product.lib.php';
 require_once DOL_DOCUMENT_ROOT.'/core/lib/sendings.lib.php';
@@ -425,9 +426,32 @@ if (empty($reshook)) {
 		|| (!empty($conf->global->MAIN_USE_ADVANCED_PERMS) && !empty($user->rights->expedition->shipping_advance->validate)))
 	) {
 		$object->fetch_thirdparty();
-
 		$result = $object->valid($user);
 
+		//ShipsGo Posting Container Info
+		$shipsGo = new ShipsGo_API($conf->global->API_KEY_SHIPSGO);
+		$ContainerNumber = $object->tracking_number;
+		$blno = $object->array_options['options_blno'];
+		$object->fetchObjectLinked();
+		$so_ref = end($object->linkedObjects['commande'])->ref;
+		$object->fetch_delivery_methods();		
+		$ShippingLine = $object->meths[$object->shipping_method_id];
+		$email = !empty($user->email) ? $user->email : '';
+		$Referance = $so_ref.' / '.$object->ref;
+		if (!empty($ContainerNumber) && !empty($ShippingLine) && !empty($Referance) && empty($object->array_options['options_requestid'])) {
+			if (!empty($blno)) {
+				$ship_result = $shipsGo->PostContainerInfoWithBl($ContainerNumber, $blno, $ShippingLine, $email, $Referance);
+			} else {
+				$ship_result = $shipsGo->PostContainerInfo($ContainerNumber, $ShippingLine, $email, $Referance);
+			}
+
+			$updatesql = "UPDATE ".MAIN_DB_PREFIX."expedition_extrafields SET";
+			$updatesql .= " requestid = ".$ship_result['RequestId'];
+			$updatesql .= ", updatedtime = '".date('Y-m-d H:i:s', dol_now())."'";
+			$updatesql .= " WHERE fk_object = ".$object->id;
+			$db->query($updatesql);
+		}
+		
 		if ($result < 0) {
 			setEventMessages($object->error, $object->errors, 'errors');
 		} else {
@@ -480,6 +504,11 @@ if (empty($reshook)) {
 		//		setEventMessages($object->error, $object->errors, 'errors');
 		//	}
 		//}
+	} elseif ($action == 'confirm_modif' && $confirm == 'yes' && $user->rights->expedition->creer &&$user->rights->expedition->shipping_advance->validate) { //SLY 2021.8.24
+		$result = $object->setStatut(0);
+		if ($result < 0) {
+			setEventMessages($object->error, $object->errors, 'errors');
+		}
 	} elseif ($action == 'setdate_livraison' && $user->rights->expedition->creer) {
 		$datedelivery = dol_mktime(GETPOST('liv_hour', 'int'), GETPOST('liv_min', 'int'), 0, GETPOST('liv_month', 'int'), GETPOST('liv_day', 'int'), GETPOST('liv_year', 'int'));
 
@@ -514,8 +543,8 @@ if (empty($reshook)) {
 			$object->trueWidth = trim(GETPOST('trueWidth', 'int'));
 		}
 		if ($action == 'settrueHeight') {
-						$object->trueHeight = trim(GETPOST('trueHeight', 'int'));
-						$object->size_units = GETPOST('size_units', 'int');
+			$object->trueHeight = trim(GETPOST('trueHeight', 'int'));
+			$object->size_units = GETPOST('size_units', 'int');
 		}
 		if ($action == 'settrueDepth') {
 			$object->trueDepth = trim(GETPOST('trueDepth', 'int'));
@@ -1179,9 +1208,10 @@ if ($action == 'create') {
 					}
 
 					// Qty
+					$unit_order = measuringUnitString($line->fk_unit);
 					print '<td class="center">'.$line->qty;
 					print '<input name="qtyasked'.$indiceAsked.'" id="qtyasked'.$indiceAsked.'" type="hidden" value="'.$line->qty.'">';
-					print ''.$unit_order.'</td>';
+					print ' '.$unit_order.'</td>';
 					$qtyProdCom = $line->qty;
 
 					// Qty already shipped
@@ -1189,7 +1219,7 @@ if ($action == 'create') {
 					$quantityDelivered = isset($object->expeditions[$line->id]) ? $object->expeditions[$line->id] : '';
 					print $quantityDelivered;
 					print '<input name="qtydelivered'.$indiceAsked.'" id="qtydelivered'.$indiceAsked.'" type="hidden" value="'.$quantityDelivered.'">';
-					print ''.$unit_order.'</td>';
+					print ' '.$unit_order.'</td>';
 
 					// Qty to ship
 					$quantityAsked = $line->qty;
@@ -1692,6 +1722,64 @@ if ($action == 'create') {
 		if ($action == 'cancel') {
 			$formconfirm = $form->formconfirm($_SERVER['PHP_SELF'].'?id='.$object->id, $langs->trans('CancelSending'), $langs->trans("ConfirmCancelSending", $object->ref), 'confirm_cancel', '', 0, 1);
 		}
+		// Confirm modification (back to draft status).
+		if ($action == 'modif') {
+			$formconfirm = $form->formconfirm($_SERVER['PHP_SELF'].'?id='.$object->id, $langs->trans('UnvalidateShipment'), $langs->trans("ConfirmUnvalidateShipment", $object->ref), 'confirm_modif', '', 0, 1);
+		}
+		// Update ShipsGo Status
+		if ($action == 'updateships') {
+			$ContainerNumber = $object->tracking_number;
+			$blno = $object->array_options['options_blno'];
+			$shipsGo = new ShipsGo_API($conf->global->API_KEY_SHIPSGO);
+			if (empty($object->array_options['options_requestid']) && (date($object->array_options['options_eta']) - dol_now()) > 864000) {
+				$object->fetchObjectLinked();
+				$so_ref = end($object->linkedObjects['commande'])->ref;
+				$object->fetch_delivery_methods();
+				$ShippingLine = $object->meths[$object->shipping_method_id];
+				$email = !empty($user->email) ? $user->email : '';
+				$Referance = $so_ref.' / '.$object->ref;
+				if (!empty($ContainerNumber) && !empty($ShippingLine) && !empty($Referance)) {
+					if (!empty($blno)) {
+						$ship_result = $shipsGo->PostContainerInfoWithBl($ContainerNumber, $blno, $ShippingLine, $email, $Referance);
+					} else {
+						$ship_result = $shipsGo->PostContainerInfo($ContainerNumber, $ShippingLine, $email, $Referance);
+					}
+					$object->array_options['options_updatedtime'] = dol_now();
+
+					$updatesql = "UPDATE ".MAIN_DB_PREFIX."expedition_extrafields SET";
+					$updatesql .= " requestid = ".$ship_result['RequestId'];
+					$updatesql .= ", updatedtime = '".date('Y-m-d H:i:s', $object->array_options['options_updatedtime'])."'";
+					$updatesql .= " WHERE fk_object = ".$object->id;
+					$db->query($updatesql);
+				}
+			} else if ($object->array_options['options_sailingstatusid'] != 3 && $object->array_options['options_sailingstatusid'] != 4) {
+				$ship_status = $shipsGo->GetContainerInfo($ContainerNumber)[0];	
+				if ($ship_status['Message'] == 'Success') {
+					$object->array_options['options_sailingstatusid']  = $ship_status['SailingStatusId'];
+					$object->array_options['options_pol'] = $ship_status['Pol'];
+					$object->array_options['options_atd'] = strtotime(str_replace('/', '-', $ship_status['DepartureDate']));
+					$object->array_options['options_pod'] = $ship_status['Pod'];
+					$object->array_options['options_ata'] = strtotime(str_replace('/', '-', $ship_status['ArrivalDate']));
+					$object->array_options['options_livemapurl'] = $ship_status['LiveMapUrl'];
+					$object->array_options['options_updatedtime'] = dol_now();
+
+					$updatesql = "UPDATE ".MAIN_DB_PREFIX."expedition_extrafields SET";
+					$updatesql .= " sailingstatusid = ".$ship_status['SailingStatusId'];
+					$updatesql .= ", pol = '".$ship_status['Pol']."'";
+					if (!empty($ship_status['DepartureDate'])) {
+						$updatesql .= ", atd = '".date('Y-m-d', strtotime(str_replace('/', '-', $ship_status['DepartureDate'])))."'";
+					}
+					$updatesql .= ", pod = '".$ship_status['Pod']."'";
+					if (!empty($ship_status['ArrivalDate'])) {
+						$updatesql .= ", ata = '".date('Y-m-d', strtotime(str_replace('/', '-', $ship_status['ArrivalDate'])))."'";						
+					}
+					$updatesql .= ", livemapurl = '".$ship_status['LiveMapUrl']."'";
+					$updatesql .= ", updatedtime = '".date('Y-m-d H:i:s', $object->array_options['options_updatedtime'])."'";
+					$updatesql .= " WHERE fk_object = ".$object->id;
+					$db->query($updatesql);
+				}
+			}
+		}
 
 		// Call Hook formConfirm
 		$parameters = array('formConfirm' => $formconfirm);
@@ -1805,7 +1893,7 @@ if ($action == 'create') {
 		print $langs->trans('DateDeliveryPlanned');
 		print '</td>';
 
-		if ($action != 'editdate_livraison') {
+		if ($action != 'editdate_livraison' && $object->statut == 0) {
 			print '<td class="right"><a class="editfielda" href="'.$_SERVER["PHP_SELF"].'?action=editdate_livraison&token='.newToken().'&id='.$object->id.'">'.img_edit($langs->trans('SetDeliveryDate'), 1).'</a></td>';
 		}
 		print '</tr></table>';
@@ -1825,7 +1913,7 @@ if ($action == 'create') {
 
 		// Weight
 		print '<tr><td>';
-		print $form->editfieldkey("Weight", 'trueWeight', $object->trueWeight, $object, $user->rights->expedition->creer);
+		print $form->editfieldkey("Weight", 'trueWeight', $object->trueWeight, $object, ($user->rights->expedition->creer && $object->statut == 0));
 		print '</td><td colspan="3">';
 
 		if ($action == 'edittrueWeight') {
@@ -1856,13 +1944,13 @@ if ($action == 'create') {
 		print '</td></tr>';
 
 		// Width
-		print '<tr><td>'.$form->editfieldkey("Width", 'trueWidth', $object->trueWidth, $object, $user->rights->expedition->creer).'</td><td colspan="3">';
+		print '<tr><td>'.$form->editfieldkey("Width", 'trueWidth', $object->trueWidth, $object, $user->rights->expedition->creer && $object->statut == 0).'</td><td colspan="3">';
 		print $form->editfieldval("Width", 'trueWidth', $object->trueWidth, $object, $user->rights->expedition->creer);
 		print ($object->trueWidth && $object->width_units != '') ? ' '.measuringUnitString(0, "size", $object->width_units) : '';
 		print '</td></tr>';
 
 		// Height
-		print '<tr><td>'.$form->editfieldkey("Height", 'trueHeight', $object->trueHeight, $object, $user->rights->expedition->creer).'</td><td colspan="3">';
+		print '<tr><td>'.$form->editfieldkey("Height", 'trueHeight', $object->trueHeight, $object, $user->rights->expedition->creer && $object->statut == 0).'</td><td colspan="3">';
 		if ($action == 'edittrueHeight') {
 			print '<form name="settrueHeight" action="'.$_SERVER["PHP_SELF"].'" method="post">';
 			print '<input name="action" value="settrueHeight" type="hidden">';
@@ -1881,7 +1969,7 @@ if ($action == 'create') {
 		print '</td></tr>';
 
 		// Depth
-		print '<tr><td>'.$form->editfieldkey("Depth", 'trueDepth', $object->trueDepth, $object, $user->rights->expedition->creer).'</td><td colspan="3">';
+		print '<tr><td>'.$form->editfieldkey("Depth", 'trueDepth', $object->trueDepth, $object, $user->rights->expedition->creer && $object->statut == 0).'</td><td colspan="3">';
 		print $form->editfieldval("Depth", 'trueDepth', $object->trueDepth, $object, $user->rights->expedition->creer);
 		print ($object->trueDepth && $object->depth_units != '') ? ' '.measuringUnitString(0, "size", $object->depth_units) : '';
 		print '</td></tr>';
@@ -1936,7 +2024,7 @@ if ($action == 'create') {
 		print $langs->trans('SendingMethod');
 		print '</td>';
 
-		if ($action != 'editshipping_method_id') {
+		if ($action != 'editshipping_method_id' && $object->statut == 0) {
 			print '<td class="right"><a class="editfielda" href="'.$_SERVER["PHP_SELF"].'?action=editshipping_method_id&token='.newToken().'&id='.$object->id.'">'.img_edit($langs->trans('SetSendingMethod'), 1).'</a></td>';
 		}
 		print '</tr></table>';
@@ -1963,7 +2051,7 @@ if ($action == 'create') {
 		print '</tr>';
 
 		// Tracking Number
-		print '<tr><td class="titlefield">'.$form->editfieldkey("TrackingNumber", 'tracking_number', $object->tracking_number, $object, $user->rights->expedition->creer).'</td><td colspan="3">';
+		print '<tr><td class="titlefield">'.$form->editfieldkey("TrackingNumber", 'tracking_number', $object->tracking_number, $object, ($user->rights->expedition->creer && $object->statut == 0)).'</td><td colspan="3">';
 		print $form->editfieldval("TrackingNumber", 'tracking_number', $object->tracking_url, $object, $user->rights->expedition->creer, 'safehtmlstring', $object->tracking_number);
 		print '</td></tr>';
 
@@ -1973,7 +2061,7 @@ if ($action == 'create') {
 			print '<table width="100%" class="nobordernopadding"><tr><td>';
 			print $langs->trans('IncotermLabel');
 			print '<td><td class="right">';
-			if ($user->rights->expedition->creer) {
+			if ($user->rights->expedition->creer && $object->statut == 0) {
 				print '<a class="editfielda" href="'.DOL_URL_ROOT.'/expedition/card.php?id='.$object->id.'&action=editincoterm&token='.newToken().'">'.img_edit().'</a>';
 			} else {
 				print '&nbsp;';
@@ -1988,6 +2076,25 @@ if ($action == 'create') {
 			}
 			print '</td></tr>';
 		}
+		print '</table>';
+
+		// Update ShipsGo Status
+		if ($object->statut > 0 && $user->rights->expedition->creer && $user->rights->expedition->shipping_advance->validate) {
+			print '<div class="tabsAction">';
+			print '<a class="butAction" href="'.$_SERVER["PHP_SELF"].'?id='.$object->id.'&amp;action=updateships">'.$langs->trans("UpdateShips").'</a>';
+			print '</div>';
+		}
+		print '</div>';
+
+		print '<div class="fichehalfright">';
+		print '<div class="ficheaddleft">';
+		print '<div class="underbanner clearboth"></div>';
+
+		print '<table class="border centpercent tableforfield">';
+
+		// Other attributes
+		$cols = 2;
+		include DOL_DOCUMENT_ROOT.'/core/tpl/extrafields_view.tpl.php';
 
 		// Other attributes
 		$parameters = array('colspan' => ' colspan="3"', 'cols' => '3');
@@ -2172,7 +2279,7 @@ if ($action == 'create') {
 					$product_static->status = $lines[$i]->product_tosell;
 					$product_static->status_buy = $lines[$i]->product_tobuy;
 					$product_static->status_batch = $lines[$i]->product_tobatch;
-
+					
 					$product_static->weight = $lines[$i]->weight;
 					$product_static->weight_units = $lines[$i]->weight_units;
 					$product_static->length = $lines[$i]->length;
@@ -2239,7 +2346,7 @@ if ($action == 'create') {
 								}
 								$shipment_static->fetch($shipmentline_var['shipment_id']);
 								print $shipment_static->getNomUrl(1);
-								print ' - '.$shipmentline_var['qty_shipped'];
+								print ' - '.$shipmentline_var['qty_shipped'].' '.$unit_order;
 								$htmltext = $langs->trans("DateValidation").' : '.(empty($shipmentline_var['date_valid']) ? $langs->trans("Draft") : dol_print_date($shipmentline_var['date_valid'], 'dayhour'));
 								if (!empty($conf->stock->enabled) && $shipmentline_var['warehouse'] > 0) {
 									$warehousestatic->fetch($shipmentline_var['warehouse']);
@@ -2261,7 +2368,7 @@ if ($action == 'create') {
 						foreach ($lines[$i]->detail_batch as $detail_batch) {
 							print '<tr>';
 							// Qty to ship or shipped
-							print '<td><input class="qtyl" name="qtyl'.$detail_batch->fk_expeditiondet.'_'.$detail_batch->id.'" id="qtyl'.$line_id.'_'.$detail_batch->id.'" type="text" size="4" value="'.$detail_batch->qty.'"></td>';
+							print '<td><input class="qtyl" name="qtyl'.$detail_batch->fk_expeditiondet.'_'.$detail_batch->id.'" id="qtyl'.$line_id.'_'.$detail_batch->id.'" type="text" size="4" value="'.$detail_batch->qty.'">' .$unit_order.'</td>';
 							// Batch number managment
 							if ($lines[$i]->entrepot_id == 0) {
 								// only show lot numbers from src warehouse when shipping from multiple warehouses
@@ -2310,7 +2417,7 @@ if ($action == 'create') {
 							print '<!-- case edit 5 -->';
 							print '<tr>';
 							// Qty to ship or shipped
-							print '<td><input class="qtyl" name="qtyl'.$line_id.'" id="qtyl'.$line_id.'" type="text" size="4" value="'.$lines[$i]->qty_shipped.'">'.$unit_order.'</td>';
+							print '<td><input class="qtyl" name="qtyl'.$line_id.'" id="qtyl'.$line_id.'" type="text" size="4" value="'.$lines[$i]->qty_shipped.'">' .$unit_order.'</td>';
 							// Warehouse source
 							print '<td></td>';
 							// Batch number managment
@@ -2321,7 +2428,7 @@ if ($action == 'create') {
 						print '<!-- case edit 6 -->';
 						print '<tr>';
 						// Qty to ship or shipped
-						print '<td><input class="qtyl" name="qtyl'.$line_id.'" id="qtyl'.$line_id.'" type="text" size="4" value="'.$lines[$i]->qty_shipped.'"></td>';
+						print '<td><input class="qtyl" name="qtyl'.$line_id.'" id="qtyl'.$line_id.'" type="text" size="4" value="'.$lines[$i]->qty_shipped.'">' .$unit_order.'</td>';
 						// Warehouse source
 						print '<td></td>';
 						// Batch number managment
@@ -2491,12 +2598,17 @@ if ($action == 'create') {
 
 			// TODO add alternative status
 			// 0=draft, 1=validated, 2=billed, we miss a status "delivered" (only available on order)
-			if ($object->statut == Expedition::STATUS_CLOSED && $user->rights->expedition->creer) {
+			if ($object->statut == Expedition::STATUS_CLOSED && $object->billed && $user->rights->expedition->creer) {
 				if (isModEnabled('facture') && !empty($conf->global->WORKFLOW_BILL_ON_SHIPMENT)) {  // Quand l'option est on, il faut avoir le bouton en plus et non en remplacement du Close ?
 					print dolGetButtonAction('', $langs->trans('ClassifyUnbilled'), 'default', $_SERVER["PHP_SELF"].'?action=reopen&token='.newToken().'&id='.$object->id, '');
 				} else {
 					print dolGetButtonAction('', $langs->trans('ReOpen'), 'default', $_SERVER["PHP_SELF"].'?action=reopen&token='.newToken().'&id='.$object->id, '');
 				}
+			}
+
+			// Modify
+			if (($object->statut == Expedition::STATUS_VALIDATED || ($object->statut == Expedition::STATUS_CLOSED && !$object->billed)) && $user->rights->expedition->creer && $user->rights->expedition->shipping_advance->validate) {
+				print '<a class="butAction" href="'.$_SERVER["PHP_SELF"].'?id='.$object->id.'&amp;action=modif">'.$langs->trans("Modify").'</a>';
 			}
 
 			// Send
@@ -2525,11 +2637,11 @@ if ($action == 'create') {
 				print dolGetButtonAction('', $langs->trans('CreateDeliveryOrder'), 'default', $_SERVER["PHP_SELF"].'?action=create_delivery&token='.newToken().'&id='.$object->id, '');
 			}
 			// Close
-			if ($object->statut == Expedition::STATUS_VALIDATED) {
-				if ($user->rights->expedition->creer && $object->statut > 0 && !$object->billed) {
+			if ($object->statut == Expedition::STATUS_VALIDATED || ($object->statut == Expedition::STATUS_CLOSED && !$object->billed)) {
+				if ($user->rights->expedition->creer && $object->statut > 0 && (($object->statut == Expedition::STATUS_VALIDATED && $object->billed) || !$object->billed)) {
 					$label = "Close"; $paramaction = 'classifyclosed'; // = Transferred/Received
 					// Label here should be "Close" or "ClassifyBilled" if we decided to make bill on shipments instead of orders
-					if (isModEnabled('facture') && !empty($conf->global->WORKFLOW_BILL_ON_SHIPMENT)) {  // Quand l'option est on, il faut avoir le bouton en plus et non en remplacement du Close ?
+					if (isModEnabled('facture') && !empty($conf->global->WORKFLOW_BILL_ON_SHIPMENT) && !$object->billed) {  // Quand l'option est on, il faut avoir le bouton en plus et non en remplacement du Close ?
 						$label = "ClassifyBilled";
 						$paramaction = 'classifybilled';
 					}

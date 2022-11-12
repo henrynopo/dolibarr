@@ -237,14 +237,12 @@ class Orders extends DolibarrApi
 				$commande_static = new Commande($this->db);
 				if ($commande_static->fetch($obj->rowid)) {
 					// Add external contacts ids
-					$tmparray = $commande_static->liste_contact(-1, 'external', 1);
-					if (is_array($tmparray)) {
-						$commande_static->contacts_ids = $tmparray;
-					}
+					$commande_static->contacts_ids_external = $commande_static->liste_contact(-1, 'external', 0);
+					$commande_static->contacts_ids_internal = $commande_static->liste_contact(-1, 'internal', 0);
+					$commande_static->fetchObjectLinked();
 					// Add online_payment_url, cf #20477
 					require_once DOL_DOCUMENT_ROOT.'/core/lib/payments.lib.php';
 					$commande_static->online_payment_url = getOnlinePaymentUrl(0, 'order', $commande_static->ref);
-
 					$obj_ret[] = $this->_cleanObjectDatas($commande_static);
 				}
 				$i++;

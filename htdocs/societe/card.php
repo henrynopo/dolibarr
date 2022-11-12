@@ -476,6 +476,7 @@ if (empty($reshook)) {
 			$object->code_client			= GETPOSTISSET('customer_code') ?GETPOST('customer_code', 'alpha') : GETPOST('code_client', 'alpha');
 			$object->code_fournisseur		= GETPOSTISSET('supplier_code') ?GETPOST('supplier_code', 'alpha') : GETPOST('code_fournisseur', 'alpha');
 			$object->capital				= GETPOST('capital', 'alphanohtml');
+			$object->capital_currency		= GETPOST('capital_currency', 'alpha');
 			$object->barcode				= GETPOST('barcode', 'alphanohtml');
 
 			$object->tva_intra				= GETPOST('tva_intra', 'alphanohtml');
@@ -1085,6 +1086,7 @@ if (is_object($objcanvas) && $objcanvas->displayCanvasExists($action)) {
 		$object->email				= GETPOST('email', 'custom', 0, FILTER_SANITIZE_EMAIL);
 		$object->url				= GETPOST('url', 'custom', 0, FILTER_SANITIZE_URL);
 		$object->capital			= GETPOST('capital', 'alphanohtml');
+		$object->capital_currency	= GETPOST('capital_currency', 'alpha');
 		$object->barcode			= GETPOST('barcode', 'alphanohtml');
 		$object->idprof1			= GETPOST('idprof1', 'alphanohtml');
 		$object->idprof2			= GETPOST('idprof2', 'alphanohtml');
@@ -1729,11 +1731,9 @@ if (is_object($objcanvas) && $objcanvas->displayCanvasExists($action)) {
 		// Capital
 		print '<tr><td>'.$form->editfieldkey('Capital', 'capital', '', $object, 0).'</td>';
 		print '<td colspan="3"><input type="text" name="capital" id="capital" class="maxwidth100" value="'.$object->capital.'"> ';
-		if (!empty($conf->multicurrency->enabled)) {
-			print '<span class="hideonsmartphone">'.$langs->trans("Currency".$object->multicurrency_code).'</span></td></tr>';
-		} else {
-			print '<span class="hideonsmartphone">'.$langs->trans("Currency".$conf->currency).'</span></td></tr>';
-		}
+		print $form->editfieldkey('', 'capital_currency', '', $object, 0). '  ';
+		print $form->selectMultiCurrency(($object->capital_currency ? $object->capital_currency : $conf->currency), 'capital_currency', 0).'</td></tr>';
+
 		if (!empty($conf->global->MAIN_MULTILANGS)) {
 			print '<tr><td>'.$form->editfieldkey('DefaultLang', 'default_lang', '', $object, 0).'</td><td colspan="3" class="maxwidthonsmartphone">'."\n";
 			print img_picto('', 'language', 'class="pictofixedwidth"').$formadmin->select_language(GETPOST('default_lang', 'alpha') ? GETPOST('default_lang', 'alpha') : ($object->default_lang ? $object->default_lang : ''), 'default_lang', 0, 0, 1, 0, 0, 'maxwidth200onsmartphone');
@@ -1931,6 +1931,7 @@ if (is_object($objcanvas) && $objcanvas->displayCanvasExists($action)) {
 				$object->email					= GETPOST('email', 'custom', 0, FILTER_SANITIZE_EMAIL);
 				$object->url					= GETPOST('url', 'custom', 0, FILTER_SANITIZE_URL);
 				$object->capital				= GETPOST('capital', 'alphanohtml');
+				$object->capital_currency		= GETPOST('capital_currency', 'alpha');
 				$object->idprof1				= GETPOST('idprof1', 'alphanohtml');
 				$object->idprof2				= GETPOST('idprof2', 'alphanohtml');
 				$object->idprof3				= GETPOST('idprof3', 'alphanohtml');
@@ -2428,11 +2429,10 @@ if (is_object($objcanvas) && $objcanvas->displayCanvasExists($action)) {
 			print '<tr><td>'.$form->editfieldkey('Capital', 'capital', '', $object, 0).'</td>';
 			print '<td colspan="3"><input type="text" name="capital" id="capital" size="10" value="';
 			print $object->capital != '' ? dol_escape_htmltag(price($object->capital)) : '';
-			if (!empty($conf->multicurrency->enabled)) {
-				print '"> <span class="hideonsmartphone">'.$langs->trans("Currency".$object->multicurrency_code).'</span></td></tr>';
-			} else {
-				print '"> <span class="hideonsmartphone">'.$langs->trans("Currency".$conf->currency).'</span></td></tr>';
-			}
+			print '">'.$form->editfieldkey('', 'capital_currency', '', $object, 0);
+			print '  '.$form->selectMultiCurrency(($object->capital_currency ? $object->capital_currency : $conf->currency), 'capital_currency', 0);
+			print '</td></tr>';
+			
 
 			// Default language
 			if (!empty($conf->global->MAIN_MULTILANGS)) {
@@ -2919,10 +2919,10 @@ if (is_object($objcanvas) && $objcanvas->displayCanvasExists($action)) {
 		// Capital
 		print '<tr><td>'.$langs->trans('Capital').'</td><td>';
 		if ($object->capital) {
-			if (!empty($conf->multicurrency->enabled) && !empty($object->multicurrency_code)) {
-				print price($object->capital, '', $langs, 0, -1, -1, $object->multicurrency_code);
+			if (!empty($conf->multicurrency->enabled) || !empty($object->capital_currency)) {
+				print price($object->capital, '', $langs, 0, -1, -1, $object->capital_currency);
 			} else {
-				print price($object->capital, '', $langs, 0, -1, -1, $conf->currency);
+				print price($object->capital, '', $langs, 0, -1, -1, $conf_currency);
 			}
 		} else {
 			print '&nbsp;';

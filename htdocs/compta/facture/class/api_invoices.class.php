@@ -267,12 +267,17 @@ class Invoices extends DolibarrApi
 					$invoice_static->totalpaid = $invoice_static->getSommePaiement();
 					$invoice_static->totalcreditnotes = $invoice_static->getSumCreditNotesUsed();
 					$invoice_static->totaldeposits = $invoice_static->getSumDepositsUsed();
-					$invoice_static->remaintopay = price2num($invoice_static->total_ttc - $invoice_static->totalpaid - $invoice_static->totalcreditnotes - $invoice_static->totaldeposits, 'MT');
-
+					$invoice_static->remaintopay = $invoice_static->getRemainToPay();
+					$invoice_static->multicurrency_totalpaid = $invoice_static->getSommePaiement(1);
+					$invoice_static->multicurrency_totalcreditnotes = $invoice_static->getSumCreditNotesUsed(1);
+					$invoice_static->multicurrency_totaldeposits = $invoice_static->getSumDepositsUsed(1);
+					$invoice_static->multicurrency_remaintopay = $invoice_static->getRemainToPay(1);
 					// Add external contacts ids
-					$tmparray = $invoice_static->liste_contact(-1, 'external', 1);
-					if (is_array($tmparray)) {
-						$invoice_static->contacts_ids = $tmparray;
+					$invoice_static->contacts_ids = $invoice_static->liste_contact(-1, 'external', 0, 'BILLING');
+					$invoice_static->fetchObjectLinked();
+					$invoice_static->listofpayments = $invoice_static->getListOfPayments(1);
+					if($invoice_static->listofpayments[0][date]){
+						$invoice_static->datep_max = max(array(strtotime($invoice_static->listofpayments[0][date])));
 					}
 					$obj_ret[] = $this->_cleanObjectDatas($invoice_static);
 				}

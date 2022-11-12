@@ -2395,7 +2395,13 @@ function dol_format_address($object, $withcountry = 0, $sep = "\n", $outputlangs
 		$ret .= (($ret && $town) ? $sep : '').$town;
 
 		if (!empty($object->state))	{
-			$ret .= ($ret ? ($town ? ", " : $sep) : '').$object->state;
+			if(is_object($outputlangs)){
+				$outputlangs->load("dict");
+				$state = ($outputlangs->trans("State".$object->state) != "State".$object->state) ? $outputlangs->trans("State".$object->state) : $object->state;
+			} else {
+				$state = ($langs->trans("State".$object->state) != "State".$object->state) ? $langs->trans("State".$object->state) : $object->state;
+			}
+			$ret .= ($ret ? ", " : '').$state;
 		}
 		if (!empty($object->zip)) {
 			$ret .= ($ret ? (($town || $object->state) ? ", " : $sep) : '').$object->zip;
@@ -5607,14 +5613,14 @@ function price($amount, $form = 0, $outlangs = '', $trunc = 1, $rounding = -1, $
 
 		$listofcurrenciesbefore = array('AUD', 'CAD', 'CNY', 'COP', 'CLP', 'GBP', 'HKD', 'MXN', 'PEN', 'USD');
 		$listoflanguagesbefore = array('nl_NL');
-		if (in_array($currency_code, $listofcurrenciesbefore) || in_array($outlangs->defaultlang, $listoflanguagesbefore)) {
+		if (!empty($conf->global->MAIN_CURRENCY_SYMBOL_BEFORE_VALUE) || in_array($currency_code, $listofcurrenciesbefore) || in_array($outlangs->defaultlang, $listoflanguagesbefore)) {
 			$cursymbolbefore .= $outlangs->getCurrencySymbol($currency_code);
 		} else {
 			$tmpcur = $outlangs->getCurrencySymbol($currency_code);
-			$cursymbolafter .= ($tmpcur == $currency_code ? ' '.$tmpcur : $tmpcur);
+			$cursymbolafter .= ($tmpcur == $currency_code ? ''.$tmpcur : $tmpcur);
 		}
 	}
-	$output = $cursymbolbefore.$output.$end.($cursymbolafter ? ' ' : '').$cursymbolafter;
+	$output = $cursymbolbefore.$output.$end.($cursymbolafter ? '' : '').$cursymbolafter;
 
 	return $output;
 }

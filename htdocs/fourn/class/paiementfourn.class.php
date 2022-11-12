@@ -272,14 +272,14 @@ class PaiementFourn extends Paiement
 
 							// If we want to closed paid invoices
 							if ($closepaidinvoices) {
-								$paiement = $invoice->getSommePaiement();
+							/*	$paiement = $invoice->getSommePaiement();
 								$creditnotes=$invoice->getSumCreditNotesUsed();
 								//$creditnotes = 0;
 								$deposits=$invoice->getSumDepositsUsed();
 								//$deposits = 0;
 								$alreadypayed = price2num($paiement + $creditnotes + $deposits, 'MT');
 								$remaintopay = price2num($invoice->total_ttc - $paiement - $creditnotes - $deposits, 'MT');
-								if ($remaintopay == 0) {
+							*/	if ((!empty($conf->multicurrency->enabled) ? price2num($invoice->getRemainToPay(1), 'MT') : price2num($invoice->getRemainToPay(), 'MT')) == 0) {
 									// If invoice is a down payment, we also convert down payment to discount
 									if ($invoice->type == FactureFournisseur::TYPE_DEPOSIT) {
 										$amount_ht = $amount_tva = $amount_ttc = array();
@@ -670,7 +670,6 @@ class PaiementFourn extends Paiement
 		if ($this->amount) {
 			$label .= '<br><strong>'.$langs->trans("Amount").':</strong> '.price($this->amount, 0, $langs, 1, -1, -1, $conf->currency);
 		}
-
 		$linkclose = '';
 		if (empty($notooltip)) {
 			if (!empty($conf->global->MAIN_OPTIMIZEFORTEXTBROWSER)) {
@@ -691,8 +690,8 @@ class PaiementFourn extends Paiement
 		if ($withpicto) {
 			$result .= img_object(($notooltip ? '' : $label), ($this->picto ? $this->picto : 'generic'), ($notooltip ? (($withpicto != 2) ? 'class="paddingright"' : '') : 'class="'.(($withpicto != 2) ? 'paddingright ' : '').'classfortooltip"'), 0, 0, $notooltip ? 0 : 1);
 		}
-		if ($withpicto != 2) {
-			$result .= $this->ref;
+		if ($withpicto && $withpicto != 2) {
+			$result .= ($this->ref ? $this->ref : $this->id);
 		}
 		$result .= $linkend;
 

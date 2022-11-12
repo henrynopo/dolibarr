@@ -28,12 +28,15 @@
 
 require '../main.inc.php';
 require_once DOL_DOCUMENT_ROOT.'/expedition/class/expedition.class.php';
+require_once DOL_DOCUMENT_ROOT.'/expedition/class/ShipsGo_API.class.php';
+require_once DOL_DOCUMENT_ROOT.'/core/class/extrafields.class.php';
 require_once DOL_DOCUMENT_ROOT.'/core/class/html.formfile.class.php';
 require_once DOL_DOCUMENT_ROOT.'/core/class/html.formother.class.php';
 require_once DOL_DOCUMENT_ROOT.'/core/class/html.formcompany.class.php';
 require_once DOL_DOCUMENT_ROOT.'/core/lib/date.lib.php';
 require_once DOL_DOCUMENT_ROOT.'/core/lib/company.lib.php';
 require_once DOL_DOCUMENT_ROOT.'/core/lib/product.lib.php';
+require_once DOL_DOCUMENT_ROOT.'/commande/class/commande.class.php';
 
 // Load translation files required by the page
 $langs->loadLangs(array("sendings", "deliveries", 'companies', 'bills', 'products'));
@@ -53,9 +56,9 @@ if ($user->socid) {
 	$socid = $user->socid;
 }
 $result = restrictedArea($user, 'expedition', $expeditionid, '');
-
 $search_ref_exp = GETPOST("search_ref_exp", 'alpha');
 $search_ref_liv = GETPOST('search_ref_liv', 'alpha');
+$search_reforder = GETPOST('search_reforder', 'alpha');
 $search_ref_customer = GETPOST('search_ref_customer', 'alpha');
 $search_company = GETPOST("search_company", 'alpha');
 $search_shipping_method_id = GETPOST('search_shipping_method_id');
@@ -126,6 +129,7 @@ if (empty($user->socid)) {
 $checkedtypetiers = 0;
 $arrayfields = array(
 	'e.ref'=>array('label'=>$langs->trans("Ref"), 'checked'=>1, 'position'=>1),
+	'c.ref'=>array('label'=>$langs->trans("Order"), 'checked'=>1, 'position'=>2),
 	'e.ref_customer'=>array('label'=>$langs->trans("RefCustomer"), 'checked'=>1, 'position'=>2),
 	's.nom'=>array('label'=>$langs->trans("ThirdParty"), 'checked'=>1, 'position'=>3),
 	's.town'=>array('label'=>$langs->trans("Town"), 'checked'=>1, 'position'=>4),
@@ -160,9 +164,43 @@ $error = 0;
 if (GETPOST('cancel', 'alpha')) {
 	$action = 'list'; $massaction = '';
 }
-if (!GETPOST('confirmmassaction', 'alpha') && $massaction != 'presend' && $massaction != 'confirm_presend') {
+if (!GETPOST('confirmmassaction', 'alpha') && $massaction != 'presend' && $massaction != 'confirm_presend' && $massaction != 'updateships') {
 	$massaction = '';
 }
+
+if ($massaction === 'updateships') {
+	$objecttmp = new Expedition($db);
+	$shipsGotmp = new ShipsGo_API($conf->global->API_KEY_SHIPSGO);
+	$error = 0;
+	$i = 0;
+	foreach ($toselect as $checked) {
+		$result = $objecttmp->fetch($toselect[$i]);
+		if ($result > 0) {
+			$ContainerNumber = $objecttmp->tracking_number;
+			if ($objecttmp->array_options['options_sailingstatusid'] != 3 && $objecttmp->array_options['options_sailingstatusid'] != 4) {
+				$ship_status = $shipsGotmp->GetContainerInfo($ContainerNumber)[0];
+				if ($ship_status['Message'] == 'Success') {
+					$updatesql = "UPDATE ".MAIN_DB_PREFIX."expedition_extrafields SET";
+					$updatesql .= " sailingstatusid = ".$ship_status['SailingStatusId'];
+					$updatesql .= ", pol = '".$ship_status['Pol']."'";
+					if (!empty($ship_status['DepartureDate'])) {
+						$updatesql .= ", atd = '".date('Y-m-d', strtotime(str_replace('/', '-', $ship_status['DepartureDate'])))."'";
+					}
+					$updatesql .= ", pod = '".$ship_status['Pod']."'";
+					if (!empty($ship_status['ArrivalDate'])) {
+						$updatesql .= ", ata = '".date('Y-m-d', strtotime(str_replace('/', '-', $ship_status['ArrivalDate'])))."'";						
+					}
+					$updatesql .= ", livemapurl = '".$ship_status['LiveMapUrl']."'";
+					$updatesql .= ", updatedtime = '".date('Y-m-d H:i:s', dol_now())."'";
+					$updatesql .= " WHERE fk_object = ".$toselect[$i];
+					$db->query($updatesql);
+				}
+			}
+		}
+		$i++;
+	}
+}
+
 
 $parameters = array('socid'=>$socid);
 $reshook = $hookmanager->executeHooks('doActions', $parameters, $object, $action); // Note that $action and $object may have been modified by some hooks
@@ -180,6 +218,7 @@ if (GETPOST('button_removefilter_x', 'alpha') || GETPOST('button_removefilter.x'
 	$search_product_category = '';
 	$search_ref_exp = '';
 	$search_ref_liv = '';
+	$search_reforder = '';
 	$search_ref_customer = '';
 	$search_company = '';
 	$search_town = '';
@@ -252,6 +291,7 @@ $formfile = new FormFile($db);
 $companystatic = new Societe($db);
 $formcompany = new FormCompany($db);
 $shipment = new Expedition($db);
+$order = new Commande($db);
 
 $helpurl = 'EN:Module_Shipments|FR:Module_Exp&eacute;ditions|ES:M&oacute;dulo_Expediciones';
 llxHeader('', $langs->trans('ListOfSendings'), $helpurl);
@@ -270,6 +310,7 @@ $sql .= " u.login";
 if (($search_categ_cus > 0) || ($search_categ_cus == -2)) {
 	$sql .= ", cc.fk_categorie, cc.fk_soc";
 }
+$sql .= ", c.rowid as orderid, c.ref as reforder";
 // Add fields from extrafields
 if (!empty($extrafields->attributes[$object->table_element]['label'])) {
 	foreach ($extrafields->attributes[$object->table_element]['label'] as $key => $val) {
@@ -304,6 +345,8 @@ $sql .= ' LEFT JOIN '.MAIN_DB_PREFIX.'user as u ON e.fk_user_author = u.rowid';
 if ($search_user > 0) {		// Get link to order to get the order id in eesource.fk_source
 	$sql .= " LEFT JOIN ".MAIN_DB_PREFIX."element_element as eesource ON eesource.fk_target = e.rowid AND eesource.targettype = 'shipping' AND eesource.sourcetype = 'commande'";
 }
+$sql .= " LEFT JOIN ".MAIN_DB_PREFIX."element_element as eecommande ON (e.rowid = eecommande.fk_target AND eecommande.sourcetype = 'commande' AND eecommande.targettype = 'shipping')";
+$sql .= " LEFT JOIN ".MAIN_DB_PREFIX."commande as c on (c.rowid = eecommande.fk_source)";
 // We'll need this table joined to the select in order to filter by sale
 if ($search_sale > 0 || (empty($user->rights->societe->client->voir) && !$socid)) {
 	$sql .= ", ".MAIN_DB_PREFIX."societe_commerciaux as sc";
@@ -334,6 +377,9 @@ if ($socid) {
 }
 if ($search_status <> '' && $search_status >= 0) {
 	$sql .= " AND e.fk_statut = ".((int) $search_status);
+}
+if ($search_reforder != '') {
+	$sql .= natural_search('c.ref', $search_reforder);
 }
 if ($search_ref_customer != '') {
 	$sql .= natural_search('e.ref_customer', $search_ref_customer);
@@ -456,6 +502,9 @@ if ($search_ref_exp) {
 if ($search_ref_liv) {
 	$param .= "&search_ref_liv=".urlencode($search_ref_liv);
 }
+if ($search_reforder) {
+	$param .= "&search_reforder=".urlencode($search_reforder);
+}
 if ($search_ref_customer) {
 	$param .= "&search_ref_customer=".urlencode($search_ref_customer);
 }
@@ -519,6 +568,7 @@ $arrayofmassactions = array(
 	'builddoc' => img_picto('', 'pdf', 'class="pictofixedwidth"').$langs->trans("PDFMerge"),
 	'classifyclose'=>$langs->trans("Close"),
 	'presend'  => img_picto('', 'email', 'class="pictofixedwidth"').$langs->trans("SendByMail"),
+	'updateships' => img_picto('', 'calendar', 'class="pictofixedwidth"').$langs->trans("UpdateShips"),
 );
 if (in_array($massaction, array('presend'))) {
 	$arrayofmassactions = array();
@@ -625,6 +675,12 @@ print '<tr class="liste_titre_filter">';
 if (!empty($arrayfields['e.ref']['checked'])) {
 	print '<td class="liste_titre">';
 	print '<input class="flat" size="6" type="text" name="search_ref_exp" value="'.$search_ref_exp.'">';
+	print '</td>';
+}
+// Ref Order
+if (!empty($arrayfields['c.ref']['checked'])) {
+	print '<td class="liste_titre">';
+	print '<input class="flat" size="6" type="text" name="search_reforder" value="'.$search_reforder.'">';
 	print '</td>';
 }
 // Ref customer
@@ -752,6 +808,9 @@ print '<tr class="liste_titre">';
 if (!empty($arrayfields['e.ref']['checked'])) {
 	print_liste_field_titre($arrayfields['e.ref']['label'], $_SERVER["PHP_SELF"], "e.ref", "", $param, '', $sortfield, $sortorder);
 }
+if (!empty($arrayfields['c.ref']['checked'])) {
+	print_liste_field_titre($arrayfields['c.ref']['label'], $_SERVER["PHP_SELF"], "c.ref", "", $param, '', $sortfield, $sortorder);
+}
 if (!empty($arrayfields['e.ref_customer']['checked'])) {
 	print_liste_field_titre($arrayfields['e.ref_customer']['label'], $_SERVER["PHP_SELF"], "e.ref_customer", "", $param, '', $sortfield, $sortorder);
 }
@@ -822,6 +881,8 @@ while ($i < min($num, $limit)) {
 	$shipment->id = $obj->rowid;
 	$shipment->ref = $obj->ref;
 	$shipment->shipping_method_id=$obj->fk_shipping_method;
+	$order->id = $obj->orderid;
+	$order->ref = $obj->reforder;
 
 	$companystatic->id = $obj->socid;
 	$companystatic->ref = $obj->name;
@@ -835,7 +896,23 @@ while ($i < min($num, $limit)) {
 	// Ref
 	if (!empty($arrayfields['e.ref']['checked'])) {
 		print '<td class="nowraponall">';
+		// Picto + Ref
 		print $shipment->getNomUrl(1);
+		// Other picto tool
+		$filename = dol_sanitizeFileName($object->ref);
+		$filedir = $conf->expedition->dir_output."/sending/".dol_sanitizeFileName($object->ref);
+		print $formfile->getDocumentsLink('expedition', $filename, $filedir);
+		
+		print "</td>\n";
+		if (!$i) {
+			$totalarray['nbfield']++;
+		}
+	}
+
+	// Ref Order
+	if (!empty($arrayfields['c.ref']['checked'])) {
+		print "<td>";
+		print $order->getNomUrl(1, 'commande');
 		print "</td>\n";
 		if (!$i) {
 			$totalarray['nbfield']++;

@@ -410,10 +410,13 @@ if ($action == 'create' || $action == 'confirm_paiement' || $action == 'add_paie
 							var form = $("#payment_form");
 
 							json["invoice_type"] = $("#invoice_type").val();
-            				json["amountPayment"] = $("#amountpayment").attr("value");
+							json["amountPayment"] = $("#amountpayment").attr("value");
 							json["amounts"] = _elemToJson(form.find("input.amount"));
 							json["remains"] = _elemToJson(form.find("input.remain"));
 							json["token"] = "'.currentToken().'";
+							json["multicurrency_amounts"] = _elemToJson(form.find("input.multicurrency_amount"));
+							json["multicurrency_remains"] = _elemToJson(form.find("input.multicurrency_remain"));
+
 							if (imgId != null) {
 								json["imgClicked"] = imgId;
 							}
@@ -426,7 +429,15 @@ if ($action == 'create' || $action == 'confirm_paiement' || $action == 'add_paie
 
 								for (var key in json)
 								{
-									if (key == "result")	{
+									if (key == "multicurrency_result")	{
+										if (json["multicurrency_makeRed"]) {
+											$("#"+key).addClass("error");
+										} else {
+											$("#"+key).removeClass("error");
+										}
+										json[key]=json["multicurrency_label"]+" "+json[key];
+										$("#"+key).text(json[key]);
+									} else if (key == "result") {
 										if (json["makeRed"]) {
 											$("#"+key).addClass("error");
 										} else {
@@ -446,6 +457,12 @@ if ($action == 'create' || $action == 'confirm_paiement' || $action == 'add_paie
 							callForResult();
 						});
 						$("#payment_form").find("input.amount").keyup(function() {
+							callForResult();
+						});
+						$("#payment_form").find("input.multicurrency_amount").change(function() {
+							callForResult();
+						});
+						$("#payment_form").find("input.multicurrency_amount").keyup(function() {
 							callForResult();
 						});
 			';
@@ -594,7 +611,8 @@ if ($action == 'create' || $action == 'confirm_paiement' || $action == 'add_paie
 				print '<table class="noborder centpercent">';
 
 				print '<tr class="liste_titre">';
-				print '<td>'.$arraytitle.'</td>';
+				print '<td class="center">'.$arraytitle.'</td>';
+				print '<td class="center">'.$langs->trans('Order').'</td>';
 				print '<td class="center">'.$langs->trans('Date').'</td>';
 				print '<td class="center">'.$langs->trans('DateMaxPayment').'</td>';
 				if (isModEnabled('multicurrency')) {
@@ -604,10 +622,10 @@ if ($action == 'create' || $action == 'confirm_paiement' || $action == 'add_paie
 					print '<td class="right">'.$multicurrencyremaindertopay.'</td>';
 					print '<td class="right">'.$langs->trans('MulticurrencyPaymentAmount').'</td>';
 				}
-				print '<td class="right">'.$langs->trans('AmountTTC').'</td>';
-				print '<td class="right">'.$alreadypayedlabel.'</td>';
-				print '<td class="right">'.$remaindertopay.'</td>';
-				print '<td class="right">'.$langs->trans('PaymentAmount').'</td>';
+				print '<td class="center">'.$langs->trans('AmountTTC').'</td>';
+				print '<td class="center">'.$alreadypayedlabel.'</td>';
+				print '<td class="center">'.$remaindertopay.'</td>';
+				print '<td class="center">'.$langs->trans('PaymentAmount').'</td>';
 
 				$parameters = array();
 				$reshook = $hookmanager->executeHooks('printFieldListTitle', $parameters, $facture, $action); // Note that $action and $object may have been modified by hook
@@ -637,7 +655,7 @@ if ($action == 'create' || $action == 'confirm_paiement' || $action == 'add_paie
 					$creditnotes = $invoice->getSumCreditNotesUsed();
 					$deposits = $invoice->getSumDepositsUsed();
 					$alreadypayed = price2num($paiement + $creditnotes + $deposits, 'MT');
-					$remaintopay = price2num($invoice->total_ttc - $paiement - $creditnotes - $deposits, 'MT');
+					$remaintopay = $invoice->getRemainToPay();
 
 					// Multicurrency Price
 					if (isModEnabled('multicurrency')) {
@@ -645,7 +663,7 @@ if ($action == 'create' || $action == 'confirm_paiement' || $action == 'add_paie
 						$multicurrency_creditnotes = $invoice->getSumCreditNotesUsed(1);
 						$multicurrency_deposits = $invoice->getSumDepositsUsed(1);
 						$multicurrency_alreadypayed = price2num($multicurrency_payment + $multicurrency_creditnotes + $multicurrency_deposits, 'MT');
-						$multicurrency_remaintopay = price2num($invoice->multicurrency_total_ttc - $multicurrency_payment - $multicurrency_creditnotes - $multicurrency_deposits, 'MT');
+						$multicurrency_remaintopay = $invoice->getRemainToPay(1);
 					}
 
 
@@ -654,9 +672,17 @@ if ($action == 'create' || $action == 'confirm_paiement' || $action == 'add_paie
 					print '<td class="nowraponall">';
 					print $invoice->getNomUrl(1, '');
 					if ($objp->socid != $facture->thirdparty->id) {
-						print ' - '.$soc->getNomUrl(1).' ';
+						print '<br>'.$soc->getNomUrl(1,'',20).' ';
 					}
 					print "</td>\n";
+
+					// Ref Order
+					$invoice->fetchObjectLinked();
+					if (!empty(end($invoice->linkedObjects['commande']))){
+						print '<td class="nowraponall">'.end($invoice->linkedObjects['commande'])->getNomUrl(0).'</td>';
+					} else {
+						print '<td class="nowraponall"></td>';
+					}
 
 					// Date
 					print '<td class="center">'.dol_print_date($db->jdate($objp->df), 'day')."</td>\n";
@@ -675,65 +701,42 @@ if ($action == 'create' || $action == 'confirm_paiement' || $action == 'add_paie
 						print '<td align="center"></td>';
 					}
 
-					// Currency
+					// Multicurrency
 					if (isModEnabled('multicurrency')) {
-						print '<td class="center">'.$objp->multicurrency_code."</td>\n";
-					}
-
-					// Multicurrency Price
-					if (isModEnabled('multicurrency')) {
-						print '<td class="right">';
-						if ($objp->multicurrency_code && $objp->multicurrency_code != $conf->currency) {
-							print price($sign * $objp->multicurrency_total_ttc);
+						print '<td class="center"><span class="amount">'.price($sign * $objp->multicurrency_total_ttc, 0, '', 1, -1, -1, $objp->multicurrency_code).'</td>';
+						print '<td class="center"><span class="amount">'.price($sign * $multicurrency_payment, 0, '', 1, -1, -1, $objp->multicurrency_code);
+						if ($multicurrency_creditnotes) {
+							print '+'.price($multicurrency_creditnotes);
 						}
-						print '</td>';
-
-						// Multicurrency Price
-						print '<td class="right">';
-						if ($objp->multicurrency_code && $objp->multicurrency_code != $conf->currency) {
-							print price($sign * $multicurrency_payment);
-							if ($multicurrency_creditnotes) {
-								print '+'.price($multicurrency_creditnotes);
-							}
-							if ($multicurrency_deposits) {
-								print '+'.price($multicurrency_deposits);
-							}
+						if ($multicurrency_deposits) {
+							print '+'.price($multicurrency_deposits);
 						}
-						print '</td>';
+						print '</span></td>';
 
 						// Multicurrency remain to pay
-						print '<td class="right">';
-						if ($objp->multicurrency_code && $objp->multicurrency_code != $conf->currency) {
-							print price($sign * $multicurrency_remaintopay);
-						}
-						print '</td>';
-
-						print '<td class="right nowraponall">';
-
+						print '<td class="center">'.price($sign * $multicurrency_remaintopay, 0, '', 1, -1, -1, $objp->multicurrency_code).'</td>';
 						// Add remind multicurrency amount
-						$namef = 'multicurrency_amount_'.$objp->facid;
-						$nameRemain = 'multicurrency_remain_'.$objp->facid;
-
-						if ($objp->multicurrency_code && $objp->multicurrency_code != $conf->currency) {
-							if ($action != 'add_paiement') {
-								if (!empty($conf->use_javascript_ajax)) {
-									print img_picto("Auto fill", 'rightarrow', "class='AutoFillAmout' data-rowname='".$namef."' data-value='".($sign * $multicurrency_remaintopay)."'");
-								}
-								print '<input type="text" class="maxwidth75 multicurrency_amount" name="'.$namef.'" value="'.GETPOST($namef).'">';
-								print '<input type="hidden" class="multicurrency_remain" name="'.$nameRemain.'" value="'.$multicurrency_remaintopay.'">';
-							} else {
-								print '<input type="text" class="maxwidth75" name="'.$namef.'_disabled" value="'.GETPOST($namef).'" disabled>';
-								print '<input type="hidden" name="'.$namef.'" value="'.GETPOST($namef).'">';
+						print '<td class="center nowraponall">';
+						$multicurrency_namef = 'multicurrency_amount_'.$objp->facid;
+						$multicurrency_nameRemain = 'multicurrency_remain_'.$objp->facid;
+						if ($action != 'add_paiement') {
+							if (!empty($conf->use_javascript_ajax)) {
+								print img_picto("Auto fill", 'rightarrow', "class='AutoFillAmout' data-rowname='".$multicurrency_namef."' data-value='".($sign * $multicurrency_remaintopay)."'");
 							}
+							print '<input type="text" class="maxwidth75 multicurrency_amount" name="'.$multicurrency_namef.'" value="'.$_POST[$multicurrency_namef].'">';
+							print '<input type="hidden" class="multicurrency_remain" name="'.$multicurrency_nameRemain.'" value="'.$multicurrency_remaintopay.'">';
+						} else {
+							print '<input type="text" class="maxwidth75" name="'.$multicurrency_namef.'_disabled" value="'.$_POST[$multicurrency_namef].'" disabled>';
+							print '<input type="hidden" name="'.$multicurrency_namef.'" value="'.$_POST[$multicurrency_namef].'">';
 						}
 						print "</td>";
 					}
 
 					// Price
-					print '<td class="right"><span class="amount">'.price($sign * $objp->total_ttc).'</span></td>';
+					print '<td class="center"><span class="amount">'.price($sign * $objp->total_ttc).'</span></td>';
 
 					// Received + already paid
-					print '<td class="right"><span class="amount">'.price($sign * $paiement);
+					print '<td class="center"><span class="amount">'.price($sign * $paiement);
 					if ($creditnotes) {
 						print '<span class="opacitymedium">+'.price($creditnotes).'</span>';
 					}
@@ -771,7 +774,7 @@ if ($action == 'create' || $action == 'confirm_paiement' || $action == 'add_paie
 					//$test= price(price2num($objp->total_ttc - $paiement - $creditnotes - $deposits));
 
 					// Amount
-					print '<td class="right nowraponall">';
+					print '<td class="center nowraponall">';
 
 					// Add remind amount
 					$namef = 'amount_'.$objp->facid;
@@ -807,6 +810,14 @@ if ($action == 'create' || $action == 'confirm_paiement' || $action == 'add_paie
 					$totalrecu += $paiement;
 					$totalrecucreditnote += $creditnotes;
 					$totalrecudeposits += $deposits;
+					// Multicurrency
+					if (isModEnabled('multicurrency')) {
+						$multicurrency_total += $objp->multicurrency_total_ht;
+						$multicurrency_total_ttc += $objp->multicurrency_total_ttc;
+						$multicurrency_totalrecu += $objp->multicurrency_payment;
+						$multicurrency_totalrecucreditnote += $multicurrency_creditnotes;
+						$multicurrency_totalrecudeposits += $multicurrency_deposits;
+						}
 					$i++;
 				}
 
@@ -815,14 +826,21 @@ if ($action == 'create' || $action == 'confirm_paiement' || $action == 'add_paie
 					print '<tr class="liste_total">';
 					print '<td colspan="3" class="left">'.$langs->trans('TotalTTC').'</td>';
 					if (isModEnabled('multicurrency')) {
-						print '<td></td>';
-						print '<td></td>';
-						print '<td></td>';
-						print '<td></td>';
-						print '<td class="right" id="multicurrency_result" style="font-weight: bold;"></td>';
+						print '<td>&nbsp;</td>';
+						print '<td class="center"><b>'.price($sign * $multicurrency_total_ttc).'</b></td>';
+						print '<td class="center"><b>'.price($sign * $multicurrency_totalrecu);
+						if ($multicurrency_totalrecucreditnote) {
+							print '+'.price($multicurrency_totalrecucreditnote);
+						}
+						if ($multicurrency_totalrecudeposits) {
+							print '+'.price($multicurrency_totalrecudeposits);
+						}
+						print	'</b></td>';
+						print '<td class="center"><b>'.price($sign * price2num($multicurrency_total_ttc - $multicurrency_totalrecu - $multicurrency_totalrecucreditnote - $multicurrency_totalrecudeposits, 'MT')).'</b></td>';
+						print '<td class="center" id="multicurrency_result" style="font-weight: bold;"></td>';
 					}
-					print '<td class="right"><b>'.price($sign * $total_ttc).'</b></td>';
-					print '<td class="right"><b>'.price($sign * $totalrecu);
+					print '<td class="center"><b>'.price($sign * $total_ttc).'</b></td>';
+					print '<td class="center"><b>'.price($sign * $totalrecu);
 					if ($totalrecucreditnote) {
 						print '+'.price($totalrecucreditnote);
 					}
@@ -830,8 +848,8 @@ if ($action == 'create' || $action == 'confirm_paiement' || $action == 'add_paie
 						print '+'.price($totalrecudeposits);
 					}
 					print '</b></td>';
-					print '<td class="right"><b>'.price($sign * price2num($total_ttc - $totalrecu - $totalrecucreditnote - $totalrecudeposits, 'MT')).'</b></td>';
-					print '<td class="right" id="result" style="font-weight: bold;"></td>'; // Autofilled
+					print '<td class="center"><b>'.price($sign * price2num($total_ttc - $totalrecu - $totalrecucreditnote - $totalrecudeposits, 'MT')).'</b></td>';
+					print '<td class="center" id="result" style="font-weight: bold;"></td>'; // Autofilled
 					print '<td align="center">&nbsp;</td>';
 					print "</tr>\n";
 				}

@@ -211,7 +211,7 @@ if ($result > 0) {
 
 	// Amount
 	print '<tr><td>'.$langs->trans('Amount').'</td>';
-	print '<td>'.price($object->amount, '', $langs, 0, 0, -1, $conf->currency).'</td></tr>';
+	print '<td>'.$conf->currency.' '.price(price2num($object->amount, 'MT')).'</td></tr>';
 
 	if (!empty($conf->global->BILL_ADD_PAYMENT_VALIDATION)) {
 		print '<tr><td>'.$langs->trans('Status').'</td>';
@@ -228,12 +228,19 @@ if ($result > 0) {
 				$allow_delete = 0;
 				$title_button = dol_escape_htmltag($langs->transnoentitiesnoconv("CantRemoveConciliatedPayment"));
 			}
+			$accountstatic = new Account($db);
+			$accountstatic->fetch($bankline->fk_account);
+
+            // Multicurrency Amount
+            if (!empty($conf->multicurrency->enabled) && ($accountstatic->currency_code!=$conf->currency)) {
+                print '<td>&nbsp;</td>';
+	            print '<td>'.$accountstatic->currency_code.' '.price(-$bankline->amount).'</td></tr>';
+            }
 
 			print '<tr>';
 			print '<td>'.$langs->trans('BankAccount').'</td>';
 			print '<td>';
-			$accountstatic = new Account($db);
-			$accountstatic->fetch($bankline->fk_account);
+
 			print $accountstatic->getNomUrl(1);
 			print '</td>';
 			print '</tr>';
@@ -264,6 +271,10 @@ if ($result > 0) {
 	 */
 	$sql = 'SELECT f.rowid, f.rowid as facid, f.ref, f.ref_supplier, f.type, f.paye, f.total_ht, f.total_tva, f.total_ttc, f.datef as date, f.fk_statut as status,';
 	$sql .= ' pf.amount, s.nom as name, s.rowid as socid';
+	// Multicurrency
+	if (!empty($conf->multicurrency->enabled)) {
+		$sql .= ', f.multicurrency_code, f.multicurrency_total_ttc, pf.multicurrency_amount';
+	}
 	$sql .= ' FROM '.MAIN_DB_PREFIX.'paiementfourn_facturefourn as pf,'.MAIN_DB_PREFIX.'facture_fourn as f,'.MAIN_DB_PREFIX.'societe as s';
 	$sql .= ' WHERE pf.fk_facturefourn = f.rowid AND f.fk_soc = s.rowid';
 	$sql .= ' AND pf.fk_paiementfourn = '.((int) $object->id);
@@ -276,45 +287,50 @@ if ($result > 0) {
 
 		print '<table class="noborder centpercent">';
 		print '<tr class="liste_titre">';
-		print '<td>'.$langs->trans('Invoice').'</td>';
-		print '<td>'.$langs->trans('RefSupplier').'</td>';
-		print '<td>'.$langs->trans('Company').'</td>';
-		print '<td class="right">'.$langs->trans('ExpectedToPay').'</td>';
-		print '<td class="right">'.$langs->trans('PayedByThisPayment').'</td>';
-		print '<td class="right">'.$langs->trans('Status').'</td>';
+		print '<td class="left">'.$langs->trans('Invoice').'</td>';
+		print '<td class="left">'.$langs->trans('SupplierOrder').'</td>';
+		print '<td class="left">'.$langs->trans('RefSupplier').'</td>';
+		print '<td class="left">'.$langs->trans('Company').'</td>';
+		print '<td class="center">'.$langs->trans('ExpectedToPay').'</td>';
+		print '<td class="center">'.$langs->trans('PayedByThisPayment').'</td>';
+		print '<td class="center">'.$langs->trans('RemainderToPay').'</td>';
+		print '<td class="center">'.$langs->trans('Status').'</td>';
 		print "</tr>\n";
 
 		if ($num > 0) {
-			$facturestatic = new FactureFournisseur($db);
-
 			while ($i < $num) {
 				$objp = $db->fetch_object($resql);
 
-				$facturestatic->id = $objp->facid;
-				$facturestatic->ref = ($objp->ref ? $objp->ref : $objp->rowid);
-				$facturestatic->date = $db->jdate($objp->date);
-				$facturestatic->type = $objp->type;
-				$facturestatic->total_ht = $objp->total_ht;
-				$facturestatic->total_tva = $objp->total_tva;
-				$facturestatic->total_ttc = $objp->total_ttc;
-				$facturestatic->statut = $objp->status;
-				$facturestatic->alreadypaid = -1; // unknown
+				$facturestatic = new FactureFournisseur($db);
+				$facturestatic->fetch($objp->facid);
+				
+				$remaintopay = $facturestatic->getRemainToPay();
+				// Multicurrency
+				if (!empty($conf->multicurrency->enabled)) {
+					$multicurrency_remaintopay = $facturestatic->getRemainToPay(1);
+				}
 
 				print '<tr class="oddeven">';
 				// Ref
 				print '<td>';
 				print $facturestatic->getNomUrl(1);
-				print "</td>\n";
+				print "</td>\n";		
+				// Ref Order
+				$facturestatic->fetchObjectLinked();
+				print '<td>'.($facturestatic->linkedObjects['order_supplier'] > 0 ? end($facturestatic->linkedObjects['order_supplier'])->getNomUrl(1) : '').'</td>';
+
 				// Ref supplier
 				print '<td>'.$objp->ref_supplier."</td>\n";
 				// Third party
 				print '<td><a href="'.DOL_URL_ROOT.'/fourn/card.php?socid='.$objp->socid.'">'.img_object($langs->trans('ShowCompany'), 'company').' '.$objp->name.'</a></td>';
 				// Expected to pay
-				print '<td class="right">'.price($objp->total_ttc).'</td>';
+				print '<td class="center">'.(!empty($conf->multicurrency->enabled) ? $objp->multicurrency_code.' '.price($objp->multicurrency_total_ttc).'<br>'.$conf->currency.' '.price($objp->total_ttc) : $conf->currency.' '.price($objp->total_ttc)).'</td>';
 				// Paid
-				print '<td class="right">'.price($objp->amount).'</td>';
+				print '<td class="center">'.(!empty($conf->multicurrency->enabled) ? $objp->multicurrency_code.' '.price($objp->multicurrency_amount).'<br>'.$conf->currency.' '.price($objp->amount) : $conf->currency.' '.price($objp->amount)).'</td>';
+				// Remain to pay
+				print '<td class="center"><span class="amount">'.(!empty($conf->multicurrency->enabled) ? $objp->multicurrency_code.' '.price($multicurrency_remaintopay).'<br>'.$conf->currency.' '.price($remaintopay) : $conf->currency.' '.price($remaintopay)).'</span></td>';
 				// Status
-				print '<td class="right">'.$facturestatic->LibStatut($objp->paye, $objp->status, 6, 1).'</td>';
+				print '<td class="center">'.$facturestatic->LibStatut($objp->paye, $objp->status, 6, 1).'</td>';
 				print "</tr>\n";
 
 				if ($objp->paye == 1) {

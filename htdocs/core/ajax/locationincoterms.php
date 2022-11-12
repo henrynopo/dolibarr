@@ -65,7 +65,6 @@ dol_syslog('location_incoterms call with MAIN_USE_LOCATION_INCOTERMS_DICTIONNARY
 // Generation of list of zip-town
 if (GETPOST('location_incoterms')) {
 	$return_arr = array();
-
 	// Define filter on text typed
 	$location_incoterms = GETPOST('location_incoterms');
 

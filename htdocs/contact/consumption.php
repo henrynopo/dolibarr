@@ -29,6 +29,7 @@ require "../main.inc.php";
 require_once DOL_DOCUMENT_ROOT.'/core/lib/contact.lib.php';
 require_once DOL_DOCUMENT_ROOT.'/core/class/html.formother.class.php';
 require_once DOL_DOCUMENT_ROOT.'/core/lib/date.lib.php';
+require_once DOL_DOCUMENT_ROOT.'/core/lib/functions.lib.php';
 require_once DOL_DOCUMENT_ROOT.'/fourn/class/fournisseur.class.php';
 require_once DOL_DOCUMENT_ROOT.'/contact/class/contact.class.php';
 
@@ -69,6 +70,8 @@ $sref = GETPOST("sref");
 $sprod_fulldescr = GETPOST("sprod_fulldescr");
 $month = GETPOST('month', 'int');
 $year = GETPOST('year', 'int');
+$search_status = GETPOST('search_status', 'intcomma');
+$search_total_ht = GETPOST('search_total_ht', 'alpha');
 
 // Clean up on purge search criteria ?
 if (GETPOST('button_removefilter_x', 'alpha') || GETPOST('button_removefilter.x', 'alpha') || GETPOST('button_removefilter', 'alpha')) { // Both test are required to be compatible with all browsers
@@ -76,6 +79,8 @@ if (GETPOST('button_removefilter_x', 'alpha') || GETPOST('button_removefilter.x'
 	$sprod_fulldescr = '';
 	$year = '';
 	$month = '';
+	$search_status = '';
+	$search_total_ht = '';
 }
 // Customer or supplier selected in drop box
 $thirdTypeSelect = GETPOST("third_select_id");
@@ -308,13 +313,13 @@ if (!empty($sql_select)) {
 	$sql = $sql_select;
 	$sql .= ' d.description as description';
 	if ($type_element != 'fichinter' && $type_element != 'contract' && $type_element != 'supplier_proposal') {
-		$sql .= ', d.label, d.fk_product as product_id, d.fk_product as fk_product, d.info_bits, d.date_start, d.date_end, d.qty, d.qty as prod_qty, d.total_ht as total_ht, ';
+		$sql .= ', d.label, d.fk_product as product_id, d.fk_product as fk_product, d.info_bits, d.date_start, d.date_end, d.qty, d.qty as prod_qty, d.total_ht as total_ht, d.multicurrency_code as multicurrency_code, d.multicurrency_total_ht as multicurrency_total_ht, ';
 	}
 	if ($type_element == 'supplier_proposal') {
-		$sql .= ', d.label, d.fk_product as product_id, d.fk_product as fk_product, d.info_bits, d.qty, d.qty as prod_qty, d.total_ht as total_ht, ';
+		$sql .= ', d.label, d.fk_product as product_id, d.fk_product as fk_product, d.info_bits, d.qty, d.qty as prod_qty, d.total_ht as total_ht,d.multicurrency_code as multicurrency_code, d.multicurrency_total_ht as multicurrency_total_ht,';
 	}
 	if ($type_element == 'contract') {
-		$sql .= ', d.label, d.fk_product as product_id, d.fk_product as fk_product, d.info_bits, d.date_ouverture as date_start, d.date_cloture as date_end, d.qty, d.qty as prod_qty, d.total_ht as total_ht, ';
+		$sql .= ', d.label, d.fk_product as product_id, d.fk_product as fk_product, d.info_bits, d.date_ouverture as date_start, d.date_cloture as date_end, d.qty, d.qty as prod_qty, d.total_ht as total_ht,d.multicurrency_code as multicurrency_code, d.multicurrency_total_ht as multicurrency_total_ht,';
 	}
 	if ($type_element != 'fichinter') {
 		$sql .= ' p.ref as ref, p.rowid as prod_id, p.rowid as fk_product, p.fk_product_type as prod_type, p.fk_product_type as fk_product_type, p.entity as pentity';
@@ -339,6 +344,9 @@ if (!empty($sql_select)) {
 			$sql .= " OR p.label LIKE '%".$db->escape($sprod_fulldescr)."%'";
 		}
 		$sql .= ")";
+	}
+	if ($search_total_ht != '') {
+		$sql .= " AND (d.total_ht = ".$search_total_ht." OR d.multicurrency_total_ht = ".$search_total_ht.")";
 	}
 	$sql .= $db->order($sortfield, $sortorder);
 	$resql = $db->query($sql);
@@ -365,6 +373,8 @@ $param .= "&year=".urlencode($year);
 $param .= "&sprod_fulldescr=".urlencode($sprod_fulldescr);
 $param .= "&socid=".urlencode($socid);
 $param .= "&type_element=".urlencode($type_element);
+$param .= "&search_total_ht=".urlencode($search_total_ht);
+$param .= "&search_status=".urlencode($search_status);
 
 $total_qty = 0;
 $num=0;
@@ -398,6 +408,12 @@ if ($sql_select) {
 	if ($optioncss != '') {
 		$param .= '&optioncss='.urlencode($optioncss);
 	}
+	if ($search_total_ht != '') {
+		$param .= '&search_total_ht='.urlencode($search_total_ht);
+	}
+	if ($search_status != '') {
+		$param .= '&search_status='.urlencode($search_status);
+	}
 
 	print_barre_liste($langs->trans('ProductsIntoElements').' '.$typeElementString.' '.$button, $page, $_SERVER["PHP_SELF"], $param, $sortfield, $sortorder, '', $num, $totalnboflines, '', 0, '', '', $limit);
 
@@ -416,15 +432,16 @@ if ($sql_select) {
 	print '<td class="liste_titre center">';
 	print '</td>';
 	print '<td class="liste_titre left">';
-	print '<input class="flat" type="text" name="sprod_fulldescr" size="15" value="'.dol_escape_htmltag($sprod_fulldescr).'">';
+	print '<input class="flat" type="text" name="sprod_fulldescr" size="20" value="'.dol_escape_htmltag($sprod_fulldescr).'">';
 	print '</td>';
 	print '<td class="liste_titre center">'; // TODO: Add filters !
 	print '</td>';
 	print '<td class="liste_titre center">';
 	print '</td>';
-	print '<td class="liste_titre center">';
+	print '<td class="liste_titre right">';
+	print '<input class="flat" type="text" size="8" name="search_total_ht" value="'.dol_escape_htmltag($search_total_ht).'">';
 	print '</td>';
-	print '<td class="liste_titre maxwidthsearch">';
+	print '<td class="liste_titre right">';
 	$searchpicto = $form->showFilterAndCheckAddButtons(0);
 	print $searchpicto;
 	print '</td>';
@@ -618,10 +635,10 @@ if ($sql_select) {
 		print '<td class="right">'.$objp->prod_qty.'</td>';
 		$total_qty += $objp->prod_qty;
 
-		print '<td class="right">'.price($objp->total_ht).'</td>';
+		print '<td class="right"><span class="amount">'.(!empty($conf->multicurrency->enabled) ? $objp->multicurrency_code.' '.price($objp->multicurrency_total_ht).'<br>'.$conf->currency.' '.price($objp->total_ht) : $conf->currency.' '.price($objp->total_ht)).'</span></td>';
 		$total_ht += $objp->total_ht;
 
-		print '<td class="right">'.price($objp->total_ht / (empty($objp->prod_qty) ? 1 : $objp->prod_qty)).'</td>';
+		print '<td class="right">'.(!empty($conf->multicurrency->enabled) ? $objp->multicurrency_code.' '.price($objp->multicurrency_total_ht / (empty($objp->prod_qty) ? 1 : $objp->prod_qty)).'<br>'.$conf->currency.' '.price($objp->total_ht / (empty($objp->prod_qty) ? 1 : $objp->prod_qty)) : $conf->currency.' '.price($objp->total_ht / (empty($objp->prod_qty) ? 1 : $objp->prod_qty))).'</td>';
 
 		print "</tr>\n";
 		$i++;
@@ -632,8 +649,8 @@ if ($sql_select) {
 	print '<td colspan="3"></td>';
 	print '<td></td>';
 	print '<td class="right">'.$total_qty.'</td>';
-	print '<td class="right">'.price($total_ht).'</td>';
-	print '<td class="right">'.price($total_ht / (empty($total_qty) ? 1 : $total_qty)).'</td>';
+	print '<td class="right">'.$conf->currency.' '.price($total_ht).'</td>';
+	print '<td class="right">'.$conf->currency.' '.price($total_ht / (empty($total_qty) ? 1 : $total_qty)).'</td>';
 	print "</table>";
 	print '</div>';
 

@@ -9,6 +9,7 @@
  * Copyright (C) 2018-2021	Ferran Marcet			<fmarcet@2byte.es>
  * Copyright (C) 2018		Charlene Benke			<charlie@patas-monkey.com>
  * Copyright (C) 2020		Tobias Sekan			<tobias.sekan@startmail.com>
+ * Copyright (C) 2022		Henry Guo				<henrynopo@hotmail.com>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -69,6 +70,9 @@ $search_account = GETPOST("search_account", "int");
 $search_payment_num = GETPOST('search_payment_num', 'alpha');
 $search_amount = GETPOST("search_amount", 'alpha'); // alpha because we must be able to search on "< x"
 $search_status = GETPOST('search_status', 'intcomma');
+if (!empty($conf->multicurrency->enabled)) {
+	$search_multicurrency_amount = GETPOST("search_multicurrency_amount", 'alpha');
+}
 
 $limit = GETPOST('limit', 'int') ? GETPOST('limit', 'int') : $conf->liste_limit;
 $sortfield			= GETPOST('sortfield', 'aZ09comma');
@@ -97,6 +101,7 @@ $fieldstosearchall = array(
 	's.nom'=>"ThirdParty",
 	'p.num_paiement'=>"Numero",
 	'p.amount'=>"Amount",
+	'p.multicurrency_amount'=>"multicurrency_Amount",
 );
 
 $arrayfields = array(
@@ -107,6 +112,7 @@ $arrayfields = array(
 	'transaction'		=> array('label'=>"BankTransactionLine", 'checked'=>1, 'position'=>50, 'enabled'=>isModEnabled('banque')),
 	'ba.label'			=> array('label'=>"Account", 'checked'=>1, 'position'=>60, 'enabled'=>(isModEnabled('banque'))),
 	'p.num_paiement'	=> array('label'=>"Numero", 'checked'=>1, 'position'=>70, 'tooltip'=>"ChequeOrTransferNumber"),
+	'p.multicurrency_amount'=> array('label'=>"AmountMulticurrency", 'checked'=>1, 'position'=>75),
 	'p.amount'			=> array('label'=>"Amount", 'checked'=>1, 'position'=>80),
 	'p.statut'			=> array('label'=>"Status", 'checked'=>1, 'position'=>90, 'enabled'=>(!empty($conf->global->BILL_ADD_PAYMENT_VALIDATION))),
 );
@@ -143,6 +149,9 @@ if (empty($reshook)) {
 		$search_date_end = '';
 		$search_account = '';
 		$search_amount = '';
+		if (!empty($conf->multicurrency->enabled)) {
+			$search_multicurrency_amount = '';
+		}
 		$search_paymenttype = '';
 		$search_payment_num = '';
 		$search_company = '';
@@ -167,7 +176,7 @@ llxHeader('', $langs->trans('ListPayment'));
 
 if (GETPOST("orphelins", "alpha")) {
 	// Payments not linked to an invoice. Should not happend. For debug only.
-	$sql = "SELECT p.rowid, p.ref, p.datep, p.amount, p.statut, p.num_paiement";
+	$sql = "SELECT p.rowid, p.ref, p.datep, p.amount, p.multicurrency_amount, p.statut, p.num_paiement";
 	$sql .= ", c.code as paiement_code";
 
 	// Add fields from hooks
@@ -185,7 +194,7 @@ if (GETPOST("orphelins", "alpha")) {
 	$sql .= $hookmanager->resPrint;
 } else {
 	// DISTINCT is to avoid duplicate when there is a link to sales representatives
-	$sql = "SELECT DISTINCT p.rowid, p.ref, p.datep, p.fk_bank, p.amount, p.statut, p.num_paiement";
+	$sql = "SELECT DISTINCT p.rowid, p.ref, p.datep, p.fk_bank, p.amount, p.multicurrency_amount, p.statut, p.num_paiement";
 	$sql .= ", c.code as paiement_code";
 	$sql .= ", ba.rowid as bid, ba.ref as bref, ba.label as blabel, ba.number, ba.account_number as account_number, ba.fk_accountancy_journal as accountancy_journal";
 	$sql .= ", s.rowid as socid, s.nom as name, s.email";
@@ -237,6 +246,9 @@ if (GETPOST("orphelins", "alpha")) {
 	}
 	if ($search_payment_num != '') {
 		$sql .= natural_search('p.num_paiement', $search_payment_num);
+	}
+	if (!empty($conf->multicurrency->enabled) && $search_multicurrency_amount) {
+		$sql .= natural_search('p.multicurrency_amount', $search_multicurrency_amount, 1);
 	}
 	if ($search_amount) {
 		$sql .= natural_search('p.amount', $search_amount, 1);
@@ -318,6 +330,9 @@ if ($search_company) {
 if ($search_amount != '') {
 	$param .= '&search_amount='.urlencode($search_amount);
 }
+if (!empty($conf->multicurrency->enabled) && $search_multicurrency_amount != '') {
+	$param .= '&search_multicurrency_amount='.urlencode($search_multicurrency_amount);
+}
 if ($search_paymenttype) {
 	$param .= '&search_paymenttype='.urlencode($search_paymenttype);
 }
@@ -374,7 +389,7 @@ if (!empty($conf->global->MAIN_VIEW_LINE_NUMBER_IN_LIST)) {
 // Filter: Ref
 if (!empty($arrayfields['p.ref']['checked'])) {
 	print '<td class="liste_titre left">';
-	print '<input class="flat" type="text" size="4" name="search_ref" value="'.dol_escape_htmltag($search_ref).'">';
+	print '<input class="flat" type="text" size="6" name="search_ref" value="'.dol_escape_htmltag($search_ref).'">';
 	print '</td>';
 }
 
@@ -393,7 +408,7 @@ if (!empty($arrayfields['p.datep']['checked'])) {
 // Filter: Thirdparty
 if (!empty($arrayfields['s.nom']['checked'])) {
 	print '<td class="liste_titre">';
-	print '<input class="flat" type="text" size="6" name="search_company" value="'.dol_escape_htmltag($search_company).'">';
+	print '<input class="flat" type="text" size="10" name="search_company" value="'.dol_escape_htmltag($search_company).'">';
 	print '</td>';
 }
 
@@ -424,10 +439,17 @@ if (!empty($arrayfields['ba.label']['checked'])) {
 	print '</td>';
 }
 
+// Filter: Multicurrency Amount
+if (!empty($conf->multicurrency->enabled) && !empty($arrayfields['p.multicurrency_amount']['checked'])) {
+	print '<td class="liste_titre right">';
+	print '<input class="flat" type="text" size="6" name="search_multicurrency_amount" value="'.dol_escape_htmltag($search_multicurrency_amount).'">';
+	print '</td>';
+}
+
 // Filter: Amount
 if (!empty($arrayfields['p.amount']['checked'])) {
 	print '<td class="liste_titre right">';
-	print '<input class="flat" type="text" size="4" name="search_amount" value="'.dol_escape_htmltag($search_amount).'">';
+	print '<input class="flat" type="text" size="6" name="search_amount" value="'.dol_escape_htmltag($search_amount).'">';
 	print '</td>';
 }
 
@@ -472,6 +494,9 @@ if (!empty($arrayfields['transaction']['checked'])) {
 }
 if (!empty($arrayfields['ba.label']['checked'])) {
 	print_liste_field_titre($arrayfields['ba.label']['label'], $_SERVER["PHP_SELF"], "ba.label", '', $param, '', $sortfield, $sortorder);
+}
+if (!empty($conf->multicurrency->enabled) && !empty($arrayfields['p.multicurrency_amount']['checked'])) {
+	print_liste_field_titre($arrayfields['p.multicurrency_amount']['label'], $_SERVER["PHP_SELF"], "p.multicurrency_amount", '', $param, 'class="right"', $sortfield, $sortorder);
 }
 if (!empty($arrayfields['p.amount']['checked'])) {
 	print_liste_field_titre($arrayfields['p.amount']['label'], $_SERVER["PHP_SELF"], "p.amount", '', $param, 'class="right"', $sortfield, $sortorder);
@@ -595,6 +620,16 @@ while ($i < min($num, $limit)) {
 		if (!$i) {
 			$totalarray['nbfield']++;
 		}
+	}
+
+	// multicurrency Amount
+	if (!empty($conf->multicurrency->enabled) && !empty($arrayfields['p.multicurrency_amount']['checked'])) {
+		print '<td class="right"><span class="amount">'.price($objp->multicurrency_amount).'</span></td>';
+		if (!$i) {
+			$totalarray['nbfield']++;
+		}
+		$totalarray['pos'][$checkedCount] = 'multicurrency_amount';
+		$totalarray['val']['multicurrency_amount'] += $objp->multicurrency_amount;
 	}
 
 	// Amount
