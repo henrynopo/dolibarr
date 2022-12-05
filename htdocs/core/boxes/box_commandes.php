@@ -105,8 +105,7 @@ class box_commandes extends ModeleBoxes
 				$sql .= ", c.multicurrency_total_ttc";
 				$sql .= ", c.multicurrency_code";
 			}
-			$sql .= " FROM ".MAIN_DB_PREFIX."societe as s";
-			$sql .= ", ".MAIN_DB_PREFIX."commande as c";
+			$sql .= " FROM ".MAIN_DB_PREFIX."commande as c, ".MAIN_DB_PREFIX."societe as s";
 			if (empty($user->rights->societe->client->voir) && !$user->socid) {
 				$sql .= ", ".MAIN_DB_PREFIX."societe_commerciaux as sc";
 			}
