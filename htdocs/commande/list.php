@@ -45,6 +45,7 @@ require_once DOL_DOCUMENT_ROOT.'/commande/class/commande.class.php';
 require_once DOL_DOCUMENT_ROOT.'/compta/facture/class/facture.class.php';
 require_once DOL_DOCUMENT_ROOT.'/product/class/product.class.php';
 require_once DOL_DOCUMENT_ROOT.'/projet/class/project.class.php';
+require_once DOL_DOCUMENT_ROOT.'/fourn/class/fournisseur.commande.class.php';
 
 // Load translation files required by the page
 $langs->loadLangs(array("orders", 'sendings', 'deliveries', 'companies', 'compta', 'bills', 'stocks', 'products'));
@@ -70,6 +71,7 @@ $search_datedelivery_start = dol_mktime(0, 0, 0, GETPOST('search_datedelivery_st
 $search_datedelivery_end = dol_mktime(23, 59, 59, GETPOST('search_datedelivery_end_month', 'int'), GETPOST('search_datedelivery_end_day', 'int'), GETPOST('search_datedelivery_end_year', 'int'));
 $search_product_category = GETPOST('search_product_category', 'int');
 $search_ref = GETPOST('search_ref', 'alpha') != '' ?GETPOST('search_ref', 'alpha') : GETPOST('sref', 'alpha');
+$search_supplierorder = GETPOST('search_supplierorder', 'alpha');
 $search_ref_customer = GETPOST('search_ref_customer', 'alpha');
 $search_company = GETPOST('search_company', 'alpha');
 $search_company_alias = GETPOST('search_company_alias', 'alpha');
@@ -139,6 +141,7 @@ $show_shippable_command = GETPOST('show_shippable_command', 'aZ09');
 $object = new Commande($db);
 $hookmanager->initHooks(array('orderlist'));
 $extrafields = new ExtraFields($db);
+$supplierorder = new CommandeFournisseur($db);
 
 // fetch optionals attributes and labels
 $extrafields->fetch_name_optionals_label($object->table_element);
@@ -147,6 +150,7 @@ $search_array_options = $extrafields->getOptionalsFromPost($object->table_elemen
 // List of fields to search into when doing a "search in all"
 $fieldstosearchall = array(
 	'c.ref'=>'Ref',
+	'cf.ref'=>'SupplierOrder',
 	'c.ref_client'=>'RefCustomerOrder',
 	'pd.description'=>'Description',
 	's.nom'=>"ThirdParty",
@@ -163,6 +167,7 @@ $checkedtypetiers = 0;
 $arrayfields = array(
 	'ec.fk_socpeople'=>array('label'=>"BySalesRepresentative", 'checked'=>1, 'position'=>1),
 	'c.ref'=>array('label'=>"Ref", 'checked'=>1, 'position'=>5),
+	'cf.ref'=>array('label'=>"SupplierOrder", 'checked'=>1, 'position'=>6),
 	'c.ref_client'=>array('label'=>"RefCustomerOrder", 'checked'=>-1, 'position'=>10),
 	'p.ref'=>array('label'=>"ProjectRef", 'checked'=>-1, 'enabled'=>(empty($conf->projet->enabled) ? 0 : 1), 'position'=>20),
 	'p.title'=>array('label'=>"ProjectLabel", 'checked'=>0, 'enabled'=>(empty($conf->projet->enabled) ? 0 : 1), 'position'=>25),
@@ -233,6 +238,7 @@ if (empty($reshook)) {
 		$search_sale = '';
 		$search_product_category = '';
 		$search_ref = '';
+		$search_supplierorder = "";
 		$search_ref_customer = '';
 		$search_company = '';
 		$search_company_alias = '';
@@ -423,6 +429,7 @@ $sql .= " typent.code as typent_code,";
 $sql .= " state.code_departement as state_code, state.nom as state_name,";
 $sql .= " country.code as country_code,";
 $sql .= ' c.rowid, c.ref, c.total_ht, c.total_tva, c.total_ttc, c.ref_client, c.fk_user_author,';
+$sql .= " cf.rowid as orderid, cf.ref as supplierorder,";
 $sql .= ' c.fk_multicurrency, c.multicurrency_code, c.multicurrency_tx, c.multicurrency_total_ht, c.multicurrency_total_tva as multicurrency_total_vat, c.multicurrency_total_ttc,';
 $sql .= ' c.date_valid, c.date_commande, c.note_public, c.note_private, c.date_livraison as date_delivery, c.fk_statut, c.facture as billed,';
 $sql .= ' c.date_creation as date_creation, c.tms as date_update, c.date_cloture as date_cloture,';
@@ -464,6 +471,13 @@ if ($search_product_category > 0) {
 $sql .= " LEFT JOIN ".MAIN_DB_PREFIX."projet as p ON p.rowid = c.fk_projet";
 $sql .= ' LEFT JOIN '.MAIN_DB_PREFIX.'user as u ON c.fk_user_author = u.rowid';
 
+$sql .= ' LEFT JOIN (';
+$sql .= " SELECT ee1.fk_source as fk_source, ee1.fk_target as fk_target FROM ".MAIN_DB_PREFIX."element_element as ee1 WHERE (ee1.sourcetype = 'order_supplier' AND ee1.targettype = 'commande')";
+$sql .= ' UNION ';
+$sql .= " SELECT ee2.fk_target as fk_source, ee2.fk_source as fk_target FROM ".MAIN_DB_PREFIX."element_element as ee2 WHERE (ee2.targettype = 'order_supplier' AND ee2.sourcetype = 'commande')";
+$sql .= ' ) as eecommande ON (c.rowid = eecommande.fk_target)';
+$sql .= " LEFT JOIN ".MAIN_DB_PREFIX."commande_fournisseur as cf on (cf.rowid = eecommande.fk_source)";
+
 // We'll need this table joined to the select in order to filter by sale
 if ($search_sale > 0 || (!$user->rights->societe->client->voir && !$socid)) {
 	$sql .= ", ".MAIN_DB_PREFIX."societe_commerciaux as sc";
@@ -493,6 +507,9 @@ if (!$user->rights->societe->client->voir && !$socid) {
 }
 if ($search_ref) {
 	$sql .= natural_search('c.ref', $search_ref);
+}
+if ($search_supplierorder) {
+	$sql .= natural_search('cf.ref', $search_refsupplier);
 }
 if ($search_ref_customer) {
 	$sql .= natural_search('c.ref_client', $search_ref_customer);
@@ -741,6 +758,9 @@ if ($resql) {
 	}
 	if ($search_ref) {
 		$param .= '&search_ref='.urlencode($search_ref);
+	}
+	if ($search_supplierorder) {
+		$param .= '&search_supplierorder='.urlencode($search_supplierorder);
 	}
 	if ($search_company) {
 		$param .= '&search_company='.urlencode($search_company);
@@ -1047,6 +1067,12 @@ if ($resql) {
 		print '<input class="flat" size="6" type="text" name="search_ref" value="'.dol_escape_htmltag($search_ref).'">';
 		print '</td>';
 	}
+	// Supplier Order
+	if (!empty($arrayfields['cf.ref']['checked'])) {
+		print '<td class="liste_titre">';
+		print '<input class="flat maxwidth50" type="text" name="search_supplierorder" value="'.$search_supplierorder.'">';
+		print '</td>';
+	}
 	// Ref customer
 	if (!empty($arrayfields['c.ref_client']['checked'])) {
 		print '<td class="liste_titre" align="left">';
@@ -1283,6 +1309,9 @@ if ($resql) {
 	if (!empty($arrayfields['c.ref']['checked'])) {
 		print_liste_field_titre($arrayfields['c.ref']['label'], $_SERVER["PHP_SELF"], 'c.ref', '', $param, '', $sortfield, $sortorder);
 	}
+	if (!empty($arrayfields['cf.ref']['checked'])) {
+		print_liste_field_titre($arrayfields['cf.ref']['label'], $_SERVER["PHP_SELF"], 'cf.ref', '', $param, '', $sortfield, $sortorder);
+	}
 	if (!empty($arrayfields['c.ref_client']['checked'])) {
 		print_liste_field_titre($arrayfields['c.ref_client']['label'], $_SERVER["PHP_SELF"], 'c.ref_client', '', $param, '', $sortfield, $sortorder);
 	}
@@ -1428,6 +1457,9 @@ if ($resql) {
 			$getNomUrl_cache[$obj->socid] = $companystatic->getNomUrl(1, 'customer');
 		}
 
+		$supplierorder->id = $obj->orderid;
+		$supplierorder->ref = $obj->supplierorder;
+
 		$generic_commande->id = $obj->rowid;
 		$generic_commande->ref = $obj->ref;
 		$generic_commande->statut = $obj->fk_statut;
@@ -1482,6 +1514,16 @@ if ($resql) {
 			}
 		}
 
+		// Ref Order
+		if (!empty($arrayfields['cf.ref']['checked'])) {
+			print "<td>";
+			print $supplierorder->id ? $supplierorder->getNomUrl(1) : '';
+			print "</td>\n";
+			if (!$i) {
+				$totalarray['nbfield']++;
+			}
+		}
+			
 		// Ref customer
 		if (!empty($arrayfields['c.ref_client']['checked'])) {
 			print '<td class="nowrap tdoverflowmax150">'.$obj->ref_client.'</td>';
