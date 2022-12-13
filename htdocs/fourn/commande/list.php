@@ -42,6 +42,7 @@ require_once DOL_DOCUMENT_ROOT.'/core/class/html.formother.class.php';
 require_once DOL_DOCUMENT_ROOT.'/core/class/html.formcompany.class.php';
 require_once DOL_DOCUMENT_ROOT.'/product/class/product.class.php';
 require_once DOL_DOCUMENT_ROOT.'/projet/class/project.class.php';
+require_once DOL_DOCUMENT_ROOT.'/commande/class/commande.class.php';
 
 $langs->loadLangs(array("orders", "sendings", 'deliveries', 'companies', 'compta', 'bills', 'projects', 'suppliers', 'products'));
 
@@ -63,6 +64,7 @@ $sall = trim((GETPOST('search_all', 'alphanohtml') != '') ?GETPOST('search_all',
 
 $search_product_category = GETPOST('search_product_category', 'int');
 $search_ref = GETPOST('search_ref', 'alpha');
+$search_reforder = GETPOST('search_reforder', 'alpha');
 $search_refsupp = GETPOST('search_refsupp', 'alpha');
 $search_company = GETPOST('search_company', 'alpha');
 $search_town = GETPOST('search_town', 'alpha');
@@ -155,6 +157,7 @@ if (empty($user->socid)) {
 $checkedtypetiers = 0;
 $arrayfields = array(
 	'cf.ref'=>array('label'=>"Ref", 'checked'=>1),
+	'c.ref'=>array('label'=>$langs->trans("Order"), 'checked'=>1),
 	'cf.ref_supplier'=>array('label'=>"RefOrderSupplierShort", 'checked'=>1, 'enabled'=>1),
 	'p.project_ref'=>array('label'=>"ProjectRef", 'checked'=>0, 'enabled'=>1),
 	'u.login'=>array('label'=>"AuthorRequest", 'checked'=>1),
@@ -216,6 +219,7 @@ if (empty($reshook)) {
 		$search_sale = '';
 		$search_product_category = '';
 		$search_ref = '';
+		$search_reforder = '';
 		$search_refsupp = '';
 		$search_company = '';
 		$search_town = '';
@@ -574,6 +578,7 @@ $formfile = new FormFile($db);
 $formorder = new FormOrder($db);
 $formother = new FormOther($db);
 $formcompany = new FormCompany($db);
+$order = new Commande($db);
 
 $title = $langs->trans("ListOfSupplierOrders");
 if ($socid > 0) {
@@ -606,6 +611,7 @@ $sql .= ' s.rowid as socid, s.nom as name, s.town, s.zip, s.fk_pays, s.client, s
 $sql .= " typent.code as typent_code,";
 $sql .= " state.code_departement as state_code, state.nom as state_name,";
 $sql .= " cf.rowid, cf.ref, cf.ref_supplier, cf.fk_statut, cf.billed, cf.total_ht, cf.total_tva, cf.total_ttc, cf.fk_user_author, cf.date_commande as date_commande, cf.date_livraison as date_livraison,";
+$sql .= " c.rowid as orderid, c.ref as reforder,";
 $sql .= ' cf.fk_multicurrency, cf.multicurrency_code, cf.multicurrency_tx, cf.multicurrency_total_ht, cf.multicurrency_total_tva, cf.multicurrency_total_ttc,';
 $sql .= ' cf.date_creation as date_creation, cf.tms as date_update,';
 $sql .= ' cf.note_public, cf.note_private,';
@@ -637,6 +643,12 @@ if ($search_product_category > 0) {
 }
 $sql .= " LEFT JOIN ".MAIN_DB_PREFIX."user as u ON cf.fk_user_author = u.rowid";
 $sql .= " LEFT JOIN ".MAIN_DB_PREFIX."projet as p ON p.rowid = cf.fk_projet";
+$sql .= ' LEFT JOIN (';
+$sql .= " SELECT ee1.fk_source as fk_source, ee1.fk_target as fk_target FROM ".MAIN_DB_PREFIX."element_element as ee1 WHERE (ee1.sourcetype = 'commande' AND ee1.targettype = 'order_supplier')";
+$sql .= ' UNION ';
+$sql .= " SELECT ee2.fk_target as fk_source, ee2.fk_source as fk_target FROM ".MAIN_DB_PREFIX."element_element as ee2 WHERE (ee2.targettype = 'commande' AND ee2.sourcetype = 'order_supplier')";
+$sql .= ' ) as eecommande ON (cf.rowid = eecommande.fk_target)';
+$sql .= " LEFT JOIN ".MAIN_DB_PREFIX."commande as c on (c.rowid = eecommande.fk_source)";
 // We'll need this table joined to the select in order to filter by sale
 if ($search_sale > 0 || (!$user->rights->societe->client->voir && !$socid)) {
 	$sql .= ", ".MAIN_DB_PREFIX."societe_commerciaux as sc";
@@ -654,6 +666,9 @@ if (!$user->rights->societe->client->voir && !$socid) {
 }
 if ($search_ref) {
 	$sql .= natural_search('cf.ref', $search_ref);
+}
+if ($search_reforder) {
+	$sql .= natural_search('c.ref', $search_reforder);
 }
 if ($search_refsupp) {
 	$sql .= natural_search("cf.ref_supplier", $search_refsupp);
@@ -813,6 +828,9 @@ if ($resql) {
 	}
 	if ($search_ref) {
 		$param .= '&search_ref='.urlencode($search_ref);
+	}
+	if ($search_reforder) {
+		$param .= '&search_reforder='.urlencode($search_reforder);
 	}
 	if ($search_company) {
 		$param .= '&search_company='.urlencode($search_company);
@@ -1029,6 +1047,12 @@ if ($resql) {
 	if (!empty($arrayfields['cf.ref']['checked'])) {
 		print '<td class="liste_titre"><input size="8" type="text" class="flat maxwidth75" name="search_ref" value="'.$search_ref.'"></td>';
 	}
+	// Ref Order
+	if (!empty($arrayfields['c.ref']['checked'])) {
+		print '<td class="liste_titre">';
+		print '<input class="flat maxwidth50imp" type="text" name="search_reforder" value="'.dol_escape_htmltag($search_reforder).'">';
+		print '</td>';
+	}
 	// Ref customer
 	if (!empty($arrayfields['cf.ref_supplier']['checked'])) {
 		print '<td class="liste_titre"><input type="text" class="flat maxwidth75" name="search_refsupp" value="'.$search_refsupp.'"></td>';
@@ -1183,6 +1207,9 @@ if ($resql) {
 	if (!empty($arrayfields['cf.ref']['checked'])) {
 		print_liste_field_titre($arrayfields['cf.ref']['label'], $_SERVER["PHP_SELF"], "cf.ref", "", $param, '', $sortfield, $sortorder);
 	}
+	if (!empty($arrayfields['c.ref']['checked'])) {
+		print_liste_field_titre($arrayfields['c.ref']['label'], $_SERVER["PHP_SELF"], 'c.ref', '', $param, '', $sortfield, $sortorder);
+	}
 	if (!empty($arrayfields['cf.ref_supplier']['checked'])) {
 		print_liste_field_titre($arrayfields['cf.ref_supplier']['label'], $_SERVER["PHP_SELF"], "cf.ref_supplier", "", $param, '', $sortfield, $sortorder, 'tdoverflowmax100imp ');
 	}
@@ -1288,6 +1315,8 @@ if ($resql) {
 
 		$objectstatic->id = $obj->rowid;
 		$objectstatic->ref = $obj->ref;
+		$order->id = $obj->orderid;
+		$order->ref = $obj->reforder;
 		$objectstatic->socid = $obj->socid;
 		$objectstatic->ref_supplier = $obj->ref_supplier;
 		$objectstatic->socid = $obj->socid;
@@ -1318,6 +1347,17 @@ if ($resql) {
 				$totalarray['nbfield']++;
 			}
 		}
+
+		// Ref Order
+		if (!empty($arrayfields['c.ref']['checked'])) {
+			print "<td>";
+			print $order->getNomUrl(1, 'commande');
+			print "</td>\n";
+			if (!$i) {
+				$totalarray['nbfield']++;
+			}
+		}
+
 		// Ref Supplier
 		if (!empty($arrayfields['cf.ref_supplier']['checked'])) {
 			print '<td>'.$obj->ref_supplier.'</td>'."\n";
