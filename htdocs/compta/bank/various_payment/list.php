@@ -540,6 +540,7 @@ if ($result) {
 
 
 	$totalarray = array();
+	$totalarray['nbfield'] = 1;
 	while ($i < min($num, $limit)) {
 		$obj = $db->fetch_object($result);
 
