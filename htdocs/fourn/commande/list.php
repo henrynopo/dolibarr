@@ -156,6 +156,7 @@ if (empty($user->socid)) {
 
 $checkedtypetiers = 0;
 $arrayfields = array(
+	'ec2.fk_socpeople'=>array('label'=>"ByPurchaseRepresentative", 'checked'=>1, 'position'=>1),
 	'cf.ref'=>array('label'=>"Ref", 'checked'=>1),
 	'c.ref'=>array('label'=>$langs->trans("Order"), 'checked'=>1),
 	'cf.ref_supplier'=>array('label'=>"RefOrderSupplierShort", 'checked'=>1, 'enabled'=>1),
@@ -616,6 +617,7 @@ $sql .= ' cf.fk_multicurrency, cf.multicurrency_code, cf.multicurrency_tx, cf.mu
 $sql .= ' cf.date_creation as date_creation, cf.tms as date_update,';
 $sql .= ' cf.note_public, cf.note_private,';
 $sql .= " p.rowid as project_id, p.ref as project_ref, p.title as project_title,";
+$sql .= ' ec2.fk_socpeople,';
 $sql .= " u.firstname, u.lastname, u.photo, u.login, u.email as user_email, u.statut as user_status";
 // Add fields from extrafields
 if (!empty($extrafields->attributes[$object->table_element]['label'])) {
@@ -643,6 +645,7 @@ if ($search_product_category > 0) {
 }
 $sql .= " LEFT JOIN ".MAIN_DB_PREFIX."user as u ON cf.fk_user_author = u.rowid";
 $sql .= " LEFT JOIN ".MAIN_DB_PREFIX."projet as p ON p.rowid = cf.fk_projet";
+$sql .= " LEFT JOIN (SELECT element_id, fk_socpeople FROM " . MAIN_DB_PREFIX . "element_contact AS ec11 LEFT JOIN " . MAIN_DB_PREFIX . "c_type_contact AS ctc ON ec11.fk_c_type_contact=ctc.rowid WHERE (ctc.element='order_supplier' AND ctc.source='internal' AND ctc.code='SALESREPFOLL')) AS ec2 ON cf.rowid=ec2.element_id";
 $sql .= ' LEFT JOIN (';
 $sql .= " SELECT ee1.fk_source as fk_source, ee1.fk_target as fk_target FROM ".MAIN_DB_PREFIX."element_element as ee1 WHERE (ee1.sourcetype = 'commande' AND ee1.targettype = 'order_supplier')";
 $sql .= ' UNION ';
@@ -1043,6 +1046,12 @@ if ($resql) {
 	print '<table class="tagtable liste'.($moreforfilter ? " listwithfilterbefore" : "").'">'."\n";
 
 	print '<tr class="liste_titre_filter">';
+	// Salesperson
+	if (!empty($arrayfields['ec2.fk_socpeople']['checked'])) {
+		print '<td class="liste_titre">';
+		print '&nbsp;';
+		print '</td>';
+	}
 	// Ref
 	if (!empty($arrayfields['cf.ref']['checked'])) {
 		print '<td class="liste_titre"><input size="8" type="text" class="flat maxwidth75" name="search_ref" value="'.$search_ref.'"></td>';
@@ -1204,6 +1213,9 @@ if ($resql) {
 
 	// Fields title
 	print '<tr class="liste_titre">';
+	if (!empty($arrayfields['ec2.fk_socpeople']['checked'])) {
+		print_liste_field_titre($arrayfields['ec2.fk_socpeople']['label'], $_SERVER["PHP_SELF"], 'ec2.fk_socpeople', '', $param, '', $sortfield, $sortorder);
+	}
 	if (!empty($arrayfields['cf.ref']['checked'])) {
 		print_liste_field_titre($arrayfields['cf.ref']['label'], $_SERVER["PHP_SELF"], "cf.ref", "", $param, '', $sortfield, $sortorder);
 	}
@@ -1299,6 +1311,7 @@ if ($resql) {
 	$userstatic = new User($db);
 	$objectstatic = new CommandeFournisseur($db);
 	$projectstatic = new Project($db);
+	$salespersonstatic = new User($db);
 
 	$i = 0;
 	$totalarray = array('nbfield' => 0, 'val' => array(), 'pos' => array());
@@ -1334,6 +1347,22 @@ if ($resql) {
 
 		print '<tr class="oddeven">';
 
+		// Salesperson
+		$salespersonstatic->id = $obj->fk_socpeople;
+		$salespersonstatic->fetch($salespersonstatic->id);
+		if (!empty($arrayfields['ec2.fk_socpeople']['checked'])) {
+			print '<td class="tdoverflowmax150">';
+			if ($salespersonstatic->id) {
+				print $salespersonstatic->getNomUrl(-1);
+			} else {
+				print '&nbsp;';
+			}
+			print "</td>\n";
+			if (!$i) {
+				$totalarray['nbfield']++;
+			}
+		}
+
 		// Ref
 		if (!empty($arrayfields['cf.ref']['checked'])) {
 			print '<td class="nowrap">';
@@ -1363,7 +1392,7 @@ if ($resql) {
 
 		// Ref Supplier
 		if (!empty($arrayfields['cf.ref_supplier']['checked'])) {
-			print '<td>'.$obj->ref_supplier.'</td>'."\n";
+			print '<td class="tdoverflowmax150">'.$obj->ref_supplier.'</td>'."\n";
 			if (!$i) {
 				$totalarray['nbfield']++;
 			}
