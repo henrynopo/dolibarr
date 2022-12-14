@@ -1341,6 +1341,7 @@ if ($resql) {
 	if ($num > 0) {
 		$i = 0;
 		$totalarray = array();
+		$totalarray['nbfield'] = 0;
 		while ($i < min($num, $limit)) {
 			$obj = $db->fetch_object($resql);
 
@@ -1373,13 +1374,13 @@ if ($resql) {
 			$paiement = $facturestatic->getSommePaiement();
 			$totalcreditnotes = $facturestatic->getSumCreditNotesUsed();
 			$totaldeposits = $facturestatic->getSumDepositsUsed();
-			$totalpay = $paiement + $totalcreditnotes + $totaldeposits;
-			$remaintopay = $obj->total_ttc - $totalpay;
+			$totalpay = $facturestatic->getSommePaiement();
+			$remaintopay = $facturestatic->getRemainToPay();
 			$multicurrency_paiement = $facturestatic->getSommePaiement(1);
 			$multicurrency_totalcreditnotes = $facturestatic->getSumCreditNotesUsed(1);
 			$multicurrency_totaldeposits = $facturestatic->getSumDepositsUsed(1);
-			$multicurrency_totalpay = $multicurrency_paiement + $multicurrency_totalcreditnotes + $multicurrency_totaldeposits;
-			$multicurrency_remaintopay = price2num($facturestatic->multicurrency_total_ttc - $multicurrency_totalpay);
+			$multicurrency_totalpay = $facturestatic->getSommePaiement(1);
+			$multicurrency_remaintopay = $facturestatic->getRemainToPay(1);
 
 			$facturestatic->alreadypaid = ($paiement ? $paiement : 0);
 			$facturestatic->paye = $obj->paye;
@@ -1572,14 +1573,14 @@ if ($resql) {
 
 			// Amount HT
 			if (!empty($arrayfields['f.total_ht']['checked'])) {
-				  print '<td class="right nowrap"><span class="amount">'.price($obj->total_ht)."</span></td>\n";
+				print '<td class="right nowrap"><span class="amount">'.price($obj->total_ht)."</span></td>\n";
 				if (!$i) {
 					$totalarray['nbfield']++;
 				}
 				if (!$i) {
 					$totalarray['pos'][$totalarray['nbfield']] = 'f.total_ht';
 				}
-				  $totalarray['val']['f.total_ht'] += $obj->total_ht;
+				$totalarray['val']['f.total_ht'] += $obj->total_ht;
 			}
 			// Amount VAT
 			if (!empty($arrayfields['f.total_vat']['checked'])) {
@@ -1678,7 +1679,13 @@ if ($resql) {
 
 			// Currency
 			if (!empty($arrayfields['f.multicurrency_code']['checked'])) {
-				  print '<td class="nowrap">'.$obj->multicurrency_code.' - '.$langs->trans('Currency'.$obj->multicurrency_code)."</td>\n";
+				print '<td class="nowraponall tdoverflowmax125" title="'.dol_escape_htmltag($obj->multicurrency_code.' - '.$langs->transnoentitiesnoconv('Currency'.$obj->multicurrency_code)).'">';
+				if (empty($conf->global->MAIN_SHOW_ONLY_CODE_MULTICURRENCY)) {
+					print $langs->transnoentitiesnoconv('Currency'.$obj->multicurrency_code);
+				} else {
+					print dol_escape_htmltag($obj->multicurrency_code);
+				}
+				print "</td>\n";
 				if (!$i) {
 					$totalarray['nbfield']++;
 				}
@@ -1699,6 +1706,10 @@ if ($resql) {
 				if (!$i) {
 					$totalarray['nbfield']++;
 				}
+				if (!$i) {
+					$totalarray['pos'][$totalarray['nbfield']] = 'f.multicurrency_total_ht';
+				}
+				$totalarray['val']['f.multicurrency_total_ht'] += $obj->multicurrency_total_ht;
 			}
 			// Amount VAT
 			if (!empty($arrayfields['f.multicurrency_total_vat']['checked'])) {
@@ -1706,6 +1717,10 @@ if ($resql) {
 				if (!$i) {
 					$totalarray['nbfield']++;
 				}
+				if (!$i) {
+					$totalarray['pos'][$totalarray['nbfield']] = 'f.multicurrency_total_vat';
+				}
+				$totalarray['val']['f.multicurrency_total_vat'] += $obj->multicurrency_total_vat;
 			}
 			// Amount TTC
 			if (!empty($arrayfields['f.multicurrency_total_ttc']['checked'])) {
@@ -1713,12 +1728,20 @@ if ($resql) {
 				if (!$i) {
 					$totalarray['nbfield']++;
 				}
+				if (!$i) {
+					$totalarray['pos'][$totalarray['nbfield']] = 'c.multicurrency_total_ttc';
+				}
+				$totalarray['val']['c.multicurrency_total_ttc'] += $obj->multicurrency_total_ttc;
 			}
 			if (!empty($arrayfields['multicurrency_dynamount_payed']['checked'])) {
 				print '<td class="right nowrap"><span class="amount">'.(!empty($multicurrency_totalpay) ?price($multicurrency_totalpay, 0, $langs) : '').'</span></td>'; // TODO Use a denormalized field
 				if (!$i) {
 					$totalarray['nbfield']++;
 				}
+				if (!$i) {
+					$totalarray['pos'][$totalarray['nbfield']] = 'multicurrency_dynamount_payed';
+				}
+				$totalarray['val']['multicurrency_dynamount_payed'] += $multicurrency_totalpay;
 			}
 
 			// Pending amount
@@ -1729,6 +1752,10 @@ if ($resql) {
 				if (!$i) {
 					$totalarray['nbfield']++;
 				}
+				if (!$i) {
+					$totalarray['pos'][$totalarray['nbfield']] = 'multicurrency_rtp';
+				}
+				$totalarray['val']['multicurrency_rtp'] += $multicurrency_remaintopay;
 			}
 
 

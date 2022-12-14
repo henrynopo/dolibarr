@@ -1323,6 +1323,9 @@ if ($resql) {
 		$objectstatic->total_ht = $obj->total_ht;
 		$objectstatic->total_tva = $obj->total_tva;
 		$objectstatic->total_ttc = $obj->total_ttc;
+		$objectstatic->multicurrency_total_ht = $obj->multicurrency_total_ht;
+		$objectstatic->multicurrency_total_tva = $obj->multicurrency_total_tva;
+		$objectstatic->multicurrency_total_ttc = $obj->multicurrency_total_ttc;
 		$objectstatic->date_commande = $db->jdate($obj->date_commande);
 		$objectstatic->delivery_date = $db->jdate($obj->date_livraison);
 		$objectstatic->note_public = $obj->note_public;
@@ -1494,7 +1497,7 @@ if ($resql) {
 			if (!$i) {
 				$totalarray['pos'][$totalarray['nbfield']] = 'cf.total_ht';
 			}
-			  $totalarray['val']['cf.total_ht'] += $obj->total_ht;
+			$totalarray['val']['cf.total_ht'] += $obj->total_ht;
 		}
 		// Amount VAT
 		if (!empty($arrayfields['cf.total_tva']['checked'])) {
@@ -1542,6 +1545,10 @@ if ($resql) {
 			if (!$i) {
 				$totalarray['nbfield']++;
 			}
+			if (!$i) {
+				$totalarray['pos'][$totalarray['nbfield']] = 'cf.multicurrency_total_ht';
+			}
+			$totalarray['val']['cf.multicurrency_total_ht'] += $obj->multicurrency_total_ht;
 		}
 		// Amount VAT
 		if (!empty($arrayfields['cf.multicurrency_total_tva']['checked'])) {
@@ -1549,6 +1556,10 @@ if ($resql) {
 			if (!$i) {
 				$totalarray['nbfield']++;
 			}
+			if (!$i) {
+				$totalarray['pos'][$totalarray['nbfield']] = 'cf.multicurrency_total_tva';
+			}
+			$totalarray['val']['cf.multicurrency_total_tva'] += $obj->multicurrency_total_tva;
 		}
 		// Amount TTC
 		if (!empty($arrayfields['cf.multicurrency_total_ttc']['checked'])) {
@@ -1556,6 +1567,10 @@ if ($resql) {
 			if (!$i) {
 				$totalarray['nbfield']++;
 			}
+			if (!$i) {
+				$totalarray['pos'][$totalarray['nbfield']] = 'cf.multicurrency_total_ttc';
+			}
+			$totalarray['val']['cf.multicurrency_total_ttc'] += $obj->multicurrency_total_ttc;
 		}
 
 		// Extra fields
@@ -1613,8 +1628,6 @@ if ($resql) {
 
 		print "</tr>\n";
 
-		$total += $obj->total_ht;
-		$subtotal += $obj->total_ht;
 		$i++;
 	}
 

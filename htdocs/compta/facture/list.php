@@ -149,8 +149,8 @@ if ($option == 'late') {
 $filtre = GETPOST('filtre', 'alpha');
 
 $limit = GETPOST('limit', 'int') ?GETPOST('limit', 'int') : $conf->liste_limit;
-$sortfield = GETPOST("sortfield", 'alpha');
-$sortorder = GETPOST("sortorder", 'alpha');
+$sortfield = GETPOST('sortfield', 'aZ09comma');
+$sortorder = GETPOST('sortorder', 'aZ09comma');
 $page = GETPOSTISSET('pageplusone') ? (GETPOST('pageplusone') - 1) : GETPOST("page", 'int');
 if (empty($page) || $page < 0 || GETPOST('button_search', 'alpha') || GETPOST('button_removefilter', 'alpha')) {
 	$page = 0;
@@ -181,6 +181,7 @@ $object = new Facture($db);
 $order = new Commande($db);
 
 $now = dol_now();
+$error = 0;
 
 // Initialize technical object to manage hooks of page. Note that conf->hooks_modules contains array of hook context
 $object = new Facture($db);
@@ -638,7 +639,7 @@ if ($search_montant_ttc != '') {
 	$sql .= natural_search('f.total_ttc', $search_montant_ttc, 1);
 }
 if ($search_multicurrency_code != '') {
-	$sql .= ' AND f.multicurrency_code = "'.$db->escape($search_multicurrency_code).'"';
+	$sql .= " AND f.multicurrency_code = '".$db->escape($search_multicurrency_code)."'";
 }
 if ($search_multicurrency_tx != '') {
 	$sql .= natural_search('f.multicurrency_tx', $search_multicurrency_tx, 1);
@@ -1547,11 +1548,12 @@ if ($resql) {
 	if ($num > 0) {
 		$i = 0;
 		$totalarray = array();
-		$totalarray['nbfield'] = 0;
+		$totalarray['nbfield'] = 1;
 		$totalarray['val'] = array();
 		$totalarray['val']['f.total_ht'] = 0;
 		$totalarray['val']['f.total_ttc'] = 0;
 		while ($i < min($num, $limit)) {
+			$total_ht = 0;
 			$obj = $db->fetch_object($resql);
 
 			$datelimit = $db->jdate($obj->datelimite);
@@ -1612,13 +1614,13 @@ if ($resql) {
 			$paiement = $facturestatic->getSommePaiement();
 			$totalcreditnotes = $facturestatic->getSumCreditNotesUsed();
 			$totaldeposits = $facturestatic->getSumDepositsUsed();
-			$totalpay = $paiement + $totalcreditnotes + $totaldeposits;
-			$remaintopay = price2num($facturestatic->total_ttc - $totalpay);
+			$totalpay = $facturestatic->getSommePaiement();
+			$remaintopay = $facturestatic->getRemainToPay();
 			$multicurrency_paiement = $facturestatic->getSommePaiement(1);
 			$multicurrency_totalcreditnotes = $facturestatic->getSumCreditNotesUsed(1);
 			$multicurrency_totaldeposits = $facturestatic->getSumDepositsUsed(1);
-			$multicurrency_totalpay = $multicurrency_paiement + $multicurrency_totalcreditnotes + $multicurrency_totaldeposits;
-			$multicurrency_remaintopay = price2num($facturestatic->multicurrency_total_ttc - $multicurrency_totalpay);
+			$multicurrency_totalpay = $facturestatic->getSommePaiement(1);
+			$multicurrency_remaintopay = $facturestatic->getRemainToPay(1);;
 
 			if ($facturestatic->statut == Facture::STATUS_CLOSED && $facturestatic->close_code == 'discount_vat') {		// If invoice closed with discount for anticipated payment
 				$remaintopay = 0;
@@ -1892,14 +1894,14 @@ if ($resql) {
 
 			// Amount HT
 			if (!empty($arrayfields['f.total_ht']['checked'])) {
-				  print '<td class="right nowraponall">'.price($obj->total_ht)."</td>\n";
+				print '<td class="right nowraponall">'.price($obj->total_ht)."</td>\n";
 				if (!$i) {
 					$totalarray['nbfield']++;
 				}
 				if (!$i) {
 					$totalarray['pos'][$totalarray['nbfield']] = 'f.total_ht';
 				}
-				  $totalarray['val']['f.total_ht'] += $obj->total_ht;
+				$totalarray['val']['f.total_ht'] += $obj->total_ht;
 			}
 			// Amount VAT
 			if (!empty($arrayfields['f.total_tva']['checked'])) {
@@ -1977,7 +1979,7 @@ if ($resql) {
 			if (!empty($arrayfields['f.retained_warranty']['checked'])) {
 				print '<td align="right">'.(!empty($obj->retained_warranty) ? price($obj->retained_warranty).'%' : '&nbsp;').'</td>';
 			}
-
+			// Amount Paid
 			if (!empty($arrayfields['dynamount_payed']['checked'])) {
 				print '<td class="right nowraponall amount">'.(!empty($totalpay) ? price($totalpay, 0, $langs) : '&nbsp;').'</td>'; // TODO Use a denormalized field
 				if (!$i) {
@@ -2006,7 +2008,13 @@ if ($resql) {
 
 			// Currency
 			if (!empty($arrayfields['f.multicurrency_code']['checked'])) {
-				print '<td class="nowraponall">'.dol_escape_htmltag($obj->multicurrency_code).' - '.$langs->trans('Currency'.$obj->multicurrency_code)."</td>\n";
+				print '<td class="nowraponall tdoverflowmax125" title="'.dol_escape_htmltag($obj->multicurrency_code.' - '.$langs->transnoentitiesnoconv('Currency'.$obj->multicurrency_code)).'">';
+				if (empty($conf->global->MAIN_SHOW_ONLY_CODE_MULTICURRENCY)) {
+					print $langs->transnoentitiesnoconv('Currency'.$obj->multicurrency_code);
+				} else {
+					print dol_escape_htmltag($obj->multicurrency_code);
+				}
+				print "</td>\n";
 				if (!$i) {
 					$totalarray['nbfield']++;
 				}
@@ -2027,6 +2035,10 @@ if ($resql) {
 				if (!$i) {
 					$totalarray['nbfield']++;
 				}
+				if (!$i) {
+					$totalarray['pos'][$totalarray['nbfield']] = 'f.multicurrency_total_ht';
+				}
+				$totalarray['val']['f.multicurrency_total_ht'] += $obj->multicurrency_total_ht;
 			}
 			// Amount VAT
 			if (!empty($arrayfields['f.multicurrency_total_vat']['checked'])) {
@@ -2034,6 +2046,10 @@ if ($resql) {
 				if (!$i) {
 					$totalarray['nbfield']++;
 				}
+				if (!$i) {
+					$totalarray['pos'][$totalarray['nbfield']] = 'f.multicurrency_total_vat';
+				}
+				$totalarray['val']['f.multicurrency_total_vat'] += $obj->multicurrency_total_vat;
 			}
 			// Amount TTC
 			if (!empty($arrayfields['f.multicurrency_total_ttc']['checked'])) {
@@ -2041,22 +2057,35 @@ if ($resql) {
 				if (!$i) {
 					$totalarray['nbfield']++;
 				}
+				if (!$i) {
+					$totalarray['pos'][$totalarray['nbfield']] = 'c.multicurrency_total_ttc';
+				}
+				$totalarray['val']['c.multicurrency_total_ttc'] += $obj->multicurrency_total_ttc;
 			}
+			// Amount Paid
 			if (!empty($arrayfields['multicurrency_dynamount_payed']['checked'])) {
-				print '<td class="right nowraponall amount">'.(!empty($multicurrency_totalpay) ?price($multicurrency_totalpay, 0, $langs) : '&nbsp;').'</td>'; // TODO Use a denormalized field
+				print '<td class="right nowraponall amount">'.(!empty($multicurrency_totalpay) ? price($multicurrency_totalpay, 0, $langs) : '&nbsp;').'</td>'; // TODO Use a denormalized field
 				if (!$i) {
 					$totalarray['nbfield']++;
 				}
+				if (!$i) {
+					$totalarray['pos'][$totalarray['nbfield']] = 'multicurrency_totalam';
+				}
+				$totalarray['val']['multicurrency_totalam'] += $multicurrency_totalpay;
 			}
 
 			// Pending amount
 			if (!empty($arrayfields['multicurrency_rtp']['checked'])) {
-				print '<td class="right nowraponall">';
+				print '<td class="right nowraponall amount">';
 				print (!empty($multicurrency_remaintopay) ? price($multicurrency_remaintopay, 0, $langs) : '&nbsp;');
 				print '</td>'; // TODO Use a denormalized field
 				if (!$i) {
 					$totalarray['nbfield']++;
 				}
+				if (!$i) {
+					$totalarray['pos'][$totalarray['nbfield']] = 'multicurrency_rtp';
+				}
+				$totalarray['val']['multicurrency_rtp'] += $multicurrency_remaintopay;
 			}
 
 			// Total buying or cost price
@@ -2084,7 +2113,7 @@ if ($resql) {
 					$totalarray['nbfield']++;
 				}
 			}
-			// total mark rate
+			// Total mark rate
 			if (!empty($arrayfields['total_mark_rate']['checked'])) {
 				print '<td class="right nowrap">'.(($marginInfo['total_mark_rate'] == '') ? '' : price($marginInfo['total_mark_rate'], null, null, null, null, 2).'%').'</td>';
 				if (!$i) {
@@ -2176,16 +2205,27 @@ if ($resql) {
 		include DOL_DOCUMENT_ROOT.'/core/tpl/list_print_total.tpl.php';
 	}
 
+		// If no record found
+	if ($num == 0) {
+		$colspan = 1;
+		foreach ($arrayfields as $key => $val) {
+			if (!empty($val['checked'])) {
+				$colspan++;
+			}
+		}
+		print '<tr><td colspan="'.$colspan.'"><span class="opacitymedium">'.$langs->trans("NoRecordFound").'</span></td></tr>';
+	}
+
 	$db->free($resql);
 
 	$parameters = array('arrayfields'=>$arrayfields, 'sql'=>$sql);
 	$reshook = $hookmanager->executeHooks('printFieldListFooter', $parameters); // Note that $action and $object may have been modified by hook
 	print $hookmanager->resPrint;
 
-	print "</table>\n";
-	print '</div>';
+	print '</table>'."\n";
+	print '</div>'."\n";
 
-	print "</form>\n";
+	print '</form>'."\n";
 
 	// Show the file area only when this page is not opend from the Extended POS
 	if ($contextpage != 'poslist') {

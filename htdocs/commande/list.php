@@ -1471,6 +1471,9 @@ if ($resql) {
 		$generic_commande->total_ht = $obj->total_ht;
 		$generic_commande->total_tva = $obj->total_tva;
 		$generic_commande->total_ttc = $obj->total_ttc;
+		$generic_commande->multicurrency_total_ht = $obj->multicurrency_total_ht;
+		$generic_commande->multicurrency_total_tva = $obj->multicurrency_total_tva;
+		$generic_commande->multicurrency_total_ttc = $obj->multicurrency_total_ttc;
 		$generic_commande->note_public = $obj->note_public;
 		$generic_commande->note_private = $obj->note_private;
 
@@ -1747,12 +1750,24 @@ if ($resql) {
 			if (!$i) {
 				$totalarray['nbfield']++;
 			}
+			if (!$i) {
+				$totalarray['pos'][$totalarray['nbfield']] = 'c.multicurrency_total_ht';
+			}
+			if (isset($totalarray['val']['c.multicurrency_total_ht'])) {
+				$totalarray['val']['c.multicurrency_total_ht'] += $obj->multicurrency_total_ht;
+			} else {
+				$totalarray['val']['c.multicurrency_total_ht'] = $obj->multicurrency_total_ht;
+			}
 		}
 		// Amount VAT
 		if (!empty($arrayfields['c.multicurrency_total_vat']['checked'])) {
 			print '<td class="right nowrap"><span class="amount">'.price($obj->multicurrency_total_vat)."</span></td>\n";
 			if (!$i) {
 				$totalarray['nbfield']++;
+				if (!$i) {
+					$totalarray['pos'][$totalarray['nbfield']] = 'c.multicurrency_total_tva';
+				}
+				$totalarray['val']['c.multicurrency_total_tva'] += $obj->multicurrency_total_tva;
 			}
 		}
 		// Amount TTC
@@ -1761,6 +1776,10 @@ if ($resql) {
 			if (!$i) {
 				$totalarray['nbfield']++;
 			}
+			if (!$i) {
+				$totalarray['pos'][$totalarray['nbfield']] = 'c.multicurrency_total_ttc';
+			}
+			$totalarray['val']['c.multicurrency_total_ttc'] += $obj->multicurrency_total_ttc;
 		}
 
 		$userstatic->id = $obj->fk_user_author;
@@ -1980,8 +1999,6 @@ if ($resql) {
 
 		print "</tr>\n";
 
-		$total += $obj->total_ht;
-		$subtotal += $obj->total_ht;
 		$i++;
 	}
 
