@@ -1483,7 +1483,8 @@ if ($resql) {
 
 		print '<tr class="oddeven">';
 		// Salesperson
-		$salespersonstatic->fetch($obj->fk_socpeople);
+		$salespersonstatic->id = $obj->fk_socpeople;
+		$salespersonstatic->fetch($salespersonstatic->id);
 		if (!empty($arrayfields['ec.fk_socpeople']['checked'])) {
 			print '<td class="tdoverflowmax150">';
 			if ($salespersonstatic->id) {
