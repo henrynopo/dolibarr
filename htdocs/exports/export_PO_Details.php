@@ -15,7 +15,7 @@ function filterData(&$str){
 $fileName = "SLY_PO_Details.xls"; 
 
 // Column names 
-$fields = array('SO No', 'PO No', 'Ref Supplier', 'Supplier', 'Date of Order', 'Status', 'Billed?', 'Payment Term', 'Incoterm', 'POA', 'Currency', 'Total','Note_Private', 'Note_Public', 'Product', 'Description', 'Qty', 'Unit', 'Price', 'Sub Total'); 
+$fields = array('Purchase Person', 'SO No', 'Supplier_No', 'Supplier', 'Date of Order', 'Status', 'Billed?', 'Payment Term', 'Incoterm', 'POA', 'Currency', 'Total','Note_Private', 'Note_Public', 'Product', 'Description', 'Qty', 'Unit', 'Price', 'Sub Total'); 
  
 // Display column names as first row 
 $excelData = implode("\t", array_values($fields)) . "\n"; 
@@ -25,7 +25,7 @@ $query = $db->query("SELECT * FROM view_PO AS PO LEFT JOIN view_PO_details AS d 
 if($query->num_rows > 0){ 
     // Output each row of the data 
     while($row = $query->fetch_assoc()){ 
-        $lineData = array($row['SO_No'], $row['PO_No'], $row['Ref_Supplier'],  $row['Supplier'], $row['Date_Order'], $row['fk_statut'], $row['Billed'], $row['Payment_Term'], $row['Incoterm'], $row['Port_Arrival'], $row['Currency'], $row['Total'], $row['Note_Private'], $row['Note_Public'], $row['Product'], $row['description'], $row['Qty'], $row['Unit'], $row['Price'], $row['SubTotal']); 
+        $lineData = array($row['SalesPerson'], $row['SO_No'], $row['Supplier_No'], $row['Supplier'], $row['Date_Order'], $row['fk_statut'], $row['Billed'], $row['Payment_Term'], $row['Incoterm'], $row['Port_Arrival'], $row['Currency'], $row['Total'], $row['Note_Private'], $row['Note_Public'], $row['Product'], $row['description'], $row['Qty'], $row['Unit'], $row['Price'], $row['SubTotal']); 
         array_walk($lineData, 'filterData'); 
         $excelData .= implode("\t", array_values($lineData)) . "\n"; 
     } 

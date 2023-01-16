@@ -12,20 +12,26 @@ function filterData(&$str){
 } 
 
 // Excel file name for download 
-$fileName = "SLY_SO_Details.xls"; 
+$fileName = "SLY_SO_Inv_to_Receive.xls"; 
 
 // Column names 
-$fields = array('Salesperson', 'SO No', 'Supplier No', 'Customer', 'Cust_Contact', 'Bill_To', 'Date of Order', 'Status', 'Billed?', 'Shipment Schedule', 'Payment Term', 'Incoterm', 'POA', 'Consignee Appointed by', 'Currency', 'Total', 'Note_Private', 'Note_Public', 'Product', 'Description', 'Qty', 'Unit', 'Price', 'Sub Total'); 
+$fields = array('Salesperson', 'SO No', 'Inv No', 'Invoice Date', 'ATA', 'Customer', 'Bill To', 'Currency', 'Latest Payment', 'Pending Amount', 'Fee'); 
  
 // Display column names as first row 
 $excelData = implode("\t", array_values($fields)) . "\n"; 
- 
+
 // Fetch records from database 
-$query = $db->query("SELECT * FROM view_SO AS SO LEFT JOIN view_SO_details AS d ON SO.SO_ID = d.SO_ID ORDER BY SO.SO_ID DESC LIMIT 1000"); 
+$sql = "SELECT view_SO.SalesPerson,";
+$sql .= " view_SO_Inv_to_receive.SO_No, view_SO_Inv_to_receive.Inv_No, view_SO_Inv_to_receive.Date_Inv, view_SO_Inv_to_receive.ATA, view_SO_Inv_to_receive.Customer, view_SO_Inv_to_receive.Billing_Company, view_SO_Inv_to_receive.currency, view_SO_Inv_to_receive.Date_Payment_Latest, view_SO_Inv_to_receive.Pending_Payment, view_SO_Inv_to_receive.Fees_or_Loss";
+$sql .= " FROM view_SO_Inv_to_receive";
+$sql .= " LEFT JOIN view_SO ON view_SO_Inv_to_receive.SO_No = view_SO.SO_No";
+
+$query = $db->query($sql); 
+
 if($query->num_rows > 0){ 
     // Output each row of the data 
     while($row = $query->fetch_assoc()){ 
-        $lineData = array($row['SalesPerson'], $row['SO_No'], $row['Supplier_No'], $row['Customer'], $row['Cust_Contact'], $row['Bill_To'], $row['Date_Order'], $row['fk_statut'], $row['Billed'], $row['Shipment_Schedule'], $row['Payment_Term'], $row['Incoterm'], $row['Port_Arrival'], $row['Consignee_Appointed_By'], $row['Currency'], $row['Total'], $row['Note_Private'], $row['Note_Public'], $row['Product'], $row['description'], $row['Qty'], $row['Unit'], $row['Price'], $row['SubTotal']); 
+        $lineData = array($row['SalesPerson'], $row['SO_No'], $row['Inv_No'],  $row['Date_Inv'], $row['ATA'], $row['Customer'], $row['Billing_Company'], $row['Currency'], $row['Date_Payment_Latest'], $row['Pending_Payment'], $row['Fees_or_loss']); 
         array_walk($lineData, 'filterData'); 
         $excelData .= implode("\t", array_values($lineData)) . "\n"; 
     } 
