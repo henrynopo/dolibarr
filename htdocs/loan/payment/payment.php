@@ -365,7 +365,7 @@ if ($action == 'create') {
 	}
 		print '<br>';
 	if ($sumpaid < $loan->capital) {
-		print $langs->trans("Interest").': <input type="text" size="8" name="amount_interest" value="'.(GETPOSTISSET('amount_interest') ?GETPOST('amount_interest') : $amount_interest).'" '.(!empty($line) ? 'disabled title="'.$langs->trans('CantModifyInterestIfScheduleIsUsed').'"' : '').'>';
+		print $langs->trans("Interest").': <input type="text" size="8" name="amount_interest" value="'.(GETPOSTISSET('amount_interest') ?GETPOST('amount_interest') : $amount_interest).'">';
 	} else {
 		print '-';
 	}
