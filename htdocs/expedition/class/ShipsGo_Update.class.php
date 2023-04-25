@@ -34,7 +34,6 @@ class ShipmentStatus
 	{
 		global $conf;
 
-		@ini_set('max_execution_time', '300');	//extend PHP maximum execution time to 300s (5min)
 		$time = dol_now();
 
 		$sql = 'SELECT a.rowid, a.tracking_number FROM '.MAIN_DB_PREFIX.'expedition AS a';
@@ -45,30 +44,26 @@ class ShipmentStatus
 		$sql .= ' AND ('.$time.' - unix_timestamp(b.updatedtime) > 86300)';
 
 		$resql = $this->db->query($sql);
-
+		$count = 0;
+		$error = 0;
+		
 		if ($resql) {
 			$num = $this->db->num_rows($resql);
-			$num = $num > $nbtoupdate ? $nbtoupdate : $num;
-			$i = 0; 
-			$count = 0;
+			$nbtoupdate = $num < $nbtoupdate ? $num : $nbtoupdate;
+			$i = 0;
 
-			while($i < $num) {
-				$line = $this->db->fetch_object($resql);
-				$this->db->begin();
+			$shipsGotmp = new ShipsGo_API($conf->global->API_KEY_SHIPSGO);
 
-				$shipsGotmp = new ShipsGo_API($conf->global->API_KEY_SHIPSGO);
+			set_time_limit(60);
+
+			while($i++ < $nbtoupdate) {
+				set_time_limit(2);
 				
+				$line = $this->db->fetch_object($resql);
 				$ship_status = $shipsGotmp->GetContainerInfo($line->tracking_number);
 				if (!empty($ship_status['Message'])) {
-					$updatesql = "UPDATE ".MAIN_DB_PREFIX."expedition_extrafields SET";
-					$updatesql .= " sailingstatusid = 0";
-					$updatesql .= " WHERE fk_object = ".$line->rowid;
-					if ($this->db->query($updatesql)) {
-						$this->db->commit();
-						$count++;
-					} else {
-						$this->db->rollback();
-					}
+					$error++;
+					continue;
 				} elseif ($ship_status[0]['Message'] == 'Success') {
 					$updatesql = "UPDATE ".MAIN_DB_PREFIX."expedition_extrafields SET";
 					$updatesql .= " sailingstatusid = ".$ship_status[0]['SailingStatusId'];
@@ -83,17 +78,23 @@ class ShipmentStatus
 					$updatesql .= ", livemapurl = '".$ship_status[0]['LiveMapUrl']."'";
 					$updatesql .= ", updatedtime = '".date('Y-m-d H:i:s', dol_now())."'";
 					$updatesql .= " WHERE fk_object = ".$line->rowid;
-					if ($this->db->query($updatesql)) {
+
+					$this->db->begin();
+					$result = $this->db->query($updatesql);
+					if ($result) {
 						$this->db->commit();
 						$count++;
 					} else {
 						$this->db->rollback();
+						$error++;
 					}
+				} else {
+					$error++;
+					continue;
 				}
-				$i++;
 			}
 		}
-		$this->output = "Updated ".$count." shipments.";
+		$this->output = "Updated: ".$count." shipments. Errors: ".$error.".";
 		return 0; // This function can be called by cron so must return 0 if OK
 	}
 }
