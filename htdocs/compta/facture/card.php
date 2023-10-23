@@ -4661,11 +4661,6 @@ if ($action == 'create') {
 	print '<!-- amounts -->'."\n";
 	print '<table class="border bordertop tableforfield centpercent">';
 
-	$sign = 1;
-	if (!empty($conf->global->INVOICE_POSITIVE_CREDIT_NOTE_SCREEN) && $object->type == $object::TYPE_CREDIT_NOTE) {
-		$sign = -1; // We invert sign for output
-	}
-
 	if (!empty($conf->multicurrency->enabled) && ($object->multicurrency_code != $conf->currency)) {
 		// Multicurrency Amount HT
 		print '<tr><td class="titlefieldmiddle">'.$form->editfieldkey('MulticurrencyAmountHT', 'multicurrency_total_ht', '', $object, 0).'</td>';
