@@ -36,12 +36,11 @@ class ShipmentStatus
 
 		$time = dol_now();
 
-		$sql = 'SELECT a.rowid, a.tracking_number FROM '.MAIN_DB_PREFIX.'expedition AS a';
-		$sql .= ' INNER JOIN '.MAIN_DB_PREFIX.'expedition_extrafields AS b';
+		$sql = 'SELECT a.rowid, a.tracking_number FROM '.MAIN_DB_PREFIX.'expedition_extrafields AS b';
+		$sql .= ' INNER JOIN '.MAIN_DB_PREFIX.'expedition AS a';
 		$sql .= ' ON b.fk_object = a.rowid';
-		$sql .= ' WHERE b.updatedtime IS NOT NULL';
+		$sql .= ' WHERE ((b.updatedtime IS NOT NULL) AND ('.$time.' - unix_timestamp(b.updatedtime) > 86300))';
 		$sql .= ' AND ((b.SailingStatusID <> 3 AND b.SailingStatusID <> 4) OR b.SailingStatusID IS NULL)';
-		$sql .= ' AND ('.$time.' - unix_timestamp(b.updatedtime) > 86300)';
 
 		$resql = $this->db->query($sql);
 		$count = 0;
@@ -54,7 +53,7 @@ class ShipmentStatus
 
 			$shipsGotmp = new ShipsGo_API($conf->global->API_KEY_SHIPSGO);
 
-			set_time_limit(60);
+			set_time_limit(300);
 
 			while($i++ < $nbtoupdate) {
 				set_time_limit(2);
