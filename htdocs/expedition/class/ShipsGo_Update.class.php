@@ -53,11 +53,7 @@ class ShipmentStatus
 
 			$shipsGotmp = new ShipsGo_API($conf->global->API_KEY_SHIPSGO);
 
-			set_time_limit(300);
-
-			while($i++ < $nbtoupdate) {
-				set_time_limit(2);
-				
+			while($i++ < $nbtoupdate) {	
 				$line = $this->db->fetch_object($resql);
 				$ship_status = $shipsGotmp->GetContainerInfo($line->tracking_number);
 				if (!empty($ship_status['Message'])) {
