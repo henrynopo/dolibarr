@@ -39,8 +39,9 @@ class ShipmentStatus
 		$sql = 'SELECT a.rowid, a.tracking_number FROM '.MAIN_DB_PREFIX.'expedition_extrafields AS b';
 		$sql .= ' INNER JOIN '.MAIN_DB_PREFIX.'expedition AS a';
 		$sql .= ' ON b.fk_object = a.rowid';
-		$sql .= ' WHERE ((b.updatedtime IS NOT NULL) AND ('.$time.' - unix_timestamp(b.updatedtime) > 86300))';
+		$sql .= ' WHERE (('.$time.' - unix_timestamp(b.updatedtime) > 172800))';
 		$sql .= ' AND ((b.SailingStatusID <> 3 AND b.SailingStatusID <> 4) OR b.SailingStatusID IS NULL)';
+		$sql .= ' ORDER BY b.ata, b.updatedtime ASC';
 
 		$resql = $this->db->query($sql);
 		$count = 0;
