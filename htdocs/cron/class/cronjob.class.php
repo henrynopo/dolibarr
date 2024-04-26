@@ -1121,7 +1121,7 @@ class Cronjob extends CommonObject
 		$this->datelastresult = null;
 		$this->lastoutput = '';
 		$this->lastresult = '';
-		$this->processing = 1; // To know job was started
+		$this->processing = 0; // To know job was started (changed from 1 to 0, for SLY updateshipment due to numerous erros)
 		$this->nbrun = $this->nbrun + 1;
 		$result = $this->update($user); // This include begin/commit
 		if ($result < 0) {
