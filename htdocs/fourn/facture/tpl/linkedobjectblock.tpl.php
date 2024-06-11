@@ -57,18 +57,24 @@ foreach ($linkedObjectBlock as $key => $objectlink) {
 			}
 			if ($objectlink->statut != 3) {
 				// If not abandonned
-				$total = $total + $sign * $objectlink->total_ht;
-				echo price($objectlink->total_ht);
+				if (!empty($conf->multicurrency->enabled) && !empty($objectlink->multicurrency_code) && ($conf->currency!=$objectlink->multicurrency_code)) {
+					$multicurrency_total += $objectlink->multicurrency_total_ht;
+					echo $objectlink->multicurrency_code.' '.price($objectlink->multicurrency_total_ht).'<br>';
+				}
+				$total += $sign * $objectlink->total_ht;
+				echo $conf->currency.' '.price($objectlink->total_ht);
 			} else {
-				echo '<strike>'.price($objectlink->total_ht).'</strike>';
+				echo '<strike>'.((!empty($conf->multicurrency->enabled) && !empty($objectlink->multicurrency_code) && ($conf->currency!=$objectlink->multicurrency_code)) ? $objectlink->multicurrency_code.' '.price($objectlink->multicurrency_total_ht).'<br>'.$conf->currency.' '.price($objectlink->total_ht) : $conf->currency.' '.price($objectlink->total_ht)).'</strike>';
 			}
-		} ?></td>
-		<td class="right"><?php
+			?></td>
+			<td class="right"><?php
+		}
 		if (method_exists($objectlink, 'getSommePaiement')) {
 			echo $objectlink->getLibStatut(3, $objectlink->getSommePaiement());
 		} else {
 			echo $objectlink->getLibStatut(3);
-		} ?></td>
+		}
+		?></td>
 		<td class="right"><a class="reposition" href="<?php echo $_SERVER["PHP_SELF"].'?id='.urlencode($object->id).'&action=dellink&token='.newToken().'&dellinkid='.urlencode($key); ?>"><?php echo img_picto($langs->transnoentitiesnoconv("RemoveLink"), 'unlink'); ?></a></td>
 	</tr>
 	<?php
@@ -80,7 +86,11 @@ if (count($linkedObjectBlock) > 1) {
 		<td></td>
 		<td class="center"></td>
 		<td class="center"></td>
-		<td class="right"><?php echo price($total); ?></td>
+		<td class="right"><?php
+		if (!empty($conf->multicurrency->enabled)) {
+			echo $objectlink->multicurrency_code.' '.price($multicurrency_total).'<br>';
+		}
+		echo $conf->currency.' '.price($total); ?></td>
 		<td class="right"></td>
 		<td class="right"></td>
 	</tr>

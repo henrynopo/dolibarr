@@ -36,6 +36,9 @@ $langs->load("bills");
 $linkedObjectBlock = dol_sort_array($linkedObjectBlock, 'date', 'desc', 0, 0, 1);
 
 $total = 0;
+if (!empty($conf->multicurrency->enabled)) {
+	$multicurrency_total = 0;
+}
 $ilink = 0;
 foreach ($linkedObjectBlock as $key => $objectlink) {
 	$ilink++;
@@ -75,12 +78,20 @@ foreach ($linkedObjectBlock as $key => $objectlink) {
 	print '<td class="linkedcol-date center">'.dol_print_date($objectlink->date, 'day').'</td>';
 	print '<td class="linkedcol-amount right nowraponall">';
 	if (!empty($objectlink) && $objectlink->element == 'facture' && $user->hasRight('facture', 'lire')) {
+		$sign = 1;
+		if ($object->type == Facture::TYPE_CREDIT_NOTE) {
+			$sign = -1;
+		}
 		if ($objectlink->statut != 3) {
 			// If not abandonned
-			$total += $objectlink->total_ht;
-			echo price($objectlink->total_ht);
+			if (!empty($conf->multicurrency->enabled) && !empty($objectlink->multicurrency_code) && ($conf->currency!=$objectlink->multicurrency_code)) {
+				$multicurrency_total += $sign * $objectlink->multicurrency_total_ht;
+				echo $objectlink->multicurrency_code.' '.price($objectlink->multicurrency_total_ht).'<br>';
+			}
+			$total += $sign * $objectlink->total_ht;
+			echo $conf->currency.' '.price($objectlink->total_ht);
 		} else {
-			echo '<strike>'.price($objectlink->total_ht).'</strike>';
+			echo '<strike>'.((!empty($conf->multicurrency->enabled) && !empty($objectlink->multicurrency_code) && ($conf->currency!=$objectlink->multicurrency_code)) ? $objectlink->multicurrency_code.' '.price($objectlink->multicurrency_total_ht).'<br>'.$conf->currency.' '.price($objectlink->total_ht) : $conf->currency.' '.price($objectlink->total_ht)).'</strike>';
 		}
 	}
 
@@ -101,7 +112,11 @@ if (count($linkedObjectBlock) > 1) {
 	print '<td></td>';
 	print '<td class="center"></td>';
 	print '<td class="center"></td>';
-	print '<td class="right">'.price($total).'</td>';
+	echo '<td class="right">';
+	if (!empty($conf->multicurrency->enabled)) {
+		echo price($multicurrency_total).'<br>';
+	}
+	echo $conf->currency.' '.price($total).'</td>';
 	print '<td class="right"></td>';
 	print '<td class="right"></td>';
 	print '</tr>';
