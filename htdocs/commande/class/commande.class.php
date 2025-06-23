@@ -1796,7 +1796,7 @@ class Commande extends CommonOrder
 		$sql .= ", c.module_source, c.pos_source";
 		$sql .= ", i.libelle as label_incoterms";
 		$sql .= ', p.code as mode_reglement_code, p.libelle as mode_reglement_libelle';
-		$sql .= ', cr.code as cond_reglement_code, cr.libelle as cond_reglement_libelle, cr.libelle_facture as cond_reglement_libelle_doc';
+		$sql .= ', cr.code as cond_reglement_code, cr.libelle as cond_reglement_libelle, cr.libelle_facture as cond_reglement_libelle_doc, cr.deposit_percent as cond_reglement_deposit_percent';
 		$sql .= ', ca.code as availability_code, ca.label as availability_label';
 		$sql .= ', dr.code as demand_reason_code';
 		$sql .= ' FROM '.MAIN_DB_PREFIX.'commande as c';
@@ -1875,6 +1875,7 @@ class Commande extends CommonOrder
 				$this->cond_reglement_code	= $obj->cond_reglement_code;
 				$this->cond_reglement		= $obj->cond_reglement_libelle;
 				$this->cond_reglement_doc = $obj->cond_reglement_libelle_doc;
+				$this->cond_reglement_deposit_percent = $obj->cond_reglement_deposit_percent;
 				$this->fk_account = $obj->fk_account;
 				$this->availability_id = $obj->fk_availability;
 				$this->availability_code	= $obj->availability_code;

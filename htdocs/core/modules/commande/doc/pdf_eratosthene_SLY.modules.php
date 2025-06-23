@@ -439,10 +439,16 @@ class pdf_eratosthene_SLY extends ModelePDFCommandes
 				if ($usecontact_shipping && $usecontact_billing && $consigneeshipping == $consigneebilling) {
 					$carac_consignee_name = $outputlangs->trans('consignee').' : '.pdfBuildThirdpartyName($consigneeshipping, $outputlangs);
 					$notetoshow = dol_concatdesc($notetoshow, $carac_consignee_name);
+
+					$carac_consignee = pdf_build_address($outputlangs, $this->emetteur, $consigneeshipping, ($usecontact_shipping ? $object->contact : ''), $usecontact_shipping, 'target', $object);
+					$notetoshow = dol_concatdesc($notetoshow, $carac_consignee);
 				} else {
 					if ($usecontact_shipping) {
 						$carac_consigneeshipping_name = $outputlangs->trans('consigneeshipping').' : '.pdfBuildThirdpartyName($consigneeshipping, $outputlangs);
 						$notetoshow = dol_concatdesc($notetoshow, $carac_consigneeshipping_name);
+
+						$carac_consigneeshipping = pdf_build_address($outputlangs, $this->emetteur, $consigneeshipping, ($usecontact_shipping ? $object->contact : ''), $usecontact_shipping, 'target', $object);
+						$notetoshow = dol_concatdesc($notetoshow, $carac_consigneeshipping);
 					}
 					if ($usecontact_billing) {
 						$carac_consigneebilling_name = $outputlangs->trans('consigneebilling').' : '.pdfBuildThirdpartyName($consigneebilling, $outputlangs);
