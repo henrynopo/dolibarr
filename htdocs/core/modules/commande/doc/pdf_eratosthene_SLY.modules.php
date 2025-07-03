@@ -402,13 +402,6 @@ class pdf_eratosthene_SLY extends ModelePDFCommandes
 					}
 				}
 
-				// Incoterm		//Move to the table of extrafield notes. SLY.2021.8.17
-				$height_incoterms = 0;
-				if (!empty($conf->incoterm->enabled)) {
-					$desc_incoterms = $object->getIncotermsForPDF();
-					$notetoshow = dol_concatdesc($notetoshow, $desc_incoterms);
-				}
-
 				// Consignee Shipping  //added. SLY 2021.8.17
 				$usecontact_shipping = false;
 				$arrayidcontact_shipping = $object->getIdContact('external', 'SHIPPING');
@@ -436,25 +429,32 @@ class pdf_eratosthene_SLY extends ModelePDFCommandes
 				}
 
 				//added. Compare billing / shipping contact and split if different. SLY 2021.8.17
-				if ($usecontact_shipping && $usecontact_billing && $consigneeshipping == $consigneebilling) {
+				if ($usecontact_shipping && $usecontact_billing && $consigneeshipping->socid == $consigneebilling->socid && $consigneeshipping->socid != $object->thirdparty->id) {
 					$carac_consignee_name = $outputlangs->trans('consignee').' : '.pdfBuildThirdpartyName($consigneeshipping, $outputlangs);
 					$notetoshow = dol_concatdesc($notetoshow, $carac_consignee_name);
 
-					$carac_consignee = pdf_build_address($outputlangs, $this->emetteur, $consigneeshipping, ($usecontact_shipping ? $object->contact : ''), $usecontact_shipping, 'target', $object);
+					$carac_consignee = pdf_build_address($outputlangs, $this->emetteur, $consigneeshipping, ($usecontact_shipping ? $consigneeshipping : ''), $usecontact_shipping, 'target', $object);
 					$notetoshow = dol_concatdesc($notetoshow, $carac_consignee);
 				} else {
-					if ($usecontact_shipping) {
-						$carac_consigneeshipping_name = $outputlangs->trans('consigneeshipping').' : '.pdfBuildThirdpartyName($consigneeshipping, $outputlangs);
+					if ($usecontact_shipping && $consigneeshipping->socid != $object->thirdparty->id) {
+						$carac_consigneeshipping_name = $outputlangs->trans('consigneeshipping').' : ';
 						$notetoshow = dol_concatdesc($notetoshow, $carac_consigneeshipping_name);
 
-						$carac_consigneeshipping = pdf_build_address($outputlangs, $this->emetteur, $consigneeshipping, ($usecontact_shipping ? $object->contact : ''), $usecontact_shipping, 'target', $object);
+						$carac_consigneeshipping = pdf_build_address($outputlangs, $this->emetteur, $consigneeshipping, ($usecontact_shipping ? $consigneeshipping : ''), $usecontact_shipping, 'target', $object);
 						$notetoshow = dol_concatdesc($notetoshow, $carac_consigneeshipping);
 					}
-					if ($usecontact_billing) {
+					if ($usecontact_billing && $consigneebilling->socid != $object->thirdparty->id) {
 						$carac_consigneebilling_name = $outputlangs->trans('consigneebilling').' : '.pdfBuildThirdpartyName($consigneebilling, $outputlangs);
 						$notetoshow = dol_concatdesc($notetoshow, $carac_consigneebilling_name);
 					}
 				}				
+				
+				// Incoterm		//Move to the table of extrafield notes. SLY.2021.8.17
+				$height_incoterms = 0;
+				if (!empty($conf->incoterm->enabled)) {
+					$desc_incoterms = $object->getIncotermsForPDF();
+					$notetoshow = dol_concatdesc($notetoshow, $desc_incoterms);
+				}
 
 				// Extrafields in note
 				$extranote = $this->getExtrafieldsInHtml($object, $outputlangs);

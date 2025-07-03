@@ -111,7 +111,7 @@ class pdf_proforma_SLY extends pdf_eratosthene_SLY
 
 			$deposit_percent = property_exists($object, 'cond_reglement_deposit_percent') ? $object->cond_reglement_deposit_percent : 0;
 
-			$deposit = price2num($deposit_percent * $object->total_ttc / 100, 'MT');
+			$deposit = price2num($deposit_percent / 100 * ((!empty($conf->multicurrency->enabled) && $object->multicurrency_tx != 1) ? $object->multicurrency_total_ttc : $object->total_ttc), 'MT');
 
 			$tab2_top = $posy;
 			$tab2_hl = 4;
