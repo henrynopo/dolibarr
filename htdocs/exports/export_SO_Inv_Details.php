@@ -21,7 +21,7 @@ $fields = array('Salesperson', 'SO No', 'Supplier No', 'ATA', 'Inv No', 'Custome
 $excelData = implode("\t", array_values($fields)) . "\n"; 
  
 // Fetch records from database 
-$query = $db->query("SELECT * FROM view_SO_Inv_details_payment WHERE SO_No IS NOT NULL  ORDER BY Inv_ID DESC LIMIT 1500"); 
+$query = $db->query("SELECT * FROM view_SO_Inv_details_payment_2 WHERE SO_No IS NOT NULL  ORDER BY Inv_ID DESC LIMIT 1500"); 
 if($query->num_rows > 0){ 
 	// Output each row of the data 
 	while($row = $query->fetch_assoc()){ 
