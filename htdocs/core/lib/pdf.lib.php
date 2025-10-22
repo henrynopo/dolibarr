@@ -853,7 +853,7 @@ function pdf_bank(&$pdf, $outputlangs, $curx, $cury, $account, $onlynumber = 0, 
 
 				if ($val == 'BankCode') {
 					// Bank code
-					$tmplength = 18;
+					$tmplength = 24;
 					$content = $account->code_banque;
 				} elseif ($val == 'DeskCode') {
 					// Desk
