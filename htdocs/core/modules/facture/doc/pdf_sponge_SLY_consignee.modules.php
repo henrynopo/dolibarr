@@ -1282,7 +1282,7 @@ class pdf_sponge_SLY_consignee extends ModelePDFFactures
 					$curx = $this->marge_gauche;
 					$cury = $posy;
 
-					$posy = pdf_bank($pdf, $outputlangs, $curx, $cury, $account, 0, $default_font_size+2); //changed font size to +2. SLY 2020.12.28
+					$posy = pdf_bank($pdf, $outputlangs, $curx, $cury, $account, 0, $default_font_size);
 
 					$posy += 2;
 				}
