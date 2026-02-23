@@ -1,0 +1,1674 @@
+diff --git a/htdocs/accountancy/admin/accountmodel.php b/htdocs/accountancy/admin/accountmodel.php
+index d98e444befe..0f4d538cfac 100644
+--- a/htdocs/accountancy/admin/accountmodel.php
++++ b/htdocs/accountancy/admin/accountmodel.php
+@@ -679,7 +679,7 @@ if ($id) {
+ 					// Can an entry be erased or disabled ?
+ 					$iserasable = 1; $canbedisabled = 1; $canbemodified = 1; // true by default
+ 
+-					$url = $_SERVER["PHP_SELF"].'?token='.newToken().($page ? '&page='.$page : '').'&sortfield='.$sortfield.'&sortorder='.$sortorder.'&rowid='.(!empty($obj->rowid) ? $obj->rowid : (!empty($obj->code) ? $obj->code : '')).'&code='.(!empty($obj->code) ?urlencode($obj->code) : '');
++					$url = $_SERVER["PHP_SELF"].'?'.($page ? 'page='.$page.'&' : '').'sortfield='.$sortfield.'&sortorder='.$sortorder.'&rowid='.(!empty($obj->rowid) ? $obj->rowid : (!empty($obj->code) ? $obj->code : '')).'&code='.(!empty($obj->code) ?urlencode($obj->code) : '');
+ 					if ($param) {
+ 						$url .= '&'.$param;
+ 					}
+diff --git a/htdocs/accountancy/bookkeeping/balance.php b/htdocs/accountancy/bookkeeping/balance.php
+index 955e334fcff..1d210e74d8a 100644
+--- a/htdocs/accountancy/bookkeeping/balance.php
++++ b/htdocs/accountancy/bookkeeping/balance.php
+@@ -235,18 +235,10 @@ if ($action != 'export_csv') {
+ 	print '<input type="hidden" name="sortorder" value="'.$sortorder.'">';
+ 	print '<input type="hidden" name="page" value="'.$page.'">';
+ 
+-
+ 	$parameters = array();
+ 	$reshook = $hookmanager->executeHooks('addMoreActionsButtons', $parameters, $object, $action); // Note that $action and $object may have been modified by hook
+-
+-	if ($reshook < 0) {
+-		setEventMessages($hookmanager->error, $hookmanager->errors, 'errors');
+-	}
+-
+-	$button = empty($hookmanager->resPrint) ? '' : $hookmanager->resPrint;
+-
+ 	if (empty($reshook)) {
+-		$button .= '<input type="button" id="exportcsvbutton" name="exportcsvbutton" class="butAction" value="'.$langs->trans("Export").' ('.$conf->global->ACCOUNTING_EXPORT_FORMAT.')" />';
++		$button = '<input type="button" id="exportcsvbutton" name="exportcsvbutton" class="butAction" value="'.$langs->trans("Export").' ('.$conf->global->ACCOUNTING_EXPORT_FORMAT.')" />';
+ 
+ 		print '<script type="text/javascript" language="javascript">
+ 		jQuery(document).ready(function() {
+diff --git a/htdocs/accountancy/bookkeeping/card.php b/htdocs/accountancy/bookkeeping/card.php
+index 062fd03e7f9..c156a388735 100644
+--- a/htdocs/accountancy/bookkeeping/card.php
++++ b/htdocs/accountancy/bookkeeping/card.php
+@@ -260,7 +260,7 @@ if ($action == "confirm_update") {
+ 			if ($mode != '_tmp') {
+ 				setEventMessages($langs->trans('RecordSaved'), null, 'mesgs');
+ 			}
+-			$action = '';
++			$action = 'update';
+ 			$id = $object->id;
+ 			$piece_num = $object->piece_num;
+ 		}
+@@ -537,7 +537,7 @@ if ($action == 'create') {
+ 		print '</td>';
+ 		print '</tr>';
+ 
+-		// Date document export
++		// Date document creation
+ 		print '<tr>';
+ 		print '<td class="titlefield">'.$langs->trans("DateExport").'</td>';
+ 		print '<td>';
+@@ -545,7 +545,7 @@ if ($action == 'create') {
+ 		print '</td>';
+ 		print '</tr>';
+ 
+-		// Date document validation
++		// Date document creation
+ 		print '<tr>';
+ 		print '<td class="titlefield">'.$langs->trans("DateValidation").'</td>';
+ 		print '<td>';
+@@ -604,7 +604,6 @@ if ($action == 'create') {
+ 		print '<br>';
+ 
+ 		$result = $object->fetchAllPerMvt($piece_num, $mode);	// This load $object->linesmvt
+-
+ 		if ($result < 0) {
+ 			setEventMessages($object->error, $object->errors, 'errors');
+ 		} else {
+@@ -637,22 +636,13 @@ if ($action == 'create') {
+ 				print_liste_field_titre("Debit", "", "", "", "", 'class="right"');
+ 				print_liste_field_titre("Credit", "", "", "", "", 'class="right"');
+ 				if (empty($object->date_validation)) {
+-					print_liste_field_titre("Action", "", "", "", "", 'width="60"', "", "", 'center ');
++					print_liste_field_titre("Action", "", "", "", "", 'width="60" class="center"');
+ 				} else {
+ 					print_liste_field_titre("");
+ 				}
+ 
+ 				print "</tr>\n";
+ 
+-				// Add an empty line if there is not yet
+-				if (!empty($object->linesmvt[0])) {
+-					$tmpline = $object->linesmvt[0];
+-					if (!empty($tmpline->numero_compte)) {
+-						$line = new BookKeepingLine();
+-						$object->linesmvt[] = $line;
+-					}
+-				}
+-
+ 				foreach ($object->linesmvt as $line) {
+ 					print '<tr class="oddeven">';
+ 					$total_debit += $line->debit;
+@@ -683,31 +673,7 @@ if ($action == 'create') {
+ 						print '<input type="hidden" name="id" value="'.$line->id.'">'."\n";
+ 						print '<input type="submit" class="button" name="update" value="'.$langs->trans("Update").'">';
+ 						print '</td>';
+-					} elseif (empty($line->numero_compte) || (empty($line->debit) && empty($line->credit))) {
+-						if ($action == "" || $action == 'add') {
+-							print '<!-- td columns in add mode -->';
+-							print '<td>';
+-							print $formaccounting->select_account('', 'accountingaccount_number', 1, array(), 1, 1, '');
+-							print '</td>';
+-							print '<td>';
+-							// TODO For the moment we keep a free input text instead of a combo. The select_auxaccount has problem because:
+-							// It does not use the setup of "key pressed" to select a thirdparty and this hang browser on large databases.
+-							// Also, it is not possible to use a value that is not in the list.
+-							// Also, the label is not automatically filled when a value is selected.
+-							if (!empty($conf->global->ACCOUNTANCY_COMBO_FOR_AUX)) {
+-								print $formaccounting->select_auxaccount('', 'subledger_account', 1, 'maxwidth250', '', 'subledger_label');
+-							} else {
+-								print '<input type="text" class="maxwidth150" name="subledger_account" value="" placeholder="' . dol_escape_htmltag($langs->trans("SubledgerAccount")) . '">';
+-							}
+-							print '<br><input type="text" class="maxwidth150" name="subledger_label" value="" placeholder="' . dol_escape_htmltag($langs->trans("SubledgerAccountLabel")) . '">';
+-							print '</td>';
+-							print '<td><input type="text" class="minwidth200" name="label_operation" value="' . $label_operation . '"/></td>';
+-							print '<td class="right"><input type="text" size="6" class="right" name="debit" value=""/></td>';
+-							print '<td class="right"><input type="text" size="6" class="right" name="credit" value=""/></td>';
+-							print '<td class="center"><input type="submit" class="button" name="save" value="' . $langs->trans("Add") . '"></td>';
+-						}
+ 					} else {
+-						print '<!-- td columns in display mode -->';
+ 						$accountingaccount->fetch(null, $line->numero_compte, true);
+ 						print '<td>'.$accountingaccount->getNomUrl(0, 1, 1, '', 0).'</td>';
+ 						print '<td>'.length_accounta($line->subledger_account);
+@@ -749,8 +715,33 @@ if ($action == 'create') {
+ 					setEventMessages(null, array($langs->trans('MvtNotCorrectlyBalanced', $total_debit, $total_credit)), 'warnings');
+ 				}
+ 
+-				print '</table>';
+-				print '</div>';
++				if (empty($object->date_export) && empty($object->date_validation)) {
++					if ($action == "" || $action == 'add') {
++						print '<tr class="oddeven">';
++						print '<!-- td columns in add mode -->';
++						print '<td>';
++						print $formaccounting->select_account('', 'accountingaccount_number', 1, array(), 1, 1, '');
++						print '</td>';
++						print '<td>';
++						// TODO For the moment we keep a free input text instead of a combo. The select_auxaccount has problem because:
++						// It does not use the setup of "key pressed" to select a thirdparty and this hang browser on large databases.
++						// Also, it is not possible to use a value that is not in the list.
++						// Also, the label is not automatically filled when a value is selected.
++						if (!empty($conf->global->ACCOUNTANCY_COMBO_FOR_AUX)) {
++							print $formaccounting->select_auxaccount('', 'subledger_account', 1);
++						} else {
++							print '<input type="text" class="maxwidth150" name="subledger_account" value="" placeholder="' . dol_escape_htmltag($langs->trans("SubledgerAccount")) . '">';
++						}
++						print '<br><input type="text" class="maxwidth150" name="subledger_label" value="" placeholder="' . dol_escape_htmltag($langs->trans("SubledgerAccountLabel")) . '">';
++						print '</td>';
++						print '<td><input type="text" class="minwidth200" name="label_operation" value="' . $label_operation . '"/></td>';
++						print '<td class="right"><input type="text" size="6" class="right" name="debit" value=""/></td>';
++						print '<td class="right"><input type="text" size="6" class="right" name="credit" value=""/></td>';
++						print '<td><input type="submit" class="button" name="save" value="' . $langs->trans("Add") . '"></td>';
++						print '</tr>';
++					}
++					print '</table>';
++				}
+ 
+ 				if ($mode == '_tmp' && $action == '') {
+ 					print '<br>';
+diff --git a/htdocs/accountancy/bookkeeping/list.php b/htdocs/accountancy/bookkeeping/list.php
+index 56a9a0916cf..52ac288856b 100644
+--- a/htdocs/accountancy/bookkeeping/list.php
++++ b/htdocs/accountancy/bookkeeping/list.php
+@@ -763,19 +763,12 @@ if (count($filter)) {
+ 
+ $parameters = array();
+ $reshook = $hookmanager->executeHooks('addMoreActionsButtons', $parameters, $object, $action); // Note that $action and $object may have been modified by hook
+-
+-if ($reshook < 0) {
+-	setEventMessages($hookmanager->error, $hookmanager->errors, 'errors');
+-}
+-
+-$newcardbutton = empty($hookmanager->resPrint) ? '' : $hookmanager->resPrint;
+-
+ if (empty($reshook)) {
+ 	// Button re-export
+ 	if (!empty($conf->global->ACCOUNTING_REEXPORT)) {
+-		$newcardbutton .= '<a class="valignmiddle" href="'.$_SERVER['PHP_SELF'].'?action=setreexport&token='.newToken().'&value=0'.($param ? '&'.$param : '').'">'.img_picto($langs->trans("Activated"), 'switch_on').'</a> ';
++		$newcardbutton = '<a class="valignmiddle" href="'.$_SERVER['PHP_SELF'].'?action=setreexport&token='.newToken().'&value=0'.($param ? '&'.$param : '').'">'.img_picto($langs->trans("Activated"), 'switch_on').'</a> ';
+ 	} else {
+-		$newcardbutton .= '<a class="valignmiddle" href="'.$_SERVER['PHP_SELF'].'?action=setreexport&token='.newToken().'&value=1'.($param ? '&'.$param : '').'">'.img_picto($langs->trans("Disabled"), 'switch_off').'</a> ';
++		$newcardbutton = '<a class="valignmiddle" href="'.$_SERVER['PHP_SELF'].'?action=setreexport&token='.newToken().'&value=1'.($param ? '&'.$param : '').'">'.img_picto($langs->trans("Disabled"), 'switch_off').'</a> ';
+ 	}
+ 	$newcardbutton .= '<span class="valignmiddle marginrightonly">'.$langs->trans("IncludeDocsAlreadyExported").'</span>';
+ 
+@@ -919,7 +912,7 @@ if (!empty($arrayfields['t.tms']['checked'])) {
+ 	print $form->selectDate($search_date_modification_start, 'search_date_modification_start', 0, 0, 1, '', 1, 0, 0, '', '', '', '', 1, '', $langs->trans("From"));
+ 	print '</div>';
+ 	print '<div class="nowrap">';
+-	print $form->selectDate($search_date_modification_end, 'search_date_modification_end', 0, 0, 1, '', 1, 0, 0, '', '', '', '', 1, '', $langs->trans("to"));
++	print $form->selectDate($search_date_modification_end, 'search_date_modification_end', 0, 0, 1, '', 1, 0, 0, '', '', '', '', 1, '', $langs->trans("From"));
+ 	print '</div>';
+ 	print '</td>';
+ }
+diff --git a/htdocs/accountancy/bookkeeping/listbyaccount.php b/htdocs/accountancy/bookkeeping/listbyaccount.php
+index 78c7aeff041..27f23d36a74 100644
+--- a/htdocs/accountancy/bookkeeping/listbyaccount.php
++++ b/htdocs/accountancy/bookkeeping/listbyaccount.php
+@@ -474,15 +474,8 @@ print '<input type="hidden" name="sortorder" value="'.$sortorder.'">';
+ 
+ $parameters = array();
+ $reshook = $hookmanager->executeHooks('addMoreActionsButtons', $parameters, $object, $action); // Note that $action and $object may have been modified by hook
+-
+-if ($reshook < 0) {
+-	setEventMessages($hookmanager->error, $hookmanager->errors, 'errors');
+-}
+-
+-$newcardbutton = empty($hookmanager->resPrint) ? '' : $hookmanager->resPrint;
+-
+ if (empty($reshook)) {
+-	$newcardbutton .= dolGetButtonTitle($langs->trans('ViewFlatList'), '', 'fa fa-list paddingleft imgforviewmode', DOL_URL_ROOT.'/accountancy/bookkeeping/list.php?'.$param);
++	$newcardbutton = dolGetButtonTitle($langs->trans('ViewFlatList'), '', 'fa fa-list paddingleft imgforviewmode', DOL_URL_ROOT.'/accountancy/bookkeeping/list.php?'.$param);
+ 	$newcardbutton .= dolGetButtonTitle($langs->trans('GroupByAccountAccounting'), '', 'fa fa-stream paddingleft imgforviewmode', DOL_URL_ROOT.'/accountancy/bookkeeping/listbyaccount.php?'.$param, '', 1, array('morecss' => 'marginleftonly btnTitleSelected'));
+ 	$newcardbutton .= dolGetButtonTitle($langs->trans('GroupBySubAccountAccounting'), '', 'fa fa-align-left vmirror paddingleft imgforviewmode', DOL_URL_ROOT.'/accountancy/bookkeeping/listbysubaccount.php?'.$param, '', 1, array('morecss' => 'marginleftonly'));
+ 	$newcardbutton .= dolGetButtonTitle($langs->trans('NewAccountingMvt'), '', 'fa fa-plus-circle paddingleft', DOL_URL_ROOT.'/accountancy/bookkeeping/card.php?action=create');
+diff --git a/htdocs/accountancy/bookkeeping/listbysubaccount.php b/htdocs/accountancy/bookkeeping/listbysubaccount.php
+index 57fd8700fa3..5e83c729fb1 100644
+--- a/htdocs/accountancy/bookkeeping/listbysubaccount.php
++++ b/htdocs/accountancy/bookkeeping/listbysubaccount.php
+@@ -474,15 +474,8 @@ print '<input type="hidden" name="sortorder" value="'.$sortorder.'">';
+ 
+ $parameters = array();
+ $reshook = $hookmanager->executeHooks('addMoreActionsButtons', $parameters, $object, $action); // Note that $action and $object may have been modified by hook
+-
+-if ($reshook < 0) {
+-	setEventMessages($hookmanager->error, $hookmanager->errors, 'errors');
+-}
+-
+-$newcardbutton = empty($hookmanager->resPrint) ? '' : $hookmanager->resPrint;
+-
+ if (empty($reshook)) {
+-	$newcardbutton .= dolGetButtonTitle($langs->trans('ViewFlatList'), '', 'fa fa-list paddingleft imgforviewmode', DOL_URL_ROOT.'/accountancy/bookkeeping/list.php?'.$param);
++	$newcardbutton = dolGetButtonTitle($langs->trans('ViewFlatList'), '', 'fa fa-list paddingleft imgforviewmode', DOL_URL_ROOT.'/accountancy/bookkeeping/list.php?'.$param);
+ 	$newcardbutton .= dolGetButtonTitle($langs->trans('GroupByAccountAccounting'), '', 'fa fa-stream paddingleft imgforviewmode', DOL_URL_ROOT.'/accountancy/bookkeeping/listbyaccount.php?'.$param, '', 1, array('morecss' => 'marginleftonly'));
+ 	$newcardbutton .= dolGetButtonTitle($langs->trans('GroupBySubAccountAccounting'), '', 'fa fa-align-left vmirror paddingleft imgforviewmode', DOL_URL_ROOT.'/accountancy/bookkeeping/listbysubaccount.php?'.$param, '', 1, array('morecss' => 'marginleftonly btnTitleSelected'));
+ 	$newcardbutton .= dolGetButtonTitle($langs->trans('NewAccountingMvt'), '', 'fa fa-plus-circle paddingleft', DOL_URL_ROOT.'/accountancy/bookkeeping/card.php?action=create');
+diff --git a/htdocs/accountancy/class/accountancycategory.class.php b/htdocs/accountancy/class/accountancycategory.class.php
+index 5aec2d48fa2..77d10516daa 100644
+--- a/htdocs/accountancy/class/accountancycategory.class.php
++++ b/htdocs/accountancy/class/accountancycategory.class.php
+@@ -785,13 +785,12 @@ class AccountancyCategory // extends CommonObject
+ 	}
+ 
+ 	/**
+-	 * Return list of custom groups.
++	 * Return list of custom groups that are active
+ 	 *
+ 	 * @param	int			$categorytype		-1=All, 0=Only non computed groups, 1=Only computed groups
+-	 * @param	int			$active				1= active, 0=not active
+ 	 * @return	array|int						Array of groups or -1 if error
+ 	 */
+-	public function getCats($categorytype = -1, $active = 1)
++	public function getCats($categorytype = -1)
+ 	{
+ 		global $conf, $mysoc;
+ 
+@@ -802,7 +801,7 @@ class AccountancyCategory // extends CommonObject
+ 
+ 		$sql = "SELECT c.rowid, c.code, c.label, c.formula, c.position, c.category_type, c.sens";
+ 		$sql .= " FROM ".MAIN_DB_PREFIX."c_accounting_category as c";
+-		$sql .= " WHERE c.active = " . (int) $active;
++		$sql .= " WHERE c.active = 1";
+ 		$sql .= " AND c.entity = ".$conf->entity;
+ 		if ($categorytype >= 0) {
+ 			$sql .= " AND c.category_type = 1";
+diff --git a/htdocs/accountancy/class/accountancyexport.class.php b/htdocs/accountancy/class/accountancyexport.class.php
+index 4816d06b95f..ec24af642fd 100644
+--- a/htdocs/accountancy/class/accountancyexport.class.php
++++ b/htdocs/accountancy/class/accountancyexport.class.php
+@@ -5,7 +5,7 @@
+  * Copyright (C) 2015       Florian Henry       <florian.henry@open-concept.pro>
+  * Copyright (C) 2015       Raphaël Doursenaud  <rdoursenaud@gpcsolutions.fr>
+  * Copyright (C) 2016       Pierre-Henry Favre  <phf@atm-consulting.fr>
+- * Copyright (C) 2016-2023  Alexandre Spangaro  <aspangaro@open-dsi.fr>
++ * Copyright (C) 2016-2021  Alexandre Spangaro  <aspangaro@open-dsi.fr>
+  * Copyright (C) 2013-2017  Olivier Geffroy     <jeff@jeffinfo.com>
+  * Copyright (C) 2017       Elarifr. Ari Elbaz  <github@accedinfo.com>
+  * Copyright (C) 2017-2019  Frédéric France     <frederic.france@netlogic.fr>
+@@ -518,7 +518,7 @@ class AccountancyExport
+ 	/**
+ 	 * Export format : Quadratus (Format ASCII)
+ 	 * Format since 2015 compatible QuadraCOMPTA
+-	 * Last review for this format : 2023/09/16 Alexandre Spangaro (aspangaro@open-dsi.fr)
++	 * Last review for this format : 2021/09/13 Alexandre Spangaro (aspangaro@open-dsi.fr)
+ 	 *
+ 	 * Help : https://docplayer.fr/20769649-Fichier-d-entree-ascii-dans-quadracompta.html
+ 	 * In QuadraCompta | Use menu : "Outils" > "Suivi des dossiers" > "Import ASCII(Compta)"
+@@ -536,21 +536,6 @@ class AccountancyExport
+ 		// $date_ecriture = dol_print_date(dol_now(), $conf->global->ACCOUNTING_EXPORT_DATE); // format must be ddmmyy
+ 		// $date_ecriture = dol_print_date(time(), $conf->global->ACCOUNTING_EXPORT_DATE); // format must be ddmmyy
+ 		foreach ($TData as $data) {
+-			// Clean some data
+-			$data->doc_ref = dol_string_unaccent($data->doc_ref);
+-
+-			$data->label_operation = str_replace(array("\t", "\n", "\r"), " ", $data->label_operation);
+-			$data->label_operation = str_replace(array("- ", "…", "..."), "", $data->label_operation);
+-			$data->label_operation = dol_string_unaccent($data->label_operation);
+-
+-			$data->numero_compte = dol_string_unaccent($data->numero_compte);
+-			$data->label_compte = dol_string_unaccent($data->label_compte);
+-			$data->subledger_account = dol_string_unaccent($data->subledger_account);
+-
+-			$data->subledger_label = dol_string_unaccent($data->subledger_label);
+-			$data->subledger_label = str_replace(array("- ", "…", "..."), "", $data->subledger_label);
+-			$data->subledger_label = dol_string_unaccent($data->subledger_label);
+-
+ 			$code_compta = $data->numero_compte;
+ 			if (!empty($data->subledger_account)) {
+ 				$code_compta = $data->subledger_account;
+@@ -564,11 +549,11 @@ class AccountancyExport
+ 				$Tab['lib_compte'] = str_pad(self::trunc($data->subledger_label, 30), 30);
+ 
+ 				if ($data->doc_type == 'customer_invoice') {
+-					$Tab['lib_alpha'] = strtoupper(str_pad('C'.self::trunc($data->subledger_label, 6), 7));
++					$Tab['lib_alpha'] = strtoupper(str_pad('C'.self::trunc($data->subledger_label, 6), 6));
+ 					$Tab['filler'] = str_repeat(' ', 52);
+ 					$Tab['coll_compte'] = str_pad(self::trunc($conf->global->ACCOUNTING_ACCOUNT_CUSTOMER, 8), 8);
+ 				} elseif ($data->doc_type == 'supplier_invoice') {
+-					$Tab['lib_alpha'] = strtoupper(str_pad('F'.self::trunc($data->subledger_label, 6), 7));
++					$Tab['lib_alpha'] = strtoupper(str_pad('F'.self::trunc($data->subledger_label, 6), 6));
+ 					$Tab['filler'] = str_repeat(' ', 52);
+ 					$Tab['coll_compte'] = str_pad(self::trunc($conf->global->ACCOUNTING_ACCOUNT_SUPPLIER, 8), 8);
+ 				} else {
+@@ -582,9 +567,9 @@ class AccountancyExport
+ 				if ($data->doc_type == 'customer_invoice') {
+ 					$Tab['type_compte'] = 'C';
+ 				} elseif ($data->doc_type == 'supplier_invoice') {
+-					$Tab['type_compte'] = 'F';
++					$Tab['coll_compte'] = 'F';
+ 				} else {
+-					$Tab['type_compte'] = 'G';
++					$Tab['coll_compte'] = 'G';
+ 				}
+ 
+ 				$Tab['filler3'] = str_repeat(' ', 235);
+@@ -605,7 +590,7 @@ class AccountancyExport
+ 			//$Tab['date_ecriture'] = $date_ecriture;
+ 			$Tab['date_ecriture'] = dol_print_date($data->doc_date, '%d%m%y');
+ 			$Tab['filler'] = ' ';
+-			$Tab['libelle_ecriture'] = str_pad(self::trunc($data->doc_ref.' '.$data->label_operation, 20), 20);
++			$Tab['libelle_ecriture'] = str_pad(self::trunc(dol_string_unaccent($data->doc_ref).' '.dol_string_unaccent($data->label_operation), 20), 20);
+ 
+ 			// Credit invoice - invert sens
+ 			/*
+@@ -655,8 +640,8 @@ class AccountancyExport
+ 			// TODO: we should filter more than only accent to avoid wrong line size
+ 			// TODO: remove invoice number doc_ref in libelle,
+ 			// TODO: we should offer an option for customer to build the libelle using invoice number / name / date in accounting software
+-			//$Tab['libelle_ecriture2'] = str_pad(self::trunc($data->doc_ref . ' ' . $data->label_operation, 30), 30);
+-			$Tab['libelle_ecriture2'] = str_pad(self::trunc($data->label_operation, 30), 30);
++			//$Tab['libelle_ecriture2'] = str_pad(self::trunc(dol_string_unaccent($data->doc_ref) . ' ' . dol_string_unaccent($data->label_operation), 30), 30);
++			$Tab['libelle_ecriture2'] = str_pad(self::trunc(dol_string_unaccent($data->label_operation), 30), 30);
+ 			$Tab['codetva'] = str_repeat(' ', 2);
+ 
+ 			// We need to keep the 10 lastest number of invoice doc_ref not the beginning part that is the unusefull almost same part
+@@ -672,12 +657,9 @@ class AccountancyExport
+ 
+ 	/**
+ 	 * Export format : WinFic - eWinfic - WinSis Compta
+-	 * Last review for this format : 2022-11-01 Alexandre Spangaro (aspangaro@open-dsi.fr)
+ 	 *
+-	 * Help : https://wiki.gestan.fr/lib/exe/fetch.php?media=wiki:v15:compta:accountancy-format_winfic-ewinfic-winsiscompta.pdf
+ 	 *
+ 	 * @param array $TData data
+-	 *
+ 	 * @return void
+ 	 */
+ 	public function exportWinfic(&$TData)
+@@ -685,14 +667,10 @@ class AccountancyExport
+ 		global $conf;
+ 
+ 		$end_line = "\r\n";
+-		$index = 1;
+ 
+ 		//We should use dol_now function not time however this is wrong date to transfert in accounting
+ 		//$date_ecriture = dol_print_date(dol_now(), $conf->global->ACCOUNTING_EXPORT_DATE); // format must be ddmmyy
+ 		//$date_ecriture = dol_print_date(time(), $conf->global->ACCOUNTING_EXPORT_DATE); // format must be ddmmyy
+-
+-		// Warning ! When truncation is necessary, no dot because 3 dots = three characters. The columns are shifted
+-
+ 		foreach ($TData as $data) {
+ 			$code_compta = $data->numero_compte;
+ 			if (!empty($data->subledger_account)) {
+@@ -701,7 +679,7 @@ class AccountancyExport
+ 
+ 			$Tab = array();
+ 			//$Tab['type_ligne'] = 'M';
+-			$Tab['code_journal'] = str_pad(dol_trunc($data->code_journal, 2, 'right', 'UTF-8', 1), 2);
++			$Tab['code_journal'] = str_pad(self::trunc($data->code_journal, 2), 2);
+ 
+ 			//We use invoice date $data->doc_date not $date_ecriture which is the transfert date
+ 			//maybe we should set an option for customer who prefer to keep in accounting software the tranfert date instead of invoice date ?
+@@ -710,11 +688,11 @@ class AccountancyExport
+ 
+ 			$Tab['folio'] = '     1';
+ 
+-			$Tab['num_ecriture'] = str_pad(dol_trunc($index, 6, 'right', 'UTF-8', 1), 6, ' ', STR_PAD_LEFT);
++			$Tab['num_ecriture'] = str_pad(self::trunc($data->piece_num, 6), 6, ' ', STR_PAD_LEFT);
+ 
+ 			$Tab['jour_ecriture'] = dol_print_date($data->doc_date, '%d%m%y');
+ 
+-			$Tab['num_compte'] = str_pad(dol_trunc($code_compta, 6, 'right', 'UTF-8', 1), 6, '0');
++			$Tab['num_compte'] = str_pad(self::trunc($code_compta, 6), 6, '0');
+ 
+ 			if ($data->sens == 'D') {
+ 				$Tab['montant_debit']  = str_pad(number_format($data->debit, 2, ',', ''), 13, ' ', STR_PAD_LEFT);
+@@ -726,11 +704,11 @@ class AccountancyExport
+ 				$Tab['montant_crebit'] = str_pad(number_format($data->credit, 2, ',', ''), 13, ' ', STR_PAD_LEFT);
+ 			}
+ 
+-			$Tab['libelle_ecriture'] = str_pad(dol_trunc(dol_string_unaccent($data->doc_ref).' '.dol_string_unaccent($data->label_operation), 30, 'right', 'UTF-8', 1), 30);
++			$Tab['libelle_ecriture'] = str_pad(self::trunc(dol_string_unaccent($data->doc_ref).' '.dol_string_unaccent($data->label_operation), 30), 30);
+ 
+-			$Tab['lettrage'] = str_repeat(dol_trunc($data->lettering_code, 2, 'left', 'UTF-8', 1), 2);
++			$Tab['lettrage'] = str_repeat(' ', 2);
+ 
+-			$Tab['code_piece'] = str_pad(dol_trunc($data->piece_num, 5, 'left', 'UTF-8', 1), 5, ' ', STR_PAD_LEFT);
++			$Tab['code_piece'] = str_repeat(' ', 5);
+ 
+ 			$Tab['code_stat'] = str_repeat(' ', 4);
+ 
+@@ -754,8 +732,6 @@ class AccountancyExport
+ 			$Tab['end_line'] = $end_line;
+ 
+ 			print implode('|', $Tab);
+-
+-			$index++;
+ 		}
+ 	}
+ 
+@@ -953,13 +929,13 @@ class AccountancyExport
+ 				print $date_document . $separator;
+ 
+ 				// FEC:CompteNum
+-				print length_accountg($line->numero_compte) . $separator;
++				print $line->numero_compte . $separator;
+ 
+ 				// FEC:CompteLib
+ 				print dol_string_unaccent($line->label_compte) . $separator;
+ 
+ 				// FEC:CompAuxNum
+-				print length_accounta($line->subledger_account) . $separator;
++				print $line->subledger_account . $separator;
+ 
+ 				// FEC:CompAuxLib
+ 				print dol_string_unaccent($line->subledger_label) . $separator;
+diff --git a/htdocs/accountancy/class/accountancyimport.class.php b/htdocs/accountancy/class/accountancyimport.class.php
+index ea88534b6ed..ece843515e2 100644
+--- a/htdocs/accountancy/class/accountancyimport.class.php
++++ b/htdocs/accountancy/class/accountancyimport.class.php
+@@ -55,8 +55,8 @@ class AccountancyImport
+ 			$fieldname = $fieldArr[1];
+ 		}
+ 
+-		$debit  = floatval(trim($arrayrecord[11]['val']));
+-		$credit = floatval(trim($arrayrecord[12]['val']));
++		$debit  = trim($arrayrecord[11]['val']);
++		$credit = trim($arrayrecord[12]['val']);
+ 		if (!empty($debit)) {
+ 			$amount = $debit;
+ 		} else {
+@@ -86,7 +86,7 @@ class AccountancyImport
+ 			$fieldname = $fieldArr[1];
+ 		}
+ 
+-		$debit = floatval(trim($arrayrecord[11]['val']));
++		$debit = trim($arrayrecord[11]['val']);
+ 		if (!empty($debit)) {
+ 			$sens = 'D';
+ 		} else {
+diff --git a/htdocs/accountancy/class/bookkeeping.class.php b/htdocs/accountancy/class/bookkeeping.class.php
+index 551bf9bf1d2..43dcce8c646 100644
+--- a/htdocs/accountancy/class/bookkeeping.class.php
++++ b/htdocs/accountancy/class/bookkeeping.class.php
+@@ -331,7 +331,7 @@ class BookKeeping extends CommonObject
+ 				if (empty($this->piece_num)) {
+ 					$sqlnum = "SELECT MAX(piece_num)+1 as maxpiecenum";
+ 					$sqlnum .= " FROM ".MAIN_DB_PREFIX.$this->table_element;
+-					$sqlnum .= " WHERE entity = " . ((int) $conf->entity); // Do not use getEntity for accounting features
++					$sqlnum .= " WHERE entity = ".$conf->entity; // Do not use getEntity for accounting features
+ 
+ 					$resqlnum = $this->db->query($sqlnum);
+ 					if ($resqlnum) {
+@@ -597,13 +597,9 @@ class BookKeeping extends CommonObject
+ 		if (empty($this->credit)) {
+ 			$this->credit = 0;
+ 		}
+-		if (empty($this->montant)) {
+-			$this->montant = 0;
+-		}
+ 
+ 		$this->debit = price2num($this->debit, 'MT');
+ 		$this->credit = price2num($this->credit, 'MT');
+-		$this->montant = price2num($this->montant, 'MT');
+ 
+ 		$now = dol_now();
+ 
+@@ -740,7 +736,7 @@ class BookKeeping extends CommonObject
+ 		$sql .= " t.date_validated as date_validation";
+ 		$sql .= ' FROM '.MAIN_DB_PREFIX.$this->table_element.$mode.' as t';
+ 		$sql .= ' WHERE 1 = 1';
+-		$sql .= " AND entity = " . ((int) $conf->entity); // Do not use getEntity for accounting features
++		$sql .= " AND entity IN (".getEntity('accountancy').")";
+ 		if (null !== $ref) {
+ 			$sql .= " AND t.ref = '".$this->db->escape($ref)."'";
+ 		} else {
+@@ -885,17 +881,16 @@ class BookKeeping extends CommonObject
+ 		}
+ 		$sql .= ' FROM '.MAIN_DB_PREFIX.$this->table_element.' as t';
+ 		$sql .= ' WHERE 1 = 1';
+-		$sql .= " AND entity = " . ((int) $conf->entity); // Do not use getEntity for accounting features
++		$sql .= " AND entity IN (".getEntity('accountancy').")";
+ 		if (count($sqlwhere) > 0) {
+ 			$sql .= ' AND '.implode(' '.$filtermode.' ', $sqlwhere);
+ 		}
+ 		// Affichage par compte comptable
+ 		if (!empty($option)) {
+-			$sql .= " AND t.subledger_account IS NOT NULL";
+-			$sql .= " AND t.subledger_account != ''";
+-			$sql .= " ORDER BY t.subledger_account ASC";
++			$sql .= ' AND t.subledger_account IS NOT NULL';
++			$sql .= ' ORDER BY t.subledger_account ASC';
+ 		} else {
+-			$sql .= " ORDER BY t.numero_compte ASC";
++			$sql .= ' ORDER BY t.numero_compte ASC';
+ 		}
+ 
+ 		if (!empty($sortfield)) {
+@@ -1042,7 +1037,7 @@ class BookKeeping extends CommonObject
+ 				}
+ 			}
+ 		}
+-		$sql .= ' WHERE t.entity = ' . ((int) $conf->entity); // Do not use getEntity for accounting features
++		$sql .= ' WHERE t.entity IN ('.getEntity('accountancy').')';
+ 		if ($showAlreadyExportMovements == 0) {
+ 			$sql .= " AND t.date_export IS NULL";
+ 		}
+@@ -1162,7 +1157,7 @@ class BookKeeping extends CommonObject
+ 				}
+ 			}
+ 		}
+-		$sql .= ' WHERE entity = ' . ((int) $conf->entity); // Do not use getEntity for accounting features
++		$sql .= ' WHERE entity IN ('.getEntity('accountancy').')';
+ 		if (count($sqlwhere) > 0) {
+ 			$sql .= ' AND '.implode(' '.$filtermode.' ', $sqlwhere);
+ 		}
+@@ -1459,7 +1454,7 @@ class BookKeeping extends CommonObject
+ 	 */
+ 	public function deleteByYearAndJournal($delyear = 0, $journal = '', $mode = '', $delmonth = 0)
+ 	{
+-		global $conf, $langs;
++		global $langs;
+ 
+ 		if (empty($delyear) && empty($journal)) {
+ 			$this->error = 'ErrorOneFieldRequired';
+@@ -1480,7 +1475,7 @@ class BookKeeping extends CommonObject
+ 		if (!empty($journal)) {
+ 			$sql .= " AND code_journal = '".$this->db->escape($journal)."'";
+ 		}
+-		$sql .= " AND entity = " . ((int) $conf->entity); // Do not use getEntity for accounting features
++		$sql .= " AND entity IN (".getEntity('accountancy').")";
+ 		// Exclusion of validated entries at the time of deletion
+ 		$sql .= " AND date_validated IS NULL";
+ 
+@@ -1519,7 +1514,7 @@ class BookKeeping extends CommonObject
+ 		$sql .= " FROM ".MAIN_DB_PREFIX.$this->table_element;
+ 		$sql .= " WHERE piece_num = ".(int) $piecenum;
+ 		$sql .= " AND date_validated IS NULL";		// For security, exclusion of validated entries at the time of deletion
+-		$sql .= " AND entity = " . ((int) $conf->entity); // Do not use getEntity for accounting features
++		$sql .= " AND entity IN (".getEntity('accountancy').")";
+ 
+ 		$resql = $this->db->query($sql);
+ 
+@@ -1641,7 +1636,7 @@ class BookKeeping extends CommonObject
+ 		}
+ 		$sql .= " FROM ".MAIN_DB_PREFIX.$this->table_element.$mode;
+ 		$sql .= " WHERE piece_num = ".$piecenum;
+-		$sql .= " AND entity = " . ((int) $conf->entity); // Do not use getEntity for accounting features
++		$sql .= " AND entity IN (".getEntity('accountancy').")";
+ 
+ 		dol_syslog(__METHOD__, LOG_DEBUG);
+ 		$result = $this->db->query($sql);
+@@ -1654,10 +1649,11 @@ class BookKeeping extends CommonObject
+ 			$this->doc_date = $this->db->jdate($obj->doc_date);
+ 			$this->doc_ref = $obj->doc_ref;
+ 			$this->doc_type = $obj->doc_type;
+-			$this->date_creation = $this->db->jdate($obj->date_creation);
+-			$this->date_modification = $this->db->jdate($obj->date_modification);
+-			$this->date_export = $this->db->jdate($obj->date_export);
+-			$this->date_validation = $this->db->jdate($obj->date_validation);
++			$this->date_creation = $obj->date_creation;
++			$this->date_modification = $obj->date_modification;
++			$this->date_export = $obj->date_export;
++			$this->date_validation = $obj->date_validated;
++			$this->date_validation = $obj->date_validation;
+ 		} else {
+ 			$this->error = "Error ".$this->db->lasterror();
+ 			dol_syslog(__METHOD__.$this->error, LOG_ERR);
+@@ -1678,9 +1674,9 @@ class BookKeeping extends CommonObject
+ 		global $conf;
+ 
+ 		$sql = "SELECT MAX(piece_num)+1 as max FROM ".MAIN_DB_PREFIX.$this->table_element.$mode;
+-		$sql .= " WHERE entity = " . ((int) $conf->entity); // Do not use getEntity for accounting features
++		$sql .= " WHERE entity IN (".getEntity('accountancy').")";
+ 
+-		dol_syslog(get_class($this)."::getNextNumMvt sql=".$sql, LOG_DEBUG);
++		dol_syslog(get_class($this)."getNextNumMvt sql=".$sql, LOG_DEBUG);
+ 		$result = $this->db->query($sql);
+ 
+ 		if ($result) {
+@@ -1721,7 +1717,7 @@ class BookKeeping extends CommonObject
+ 		}
+ 		$sql .= " FROM ".MAIN_DB_PREFIX.$this->table_element.$mode;
+ 		$sql .= " WHERE piece_num = ".$piecenum;
+-		$sql .= " AND entity = " . ((int) $conf->entity); // Do not use getEntity for accounting features
++		$sql .= " AND entity IN (".getEntity('accountancy').")";
+ 
+ 		dol_syslog(__METHOD__, LOG_DEBUG);
+ 		$result = $this->db->query($sql);
+@@ -1784,7 +1780,7 @@ class BookKeeping extends CommonObject
+ 		$sql .= " montant as amount, sens, fk_user_author, import_key, code_journal, piece_num,";
+ 		$sql .= " date_validated as date_validation";
+ 		$sql .= " FROM ".MAIN_DB_PREFIX.$this->table_element;
+-		$sql .= " WHERE entity = " . ((int) $conf->entity); // Do not use getEntity for accounting features
++		$sql .= " WHERE entity IN (".getEntity('accountancy').")";
+ 
+ 		dol_syslog(get_class($this)."::export_bookkeeping", LOG_DEBUG);
+ 
+@@ -1840,8 +1836,6 @@ class BookKeeping extends CommonObject
+ 	 */
+ 	public function transformTransaction($direction = 0, $piece_num = '')
+ 	{
+-		global $conf;
+-
+ 		$error = 0;
+ 
+ 		$this->db->begin();
+@@ -1861,14 +1855,14 @@ class BookKeeping extends CommonObject
+ 			$sql .= ' doc_ref, fk_doc, fk_docdet, entity, thirdparty_code, subledger_account, subledger_label,';
+ 			$sql .= ' numero_compte, label_compte, label_operation, debit, credit,';
+ 			$sql .= ' montant, sens, fk_user_author, import_key, code_journal, journal_label, '.$next_piecenum.", '".$this->db->idate($now)."'";
+-			$sql .= ' FROM '.MAIN_DB_PREFIX.$this->table_element.'_tmp WHERE piece_num = '.((int) $piece_num).' AND numero_compte IS NOT NULL AND entity = ' .((int) $conf->entity);
++			$sql .= ' FROM '.MAIN_DB_PREFIX.$this->table_element.'_tmp WHERE piece_num = '.((int) $piece_num);
+ 			$resql = $this->db->query($sql);
+ 			if (!$resql) {
+ 				$error++;
+ 				$this->errors[] = 'Error '.$this->db->lasterror();
+ 				dol_syslog(__METHOD__.' '.join(',', $this->errors), LOG_ERR);
+ 			}
+-			$sql = 'DELETE FROM '.MAIN_DB_PREFIX.$this->table_element.'_tmp WHERE piece_num = '.((int) $piece_num).' AND entity = ' .((int) $conf->entity);
++			$sql = 'DELETE FROM '.MAIN_DB_PREFIX.$this->table_element.'_tmp WHERE piece_num = '.((int) $piece_num);
+ 			$resql = $this->db->query($sql);
+ 			if (!$resql) {
+ 				$error++;
+@@ -1876,7 +1870,7 @@ class BookKeeping extends CommonObject
+ 				dol_syslog(__METHOD__.' '.join(',', $this->errors), LOG_ERR);
+ 			}
+ 		} elseif ($direction == 1) {
+-			$sql = 'DELETE FROM '.MAIN_DB_PREFIX.$this->table_element.'_tmp WHERE piece_num = '.((int) $piece_num).' AND entity = ' .((int) $conf->entity);
++			$sql = 'DELETE FROM '.MAIN_DB_PREFIX.$this->table_element.'_tmp WHERE piece_num = '.((int) $piece_num);
+ 			$resql = $this->db->query($sql);
+ 			if (!$resql) {
+ 				$error++;
+@@ -1891,14 +1885,14 @@ class BookKeeping extends CommonObject
+ 			$sql .= ' doc_ref, fk_doc, fk_docdet, thirdparty_code, subledger_account, subledger_label,';
+ 			$sql .= ' numero_compte, label_compte, label_operation, debit, credit,';
+ 			$sql .= ' montant, sens, fk_user_author, import_key, code_journal, journal_label, piece_num';
+-			$sql .= ' FROM '.MAIN_DB_PREFIX.$this->table_element.' WHERE piece_num = '.((int) $piece_num).' AND entity = ' .((int) $conf->entity);
++			$sql .= ' FROM '.MAIN_DB_PREFIX.$this->table_element.' WHERE piece_num = '.((int) $piece_num);
+ 			$resql = $this->db->query($sql);
+ 			if (!$resql) {
+ 				$error++;
+ 				$this->errors[] = 'Error '.$this->db->lasterror();
+ 				dol_syslog(__METHOD__.' '.join(',', $this->errors), LOG_ERR);
+ 			}
+-			$sql = 'DELETE FROM '.MAIN_DB_PREFIX.$this->table_element.'_tmp WHERE piece_num = '.((int) $piece_num).' AND entity = ' .((int) $conf->entity);
++			$sql = 'DELETE FROM '.MAIN_DB_PREFIX.$this->table_element.'_tmp WHERE piece_num = '.((int) $piece_num);
+ 			$resql = $this->db->query($sql);
+ 			if (!$resql) {
+ 				$error++;
+@@ -1953,7 +1947,7 @@ class BookKeeping extends CommonObject
+ 		$sql .= " AND aa.active = 1";
+ 		$sql .= " INNER JOIN ".MAIN_DB_PREFIX."accounting_system as asy ON aa.fk_pcg_version = asy.pcg_version";
+ 		$sql .= " AND asy.rowid = ".((int) $pcgver);
+-		$sql .= " AND ab.entity = " . ((int) $conf->entity); // Do not use getEntity for accounting features
++		$sql .= " AND ab.entity IN (".getEntity('accountancy').")";
+ 		$sql .= " ORDER BY account_number ASC";
+ 
+ 		dol_syslog(get_class($this)."::select_account", LOG_DEBUG);
+@@ -2017,7 +2011,7 @@ class BookKeeping extends CommonObject
+ 		$sql .= " LEFT JOIN ".MAIN_DB_PREFIX."accounting_account as parent ON aa.account_parent = parent.rowid AND parent.active = 1";
+ 		$sql .= " LEFT JOIN ".MAIN_DB_PREFIX."accounting_account as root ON parent.account_parent = root.rowid AND root.active = 1";
+ 		$sql .= " WHERE aa.account_number = '".$this->db->escape($account)."'";
+-		$sql .= " AND aa.entity = " . ((int) $conf->entity); // Do not use getEntity for accounting features
++		$sql .= " AND aa.entity IN (".getEntity('accountancy').")";
+ 
+ 		dol_syslog(get_class($this)."::select_account sql=".$sql, LOG_DEBUG);
+ 		$resql = $this->db->query($sql);
+@@ -2057,7 +2051,7 @@ class BookKeeping extends CommonObject
+ 		$sql .= " AND asy.rowid = ".((int) $pcgver);
+ 		$sql .= " AND aa.active = 1";
+ 		$sql .= " LEFT JOIN ".MAIN_DB_PREFIX."c_accounting_category as cat ON aa.fk_accounting_category = cat.rowid";
+-		$sql .= " WHERE aa.entity = " . ((int) $conf->entity); // Do not use getEntity for accounting features
++		$sql .= " WHERE aa.entity IN (".getEntity('accountancy').")";
+ 
+ 		dol_syslog(get_class($this)."::select_account sql=".$sql, LOG_DEBUG);
+ 		$resql = $this->db->query($sql);
+diff --git a/htdocs/accountancy/customer/index.php b/htdocs/accountancy/customer/index.php
+index 33d94a34636..a88524ec5d4 100644
+--- a/htdocs/accountancy/customer/index.php
++++ b/htdocs/accountancy/customer/index.php
+@@ -1,9 +1,9 @@
+ <?php
+-/* Copyright (C) 2013       Olivier Geffroy     <jeff@jeffinfo.com>
+- * Copyright (C) 2013-2014  Florian Henry       <florian.henry@open-concept.pro>
+- * Copyright (C) 2013-2022  Alexandre Spangaro  <aspangaro@open-dsi.fr>
+- * Copyright (C) 2014       Juanjo Menent       <jmenent@2byte.es>
+- * Copyright (C) 2015       Jean-François Ferry <jfefe@aternatik.fr>
++/* Copyright (C) 2013       Olivier Geffroy		<jeff@jeffinfo.com>
++ * Copyright (C) 2013-2014  Florian Henry		<florian.henry@open-concept.pro>
++ * Copyright (C) 2013-2021  Alexandre Spangaro	<aspangaro@open-dsi.fr>
++ * Copyright (C) 2014       Juanjo Menent		<jmenent@2byte.es>
++ * Copyright (C) 2015       Jean-François Ferry	<jfefe@aternatik.fr>
+  *
+  * This program is free software; you can redistribute it and/or modify
+  * it under the terms of the GNU General Public License as published by
+@@ -158,7 +158,6 @@ if ($action == 'validatehistory') {
+ 	$sql .= " LEFT JOIN ".MAIN_DB_PREFIX."accounting_account as aa4 ON " . $alias_societe_perentity . ".accountancy_code_sell = aa4.account_number        AND aa4.active = 1 AND aa4.fk_pcg_version = '".$db->escape($chartaccountcode)."' AND aa4.entity = ".$conf->entity;
+ 	$sql .= " WHERE f.fk_statut > 0 AND l.fk_code_ventilation <= 0";
+ 	$sql .= " AND l.product_type <= 2";
+-	$sql .= " AND f.entity IN (".getEntity('invoice', 0).")"; // We don't share object for accountancy
+ 	if (!empty($conf->global->ACCOUNTING_DATE_START_BINDING)) {
+ 		$sql .= " AND f.datef >= '".$db->idate($conf->global->ACCOUNTING_DATE_START_BINDING)."'";
+ 	}
+@@ -404,7 +403,6 @@ if (!empty($conf->global->FACTURE_DEPOSITS_ARE_JUST_PAYMENTS)) {
+ }
+ $sql .= " AND aa.account_number IS NOT NULL";
+ $sql .= " GROUP BY fd.fk_code_ventilation,aa.account_number,aa.label";
+-$sql .= ' ORDER BY aa.account_number';
+ 
+ dol_syslog('htdocs/accountancy/customer/index.php');
+ $resql = $db->query($sql);
+diff --git a/htdocs/accountancy/customer/lines.php b/htdocs/accountancy/customer/lines.php
+index a4945afca35..1e7c38b2607 100644
+--- a/htdocs/accountancy/customer/lines.php
++++ b/htdocs/accountancy/customer/lines.php
+@@ -137,9 +137,9 @@ if (is_array($changeaccount) && count($changeaccount) > 0 && $user->rights->acco
+ 	if (!$error) {
+ 		$db->begin();
+ 
+-		$sql1 = "UPDATE ".MAIN_DB_PREFIX."facturedet";
+-		$sql1 .= " SET fk_code_ventilation=".(GETPOST('account_parent', 'int') > 0 ? GETPOST('account_parent', 'int') : '0');
+-		$sql1 .= ' WHERE rowid IN ('.$db->sanitize(implode(',', $changeaccount)).')';
++		$sql1 = "UPDATE ".MAIN_DB_PREFIX."facturedet as l";
++		$sql1 .= " SET l.fk_code_ventilation=".(GETPOST('account_parent', 'int') > 0 ? GETPOST('account_parent', 'int') : '0');
++		$sql1 .= ' WHERE l.rowid IN ('.$db->sanitize(implode(',', $changeaccount)).')';
+ 
+ 		dol_syslog('accountancy/customer/lines.php::changeaccount sql= '.$sql1);
+ 		$resql1 = $db->query($sql1);
+diff --git a/htdocs/accountancy/expensereport/index.php b/htdocs/accountancy/expensereport/index.php
+index 2d9c8ac4f1c..0e3bda39521 100644
+--- a/htdocs/accountancy/expensereport/index.php
++++ b/htdocs/accountancy/expensereport/index.php
+@@ -188,7 +188,6 @@ $sql .= " AND er.fk_statut IN (".ExpenseReport::STATUS_APPROVED.", ".ExpenseRepo
+ $sql .= " AND er.entity IN (".getEntity('expensereport', 0).")"; // We don't share object for accountancy
+ $sql .= " AND aa.account_number IS NULL";
+ $sql .= " GROUP BY erd.fk_code_ventilation,aa.account_number,aa.label";
+-$sql .= ' ORDER BY aa.account_number';
+ 
+ dol_syslog('/accountancy/expensereport/index.php:: sql='.$sql);
+ $resql = $db->query($sql);
+diff --git a/htdocs/accountancy/index.php b/htdocs/accountancy/index.php
+index 8892c9af9f7..1842c23f418 100644
+--- a/htdocs/accountancy/index.php
++++ b/htdocs/accountancy/index.php
+@@ -112,78 +112,77 @@ if ($conf->accounting->enabled) {
+ 	print '<div class="'.($helpisexpanded ? '' : 'hideobject').'" id="idfaq">'; // hideobject is to start hidden
+ 	print "<br>\n";
+ 	print '<span class="opacitymedium">'.$langs->trans("AccountancyAreaDescIntro")."</span><br>\n";
+-	if (!empty($user->rights->accounting->chartofaccount)) {
+-		print "<br>\n"; print "<br>\n";
++	print "<br>\n"; print "<br>\n";
+ 
+-		print load_fiche_titre('<span class="fa fa-calendar-check-o"></span> '.$langs->trans("AccountancyAreaDescActionOnce"), '', '')."\n";
+-		print '<hr>';
+-		print "<br>\n";
++	print load_fiche_titre('<span class="fa fa-calendar-check-o"></span> '.$langs->trans("AccountancyAreaDescActionOnce"), '', '')."\n";
++	print '<hr>';
++	print "<br>\n";
+ 
+-		// STEPS
+-		$step++;
+-		$s = img_picto('', 'puce').' '.$langs->trans("AccountancyAreaDescJournalSetup", $step, '{s}');
+-		$s = str_replace('{s}', '<a href="'.DOL_URL_ROOT.'/accountancy/admin/journals_list.php?id=35"><strong>'.$langs->transnoentitiesnoconv("Setup").' - '.$langs->transnoentitiesnoconv("AccountingJournals").'</strong></a>', $s);
+-		print $s;
+-		print "<br>\n";
+-		$step++;
+-		$s = img_picto('', 'puce').' '.$langs->trans("AccountancyAreaDescChartModel", $step, '{s}');
+-		$s = str_replace('{s}', '<a href="'.DOL_URL_ROOT.'/accountancy/admin/accountmodel.php"><strong>'.$langs->transnoentitiesnoconv("Setup").' - '.$langs->transnoentitiesnoconv("Pcg_version").'</strong></a>', $s);
+-		print $s;
+-		print "<br>\n";
+-		$step++;
+-		$s = img_picto('', 'puce').' '.$langs->trans("AccountancyAreaDescChart", $step, '{s}');
+-		$s = str_replace('{s}', '<a href="'.DOL_URL_ROOT.'/accountancy/admin/account.php"><strong>'.$langs->transnoentitiesnoconv("Setup").' - '.$langs->transnoentitiesnoconv("Chartofaccounts").'</strong></a>', $s);
+-		print $s;
+-		print "<br>\n";
++	// STEPS
++	$step++;
++	$s = img_picto('', 'puce').' '.$langs->trans("AccountancyAreaDescJournalSetup", $step, '{s}');
++	$s = str_replace('{s}', '<a href="'.DOL_URL_ROOT.'/accountancy/admin/journals_list.php?id=35"><strong>'.$langs->transnoentitiesnoconv("Setup").' - '.$langs->transnoentitiesnoconv("AccountingJournals").'</strong></a>', $s);
++	print $s;
++	print "<br>\n";
++	$step++;
++	$s = img_picto('', 'puce').' '.$langs->trans("AccountancyAreaDescChartModel", $step, '{s}');
++	$s = str_replace('{s}', '<a href="'.DOL_URL_ROOT.'/accountancy/admin/accountmodel.php"><strong>'.$langs->transnoentitiesnoconv("Setup").' - '.$langs->transnoentitiesnoconv("Pcg_version").'</strong></a>', $s);
++	print $s;
++	print "<br>\n";
++	$step++;
++	$s = img_picto('', 'puce').' '.$langs->trans("AccountancyAreaDescChart", $step, '{s}');
++	$s = str_replace('{s}', '<a href="'.DOL_URL_ROOT.'/accountancy/admin/account.php"><strong>'.$langs->transnoentitiesnoconv("Setup").' - '.$langs->transnoentitiesnoconv("Chartofaccounts").'</strong></a>', $s);
++	print $s;
++	print "<br>\n";
+ 
+-		print "<br>\n";
+-		print $langs->trans("AccountancyAreaDescActionOnceBis");
+-		print "<br>\n";
+-		print "<br>\n";
++	print "<br>\n";
++	print $langs->trans("AccountancyAreaDescActionOnceBis");
++	print "<br>\n";
++	print "<br>\n";
+ 
+-		$step++;
+-		$s = img_picto('', 'puce').' '.$langs->trans("AccountancyAreaDescDefault", $step, '{s}');
+-		$s = str_replace('{s}', '<a href="'.DOL_URL_ROOT.'/accountancy/admin/defaultaccounts.php"><strong>'.$langs->transnoentitiesnoconv("Setup").' - '.$langs->transnoentitiesnoconv("MenuDefaultAccounts").'</strong></a>', $s);
+-		print $s;
+-		print "<br>\n";
++	$step++;
++	$s = img_picto('', 'puce').' '.$langs->trans("AccountancyAreaDescDefault", $step, '{s}');
++	$s = str_replace('{s}', '<a href="'.DOL_URL_ROOT.'/accountancy/admin/defaultaccounts.php"><strong>'.$langs->transnoentitiesnoconv("Setup").' - '.$langs->transnoentitiesnoconv("MenuDefaultAccounts").'</strong></a>', $s);
++	print $s;
++	print "<br>\n";
+ 
+-		$step++;
+-		$s = img_picto('', 'puce').' '.$langs->trans("AccountancyAreaDescBank", $step, '{s}')."\n";
+-		$s = str_replace('{s}', '<a href="'.DOL_URL_ROOT.'/compta/bank/list.php"><strong>'.$langs->transnoentitiesnoconv("Setup").' - '.$langs->transnoentitiesnoconv("MenuBankAccounts").'</strong></a>', $s);
+-		print $s;
+-		print "<br>\n";
++	$step++;
++	$s = img_picto('', 'puce').' '.$langs->trans("AccountancyAreaDescBank", $step, '{s}')."\n";
++	$s = str_replace('{s}', '<a href="'.DOL_URL_ROOT.'/compta/bank/list.php"><strong>'.$langs->transnoentitiesnoconv("Setup").' - '.$langs->transnoentitiesnoconv("MenuBankAccounts").'</strong></a>', $s);
++	print $s;
++	print "<br>\n";
+ 
++	$step++;
++	$textlink = '<a href="'.DOL_URL_ROOT.'/admin/dict.php?id=10&from=accountancy"><strong>'.$langs->transnoentitiesnoconv("Setup").' - '.$langs->transnoentitiesnoconv("MenuVatAccounts").'</strong></a>';
++	$s = img_picto('', 'puce').' '.$langs->trans("AccountancyAreaDescVat", $step, '{s}');
++	$s = str_replace('{s}', $textlink, $s);
++	print $s;
++	print "<br>\n";
++	if (!empty($conf->tax->enabled)) {
++		$textlink = '<a href="'.DOL_URL_ROOT.'/admin/dict.php?id=7&from=accountancy"><strong>'.$langs->transnoentitiesnoconv("Setup").' - '.$langs->transnoentitiesnoconv("MenuTaxAccounts").'</strong></a>';
+ 		$step++;
+-		$textlink = '<a href="'.DOL_URL_ROOT.'/admin/dict.php?id=10&from=accountancy"><strong>'.$langs->transnoentitiesnoconv("Setup").' - '.$langs->transnoentitiesnoconv("MenuVatAccounts").'</strong></a>';
+-		$s = img_picto('', 'puce').' '.$langs->trans("AccountancyAreaDescVat", $step, '{s}');
++		$s = img_picto('', 'puce').' '.$langs->trans("AccountancyAreaDescContrib", $step, '{s}');
+ 		$s = str_replace('{s}', $textlink, $s);
+ 		print $s;
+ 		print "<br>\n";
+-		if (!empty($conf->tax->enabled)) {
+-			$textlink = '<a href="'.DOL_URL_ROOT.'/admin/dict.php?id=7&from=accountancy"><strong>'.$langs->transnoentitiesnoconv("Setup").' - '.$langs->transnoentitiesnoconv("MenuTaxAccounts").'</strong></a>';
+-			$step++;
+-			$s = img_picto('', 'puce').' '.$langs->trans("AccountancyAreaDescContrib", $step, '{s}');
+-			$s = str_replace('{s}', $textlink, $s);
+-			print $s;
+-			print "<br>\n";
+-		}
+-		if (!empty($conf->expensereport->enabled)) {  // TODO Move this in the default account page because this is only one accounting account per purpose, not several.
+-			$step++;
+-			$s = img_picto('', 'puce').' '.$langs->trans("AccountancyAreaDescExpenseReport", $step, '{s}');
+-			$s = str_replace('{s}', '<a href="'.DOL_URL_ROOT.'/admin/dict.php?id=17&from=accountancy"><strong>'.$langs->transnoentitiesnoconv("Setup").' - '.$langs->transnoentitiesnoconv("MenuExpenseReportAccounts").'</strong></a>', $s);
+-			print $s;
+-			print "<br>\n";
+-		}
+-
++	}
++	if (!empty($conf->expensereport->enabled)) {  // TODO Move this in the default account page because this is only one accounting account per purpose, not several.
+ 		$step++;
+-		$s = img_picto('', 'puce').' '.$langs->trans("AccountancyAreaDescProd", $step, '{s}');
+-		$s = str_replace('{s}', '<a href="'.DOL_URL_ROOT.'/accountancy/admin/productaccount.php"><strong>'.$langs->transnoentitiesnoconv("Setup").' - '.$langs->transnoentitiesnoconv("ProductsBinding").'</strong></a>', $s);
++		$s = img_picto('', 'puce').' '.$langs->trans("AccountancyAreaDescExpenseReport", $step, '{s}');
++		$s = str_replace('{s}', '<a href="'.DOL_URL_ROOT.'/admin/dict.php?id=17&from=accountancy"><strong>'.$langs->transnoentitiesnoconv("Setup").' - '.$langs->transnoentitiesnoconv("MenuExpenseReportAccounts").'</strong></a>', $s);
+ 		print $s;
+ 		print "<br>\n";
+-
+-		print '<br>';
+ 	}
+ 
++	$step++;
++	$s = img_picto('', 'puce').' '.$langs->trans("AccountancyAreaDescProd", $step, '{s}');
++	$s = str_replace('{s}', '<a href="'.DOL_URL_ROOT.'/accountancy/admin/productaccount.php"><strong>'.$langs->transnoentitiesnoconv("Setup").' - '.$langs->transnoentitiesnoconv("ProductsBinding").'</strong></a>', $s);
++	print $s;
++	print "<br>\n";
++
++
++	print '<br>';
++
+ 	// Step A - E
+ 
+ 	print "<br>\n";
+diff --git a/htdocs/accountancy/journal/bankjournal.php b/htdocs/accountancy/journal/bankjournal.php
+index 19a9ca63c07..bdda4583d54 100644
+--- a/htdocs/accountancy/journal/bankjournal.php
++++ b/htdocs/accountancy/journal/bankjournal.php
+@@ -288,16 +288,8 @@ if ($result) {
+ 
+ 		// get_url may return -1 which is not traversable
+ 		if (is_array($links) && count($links) > 0) {
+-			$is_sc = false;
+-			foreach ($links as $v) {
+-				if ($v['type'] == 'sc') {
+-					$is_sc = true;
+-					break;
+-				}
+-			}
+ 			// Now loop on each link of record in bank (code similar to bankentries_list.php)
+ 			foreach ($links as $key => $val) {
+-				if ($links[$key]['type'] == 'user' && !$is_sc) continue;
+ 				if (in_array($links[$key]['type'], array('sc', 'payment_sc', 'payment', 'payment_supplier', 'payment_vat', 'payment_expensereport', 'banktransfert', 'payment_donation', 'member', 'payment_loan', 'payment_salary', 'payment_various'))) {
+ 					// So we excluded 'company' and 'user' here. We want only payment lines
+ 
+diff --git a/htdocs/accountancy/journal/expensereportsjournal.php b/htdocs/accountancy/journal/expensereportsjournal.php
+index 16435e10d50..96ab150dd24 100644
+--- a/htdocs/accountancy/journal/expensereportsjournal.php
++++ b/htdocs/accountancy/journal/expensereportsjournal.php
+@@ -3,11 +3,11 @@
+  * Copyright (C) 2007-2010  Jean Heimburger         <jean@tiaris.info>
+  * Copyright (C) 2011       Juanjo Menent           <jmenent@2byte.es>
+  * Copyright (C) 2012       Regis Houssin           <regis.houssin@inodbox.com>
+- * Copyright (C) 2013-2023  Alexandre Spangaro      <aspangaro@easya.solutions>
++ * Copyright (C) 2013-2021  Alexandre Spangaro      <aspangaro@open-dsi.fr>
+  * Copyright (C) 2013-2016  Olivier Geffroy         <jeff@jeffinfo.com>
+  * Copyright (C) 2013-2016  Florian Henry           <florian.henry@open-concept.pro>
+  * Copyright (C) 2018       Frédéric France         <frederic.france@netlogic.fr>
+- * Copyright (C) 2018		Eric Seigne             <eric.seigne@cap-rel.fr>
++ * Copyright (C) 2018		Eric Seigne	    <eric.seigne@cap-rel.fr>
+  *
+  * This program is free software; you can redistribute it and/or modify
+  * it under the terms of the GNU General Public License as published by
+@@ -68,7 +68,6 @@ if (empty($user->rights->accounting->mouvements->lire)) {
+ 	accessforbidden();
+ }
+ 
+-$error = 0;
+ 
+ /*
+  * Actions
+@@ -202,27 +201,8 @@ if ($result) {
+ 	dol_print_error($db);
+ }
+ 
+-// Load all unbound lines
+-$sql = "SELECT fk_expensereport, COUNT(erd.rowid) as nb";
+-$sql .= " FROM ".MAIN_DB_PREFIX."expensereport_det as erd";
+-$sql .= " WHERE erd.fk_code_ventilation <= 0";
+-$sql .= " AND erd.total_ttc <> 0";
+-$sql .= " AND fk_expensereport IN (".$db->sanitize(join(",", array_keys($taber))).")";
+-$sql .= " GROUP BY fk_expensereport";
+-$resql = $db->query($sql);
+-
+-$num = $db->num_rows($resql);
+-$i = 0;
+-while ($i < $num) {
+-	$obj = $db->fetch_object($resql);
+-	if ($obj->nb > 0) {
+-		$errorforinvoice[$obj->fk_expensereport] = 'somelinesarenotbound';
+-	}
+-	$i++;
+-}
+-
+ // Bookkeeping Write
+-if ($action == 'writebookkeeping' && !$error) {
++if ($action == 'writebookkeeping') {
+ 	$now = dol_now();
+ 	$error = 0;
+ 
+@@ -237,13 +217,6 @@ if ($action == 'writebookkeeping' && !$error) {
+ 
+ 		$db->begin();
+ 
+-		// Error if some lines are not binded/ready to be journalized
+-		if ($errorforinvoice[$key] == 'somelinesarenotbound') {
+-			$error++;
+-			$errorforline++;
+-			setEventMessages($langs->trans('ErrorInvoiceContainsLinesNotYetBounded', $val['ref']), null, 'errors');
+-		}
+-
+ 		// Thirdparty
+ 		if (!$errorforline) {
+ 			foreach ($tabttc[$key] as $k => $mt) {
+@@ -280,12 +253,10 @@ if ($action == 'writebookkeeping' && !$error) {
+ 						if ($bookkeeping->error == 'BookkeepingRecordAlreadyExists') {	// Already exists
+ 							$error++;
+ 							$errorforline++;
+-							$errorforinvoice[$key] = 'alreadyjournalized';
+ 							//setEventMessages('Transaction for ('.$bookkeeping->doc_type.', '.$bookkeeping->fk_doc.', '.$bookkeeping->fk_docdet.') were already recorded', null, 'warnings');
+ 						} else {
+ 							$error++;
+ 							$errorforline++;
+-							$errorforinvoice[$key] = 'other';
+ 							setEventMessages($bookkeeping->error, $bookkeeping->errors, 'errors');
+ 						}
+ 					}
+@@ -331,12 +302,10 @@ if ($action == 'writebookkeeping' && !$error) {
+ 							if ($bookkeeping->error == 'BookkeepingRecordAlreadyExists') {	// Already exists
+ 								$error++;
+ 								$errorforline++;
+-								$errorforinvoice[$key] = 'alreadyjournalized';
+ 								//setEventMessages('Transaction for ('.$bookkeeping->doc_type.', '.$bookkeeping->fk_doc.', '.$bookkeeping->fk_docdet.') were already recorded', null, 'warnings');
+ 							} else {
+ 								$error++;
+ 								$errorforline++;
+-								$errorforinvoice[$key] = 'other';
+ 								setEventMessages($bookkeeping->error, $bookkeeping->errors, 'errors');
+ 							}
+ 						}
+@@ -359,7 +328,7 @@ if ($action == 'writebookkeeping' && !$error) {
+ 
+ 				foreach ($arrayofvat[$key] as $k => $mt) {
+ 					if ($mt) {
+-						$accountingaccount->fetch(null, $k, true);	// TODO Use a cache for label
++						$accountingaccount->fetch($k, null, true);	// TODO Use a cache for label
+ 						$account_label = $accountingaccount->label;
+ 
+ 						// get compte id and label
+@@ -395,12 +364,10 @@ if ($action == 'writebookkeeping' && !$error) {
+ 							if ($bookkeeping->error == 'BookkeepingRecordAlreadyExists') {	// Already exists
+ 								$error++;
+ 								$errorforline++;
+-								$errorforinvoice[$key] = 'alreadyjournalized';
+ 								//setEventMessages('Transaction for ('.$bookkeeping->doc_type.', '.$bookkeeping->fk_doc.', '.$bookkeeping->fk_docdet.') were already recorded', null, 'warnings');
+ 							} else {
+ 								$error++;
+ 								$errorforline++;
+-								$errorforinvoice[$key] = 'other';
+ 								setEventMessages($bookkeeping->error, $bookkeeping->errors, 'errors');
+ 							}
+ 						}
+@@ -409,11 +376,10 @@ if ($action == 'writebookkeeping' && !$error) {
+ 			}
+ 		}
+ 
+-		// Protection against a bug on lines before
+-		if (!$errorforline && (price2num($totaldebit, 'MT') != price2num($totalcredit, 'MT'))) {
++		// Protection against a bug on line before
++		if (price2num($totaldebit, 'MT') != price2num($totalcredit, 'MT')) {
+ 			$error++;
+ 			$errorforline++;
+-			$errorforinvoice[$key] = 'amountsnotbalanced';
+ 			setEventMessages('Try to insert a non balanced transaction in book for '.$val["ref"].'. Canceled. Surely a bug.', null, 'errors');
+ 		}
+ 
+@@ -467,7 +433,7 @@ $form = new Form($db);
+ $userstatic = new User($db);
+ 
+ // Export
+-if ($action == 'exportcsv' && !$error) {		// ISO and not UTF8 !
++if ($action == 'exportcsv') {		// ISO and not UTF8 !
+ 	$sep = $conf->global->ACCOUNTING_EXPORT_SEPARATORCSV;
+ 
+ 	$filename = 'journal';
+@@ -537,7 +503,7 @@ if (empty($action) || $action == 'view') {
+ 	$periodlink = '';
+ 	$exportlink = '';
+ 	$builddate = dol_now();
+-	$description = $langs->trans("DescJournalOnlyBindedVisible").'<br>';
++	$description .= $langs->trans("DescJournalOnlyBindedVisible").'<br>';
+ 
+ 	$listofchoices = array('notyet'=>$langs->trans("NotYetInGeneralLedger"), 'already'=>$langs->trans("AlreadyInGeneralLedger"));
+ 	$period = $form->selectDate($date_start ? $date_start : -1, 'date_start', 0, 0, 0, '', 1, 0).' - '.$form->selectDate($date_end ? $date_end : -1, 'date_end', 0, 0, 0, '', 1, 0);
+@@ -601,11 +567,11 @@ if (empty($action) || $action == 'view') {
+ 	print "<td>".$langs->trans("AccountAccounting")."</td>";
+ 	print "<td>".$langs->trans("SubledgerAccount")."</td>";
+ 	print "<td>".$langs->trans("LabelOperation")."</td>";
+-	print '<td class="center">'.$langs->trans("Debit")."</td>";
+-	print '<td class="center">'.$langs->trans("Credit")."</td>";
++	print '<td class="right">'.$langs->trans("Debit")."</td>";
++	print '<td class="right">'.$langs->trans("Credit")."</td>";
+ 	print "</tr>\n";
+ 
+-	$i = 0;
++	$r = '';
+ 
+ 	$expensereportstatic = new ExpenseReport($db);
+ 	$expensereportlinestatic = new ExpenseReportLine($db);
+@@ -617,27 +583,6 @@ if (empty($action) || $action == 'view') {
+ 
+ 		$date = dol_print_date($val["date"], 'day');
+ 
+-		if ($errorforinvoice[$key] == 'somelinesarenotbound') {
+-			print '<tr class="oddeven">';
+-			print "<!-- Some lines are not bound -->";
+-			print "<td>".$date."</td>";
+-			print "<td>".$expensereportstatic->getNomUrl(1)."</td>";
+-			// Account
+-			print "<td>";
+-			print '<span class="error">'.$langs->trans('ErrorInvoiceContainsLinesNotYetBoundedShort', $val['ref']).'</span>';
+-			print '</td>';
+-			// Subledger account
+-			print "<td>";
+-			print '</td>';
+-			print "<td>";
+-			print "</td>";
+-			print '<td class="right"></td>';
+-			print '<td class="right"></td>';
+-			print "</tr>";
+-
+-			$i++;
+-		}
+-
+ 		// Fees
+ 		foreach ($tabht[$key] as $k => $mt) {
+ 			$accountingaccount = new AccountingAccount($db);
+@@ -668,8 +613,6 @@ if (empty($action) || $action == 'view') {
+ 				print '<td class="right nowraponall amount">'.($mt >= 0 ? price($mt) : '')."</td>";
+ 				print '<td class="right nowraponall amount">'.($mt < 0 ? price(-$mt) : '')."</td>";
+ 				print "</tr>";
+-
+-				$i++;
+ 			}
+ 		}
+ 
+@@ -704,8 +647,6 @@ if (empty($action) || $action == 'view') {
+ 			print '<td class="right nowraponall amount">'.($mt < 0 ? price(-$mt) : '')."</td>";
+ 			print '<td class="right nowraponall amount">'.($mt >= 0 ? price($mt) : '')."</td>";
+ 			print "</tr>";
+-
+-			$i++;
+ 		}
+ 
+ 		// VAT
+@@ -742,17 +683,11 @@ if (empty($action) || $action == 'view') {
+ 					print '<td class="right nowraponall amount">'.($mt >= 0 ? price($mt) : '')."</td>";
+ 					print '<td class="right nowraponall amount">'.($mt < 0 ? price(-$mt) : '')."</td>";
+ 					print "</tr>";
+-
+-					$i++;
+ 				}
+ 			}
+ 		}
+ 	}
+ 
+-	if (!$i) {
+-		print '<tr class="oddeven"><td colspan="7"><span class="opacitymedium">'.$langs->trans("NoRecordFound").'</span></td></tr>';
+-	}
+-
+ 	print "</table>";
+ 	print '</div>';
+ 
+diff --git a/htdocs/accountancy/journal/purchasesjournal.php b/htdocs/accountancy/journal/purchasesjournal.php
+index dbee23abaa8..9a65844871d 100644
+--- a/htdocs/accountancy/journal/purchasesjournal.php
++++ b/htdocs/accountancy/journal/purchasesjournal.php
+@@ -441,7 +441,7 @@ if ($action == 'writebookkeeping') {
+ 
+ 				foreach ($arrayofvat[$key] as $k => $mt) {
+ 					if ($mt) {
+-						$accountingaccount->fetch(null, $k, true);		// TODO Use a cache for label
++						$accountingaccount->fetch($k, null, true);		// TODO Use a cache for label
+ 						$label_account = $accountingaccount->label;
+ 
+ 						$bookkeeping = new BookKeeping($db);
+diff --git a/htdocs/accountancy/journal/sellsjournal.php b/htdocs/accountancy/journal/sellsjournal.php
+index e33a13dad48..bd476173427 100644
+--- a/htdocs/accountancy/journal/sellsjournal.php
++++ b/htdocs/accountancy/journal/sellsjournal.php
+@@ -147,7 +147,7 @@ if ($in_bookkeeping == 'notyet') {
+ 	$sql .= " AND f.rowid NOT IN (SELECT fk_doc FROM ".MAIN_DB_PREFIX."accounting_bookkeeping as ab WHERE ab.doc_type='customer_invoice')";
+ 	// $sql .= " AND fd.rowid NOT IN (SELECT fk_docdet FROM " . MAIN_DB_PREFIX . "accounting_bookkeeping as ab WHERE ab.doc_type='customer_invoice')";		// Useless, we save one line for all products with same account
+ }
+-$sql .= " ORDER BY f.datef, f.ref";
++$sql .= " ORDER BY f.datef";
+ //print $sql; exit;
+ 
+ dol_syslog('accountancy/journal/sellsjournal.php', LOG_DEBUG);
+@@ -453,7 +453,7 @@ if ($action == 'writebookkeeping') {
+ 
+ 				foreach ($arrayofvat[$key] as $k => $mt) {
+ 					if ($mt) {
+-						$accountingaccount->fetch(null, $k, true);	// TODO Use a cache for label
++						$accountingaccount->fetch($k, null, true);	// TODO Use a cache for label
+ 						$label_account = $accountingaccount->label;
+ 
+ 						$bookkeeping = new BookKeeping($db);
+diff --git a/htdocs/accountancy/supplier/index.php b/htdocs/accountancy/supplier/index.php
+index 48462c38365..585121f7c36 100644
+--- a/htdocs/accountancy/supplier/index.php
++++ b/htdocs/accountancy/supplier/index.php
+@@ -1,8 +1,8 @@
+ <?php
+-/* Copyright (C) 2013-2014  Olivier Geffroy     <jeff@jeffinfo.com>
+- * Copyright (C) 2013-2014  Florian Henry       <florian.henry@open-concept.pro>
+- * Copyright (C) 2013-2022  Alexandre Spangaro  <aspangaro@open-dsi.fr>
+- * Copyright (C) 2014       Juanjo Menent       <jmenent@2byte.es>
++/* Copyright (C) 2013-2014 Olivier Geffroy		<jeff@jeffinfo.com>
++ * Copyright (C) 2013-2014 Florian Henry		<florian.henry@open-concept.pro>
++ * Copyright (C) 2013-2020 Alexandre Spangaro	<aspangaro@open-dsi.fr>
++ * Copyright (C) 2014	   Juanjo Menent		<jmenent@2byte.es>
+  *
+  * This program is free software; you can redistribute it and/or modify
+  * it under the terms of the GNU General Public License as published by
+@@ -166,7 +166,6 @@ if ($action == 'validatehistory') {
+ 	$sql .= " LEFT JOIN ".MAIN_DB_PREFIX."accounting_account as aa4 ON " . $alias_product_perentity . ".accountancy_code_buy = aa4.account_number        AND aa4.active = 1 AND aa4.fk_pcg_version = '".$db->escape($chartaccountcode)."' AND aa4.entity = ".$conf->entity;
+ 	$sql .= " WHERE f.fk_statut > 0 AND l.fk_code_ventilation <= 0";
+ 	$sql .= " AND l.product_type <= 2";
+-	$sql .= " AND f.entity IN (".getEntity('facture_fourn', 0).")"; // We don't share object for accountancy
+ 	if (!empty($conf->global->ACCOUNTING_DATE_START_BINDING)) {
+ 		$sql .= " AND f.datef >= '".$db->idate($conf->global->ACCOUNTING_DATE_START_BINDING)."'";
+ 	}
+@@ -301,7 +300,6 @@ $sql .= "  AND ffd.product_type <= 2";
+ $sql .= " AND ff.entity IN (".getEntity('facture_fourn', 0).")"; // We don't share object for accountancy
+ $sql .= " AND aa.account_number IS NULL";
+ $sql .= " GROUP BY ffd.fk_code_ventilation,aa.account_number,aa.label";
+-$sql .= ' ORDER BY aa.account_number';
+ 
+ dol_syslog('htdocs/accountancy/supplier/index.php');
+ $resql = $db->query($sql);
+diff --git a/htdocs/accountancy/supplier/lines.php b/htdocs/accountancy/supplier/lines.php
+index 861be65e1d8..61e17ab669c 100644
+--- a/htdocs/accountancy/supplier/lines.php
++++ b/htdocs/accountancy/supplier/lines.php
+@@ -140,9 +140,9 @@ if (is_array($changeaccount) && count($changeaccount) > 0 && $user->rights->acco
+ 	if (!$error) {
+ 		$db->begin();
+ 
+-		$sql1 = "UPDATE ".MAIN_DB_PREFIX."facture_fourn_det";
+-		$sql1 .= " SET fk_code_ventilation=".(GETPOST('account_parent', 'int') > 0 ? GETPOST('account_parent', 'int') : '0');
+-		$sql1 .= ' WHERE rowid IN ('.$db->sanitize(implode(',', $changeaccount)).')';
++		$sql1 = "UPDATE ".MAIN_DB_PREFIX."facture_fourn_det as l";
++		$sql1 .= " SET l.fk_code_ventilation=".(GETPOST('account_parent', 'int') > 0 ? GETPOST('account_parent', 'int') : '0');
++		$sql1 .= ' WHERE l.rowid IN ('.$db->sanitize(implode(',', $changeaccount)).')';
+ 
+ 		dol_syslog('accountancy/supplier/lines.php::changeaccount sql= '.$sql1);
+ 		$resql1 = $db->query($sql1);
+diff --git a/htdocs/admin/debugbar.php b/htdocs/admin/debugbar.php
+index ce3c43bd69d..19a440520b1 100644
+--- a/htdocs/admin/debugbar.php
++++ b/htdocs/admin/debugbar.php
+@@ -93,17 +93,15 @@ print '<td>'.$langs->trans("Parameter").'</td><td>'.$langs->trans("Value").'</td
+ print '<td class="right"><input type="submit" class="button" '.$option.' value="'.$langs->trans("Modify").'"></td>';
+ print "</tr>\n";
+ 
+-print '<tr class="oddeven"><td>'.$langs->trans("DEBUGBAR_USE_LOG_FILE").'</td>';
+-print '<td>';
+-print $form->selectyesno('DEBUGBAR_USE_LOG_FILE', $conf->global->DEBUGBAR_USE_LOG_FILE, 1);
+-print '</td><td>';
+-print '<span class="opacitymedium"> '.$langs->trans("UsingLogFileShowAllRecordOfSubrequestButIsSlower").'</span>';
++print '<tr class="oddeven"><td>'.$langs->trans("DEBUGBAR_LOGS_LINES_NUMBER").'</td>';
++print '<td colspan="2"><input type="text" class="flat" name="DEBUGBAR_LOGS_LINES_NUMBER" value="'.(empty($conf->global->DEBUGBAR_LOGS_LINES_NUMBER) ? 250 : $conf->global->DEBUGBAR_LOGS_LINES_NUMBER).'">'; // This slow seriously output
++print ' '.$langs->trans("WarningValueHigherSlowsDramaticalyOutput");
+ print '</td></tr>';
+ 
+-print '<tr class="oddeven"><td>'.$langs->trans("DEBUGBAR_LOGS_LINES_NUMBER").'</td>';
+-print '<td><input type="text" class="flat" name="DEBUGBAR_LOGS_LINES_NUMBER" value="'.(empty($conf->global->DEBUGBAR_LOGS_LINES_NUMBER) ? 250 : $conf->global->DEBUGBAR_LOGS_LINES_NUMBER).'">'; // This slow seriously output
+-print '</td><td>';
+-print '<span class="opacitymedium">'.$langs->trans("WarningValueHigherSlowsDramaticalyOutput").'</span>';
++print '<tr class="oddeven"><td>'.$langs->trans("DEBUGBAR_USE_LOG_FILE").'</td>';
++print '<td colspan="2">';
++print $form->selectyesno('DEBUGBAR_USE_LOG_FILE', $conf->global->DEBUGBAR_USE_LOG_FILE, 1);
++print ' '.$langs->trans("UsingLogFileShowAllRecordOfSubrequestButIsSlower");
+ print '</td></tr>';
+ 
+ print '</table>';
+diff --git a/htdocs/admin/dict.php b/htdocs/admin/dict.php
+index 4f65c79b90f..eab0942ee4e 100644
+--- a/htdocs/admin/dict.php
++++ b/htdocs/admin/dict.php
+@@ -911,7 +911,7 @@ if (GETPOST('actionadd') || GETPOST('actionmodify')) {
+ 			if ($db->errno() == 'DB_ERROR_RECORD_ALREADY_EXISTS') {
+ 				setEventMessages($langs->transnoentities("ErrorRecordAlreadyExists"), null, 'errors');
+ 			} else {
+-				setEventMessages($db->error(), null, 'errors');
++				dol_print_error($db);
+ 			}
+ 		}
+ 	}
+@@ -1963,7 +1963,7 @@ if ($id) {
+ 							} elseif ($value == 'fk_tva') {
+ 								foreach ($form->cache_vatrates as $key => $Tab) {
+ 									if ($form->cache_vatrates[$key]['rowid'] == $valuetoshow) {
+-										$valuetoshow = $form->cache_vatrates[$key]['label'];
++										$valuetoshow = $form->cache_vatrates[$key]['libtva'];
+ 										break;
+ 									}
+ 								}
+diff --git a/htdocs/admin/dolistore/class/dolistore.class.php b/htdocs/admin/dolistore/class/dolistore.class.php
+index f672cf05a52..546ef1d57a6 100644
+--- a/htdocs/admin/dolistore/class/dolistore.class.php
++++ b/htdocs/admin/dolistore/class/dolistore.class.php
+@@ -267,9 +267,9 @@ class Dolistore
+ 
+ 			// add image or default ?
+ 			if ($product->id_default_image != '') {
+-				$image_url = DOL_URL_ROOT.'/admin/dolistore/ajax/image.php?id_product='.urlencode(((int) $product->id)).'&id_image='.urlencode(((int) $product->id_default_image));
+-				$images = '<a href="'.$image_url.'" class="documentpreview" target="_blank" mime="image/png" title="'.dol_escape_htmltag($product->name->language[$this->lang - 1].', '.$langs->trans('Version').' '.$product->module_version).'">';
+-				$images .= '<img src="'.$image_url.'&quality=home_default" style="max-height:250px;max-width: 210px;" alt="" /></a>';
++				$image_url = DOL_URL_ROOT.'/admin/dolistore/ajax/image.php?id_product='.((int) $product->id).'&id_image='.((int) $product->id_default_image);
++				$images = '<a href="'.urlencode($image_url).'" class="documentpreview" target="_blank" mime="image/png" title="'.dol_escape_htmltag($product->name->language[$this->lang - 1].', '.$langs->trans('Version').' '.$product->module_version).'">';
++				$images .= '<img src="'.urlencode($image_url).'&quality=home_default" style="max-height:250px;max-width: 210px;" alt="" /></a>';
+ 			} else {
+ 				$images = '<img src="'.DOL_URL_ROOT.'/admin/dolistore/img/NoImageAvailable.png" />';
+ 			}
+@@ -277,11 +277,11 @@ class Dolistore
+ 			// free or pay ?
+ 			if ($product->price > 0) {
+ 				$price = '<h3>'.price(price2num($product->price, 'MT'), 0, $langs, 1, -1, -1, 'EUR').' '.$langs->trans("HT").'</h3>';
+-				$download_link = '<a target="_blank" href="'.$this->shop_url.urlencode($product->id).'"><img width="32" src="'.DOL_URL_ROOT.'/admin/dolistore/img/follow.png" /></a>';
++				$download_link = '<a target="_blank" href="'.urlencode($this->shop_url.$product->id).'"><img width="32" src="'.DOL_URL_ROOT.'/admin/dolistore/img/follow.png" /></a>';
+ 			} else {
+ 				$price         = '<h3>'.$langs->trans('Free').'</h3>';
+-				$download_link = '<a target="_blank" href="'.$this->shop_url.urlencode($product->id).'"><img width="32" src="'.DOL_URL_ROOT.'/admin/dolistore/img/Download-128.png" /></a>';
+-				$download_link .= '<br><br><a target="_blank" href="'.$this->shop_url.urlencode($product->id).'"><img width="32" src="'.DOL_URL_ROOT.'/admin/dolistore/img/follow.png" /></a>';
++				$download_link = '<a target="_blank" href="'.urlencode($this->shop_url.$product->id).'"><img width="32" src="'.DOL_URL_ROOT.'/admin/dolistore/img/Download-128.png" /></a>';
++				$download_link .= '<br><br><a target="_blank" href="'.urlencode($this->shop_url.$product->id).'"><img width="32" src="'.DOL_URL_ROOT.'/admin/dolistore/img/follow.png" /></a>';
+ 			}
+ 
+ 			// Set and check version
+diff --git a/htdocs/admin/mails_templates.php b/htdocs/admin/mails_templates.php
+index 3abeb0bde54..0adc526d69e 100644
+--- a/htdocs/admin/mails_templates.php
++++ b/htdocs/admin/mails_templates.php
+@@ -205,7 +205,7 @@ if (!empty($conf->expedition->enabled)) {
+ 	$elementList['shipping_send'] = img_picto('', 'dolly', 'class="paddingright"').dol_escape_htmltag($langs->trans('MailToSendShipment'));
+ }
+ if (!empty($conf->reception->enabled)) {
+-	$elementList['reception_send'] = img_picto('', 'dollyrevert', 'class="paddingright"').dol_escape_htmltag($langs->trans('MailToSendReception'));
++	$elementList['reception_send'] = img_picto('', 'dolly', 'class="paddingright"').dol_escape_htmltag($langs->trans('MailToSendReception'));
+ }
+ if (!empty($conf->ficheinter->enabled)) {
+ 	$elementList['fichinter_send'] = img_picto('', 'intervention', 'class="paddingright"').dol_escape_htmltag($langs->trans('MailToSendIntervention'));
+diff --git a/htdocs/admin/paymentbybanktransfer.php b/htdocs/admin/paymentbybanktransfer.php
+index 859323f8376..43ad8c15929 100644
+--- a/htdocs/admin/paymentbybanktransfer.php
++++ b/htdocs/admin/paymentbybanktransfer.php
+@@ -103,9 +103,7 @@ if ($action == "set") {
+ 		if (!($res > 0)) {
+ 			$error++;
+ 		}
+-	}
+-
+-	if (!$error) {
++	} elseif (!$error) {
+ 		$db->commit();
+ 		setEventMessages($langs->trans("SetupSaved"), null, 'mesgs');
+ 	} else {
+diff --git a/htdocs/admin/supplier_order.php b/htdocs/admin/supplier_order.php
+index 5b7a9845c10..071ada85c0a 100644
+--- a/htdocs/admin/supplier_order.php
++++ b/htdocs/admin/supplier_order.php
+@@ -132,6 +132,8 @@ if ($action == 'updateMask') {
+ 	if ($ret > 0) {
+ 		$ret = addDocumentModel($value, $type, $label, $scandir);
+ 	}
++} elseif ($action == 'unsetdoc') {
++	dolibarr_del_const($db, "COMMANDE_SUPPLIER_ADDON_PDF", $conf->entity);
+ } elseif ($action == 'setmod') {
+ 	// TODO Verifier si module numerotation choisi peut etre active
+ 	// par appel methode canBeActivated
+@@ -381,7 +383,7 @@ foreach ($dirmodels as $reldir) {
+ 					if (in_array($name, $def)) {
+ 						print '<td class="center">'."\n";
+ 						if ($conf->global->COMMANDE_SUPPLIER_ADDON_PDF != "$name") {
+-							print '<a href="'.$_SERVER["PHP_SELF"].'?action=del&amp;token='.newToken().'&amp;value='.$name.'&amp;scan_dir='.$module->scandir.'&amp;label='.urlencode($module->name).'&amp;type=order_supplier">';
++							print '<a href="'.$_SERVER["PHP_SELF"].'?action=del&amp;value='.$name.'&amp;scan_dir='.$module->scandir.'&amp;label='.urlencode($module->name).'&amp;type=order_supplier">';
+ 							print img_picto($langs->trans("Enabled"), 'switch_on');
+ 							print '</a>';
+ 						} else {
+@@ -397,7 +399,7 @@ foreach ($dirmodels as $reldir) {
+ 					// Default
+ 					print '<td class="center">';
+ 					if ($conf->global->COMMANDE_SUPPLIER_ADDON_PDF == "$name") {
+-						print img_picto($langs->trans("Default"), 'on');
++						print '<a href="'.$_SERVER["PHP_SELF"].'?action=unsetdoc&amp;token='.newToken().'&amp;value='.$name.'&amp;scan_dir='.$module->scandir.'&amp;label='.urlencode($module->name).'&amp;type=order_supplier"" alt="'.$langs->trans("Disable").'">'.img_picto($langs->trans("Enabled"), 'on').'</a>';
+ 					} else {
+ 						print '<a href="'.$_SERVER["PHP_SELF"].'?action=setdoc&amp;token='.newToken().'&amp;value='.$name.'&amp;scan_dir='.$module->scandir.'&amp;label='.urlencode($module->name).'&amp;type=order_supplier"" alt="'.$langs->trans("Default").'">'.img_picto($langs->trans("Disabled"), 'off').'</a>';
+ 					}
+diff --git a/htdocs/admin/supplier_payment.php b/htdocs/admin/supplier_payment.php
+index 3f79b52eff3..4482373a2bd 100644
+--- a/htdocs/admin/supplier_payment.php
++++ b/htdocs/admin/supplier_payment.php
+@@ -89,6 +89,8 @@ if ($action == 'updateMask') {
+ 	if ($ret > 0) {
+ 		$ret = addDocumentModel($value, $type, $label, $scandir);
+ 	}
++} elseif ($action == 'unsetdoc') {
++	dolibarr_del_const($db, "SUPPLIER_PAYMENT_ADDON_PDF", $conf->entity);
+ } elseif ($action == 'specimen') {
+ 	$modele = GETPOST('module', 'alpha');
+ 
+diff --git a/htdocs/admin/tools/dolibarr_export.php b/htdocs/admin/tools/dolibarr_export.php
+index 092f3a57170..4f6977ffb41 100644
+--- a/htdocs/admin/tools/dolibarr_export.php
++++ b/htdocs/admin/tools/dolibarr_export.php
+@@ -546,7 +546,6 @@ print '</form>';
+ print '</fieldset>';
+ 
+ 
+-$title = $langs->trans("BackupZipWizard");
+ 
+ print "<br>\n";
+ print "<!-- Dump of a server -->\n";
+@@ -565,7 +564,7 @@ print '</span>';
+ 
+ print '<div id="backupfilesleft" class="fichehalfleft">';
+ 
+-print load_fiche_titre($title);
++print load_fiche_titre($title ? $title : $langs->trans("BackupZipWizard"));
+ 
+ print '<label for="zipfilename_template">'.$langs->trans("FileNameToGenerate").'</label><br>';
+ $prefix = 'documents';
+diff --git a/htdocs/admin/tools/export_files.php b/htdocs/admin/tools/export_files.php
+index 4bae5f4862d..384b08e19cf 100644
+--- a/htdocs/admin/tools/export_files.php
++++ b/htdocs/admin/tools/export_files.php
+@@ -126,10 +126,8 @@ $utils = new Utils($db);
+ 
+ if ($compression == 'zip') {
+ 	$file .= '.zip';
+-
+-	$excludefiles = '/(\.back|\.old|\.log|\.pdf_preview-.*\.png|[\/\\\]temp[\/\\\]|[\/\\\]admin[\/\\\]documents[\/\\\])/i';
++	$excludefiles = '/(\.back|\.old|\.log|[\/\\\]temp[\/\\\]|documents[\/\\\]admin[\/\\\]documents[\/\\\])/i';
+ 	$ret = dol_compress_dir(DOL_DATA_ROOT, $outputdir."/".$file, $compression, $excludefiles);
+-
+ 	if ($ret < 0) {
+ 		if ($ret == -2) {
+ 			$langs->load("errors");
+diff --git a/htdocs/admin/workflow.php b/htdocs/admin/workflow.php
+index 09156e08588..1b6fa5bebe7 100644
+--- a/htdocs/admin/workflow.php
++++ b/htdocs/admin/workflow.php
+@@ -91,15 +91,21 @@ $workflowcodes = array(
+ 	),
+ 
+ 	// Automatic classification of order
+-	'WORKFLOW_ORDER_CLASSIFY_SHIPPED_SHIPPING'=>array(
++	'WORKFLOW_ORDER_CLASSIFY_SHIPPED_SHIPPING'=>array(  // when shipping validated
+ 		'family'=>'classify_order',
+ 		'position'=>40,
+ 		'enabled'=>(!empty($conf->expedition->enabled) && !empty($conf->commande->enabled)),
+ 		'picto'=>'order'
+ 	),
+-	'WORKFLOW_INVOICE_AMOUNT_CLASSIFY_BILLED_ORDER'=>array(
++	'WORKFLOW_ORDER_CLASSIFY_SHIPPED_SHIPPING_CLOSED'=>array( // when shipping closed
+ 		'family'=>'classify_order',
+ 		'position'=>41,
++		'enabled'=>(!empty($conf->expedition->enabled) && !empty($conf->commande->enabled)),
++		'picto'=>'order'
++	),
++	'WORKFLOW_INVOICE_AMOUNT_CLASSIFY_BILLED_ORDER'=>array(
++		'family'=>'classify_order',
++		'position'=>42,
+ 		'enabled'=>(!empty($conf->facture->enabled) && !empty($conf->commande->enabled)),
+ 		'picto'=>'order',
+ 		'warning'=>''
+diff --git a/htdocs/api/class/api.class.php b/htdocs/api/class/api.class.php
+index ae9db369744..0a84de7b7c1 100644
+--- a/htdocs/api/class/api.class.php
++++ b/htdocs/api/class/api.class.php
+@@ -58,18 +58,6 @@ class DolibarrApi
+ 
+ 		$this->db = $db;
+ 		$production_mode = (empty($conf->global->API_PRODUCTION_MODE) ? false : true);
+-
+-		if ($production_mode) {
+-			// Create the directory Defaults::$cacheDirectory if it does not exist. If dir does not exist, using production_mode generates an error 500.
+-			include_once DOL_DOCUMENT_ROOT.'/core/lib/files.lib.php';
+-			if (!dol_is_dir(Defaults::$cacheDirectory)) {
+-				dol_mkdir(Defaults::$cacheDirectory, DOL_DATA_ROOT);
+-			}
+-			if (getDolGlobalString('MAIN_API_DEBUG')) {
+-				dol_syslog("Debug API construct::cacheDirectory=".Defaults::$cacheDirectory, LOG_DEBUG, 0, '_api');
+-			}
+-		}
+-
+ 		$this->r = new Restler($production_mode, $refreshCache);
+ 
+ 		$urlwithouturlroot = preg_replace('/'.preg_quote(DOL_URL_ROOT, '/').'$/i', '', trim($dolibarr_main_url_root));
+@@ -360,9 +348,6 @@ class DolibarrApi
+ 		$operand = preg_replace('/[^a-z0-9\._]/i', '', trim($tmp[0]));
+ 
+ 		$operator = strtoupper(preg_replace('/[^a-z<>=]/i', '', trim($tmp[1])));
+-		if ($operator == 'NOTLIKE') {
+-			$operator = 'NOT LIKE';
+-		}
+ 
+ 		$tmpescaped = trim($tmp[2]);
+ 		$regbis = array();
+diff --git a/htdocs/api/class/api_access.class.php b/htdocs/api/class/api_access.class.php
+index 09bb46ed98e..5a4097b089b 100644
+--- a/htdocs/api/class/api_access.class.php
++++ b/htdocs/api/class/api_access.class.php
+@@ -1,7 +1,6 @@
+ <?php
+ /* Copyright (C) 2015   Jean-François Ferry     <jfefe@aternatik.fr>
+  * Copyright (C) 2016	Laurent Destailleur		<eldy@users.sourceforge.net>
+- * Copyright (C) 2023	Ferran Marcet			<fmarcet@2byte.es>
+  *
+  * This program is free software; you can redistribute it and/or modify
+  * it under the terms of the GNU General Public License as published by
+@@ -148,9 +147,6 @@ class DolibarrApiAccess implements iAuthenticate
+ 			if ($result <= 0) {
+ 				throw new RestException(503, 'Error when fetching user :'.$fuser->error.' (conf->entity='.$conf->entity.')');
+ 			}
+-			if ($fuser->statut == 0) {
+-				throw new RestException(503, 'Error when fetching user. This user has been locked or disabled');
+-			}
+ 
+ 			$fuser->getrights();
+ 
+diff --git a/htdocs/api/class/api_documents.class.php b/htdocs/api/class/api_documents.class.php
+index f80b9f69666..3b6e89c6643 100644
+--- a/htdocs/api/class/api_documents.class.php
++++ b/htdocs/api/class/api_documents.class.php
+@@ -462,9 +462,6 @@ class Documents extends DolibarrApi
+ 			throw new RestException(500, 'Modulepart '.$modulepart.' not implemented yet.');
+ 		}
+ 
+-		$objectType = $modulepart;
+-		if (! empty($object->id) && ! empty($object->table_element)) $objectType = $object->table_element;
+-
+ 		$filearray = dol_dir_list($upload_dir, $type, $recursive, '', '(\.meta|_preview.*\.png)$', $sortfield, (strtolower($sortorder) == 'desc' ?SORT_DESC:SORT_ASC), 1);
+ 		if (empty($filearray)) {
+ 			throw new RestException(404, 'Search for modulepart '.$modulepart.' with Id '.$object->id.(!empty($object->ref) ? ' or Ref '.$object->ref : '').' does not return any document.');
+@@ -472,14 +469,11 @@ class Documents extends DolibarrApi
+ 			if (($object->id) > 0 && !empty($modulepart)) {
+ 				require_once DOL_DOCUMENT_ROOT . '/ecm/class/ecmfiles.class.php';
+ 				$ecmfile = new EcmFiles($this->db);
+-				$result = $ecmfile->fetchAll('', '', 0, 0, array('t.src_object_type' => $objectType, 't.src_object_id' => $object->id));
++				$result = $ecmfile->fetchAll('', '', 0, 0, array('t.src_object_type' => $modulepart, 't.src_object_id' => $object->id));
+ 				if ($result < 0) {
+ 					throw new RestException(503, 'Error when retrieve ecm list : ' . $this->db->lasterror());
+ 				} elseif (is_array($ecmfile->lines) && count($ecmfile->lines) > 0) {
+-					$count = count($filearray);
+-					for ($i = 0 ; $i < $count ; $i++) {
+-						if ($filearray[$i]['name'] == $ecmfile->lines[$i]->filename) $filearray[$i] = array_merge($filearray[$i], (array) $ecmfile->lines[0]);
+-					}
++					$filearray['ecmfiles_infos'] = $ecmfile->lines;
+ 				}
+ 			}
+ 		}
+@@ -693,50 +687,7 @@ class Documents extends DolibarrApi
+ 			throw new RestException(500, "Failed to open file '".$destfiletmp."' for write");
+ 		}
+ 
+-		$disablevirusscan = 0;
+-		$src_file = $destfiletmp;
+-		$dest_file = $destfile;
+-
+-		// Security:
+-		// If we need to make a virus scan
+-		if (empty($disablevirusscan) && file_exists($src_file)) {
+-			$checkvirusarray = dolCheckVirus($src_file);
+-			if (count($checkvirusarray)) {
+-				dol_syslog('Files.lib::dol_move_uploaded_file File "'.$src_file.'" (target name "'.$dest_file.'") KO with antivirus: errors='.join(',', $checkvirusarray), LOG_WARNING);
+-				throw new RestException(500, 'ErrorFileIsInfectedWithAVirus: '.join(',', $checkvirusarray));
+-			}
+-		}
+-
+-		// Security:
+-		// Disallow file with some extensions. We rename them.
+-		// Because if we put the documents directory into a directory inside web root (very bad), this allows to execute on demand arbitrary code.
+-		if (isAFileWithExecutableContent($dest_file) && empty($conf->global->MAIN_DOCUMENT_IS_OUTSIDE_WEBROOT_SO_NOEXE_NOT_REQUIRED)) {
+-			// $upload_dir ends with a slash, so be must be sure the medias dir to compare to ends with slash too.
+-			$publicmediasdirwithslash = $conf->medias->multidir_output[$conf->entity];
+-			if (!preg_match('/\/$/', $publicmediasdirwithslash)) {
+-				$publicmediasdirwithslash .= '/';
+-			}
+-
+-			if (strpos($upload_dir, $publicmediasdirwithslash) !== 0 || !getDolGlobalInt("MAIN_DOCUMENT_DISABLE_NOEXE_IN_MEDIAS_DIR")) {	// We never add .noexe on files into media directory
+-				$dest_file .= '.noexe';
+-			}
+-		}
+-
+-		// Security:
+-		// We refuse cache files/dirs, upload using .. and pipes into filenames.
+-		if (preg_match('/^\./', basename($src_file)) || preg_match('/\.\./', $src_file) || preg_match('/[<>|]/', $src_file)) {
+-			dol_syslog("Refused to deliver file ".$src_file, LOG_WARNING);
+-			throw new RestException(500, "Refused to deliver file ".$src_file);
+-		}
+-
+-		// Security:
+-		// We refuse cache files/dirs, upload using .. and pipes into filenames.
+-		if (preg_match('/^\./', basename($dest_file)) || preg_match('/\.\./', $dest_file) || preg_match('/[<>|]/', $dest_file)) {
+-			dol_syslog("Refused to deliver file ".$dest_file, LOG_WARNING);
+-			throw new RestException(500, "Refused to deliver file ".$dest_file);
+-		}
+-
+-		$result = dol_move($destfiletmp, $dest_file, 0, $overwriteifexists, 1, 1);
++		$result = dol_move($destfiletmp, $destfile, 0, $overwriteifexists, 1);
+ 		if (!$result) {
+ 			throw new RestException(500, "Failed to move file into '".$destfile."'");
+ 		}
+diff --git a/htdocs/api/class/api_setup.class.php b/htdocs/api/class/api_setup.class.php
+index 2572899e467..9856acfacdc 100644
+--- a/htdocs/api/class/api_setup.class.php
++++ b/htdocs/api/class/api_setup.class.php
+@@ -1041,7 +1041,7 @@ class Setup extends DolibarrApi
+ 	 * @param int       $page       Page number (starting from zero)
+ 	 * @param string    $zipcode    To filter on zipcode
+ 	 * @param string    $town       To filter on city name
+-	 * @param int       $active     Town is active or not {@min 0} {@max 1}
++	 * @param int       $active     Payment term is active or not {@min 0} {@max 1}
+ 	 * @param string    $sqlfilters Other criteria to filter answers separated by a comma. Syntax example "(t.code:like:'A%') and (t.active:>=:0)"
+ 	 * @return array				List of towns
+ 	 *
+@@ -1055,7 +1055,7 @@ class Setup extends DolibarrApi
+ 
+ 		$sql = "SELECT rowid AS id, zip, town, fk_county, fk_pays AS fk_country";
+ 		$sql .= " FROM ".MAIN_DB_PREFIX."c_ziptown as t";
+-		$sql .= " WHERE t.active = ".((int) $active);
++		$sql .= " AND t.active = ".((int) $active);
+ 		if ($zipcode) {
+ 			$sql .= " AND t.zip LIKE '%".$this->db->escape($zipcode)."%'";
+ 		}
+diff --git a/htdocs/api/index.php b/htdocs/api/index.php
+index 869dacc5cc0..d19754f9c35 100644
+--- a/htdocs/api/index.php
++++ b/htdocs/api/index.php
+@@ -55,27 +55,12 @@ if (!empty($_SERVER['HTTP_DOLAPIENTITY'])) {
+ 	define("DOLENTITY", (int) $_SERVER['HTTP_DOLAPIENTITY']);
+ }
+ 
+-// Response for preflight requests (used by browser when into a CORS context)
+-if (!empty($_SERVER['REQUEST_METHOD']) && $_SERVER['REQUEST_METHOD'] == 'OPTIONS' && !empty($_SERVER['HTTP_ACCESS_CONTROL_REQUEST_HEADERS'])) {
+-	header('Access-Control-Allow-Origin: *');
+-	header('Access-Control-Allow-Methods: GET, POST, PUT, DELETE');
+-	header('Access-Control-Allow-Headers: Content-Type, Authorization, api_key, DOLAPIKEY');
+-	http_response_code(204);
+-	exit;
+-}
+-
+ // When we request url to get the json file, we accept Cross site so we can include the descriptor into an external tool.
+ if (preg_match('/\/explorer\/swagger\.json/', $_SERVER["PHP_SELF"])) {
+ 	header('Access-Control-Allow-Origin: *');
+ 	header('Access-Control-Allow-Methods: GET, POST, PUT, DELETE');
+ 	header('Access-Control-Allow-Headers: Content-Type, Authorization, api_key, DOLAPIKEY');
+ }
+-// When we request url to get an API, we accept Cross site so we can make js API call inside another website
+-if (preg_match('/\/api\/index\.php/', $_SERVER["PHP_SELF"])) {
+-	header('Access-Control-Allow-Origin: *');
+-	header('Access-Control-Allow-Methods: GET, POST, PUT, DELETE');
+-	header('Access-Control-Allow-Headers: Content-Type, Authorization, api_key, DOLAPIKEY');
+-}
+ 
+ $res = 0;
+ if (!$res && file_exists("../main.inc.php")) {
+@@ -319,7 +304,7 @@ if (!empty($reg[1]) && ($reg[1] != 'explorer' || ($reg[2] != '/swagger.json' &&
+ 
+ 		foreach ($listofendpoints as $endpointrule) {
+ 			$tmparray = explode(':', $endpointrule);
+-			if (($classfile == $tmparray[0] || $classfile.'api' == $tmparray[0]) && $tmparray[1] == 1) {
++			if ($classfile == $tmparray[0] && $tmparray[1] == 1) {
+ 				$endpointisallowed = true;
+ 				break;
+ 			}

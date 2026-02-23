@@ -1,0 +1,17 @@
+# SLY Custom module - English
+# Copyright (C) 2025 SLY
+
+[ModuleSLYCustomName]
+SLY Custom
+
+[ModuleSLYCustomDesc]
+SLY customisations: invoice/order/shipment PDF templates, ShipsGo, exports.
+
+[SLYCustomDescription]
+About this module
+
+[SLYCustomDescriptionLong]
+This module provides SLY-specific features on top of official Dolibarr 14.0: PDF templates (invoice, order, proforma, shipment, supplier order), optional ShipsGo integration, and custom export pages. See README in the module folder for compatibility notes and features that may still require core patches.
+
+[SLYExports]
+SLY Exports

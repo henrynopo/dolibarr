@@ -1,0 +1,17 @@
+# SLY Custom 模块 - 简体中文
+# Copyright (C) 2025 SLY
+
+[ModuleSLYCustomName]
+SLY 定制
+
+[ModuleSLYCustomDesc]
+SLY 定制：发票/订单/发货单 PDF 模板、ShipsGo、导出等。
+
+[SLYCustomDescription]
+关于本模块
+
+[SLYCustomDescriptionLong]
+本模块在官方 Dolibarr 14.0 上提供 SLY 定制功能：PDF 模板（发票、订单、形式发票、发货单、采购订单）、可选 ShipsGo 集成及自定义导出页面。兼容性说明及仍可能依赖核心补丁的功能请见模块目录下 README。
+
+[SLYExports]
+SLY 导出

@@ -1,0 +1,2458 @@
+diff --git a/htdocs/fourn/class/api_supplier_invoices.class.php b/htdocs/fourn/class/api_supplier_invoices.class.php
+index df1bf36b723..92f77751cf9 100644
+--- a/htdocs/fourn/class/api_supplier_invoices.class.php
++++ b/htdocs/fourn/class/api_supplier_invoices.class.php
+@@ -185,6 +185,22 @@ class SupplierInvoices extends DolibarrApi
+ 				$obj = $this->db->fetch_object($result);
+ 				$invoice_static = new FactureFournisseur($this->db);
+ 				if ($invoice_static->fetch($obj->rowid)) {
++					// Get payment details
++					$invoice_static->totalpaid = $invoice_static->getSommePaiement();
++					$invoice_static->totalcreditnotes = $invoice_static->getSumCreditNotesUsed();
++					$invoice_static->totaldeposits = $invoice_static->getSumDepositsUsed();
++					$invoice_static->remaintopay = $invoice_static->getRemainToPay();
++					$invoice_static->multicurrency_totalpaid = $invoice_static->getSommePaiement(1);
++					$invoice_static->multicurrency_totalcreditnotes = $invoice_static->getSumCreditNotesUsed(1);
++					$invoice_static->multicurrency_totaldeposits = $invoice_static->getSumDepositsUsed(1);
++					$invoice_static->multicurrency_remaintopay = $invoice_static->getRemainToPay(1);
++					// Add external contacts ids
++					$invoice_static->contacts_ids = $invoice_static->liste_contact(-1, 'external', 0, 'BILLING');
++					$invoice_static->fetchObjectLinked();
++					$invoice_static->listofpayments = $invoice_static->getListOfPayments(1);
++					if($invoice_static->listofpayments[0][date]){
++						$invoice_static->datep_max = max(array(strtotime($invoice_static->listofpayments[0][date])));
++					}
+ 					$obj_ret[] = $this->_cleanObjectDatas($invoice_static);
+ 				}
+ 				$i++;
+diff --git a/htdocs/fourn/class/api_supplier_orders.class.php b/htdocs/fourn/class/api_supplier_orders.class.php
+index f221035a2ab..4c5441ea9f1 100644
+--- a/htdocs/fourn/class/api_supplier_orders.class.php
++++ b/htdocs/fourn/class/api_supplier_orders.class.php
+@@ -201,6 +201,10 @@ class SupplierOrders extends DolibarrApi
+ 				$obj = $this->db->fetch_object($result);
+ 				$order_static = new CommandeFournisseur($this->db);
+ 				if ($order_static->fetch($obj->rowid)) {
++					// Add external contacts ids
++					$order_static->contacts_ids_external = $order_static->liste_contact(-1, 'external', 0);
++					$order_static->contacts_ids_internal = $order_static->liste_contact(-1, 'internal', 0);
++					$order_static->fetchObjectLinked();
+ 					$obj_ret[] = $this->_cleanObjectDatas($order_static);
+ 				}
+ 				$i++;
+diff --git a/htdocs/fourn/class/fournisseur.commande.class.php b/htdocs/fourn/class/fournisseur.commande.class.php
+index 0e16160189e..d6b9d1e01d6 100644
+--- a/htdocs/fourn/class/fournisseur.commande.class.php
++++ b/htdocs/fourn/class/fournisseur.commande.class.php
+@@ -32,7 +32,7 @@
+  *	\brief      File of class to manage suppliers orders
+  */
+ 
+-require_once DOL_DOCUMENT_ROOT.'/core/class/commonorder.class.php';
++include_once DOL_DOCUMENT_ROOT.'/core/class/commonorder.class.php';
+ require_once DOL_DOCUMENT_ROOT.'/product/class/product.class.php';
+ if (!empty($conf->productbatch->enabled)) {
+ 	require_once DOL_DOCUMENT_ROOT.'/product/class/productbatch.class.php';
+@@ -213,8 +213,8 @@ class CommandeFournisseur extends CommonOrder
+ 		'localtax2' =>array('type'=>'double(24,8)', 'label'=>'Localtax2', 'enabled'=>1, 'visible'=>-1, 'position'=>140, 'isameasure'=>1),
+ 		'total_ht' =>array('type'=>'double(24,8)', 'label'=>'TotalHT', 'enabled'=>1, 'visible'=>-1, 'position'=>145, 'isameasure'=>1),
+ 		'total_ttc' =>array('type'=>'double(24,8)', 'label'=>'TotalTTC', 'enabled'=>1, 'visible'=>-1, 'position'=>150, 'isameasure'=>1),
+-		'note_private' =>array('type'=>'text', 'label'=>'NotePrivate', 'enabled'=>1, 'visible'=>0, 'position'=>155),
+-		'note_public' =>array('type'=>'text', 'label'=>'NotePublic', 'enabled'=>1, 'visible'=>0, 'position'=>160),
++		'note_private' =>array('type'=>'text', 'label'=>'NotePublic', 'enabled'=>1, 'visible'=>0, 'position'=>155),
++		'note_public' =>array('type'=>'text', 'label'=>'NotePrivate', 'enabled'=>1, 'visible'=>0, 'position'=>160),
+ 		'model_pdf' =>array('type'=>'varchar(255)', 'label'=>'ModelPDF', 'enabled'=>1, 'visible'=>0, 'position'=>165),
+ 		'fk_input_method' =>array('type'=>'integer', 'label'=>'InputMethod', 'enabled'=>1, 'visible'=>-1, 'position'=>170),
+ 		'fk_cond_reglement' =>array('type'=>'integer', 'label'=>'PaymentTerm', 'enabled'=>1, 'visible'=>-1, 'position'=>175),
+@@ -431,7 +431,6 @@ class CommandeFournisseur extends CommonOrder
+ 			 * Lines
+ 			 */
+ 			$result = $this->fetch_lines();
+-
+ 			if ($result < 0) {
+ 				return -1;
+ 			} else {
+@@ -454,7 +453,7 @@ class CommandeFournisseur extends CommonOrder
+ 	{
+ 		global $conf;
+ 		// phpcs:enable
+-
++		//$result=$this->fetch_lines();
+ 		$this->lines = array();
+ 
+ 		$sql = "SELECT l.rowid, l.ref as ref_supplier, l.fk_product, l.product_type, l.label, l.description, l.qty,";
+@@ -465,9 +464,15 @@ class CommandeFournisseur extends CommonOrder
+ 		$sql .= " l.fk_unit,";
+ 		$sql .= " l.date_start, l.date_end,";
+ 		$sql .= ' l.fk_multicurrency, l.multicurrency_code, l.multicurrency_subprice, l.multicurrency_total_ht, l.multicurrency_total_tva, l.multicurrency_total_ttc';
++		if (!empty($conf->global->PRODUCT_USE_SUPPLIER_PACKAGING)) {
++			$sql .= ", pfp.rowid as fk_pfp, pfp.packaging";
++		}
+ 		$sql .= " FROM ".MAIN_DB_PREFIX."commande_fournisseurdet as l";
+ 		$sql .= ' LEFT JOIN '.MAIN_DB_PREFIX.'product as p ON l.fk_product = p.rowid';
+-		$sql .= " WHERE l.fk_commande = ".((int) $this->id);
++		if (!empty($conf->global->PRODUCT_USE_SUPPLIER_PACKAGING)) {
++			$sql .= " LEFT JOIN ".MAIN_DB_PREFIX."product_fournisseur_price as pfp ON l.fk_product = pfp.fk_product and l.ref = pfp.ref_fourn AND pfp.fk_soc = ".((int) $this->socid);
++		}
++		$sql .= " WHERE l.fk_commande = ".$this->id;
+ 		if ($only_product) {
+ 			$sql .= ' AND p.fk_product_type = 0';
+ 		}
+@@ -518,34 +523,11 @@ class CommandeFournisseur extends CommonOrder
+ 				$line->ref_supplier        = $objp->ref_supplier; // The supplier ref of price when product was added. May have change since
+ 
+ 				if (!empty($conf->global->PRODUCT_USE_SUPPLIER_PACKAGING)) {
+-					// TODO We should not fetch this properties into the fetch_lines. This is NOT properties of a line.
+-					// Move this into another method and call it when required.
+-
+-					// Take better packaging for $objp->qty (first supplier ref quantity <= $objp->qty)
+-					$sqlsearchpackage = 'SELECT rowid, packaging FROM '.MAIN_DB_PREFIX."product_fournisseur_price";
+-					$sqlsearchpackage .= ' WHERE entity IN ('.getEntity('product_fournisseur_price').")";
+-					$sqlsearchpackage .= " AND fk_product = ".((int) $objp->fk_product);
+-					$sqlsearchpackage .= " AND ref_fourn = '".$this->db->escape($objp->ref_supplier)."'";
+-					$sqlsearchpackage .= " AND quantity <= ".((float) $objp->qty);	// required to be qualified
+-					$sqlsearchpackage .= " AND (packaging IS NULL OR packaging = 0 OR packaging <= ".((float) $objp->qty).")";	// required to be qualified
+-					$sqlsearchpackage .= " AND fk_soc = ".((int) $this->socid);
+-					$sqlsearchpackage .= " ORDER BY packaging ASC";		// Take the smaller package first
+-					$sqlsearchpackage .= " LIMIT 1";
+-
+-					$resqlsearchpackage = $this->db->query($sqlsearchpackage);
+-					if ($resqlsearchpackage) {
+-						$objsearchpackage = $this->db->fetch_object($resqlsearchpackage);
+-						if ($objsearchpackage) {
+-							$line->fk_fournprice = $objsearchpackage->rowid;
+-							$line->packaging     = $objsearchpackage->packaging;
+-						}
+-					} else {
+-						$this->error = $this->db->lasterror();
+-						return -1;
+-					}
++					$line->fk_fournprice = $objp->fk_pfp;
++					$line->packaging     = $objp->packaging;
+ 				}
+ 
+-				$line->date_start          = $this->db->jdate($objp->date_start);
++				$line->date_start = $this->db->jdate($objp->date_start);
+ 				$line->date_end            = $this->db->jdate($objp->date_end);
+ 				$line->fk_unit             = $objp->fk_unit;
+ 
+@@ -1322,8 +1304,6 @@ class CommandeFournisseur extends CommonOrder
+ 
+ 		// We set order into draft status
+ 		$this->brouillon = 1;
+-		$this->statut = self::STATUS_DRAFT;	// deprecated
+-		$this->status = self::STATUS_DRAFT;
+ 
+ 		$sql = "INSERT INTO ".MAIN_DB_PREFIX."commande_fournisseur (";
+ 		$sql .= "ref";
+@@ -1380,35 +1360,29 @@ class CommandeFournisseur extends CommonOrder
+ 
+ 				// insert products details into database
+ 				for ($i = 0; $i < $num; $i++) {
+-										$line = $this->lines[$i];
+-					if (!is_object($line)) {
+-						$line = (object) $line;
+-					}
+-
+-
+-					$this->special_code = $line->special_code; // TODO : remove this in 9.0 and add special_code param to addline()
++					$this->special_code = $this->lines[$i]->special_code; // TODO : remove this in 9.0 and add special_code param to addline()
+ 
+ 					// This include test on qty if option SUPPLIER_ORDER_WITH_NOPRICEDEFINED is not set
+ 					$result = $this->addline(
+-						$line->desc,
+-						$line->subprice,
+-						$line->qty,
+-						$line->tva_tx,
+-						$line->localtax1_tx,
+-						$line->localtax2_tx,
+-						$line->fk_product,
++						$this->lines[$i]->desc,
++						$this->lines[$i]->subprice,
++						$this->lines[$i]->qty,
++						$this->lines[$i]->tva_tx,
++						$this->lines[$i]->localtax1_tx,
++						$this->lines[$i]->localtax2_tx,
++						$this->lines[$i]->fk_product,
+ 						0,
+-						$line->ref_fourn, // $line->ref_fourn comes from field ref into table of lines. Value may ba a ref that does not exists anymore, so we first try with value of product
+-						$line->remise_percent,
++						$this->lines[$i]->ref_fourn, // $this->lines[$i]->ref_fourn comes from field ref into table of lines. Value may ba a ref that does not exists anymore, so we first try with value of product
++						$this->lines[$i]->remise_percent,
+ 						'HT',
+ 						0,
+-						$line->product_type,
+-						$line->info_bits,
++						$this->lines[$i]->product_type,
++						$this->lines[$i]->info_bits,
+ 						false,
+-						$line->date_start,
+-						$line->date_end,
+-						$line->array_options,
+-						$line->fk_unit
++						$this->lines[$i]->date_start,
++						$this->lines[$i]->date_end,
++						$this->lines[$i]->array_options,
++						$this->lines[$i]->fk_unit
+ 						);
+ 					if ($result < 0) {
+ 						dol_syslog(get_class($this)."::create ".$this->error, LOG_WARNING); // do not use dol_print_error here as it may be a functionnal error
+@@ -1656,8 +1630,6 @@ class CommandeFournisseur extends CommonOrder
+ 				$action = '';
+ 				$reshook = $hookmanager->executeHooks('createFrom', $parameters, $this, $action); // Note that $action and $object may have been modified by some hooks
+ 				if ($reshook < 0) {
+-					$this->errors += $hookmanager->errors;
+-					$this->error = $hookmanager->error;
+ 					$error++;
+ 				}
+ 			}
+@@ -1825,7 +1797,6 @@ class CommandeFournisseur extends CommonOrder
+ 				if (!empty($conf->global->PRODUCT_USE_SUPPLIER_PACKAGING)) {
+ 					$prod = new Product($this->db, $fk_product);
+ 					$prod->get_buyprice($fk_prod_fourn_price, $qty, $fk_product, 'none', ($this->fk_soc ? $this->fk_soc : $this->socid));
+-
+ 					if ($qty < $prod->packaging) {
+ 						$qty = $prod->packaging;
+ 					} else {
+@@ -2133,16 +2104,6 @@ class CommandeFournisseur extends CommonOrder
+ 			$error++;
+ 		}
+ 
+-		if (!$error) {
+-			$sql1 = "UPDATE ".MAIN_DB_PREFIX."commandedet SET fk_commandefourndet = NULL WHERE fk_commandefourndet IN (SELECT rowid FROM ".$main." WHERE fk_commande = ".((int) $this->id).")";
+-			dol_syslog(__METHOD__." linked order lines", LOG_DEBUG);
+-			if (!$this->db->query($sql1)) {
+-				$error++;
+-				$this->error = $this->db->lasterror();
+-				$this->errors[] = $this->db->lasterror();
+-			}
+-		}
+-
+ 		$sql = "DELETE FROM ".MAIN_DB_PREFIX."commande_fournisseurdet WHERE fk_commande =".((int) $this->id);
+ 		dol_syslog(get_class($this)."::delete", LOG_DEBUG);
+ 		if (!$this->db->query($sql)) {
+@@ -3137,8 +3098,7 @@ class CommandeFournisseur extends CommonOrder
+ 		$outputlangs->load("products");
+ 
+ 		if (!dol_strlen($modele)) {
+-			$modele = 'muscadet';
+-
++			$modele = '';
+ 			if ($this->model_pdf) {
+ 				$modele = $this->model_pdf;
+ 			} elseif (!empty($conf->global->COMMANDE_SUPPLIER_ADDON_PDF)) {
+@@ -3146,9 +3106,12 @@ class CommandeFournisseur extends CommonOrder
+ 			}
+ 		}
+ 
+-		$modelpath = "core/modules/supplier_order/doc/";
+-
+-		return $this->commonGenerateDocument($modelpath, $modele, $outputlangs, $hidedetails, $hidedesc, $hideref, $moreparams);
++		if (empty($modele)) {
++			return 0;
++		} else {
++			$modelpath = "core/modules/supplier_order/doc/";
++			return $this->commonGenerateDocument($modelpath, $modele, $outputlangs, $hidedetails, $hidedesc, $hideref, $moreparams);
++		}
+ 	}
+ 
+ 	/**
+@@ -3544,18 +3507,22 @@ class CommandeFournisseurLigne extends CommonOrderLine
+ 		global $conf;
+ 
+ 		$sql = 'SELECT cd.rowid, cd.fk_commande, cd.fk_product, cd.product_type, cd.description, cd.qty, cd.tva_tx, cd.special_code,';
+-		$sql .= ' cd.localtax1_tx, cd.localtax2_tx, cd.localtax1_type, cd.localtax2_type, cd.ref as ref_supplier,';
++		$sql .= ' cd.localtax1_tx, cd.localtax2_tx, cd.localtax1_type, cd.localtax2_type, cd.ref,';
+ 		$sql .= ' cd.remise, cd.remise_percent, cd.subprice,';
+ 		$sql .= ' cd.info_bits, cd.total_ht, cd.total_tva, cd.total_ttc,';
+ 		$sql .= ' cd.total_localtax1, cd.total_localtax2,';
+ 		$sql .= ' p.ref as product_ref, p.label as product_label, p.description as product_desc,';
+ 		$sql .= ' cd.date_start, cd.date_end, cd.fk_unit,';
+-		$sql .= ' cd.multicurrency_subprice, cd.multicurrency_total_ht, cd.multicurrency_total_tva, cd.multicurrency_total_ttc,';
+-		$sql .= ' c.fk_soc as socid';
+-		$sql .= ' FROM '.MAIN_DB_PREFIX.'commande_fournisseur as c, '.MAIN_DB_PREFIX.'commande_fournisseurdet as cd';
++		$sql .= ' cd.multicurrency_subprice, cd.multicurrency_total_ht, cd.multicurrency_total_tva, cd.multicurrency_total_ttc';
++		if (!empty($conf->global->PRODUCT_USE_SUPPLIER_PACKAGING)) {
++			$sql .= ", pfp.rowid as fk_pfp, pfp.packaging";
++		}
++		$sql .= ' FROM '.MAIN_DB_PREFIX.'commande_fournisseurdet as cd';
+ 		$sql .= ' LEFT JOIN '.MAIN_DB_PREFIX.'product as p ON cd.fk_product = p.rowid';
+-		$sql .= ' WHERE cd.fk_commande = c.rowid AND cd.rowid = '.((int) $rowid);
+-
++		if (!empty($conf->global->PRODUCT_USE_SUPPLIER_PACKAGING)) {
++			$sql .= " LEFT JOIN ".MAIN_DB_PREFIX."product_fournisseur_price as pfp ON cd.fk_product = pfp.fk_product and cd.ref = pfp.ref_fourn";
++		}
++		$sql .= ' WHERE cd.rowid = '.((int) $rowid);
+ 		$result = $this->db->query($sql);
+ 		if ($result) {
+ 			$objp = $this->db->fetch_object($result);
+@@ -3566,8 +3533,8 @@ class CommandeFournisseurLigne extends CommonOrderLine
+ 				$this->fk_commande      = $objp->fk_commande;
+ 				$this->desc             = $objp->description;
+ 				$this->qty              = $objp->qty;
+-				$this->ref_fourn        = $objp->ref_supplier;
+-				$this->ref_supplier     = $objp->ref_supplier;
++				$this->ref_fourn        = $objp->ref;
++				$this->ref_supplier     = $objp->ref;
+ 				$this->subprice         = $objp->subprice;
+ 				$this->tva_tx           = $objp->tva_tx;
+ 				$this->localtax1_tx		= $objp->localtax1_tx;
+@@ -3591,33 +3558,9 @@ class CommandeFournisseurLigne extends CommonOrderLine
+ 				$this->product_ref      = $objp->product_ref;
+ 				$this->product_label    = $objp->product_label;
+ 				$this->product_desc     = $objp->product_desc;
+-
+ 				if (!empty($conf->global->PRODUCT_USE_SUPPLIER_PACKAGING)) {
+-					// TODO We should not fetch this properties into the fetch_lines. This is NOT properties of a line.
+-					// Move this into another method and call it when required.
+-
+-					// Take better packaging for $objp->qty (first supplier ref quantity <= $objp->qty)
+-					$sqlsearchpackage = 'SELECT rowid, packaging FROM '.MAIN_DB_PREFIX."product_fournisseur_price";
+-					$sqlsearchpackage .= ' WHERE entity IN ('.getEntity('product_fournisseur_price').")";
+-					$sqlsearchpackage .= " AND fk_product = ".((int) $objp->fk_product);
+-					$sqlsearchpackage .= " AND ref_fourn = '".$this->db->escape($objp->ref_supplier)."'";
+-					$sqlsearchpackage .= " AND quantity <= ".((float) $objp->qty);	// required to be qualified
+-					$sqlsearchpackage .= " AND (packaging IS NULL OR packaging = 0 OR packaging <= ".((float) $objp->qty).")";	// required to be qualified
+-					$sqlsearchpackage .= " AND fk_soc = ".((int) $objp->socid);
+-					$sqlsearchpackage .= " ORDER BY packaging ASC";		// Take the smaller package first
+-					$sqlsearchpackage .= " LIMIT 1";
+-
+-					$resqlsearchpackage = $this->db->query($sqlsearchpackage);
+-					if ($resqlsearchpackage) {
+-						$objsearchpackage = $this->db->fetch_object($resqlsearchpackage);
+-						if ($objsearchpackage) {
+-							$this->fk_fournprice = $objsearchpackage->rowid;
+-							$this->packaging     = $objsearchpackage->packaging;
+-						}
+-					} else {
+-						$this->error = $this->db->lasterror();
+-						return -1;
+-					}
++					$this->packaging = $objp->packaging;
++					$this->fk_fournprice = $objp->fk_pfp;
+ 				}
+ 
+ 				$this->date_start       		= $this->db->jdate($objp->date_start);
+@@ -3904,17 +3847,10 @@ class CommandeFournisseurLigne extends CommonOrderLine
+ 			return -1;
+ 		}
+ 
+-		$sql1 = "UPDATE ".MAIN_DB_PREFIX."commandedet SET fk_commandefourndet = NULL WHERE fk_commandefourndet=".((int) $this->id);
+-		$resql = $this->db->query($sql1);
+-		if (!$resql) {
+-			$this->db->rollback();
+-			return -1;
+-		}
+-
+-		$sql2 = 'DELETE FROM '.MAIN_DB_PREFIX."commande_fournisseurdet WHERE rowid=".((int) $this->id);
++		$sql = 'DELETE FROM '.MAIN_DB_PREFIX."commande_fournisseurdet WHERE rowid=".((int) $this->id);
+ 
+ 		dol_syslog(__METHOD__, LOG_DEBUG);
+-		$resql = $this->db->query($sql2);
++		$resql = $this->db->query($sql);
+ 		if ($resql) {
+ 			if (!$notrigger) {
+ 				// Call trigger
+diff --git a/htdocs/fourn/class/fournisseur.facture.class.php b/htdocs/fourn/class/fournisseur.facture.class.php
+index c4635962368..66c441841d1 100644
+--- a/htdocs/fourn/class/fournisseur.facture.class.php
++++ b/htdocs/fourn/class/fournisseur.facture.class.php
+@@ -282,8 +282,8 @@ class FactureFournisseur extends CommonInvoice
+ 		'fk_cond_reglement' =>array('type'=>'integer', 'label'=>'PaymentTerm', 'enabled'=>1, 'visible'=>-1, 'position'=>155),
+ 		'fk_mode_reglement' =>array('type'=>'integer', 'label'=>'PaymentMode', 'enabled'=>1, 'visible'=>-1, 'position'=>160),
+ 		'date_lim_reglement' =>array('type'=>'date', 'label'=>'DateLimReglement', 'enabled'=>1, 'visible'=>-1, 'position'=>165),
+-		'note_private' =>array('type'=>'text', 'label'=>'NotePrivate', 'enabled'=>1, 'visible'=>0, 'position'=>170),
+-		'note_public' =>array('type'=>'text', 'label'=>'NotePublic', 'enabled'=>1, 'visible'=>0, 'position'=>175),
++		'note_private' =>array('type'=>'text', 'label'=>'NotePublic', 'enabled'=>1, 'visible'=>0, 'position'=>170),
++		'note_public' =>array('type'=>'text', 'label'=>'NotePrivate', 'enabled'=>1, 'visible'=>0, 'position'=>175),
+ 		'model_pdf' =>array('type'=>'varchar(255)', 'label'=>'ModelPdf', 'enabled'=>1, 'visible'=>0, 'position'=>180),
+ 		'extraparams' =>array('type'=>'varchar(255)', 'label'=>'Extraparams', 'enabled'=>1, 'visible'=>-1, 'position'=>190),
+ 		'fk_incoterms' =>array('type'=>'integer', 'label'=>'IncotermCode', 'enabled'=>1, 'visible'=>-1, 'position'=>195),
+diff --git a/htdocs/fourn/class/fournisseur.product.class.php b/htdocs/fourn/class/fournisseur.product.class.php
+index ca557e027dc..6232b901382 100644
+--- a/htdocs/fourn/class/fournisseur.product.class.php
++++ b/htdocs/fourn/class/fournisseur.product.class.php
+@@ -32,7 +32,6 @@
+ require_once DOL_DOCUMENT_ROOT.'/product/class/product.class.php';
+ require_once DOL_DOCUMENT_ROOT.'/fourn/class/fournisseur.class.php';
+ require_once DOL_DOCUMENT_ROOT.'/product/dynamic_price/class/price_parser.class.php';
+-require_once DOL_DOCUMENT_ROOT.'/product/class/productfournisseurprice.class.php';
+ 
+ 
+ /**
+@@ -257,10 +256,9 @@ class ProductFournisseur extends Product
+ 	 *    @param  	string		$desc_fourn     	            Custom description for product_fourn_price
+ 	 *    @param  	string		$barcode     	                Barcode
+ 	 *    @param  	int		    $fk_barcode_type     	        Barcode type
+-	 *    @param  	array		$options		     	       	Extrafields of product fourn price
+ 	 *    @return	int											<0 if KO, >=0 if OK
+ 	 */
+-	public function update_buyprice($qty, $buyprice, $user, $price_base_type, $fourn, $availability, $ref_fourn, $tva_tx, $charges = 0, $remise_percent = 0, $remise = 0, $newnpr = 0, $delivery_time_days = 0, $supplier_reputation = '', $localtaxes_array = array(), $newdefaultvatcode = '', $multicurrency_buyprice = 0, $multicurrency_price_base_type = 'HT', $multicurrency_tx = 1, $multicurrency_code = '', $desc_fourn = '', $barcode = '', $fk_barcode_type = '', $options = array())
++	public function update_buyprice($qty, $buyprice, $user, $price_base_type, $fourn, $availability, $ref_fourn, $tva_tx, $charges = 0, $remise_percent = 0, $remise = 0, $newnpr = 0, $delivery_time_days = 0, $supplier_reputation = '', $localtaxes_array = array(), $newdefaultvatcode = '', $multicurrency_buyprice = 0, $multicurrency_price_base_type = 'HT', $multicurrency_tx = 1, $multicurrency_code = '', $desc_fourn = '', $barcode = '', $fk_barcode_type = '')
+ 	{
+ 		// phpcs:enable
+ 		global $conf, $langs;
+@@ -319,9 +317,7 @@ class ProductFournisseur extends Product
+ 		$qty = price2num($qty, 'MS');
+ 		$unitBuyPrice = price2num($buyprice / $qty, 'MU');
+ 
+-		// We can have a puchase ref that need to buy 100 min for a given price and with a packaging of 50.
+-		//$packaging = price2num(((empty($this->packaging) || $this->packaging < $qty) ? $qty : $this->packaging), 'MS');
+-		$packaging = price2num((empty($this->packaging) ? $qty : $this->packaging), 'MS');
++		$packaging = price2num(((empty($this->packaging) || $this->packaging < $qty) ? $qty : $this->packaging), 'MS');
+ 
+ 		$error = 0;
+ 		$now = dol_now();
+@@ -409,25 +405,6 @@ class ProductFournisseur extends Product
+ 				$sql .= ", packaging = ".(empty($packaging) ? 1 : $packaging);
+ 			}
+ 			$sql .= " WHERE rowid = ".((int) $this->product_fourn_price_id);
+-
+-			if (!$error) {
+-				if (!empty($options) && is_array($options)) {
+-					$productfournisseurprice = new ProductFournisseurPrice($this->db);
+-					$res = $productfournisseurprice->fetch($this->product_fourn_price_id);
+-					if ($res > 0) {
+-						foreach ($options as $key=>$value) {
+-							$productfournisseurprice->array_options[$key] = $value;
+-						}
+-						$res = $productfournisseurprice->update($user);
+-						if ($res < 0) {
+-							$this->error = $productfournisseurprice->error;
+-							$this->errors = $productfournisseurprice->errors;
+-							$error++;
+-						}
+-					}
+-				}
+-			}
+-
+ 			// TODO Add price_base_type and price_ttc
+ 
+ 			dol_syslog(get_class($this).'::update_buyprice update knowing id of line = product_fourn_price_id = '.$this->product_fourn_price_id, LOG_DEBUG);
+@@ -510,28 +487,9 @@ class ProductFournisseur extends Product
+ 				if ($resql) {
+ 					$this->product_fourn_price_id = $this->db->last_insert_id(MAIN_DB_PREFIX."product_fournisseur_price");
+ 				} else {
+-					$this->error = $this->db->lasterror();
+ 					$error++;
+ 				}
+ 
+-				if (!$error) {
+-					if (!empty($options) && is_array($options)) {
+-						$productfournisseurprice = new ProductFournisseurPrice($this->db);
+-						$res = $productfournisseurprice->fetch($this->product_fourn_price_id);
+-						if ($res > 0) {
+-							foreach ($options as $key=>$value) {
+-								$productfournisseurprice->array_options[$key] = $value;
+-							}
+-							$res = $productfournisseurprice->update($user);
+-							if ($res < 0) {
+-								$this->error = $productfournisseurprice->error;
+-								$this->errors = $productfournisseurprice->errors;
+-								$error++;
+-							}
+-						}
+-					}
+-				}
+-
+ 				if (!$error && empty($conf->global->PRODUCT_PRICE_SUPPLIER_NO_LOG)) {
+ 					// Add record into log table
+ 					// $this->product_fourn_price_id must be set
+@@ -587,7 +545,7 @@ class ProductFournisseur extends Product
+ 		$sql .= " pfp.supplier_reputation, pfp.fk_user, pfp.datec,";
+ 		$sql .= " pfp.multicurrency_price, pfp.multicurrency_unitprice, pfp.multicurrency_tx, pfp.fk_multicurrency, pfp.multicurrency_code,";
+ 		$sql .= " pfp.barcode, pfp.fk_barcode_type, pfp.packaging,";
+-		$sql .= " p.ref as product_ref, p.tosell as status, p.tobuy as status_buy";
++		$sql .= " p.ref as product_ref";
+ 		$sql .= " FROM ".MAIN_DB_PREFIX."product_fournisseur_price as pfp, ".MAIN_DB_PREFIX."product as p";
+ 		$sql .= " WHERE pfp.rowid = ".(int) $rowid;
+ 		$sql .= " AND pfp.fk_product = p.rowid";
+@@ -603,8 +561,7 @@ class ProductFournisseur extends Product
+ 				$this->fk_product				= $obj->fk_product;
+ 				$this->product_id				= $obj->fk_product;
+ 				$this->product_ref				= $obj->product_ref;
+-				$this->status					= $obj->status;
+-				$this->status_buy				= $obj->status_buy;
++
+ 				$this->fourn_id					= $obj->fk_soc;
+ 				$this->fourn_ref				= $obj->ref_fourn; // deprecated
+ 				$this->ref_supplier             = $obj->ref_fourn;
+@@ -636,7 +593,13 @@ class ProductFournisseur extends Product
+ 					$this->supplier_barcode = $obj->barcode;
+ 					$this->supplier_fk_barcode_type = $obj->fk_barcode_type;
+ 				}
+-				$this->packaging = $obj->packaging;
++
++				if (!empty($conf->global->PRODUCT_USE_SUPPLIER_PACKAGING)) {
++					$this->packaging = $obj->packaging;
++					if ($this->packaging < $this->fourn_qty) {
++						$this->packaging = $this->fourn_qty;
++					}
++				}
+ 
+ 				if (empty($ignore_expression) && !empty($this->fk_supplier_price_expression)) {
+ 					$priceparser = new PriceParser($this->db);
+@@ -680,11 +643,14 @@ class ProductFournisseur extends Product
+ 		// phpcs:enable
+ 		global $conf;
+ 
+-		$sql = "SELECT s.nom as supplier_name, s.rowid as fourn_id, p.ref as product_ref, p.tosell as status, p.tobuy as status_buy, ";
++		$sql = "SELECT s.nom as supplier_name, s.rowid as fourn_id, p.ref as product_ref,";
+ 		$sql .= " pfp.rowid as product_fourn_pri_id, pfp.entity, pfp.ref_fourn, pfp.desc_fourn, pfp.fk_product as product_fourn_id, pfp.fk_supplier_price_expression,";
+ 		$sql .= " pfp.price, pfp.quantity, pfp.unitprice, pfp.remise_percent, pfp.remise, pfp.tva_tx, pfp.fk_availability, pfp.charges, pfp.info_bits, pfp.delivery_time_days, pfp.supplier_reputation,";
+ 		$sql .= " pfp.multicurrency_price, pfp.multicurrency_unitprice, pfp.multicurrency_tx, pfp.fk_multicurrency, pfp.multicurrency_code, pfp.datec, pfp.tms,";
+-		$sql .= " pfp.barcode, pfp.fk_barcode_type, pfp.packaging";
++		$sql .= " pfp.barcode, pfp.fk_barcode_type";
++		if (!empty($conf->global->PRODUCT_USE_SUPPLIER_PACKAGING)) {
++			$sql .= ", pfp.packaging";
++		}
+ 		$sql .= " FROM ".MAIN_DB_PREFIX."product_fournisseur_price as pfp, ".MAIN_DB_PREFIX."product as p, ".MAIN_DB_PREFIX."societe as s";
+ 		$sql .= " WHERE pfp.entity IN (".getEntity('productsupplierprice').")";
+ 		$sql .= " AND pfp.fk_soc = s.rowid AND pfp.fk_product = p.rowid";
+@@ -709,8 +675,6 @@ class ProductFournisseur extends Product
+ 
+ 				$prodfourn->product_ref = $record["product_ref"];
+ 				$prodfourn->product_fourn_price_id = $record["product_fourn_pri_id"];
+-				$prodfourn->status					= $record["status"];
+-				$prodfourn->status_buy				= $record["status_buy"];
+ 				$prodfourn->product_fourn_id = $record["product_fourn_id"];
+ 				$prodfourn->product_fourn_entity = $record["entity"];
+ 				$prodfourn->ref_supplier			= $record["ref_fourn"];
+@@ -740,7 +704,12 @@ class ProductFournisseur extends Product
+ 				$prodfourn->fourn_multicurrency_id          = $record["fk_multicurrency"];
+ 				$prodfourn->fourn_multicurrency_code        = $record["multicurrency_code"];
+ 
+-				$prodfourn->packaging = $record["packaging"];
++				if (!empty($conf->global->PRODUCT_USE_SUPPLIER_PACKAGING)) {
++					$prodfourn->packaging = $record["packaging"];
++					if ($prodfourn->packaging < $prodfourn->fourn_qty) {
++						$prodfourn->packaging = $prodfourn->fourn_qty;
++					}
++				}
+ 
+ 				if (!empty($conf->barcode->enabled)) {
+ 					$prodfourn->supplier_barcode = $record["barcode"];
+diff --git a/htdocs/fourn/class/paiementfourn.class.php b/htdocs/fourn/class/paiementfourn.class.php
+index 28ef8025a98..ed3d102b1ac 100644
+--- a/htdocs/fourn/class/paiementfourn.class.php
++++ b/htdocs/fourn/class/paiementfourn.class.php
+@@ -222,14 +222,14 @@ class PaiementFourn extends Paiement
+ 
+ 							// If we want to closed paid invoices
+ 							if ($closepaidinvoices) {
+-								$paiement = $invoice->getSommePaiement();
++							/*	$paiement = $invoice->getSommePaiement();
+ 								$creditnotes=$invoice->getSumCreditNotesUsed();
+ 								//$creditnotes = 0;
+ 								$deposits=$invoice->getSumDepositsUsed();
+ 								//$deposits = 0;
+ 								$alreadypayed = price2num($paiement + $creditnotes + $deposits, 'MT');
+ 								$remaintopay = price2num($invoice->total_ttc - $paiement - $creditnotes - $deposits, 'MT');
+-								if ($remaintopay == 0) {
++							*/	if ((!empty($conf->multicurrency->enabled) ? price2num($invoice->getRemainToPay(1), 'MT') : price2num($invoice->getRemainToPay(), 'MT')) == 0) {
+ 									// If invoice is a down payment, we also convert down payment to discount
+ 									if ($invoice->type == FactureFournisseur::TYPE_DEPOSIT) {
+ 										$amount_ht = $amount_tva = $amount_ttc = array();
+@@ -609,10 +609,27 @@ class PaiementFourn extends Paiement
+ 
+ 		$label = img_picto('', $this->picto).' <u>'.$langs->trans("Payment").'</u><br>';
+ 		$label .= '<strong>'.$langs->trans("Ref").':</strong> '.$text;
+-		if ($this->datepaye ? $this->datepaye : $this->date) {
+-			$label .= '<br><strong>'.$langs->trans("Date").':</strong> '.dol_print_date($this->datepaye ? $this->datepaye : $this->date, 'dayhour', 'tzuser');
++		$dateofpayment = ($this->datepaye ? $this->datepaye : $this->date);
++		if ($dateofpayment) {
++			$label .= '<br><strong>'.$langs->trans("Date").':</strong> ';
++			$tmparray = dol_getdate($dateofpayment);
++			if ($tmparray['seconds'] == 0 && $tmparray['minutes'] == 0 && ($tmparray['hours'] == 0 || $tmparray['hours'] == 12)) {  // We set hours to 0:00 or 12:00 because we don't know it
++				$label .= dol_print_date($dateofpayment, 'day');
++			} else {    // Hours was set to real date of payment (special case for POS for example)
++				$label .= dol_print_date($dateofpayment, 'dayhour', 'tzuser');
++			}
++		}
++		if ($mode == 'withlistofinvoices') {
++			$arraybill = $this->getBillsArray();
++			if (is_array($arraybill) && count($arraybill) > 0) {
++				include_once DOL_DOCUMENT_ROOT.'/fourn/class/fournisseur.facture.class.php';
++				$facturestatic = new FactureFournisseur($this->db);
++				foreach ($arraybill as $billid) {
++					$facturestatic->fetch($billid);
++					$label .= '<br> '.$facturestatic->getNomUrl(1, '', 0, 0, '', 1).' '.$facturestatic->getLibStatut(2, 1);
++				}
++			}
+ 		}
+-
+ 		$linkclose = '';
+ 		if (empty($notooltip)) {
+ 			if (!empty($conf->global->MAIN_OPTIMIZEFORTEXTBROWSER)) {
+@@ -633,8 +650,8 @@ class PaiementFourn extends Paiement
+ 		if ($withpicto) {
+ 			$result .= img_object(($notooltip ? '' : $label), ($this->picto ? $this->picto : 'generic'), ($notooltip ? (($withpicto != 2) ? 'class="paddingright"' : '') : 'class="'.(($withpicto != 2) ? 'paddingright ' : '').'classfortooltip"'), 0, 0, $notooltip ? 0 : 1);
+ 		}
+-		if ($withpicto != 2) {
+-			$result .= $this->ref;
++		if ($withpicto && $withpicto != 2) {
++			$result .= ($this->ref ? $this->ref : $this->id);
+ 		}
+ 		$result .= $linkend;
+ 
+diff --git a/htdocs/fourn/commande/card.php b/htdocs/fourn/commande/card.php
+index a8ee29fc974..75749c534e1 100644
+--- a/htdocs/fourn/commande/card.php
++++ b/htdocs/fourn/commande/card.php
+@@ -820,7 +820,8 @@ if (empty($reshook)) {
+ 		} else {
+ 			$db->rollback();
+ 
+-			setEventMessages($object->error, $object->errors, 'errors');
++			dol_print_error($db, $object->error);
++			exit;
+ 		}
+ 	}
+ 
+@@ -1314,7 +1315,6 @@ if (empty($reshook)) {
+ 							$reshook = $hookmanager->executeHooks('createFrom', $parameters, $object, $action); // Note that $action and $object may have been
+ 
+ 							if ($reshook < 0) {
+-								setEventMessages($hookmanager->error, $hookmanager->errors, 'errors');
+ 								$error++;
+ 							}
+ 						} else {
+@@ -2606,7 +2606,7 @@ if ($action == 'create') {
+ 			$genallowed = $usercanread;
+ 			$delallowed = $usercancreate;
+ 
+-			print $formfile->showdocuments('commande_fournisseur', $objref, $filedir, $urlsource, $genallowed, $delallowed, $object->model_pdf, 1, 0, 0, 0, 0, '', '', '', $object->thirdparty->default_lang);
++			print $formfile->showdocuments('commande_fournisseur', $objref, $filedir, $urlsource, $genallowed, $delallowed, $model_pdf, 1, 0, 0, 0, 0, '', '', '', $object->thirdparty->default_lang);
+ 			$somethingshown = $formfile->numoffiles;
+ 
+ 			// Show links to link elements
+diff --git a/htdocs/fourn/commande/dispatch.php b/htdocs/fourn/commande/dispatch.php
+index cf9d1ed847b..0df79fce096 100644
+--- a/htdocs/fourn/commande/dispatch.php
++++ b/htdocs/fourn/commande/dispatch.php
+@@ -6,7 +6,7 @@
+  * Copyright (C) 2010-2021 Juanjo Menent        <jmenent@2byte.es>
+  * Copyright (C) 2014      Cedric Gross         <c.gross@kreiz-it.fr>
+  * Copyright (C) 2016      Florian Henry        <florian.henry@atm-consulting.fr>
+- * Copyright (C) 2017-2022 Ferran Marcet        <fmarcet@2byte.es>
++ * Copyright (C) 2017-2020 Ferran Marcet        <fmarcet@2byte.es>
+  * Copyright (C) 2018      Frédéric France      <frederic.france@netlogic.fr>
+  * Copyright (C) 2019-2020 Christophe Battarel	<christophe@altairis.fr>
+  *
+@@ -612,11 +612,10 @@ if ($id > 0 || !empty($ref)) {
+ 	// if ($mesg) print $mesg;
+ 	print '<br>';
+ 
+-	/*$disabled = 1;
++	$disabled = 1;
+ 	if (!empty($conf->global->STOCK_CALCULATE_ON_SUPPLIER_DISPATCH_ORDER)) {
+ 		$disabled = 0;
+-	}*/
+-	$disabled = 0;	// This is used to disable or not the bulk selection of target warehouse. No reason to have it disabled so forced to 0.
++	}
+ 
+ 	// Line of orders
+ 	if ($object->statut <= CommandeFournisseur::STATUS_ACCEPTED || $object->statut >= CommandeFournisseur::STATUS_CANCELED) {
+@@ -981,7 +980,7 @@ if ($id > 0 || !empty($ref)) {
+ 							if (empty($conf->multicurrency->enabled) && empty($conf->dynamicprices->enabled)) {
+ 								// Price
+ 								print '<td class="right">';
+-								print '<input id="pu'.$suffix.'" name="pu'.$suffix.'" type="text" size="8" value="'.price((GETPOST('pu'.$suffix) != '' ? price2num(GETPOST('pu'.$suffix)) : $up_ht_disc)).'">';
++								print '<input id="pu'.$suffix.'" name="pu'.$suffix.'" type="text" size="8" value="'.price((GETPOST('pu'.$suffix) != '' ? GETPOST('pu'.$suffix) : $up_ht_disc)).'">';
+ 								print '</td>';
+ 
+ 								// Discount
+diff --git a/htdocs/fourn/commande/list.php b/htdocs/fourn/commande/list.php
+index 56ebfb5cbf7..0cc7d278378 100644
+--- a/htdocs/fourn/commande/list.php
++++ b/htdocs/fourn/commande/list.php
+@@ -42,6 +42,7 @@ require_once DOL_DOCUMENT_ROOT.'/core/class/html.formother.class.php';
+ require_once DOL_DOCUMENT_ROOT.'/core/class/html.formcompany.class.php';
+ require_once DOL_DOCUMENT_ROOT.'/product/class/product.class.php';
+ require_once DOL_DOCUMENT_ROOT.'/projet/class/project.class.php';
++require_once DOL_DOCUMENT_ROOT.'/commande/class/commande.class.php';
+ 
+ $langs->loadLangs(array("orders", "sendings", 'deliveries', 'companies', 'compta', 'bills', 'projects', 'suppliers', 'products'));
+ 
+@@ -63,6 +64,7 @@ $sall = trim((GETPOST('search_all', 'alphanohtml') != '') ?GETPOST('search_all',
+ 
+ $search_product_category = GETPOST('search_product_category', 'int');
+ $search_ref = GETPOST('search_ref', 'alpha');
++$search_reforder = GETPOST('search_reforder', 'alpha');
+ $search_refsupp = GETPOST('search_refsupp', 'alpha');
+ $search_company = GETPOST('search_company', 'alpha');
+ $search_town = GETPOST('search_town', 'alpha');
+@@ -154,7 +156,9 @@ if (empty($user->socid)) {
+ 
+ $checkedtypetiers = 0;
+ $arrayfields = array(
++	'ec2.fk_socpeople'=>array('label'=>"ByPurchaseRepresentative", 'checked'=>1, 'position'=>1),
+ 	'cf.ref'=>array('label'=>"Ref", 'checked'=>1),
++	'c.ref'=>array('label'=>$langs->trans("Order"), 'checked'=>1),
+ 	'cf.ref_supplier'=>array('label'=>"RefOrderSupplierShort", 'checked'=>1, 'enabled'=>1),
+ 	'p.project_ref'=>array('label'=>"ProjectRef", 'checked'=>0, 'enabled'=>1),
+ 	'u.login'=>array('label'=>"AuthorRequest", 'checked'=>1),
+@@ -216,6 +220,7 @@ if (empty($reshook)) {
+ 		$search_sale = '';
+ 		$search_product_category = '';
+ 		$search_ref = '';
++		$search_reforder = '';
+ 		$search_refsupp = '';
+ 		$search_company = '';
+ 		$search_town = '';
+@@ -274,8 +279,6 @@ if (empty($reshook)) {
+ 
+ 		$db->begin();
+ 
+-		$default_ref_supplier=dol_print_date(dol_now(), '%Y%m%d%H%M%S');
+-
+ 		foreach ($orders as $id_order) {
+ 			$cmd = new CommandeFournisseur($db);
+ 			if ($cmd->fetch($id_order) <= 0) {
+@@ -292,8 +295,9 @@ if (empty($reshook)) {
+ 				$objecttmp->mode_reglement_id	= $cmd->mode_reglement_id;
+ 				$objecttmp->fk_project = $cmd->fk_project;
+ 				$objecttmp->multicurrency_code = $cmd->multicurrency_code;
+-				$objecttmp->ref_supplier = !empty($cmd->ref_supplier) ? $cmd->ref_supplier : $default_ref_supplier;
+-				$default_ref_supplier+=1;
++				if (empty($createbills_onebythird)) {
++					$objecttmp->ref_client = $cmd->ref_client;
++				}
+ 
+ 				$datefacture = dol_mktime(12, 0, 0, GETPOST('remonth', 'int'), GETPOST('reday', 'int'), GETPOST('reyear', 'int'));
+ 				if (empty($datefacture)) {
+@@ -575,6 +579,7 @@ $formfile = new FormFile($db);
+ $formorder = new FormOrder($db);
+ $formother = new FormOther($db);
+ $formcompany = new FormCompany($db);
++$order = new Commande($db);
+ 
+ $title = $langs->trans("ListOfSupplierOrders");
+ if ($socid > 0) {
+@@ -607,10 +612,12 @@ $sql .= ' s.rowid as socid, s.nom as name, s.town, s.zip, s.fk_pays, s.client, s
+ $sql .= " typent.code as typent_code,";
+ $sql .= " state.code_departement as state_code, state.nom as state_name,";
+ $sql .= " cf.rowid, cf.ref, cf.ref_supplier, cf.fk_statut, cf.billed, cf.total_ht, cf.total_tva, cf.total_ttc, cf.fk_user_author, cf.date_commande as date_commande, cf.date_livraison as date_livraison,";
++$sql .= " c.rowid as orderid, c.ref as reforder,";
+ $sql .= ' cf.fk_multicurrency, cf.multicurrency_code, cf.multicurrency_tx, cf.multicurrency_total_ht, cf.multicurrency_total_tva, cf.multicurrency_total_ttc,';
+ $sql .= ' cf.date_creation as date_creation, cf.tms as date_update,';
+ $sql .= ' cf.note_public, cf.note_private,';
+ $sql .= " p.rowid as project_id, p.ref as project_ref, p.title as project_title,";
++$sql .= ' ec2.fk_socpeople,';
+ $sql .= " u.firstname, u.lastname, u.photo, u.login, u.email as user_email, u.statut as user_status";
+ // Add fields from extrafields
+ if (!empty($extrafields->attributes[$object->table_element]['label'])) {
+@@ -638,6 +645,13 @@ if ($search_product_category > 0) {
+ }
+ $sql .= " LEFT JOIN ".MAIN_DB_PREFIX."user as u ON cf.fk_user_author = u.rowid";
+ $sql .= " LEFT JOIN ".MAIN_DB_PREFIX."projet as p ON p.rowid = cf.fk_projet";
++$sql .= " LEFT JOIN (SELECT element_id, fk_socpeople FROM " . MAIN_DB_PREFIX . "element_contact AS ec11 LEFT JOIN " . MAIN_DB_PREFIX . "c_type_contact AS ctc ON ec11.fk_c_type_contact=ctc.rowid WHERE (ctc.element='order_supplier' AND ctc.source='internal' AND ctc.code='SALESREPFOLL')) AS ec2 ON cf.rowid=ec2.element_id";
++$sql .= ' LEFT JOIN (';
++$sql .= " SELECT ee1.fk_source as fk_source, ee1.fk_target as fk_target FROM ".MAIN_DB_PREFIX."element_element as ee1 WHERE (ee1.sourcetype = 'commande' AND ee1.targettype = 'order_supplier')";
++$sql .= ' UNION ';
++$sql .= " SELECT ee2.fk_target as fk_source, ee2.fk_source as fk_target FROM ".MAIN_DB_PREFIX."element_element as ee2 WHERE (ee2.targettype = 'commande' AND ee2.sourcetype = 'order_supplier')";
++$sql .= ' ) as eecommande ON (cf.rowid = eecommande.fk_target)';
++$sql .= " LEFT JOIN ".MAIN_DB_PREFIX."commande as c on (c.rowid = eecommande.fk_source)";
+ // We'll need this table joined to the select in order to filter by sale
+ if ($search_sale > 0 || (!$user->rights->societe->client->voir && !$socid)) {
+ 	$sql .= ", ".MAIN_DB_PREFIX."societe_commerciaux as sc";
+@@ -656,6 +670,9 @@ if (!$user->rights->societe->client->voir && !$socid) {
+ if ($search_ref) {
+ 	$sql .= natural_search('cf.ref', $search_ref);
+ }
++if ($search_reforder) {
++	$sql .= natural_search('c.ref', $search_reforder);
++}
+ if ($search_refsupp) {
+ 	$sql .= natural_search("cf.ref_supplier", $search_refsupp);
+ }
+@@ -815,6 +832,9 @@ if ($resql) {
+ 	if ($search_ref) {
+ 		$param .= '&search_ref='.urlencode($search_ref);
+ 	}
++	if ($search_reforder) {
++		$param .= '&search_reforder='.urlencode($search_reforder);
++	}
+ 	if ($search_company) {
+ 		$param .= '&search_company='.urlencode($search_company);
+ 	}
+@@ -1026,10 +1046,22 @@ if ($resql) {
+ 	print '<table class="tagtable liste'.($moreforfilter ? " listwithfilterbefore" : "").'">'."\n";
+ 
+ 	print '<tr class="liste_titre_filter">';
++	// Salesperson
++	if (!empty($arrayfields['ec2.fk_socpeople']['checked'])) {
++		print '<td class="liste_titre">';
++		print '&nbsp;';
++		print '</td>';
++	}
+ 	// Ref
+ 	if (!empty($arrayfields['cf.ref']['checked'])) {
+ 		print '<td class="liste_titre"><input size="8" type="text" class="flat maxwidth75" name="search_ref" value="'.$search_ref.'"></td>';
+ 	}
++	// Ref Order
++	if (!empty($arrayfields['c.ref']['checked'])) {
++		print '<td class="liste_titre">';
++		print '<input class="flat maxwidth50imp" type="text" name="search_reforder" value="'.dol_escape_htmltag($search_reforder).'">';
++		print '</td>';
++	}
+ 	// Ref customer
+ 	if (!empty($arrayfields['cf.ref_supplier']['checked'])) {
+ 		print '<td class="liste_titre"><input type="text" class="flat maxwidth75" name="search_refsupp" value="'.$search_refsupp.'"></td>';
+@@ -1181,9 +1213,15 @@ if ($resql) {
+ 
+ 	// Fields title
+ 	print '<tr class="liste_titre">';
++	if (!empty($arrayfields['ec2.fk_socpeople']['checked'])) {
++		print_liste_field_titre($arrayfields['ec2.fk_socpeople']['label'], $_SERVER["PHP_SELF"], 'ec2.fk_socpeople', '', $param, '', $sortfield, $sortorder);
++	}
+ 	if (!empty($arrayfields['cf.ref']['checked'])) {
+ 		print_liste_field_titre($arrayfields['cf.ref']['label'], $_SERVER["PHP_SELF"], "cf.ref", "", $param, '', $sortfield, $sortorder);
+ 	}
++	if (!empty($arrayfields['c.ref']['checked'])) {
++		print_liste_field_titre($arrayfields['c.ref']['label'], $_SERVER["PHP_SELF"], 'c.ref', '', $param, '', $sortfield, $sortorder);
++	}
+ 	if (!empty($arrayfields['cf.ref_supplier']['checked'])) {
+ 		print_liste_field_titre($arrayfields['cf.ref_supplier']['label'], $_SERVER["PHP_SELF"], "cf.ref_supplier", "", $param, '', $sortfield, $sortorder, 'tdoverflowmax100imp ');
+ 	}
+@@ -1273,6 +1311,7 @@ if ($resql) {
+ 	$userstatic = new User($db);
+ 	$objectstatic = new CommandeFournisseur($db);
+ 	$projectstatic = new Project($db);
++	$salespersonstatic = new User($db);
+ 
+ 	$i = 0;
+ 	$totalarray = array('nbfield' => 0, 'val' => array(), 'pos' => array());
+@@ -1289,12 +1328,17 @@ if ($resql) {
+ 
+ 		$objectstatic->id = $obj->rowid;
+ 		$objectstatic->ref = $obj->ref;
++		$order->id = $obj->orderid;
++		$order->ref = $obj->reforder;
+ 		$objectstatic->socid = $obj->socid;
+ 		$objectstatic->ref_supplier = $obj->ref_supplier;
+ 		$objectstatic->socid = $obj->socid;
+ 		$objectstatic->total_ht = $obj->total_ht;
+ 		$objectstatic->total_tva = $obj->total_tva;
+ 		$objectstatic->total_ttc = $obj->total_ttc;
++		$objectstatic->multicurrency_total_ht = $obj->multicurrency_total_ht;
++		$objectstatic->multicurrency_total_tva = $obj->multicurrency_total_tva;
++		$objectstatic->multicurrency_total_ttc = $obj->multicurrency_total_ttc;
+ 		$objectstatic->date_commande = $db->jdate($obj->date_commande);
+ 		$objectstatic->delivery_date = $db->jdate($obj->date_livraison);
+ 		$objectstatic->note_public = $obj->note_public;
+@@ -1303,6 +1347,22 @@ if ($resql) {
+ 
+ 		print '<tr class="oddeven">';
+ 
++		// Salesperson
++		$salespersonstatic->id = $obj->fk_socpeople;
++		$salespersonstatic->fetch($salespersonstatic->id);
++		if (!empty($arrayfields['ec2.fk_socpeople']['checked'])) {
++			print '<td class="tdoverflowmax150">';
++			if ($salespersonstatic->id) {
++				print $salespersonstatic->getNomUrl(-1);
++			} else {
++				print '&nbsp;';
++			}
++			print "</td>\n";
++			if (!$i) {
++				$totalarray['nbfield']++;
++			}
++		}
++
+ 		// Ref
+ 		if (!empty($arrayfields['cf.ref']['checked'])) {
+ 			print '<td class="nowrap">';
+@@ -1319,9 +1379,20 @@ if ($resql) {
+ 				$totalarray['nbfield']++;
+ 			}
+ 		}
++
++		// Ref Order
++		if (!empty($arrayfields['c.ref']['checked'])) {
++			print "<td>";
++			print $order->getNomUrl(1, 'commande');
++			print "</td>\n";
++			if (!$i) {
++				$totalarray['nbfield']++;
++			}
++		}
++
+ 		// Ref Supplier
+ 		if (!empty($arrayfields['cf.ref_supplier']['checked'])) {
+-			print '<td>'.$obj->ref_supplier.'</td>'."\n";
++			print '<td class="tdoverflowmax150">'.$obj->ref_supplier.'</td>'."\n";
+ 			if (!$i) {
+ 				$totalarray['nbfield']++;
+ 			}
+@@ -1455,7 +1526,7 @@ if ($resql) {
+ 			if (!$i) {
+ 				$totalarray['pos'][$totalarray['nbfield']] = 'cf.total_ht';
+ 			}
+-			  $totalarray['val']['cf.total_ht'] += $obj->total_ht;
++			$totalarray['val']['cf.total_ht'] += $obj->total_ht;
+ 		}
+ 		// Amount VAT
+ 		if (!empty($arrayfields['cf.total_tva']['checked'])) {
+@@ -1503,6 +1574,10 @@ if ($resql) {
+ 			if (!$i) {
+ 				$totalarray['nbfield']++;
+ 			}
++			if (!$i) {
++				$totalarray['pos'][$totalarray['nbfield']] = 'cf.multicurrency_total_ht';
++			}
++			$totalarray['val']['cf.multicurrency_total_ht'] += $obj->multicurrency_total_ht;
+ 		}
+ 		// Amount VAT
+ 		if (!empty($arrayfields['cf.multicurrency_total_tva']['checked'])) {
+@@ -1510,6 +1585,10 @@ if ($resql) {
+ 			if (!$i) {
+ 				$totalarray['nbfield']++;
+ 			}
++			if (!$i) {
++				$totalarray['pos'][$totalarray['nbfield']] = 'cf.multicurrency_total_tva';
++			}
++			$totalarray['val']['cf.multicurrency_total_tva'] += $obj->multicurrency_total_tva;
+ 		}
+ 		// Amount TTC
+ 		if (!empty($arrayfields['cf.multicurrency_total_ttc']['checked'])) {
+@@ -1517,6 +1596,10 @@ if ($resql) {
+ 			if (!$i) {
+ 				$totalarray['nbfield']++;
+ 			}
++			if (!$i) {
++				$totalarray['pos'][$totalarray['nbfield']] = 'cf.multicurrency_total_ttc';
++			}
++			$totalarray['val']['cf.multicurrency_total_ttc'] += $obj->multicurrency_total_ttc;
+ 		}
+ 
+ 		// Extra fields
+@@ -1574,8 +1657,6 @@ if ($resql) {
+ 
+ 		print "</tr>\n";
+ 
+-		$total += $obj->total_ht;
+-		$subtotal += $obj->total_ht;
+ 		$i++;
+ 	}
+ 
+diff --git a/htdocs/fourn/commande/orderstatus.php b/htdocs/fourn/commande/orderstatus.php
+new file mode 100644
+index 00000000000..0f87d61f9ae
+--- /dev/null
++++ b/htdocs/fourn/commande/orderstatus.php
+@@ -0,0 +1,134 @@
++<?php
++/* Copyright (C) 
++ *
++ * This program is free software; you can redistribute it and/or modify
++ * it under the terms of the GNU General Public License as published by
++ * the Free Software Foundation; either version 3 of the License, or
++ * (at your option) any later version.
++ *
++ * This program is distributed in the hope that it will be useful,
++ * but WITHOUT ANY WARRANTY; without even the implied warranty of
++ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
++ *  GNU General Public License for more details.
++ *
++ * You should have received a copy of the GNU General Public License
++ * along with this program. If not, see <https://www.gnu.org/licenses/>.
++ */
++
++/**
++ * \file 	htdocs/commande/orderstatus.php
++ */
++
++ require '../../main.inc.php';
++require_once DOL_DOCUMENT_ROOT.'/core/class/html.formfile.class.php';
++require_once DOL_DOCUMENT_ROOT.'/commande/class/commande.class.php';
++require_once DOL_DOCUMENT_ROOT.'/fourn/class/fournisseur.commande.class.php';
++include DOL_DOCUMENT_ROOT.'/core/actions_fetchobject.inc.php';
++
++// Load translation files required by the page
++$langs->loadLangs(array('orders', 'sendings', 'companies', 'bills', 'propal', 'deliveries', 'products', 'other'));
++
++$search_ref = '';
++$search_ref = GETPOST('search_ref', 'alpha');
++
++// Security check
++if (!empty($user->socid)) {
++	$socid = $user->socid;
++}
++$result = restrictedArea($user, 'commande', $id);
++
++$usercanread_so			= $user->rights->commande->lire;
++$usercancreate_so		= $user->rights->commande->creer;
++$usercandelete_so		= $user->rights->commande->supprimer;
++
++$permissionnote_so		= $usercancreate; // Used by the include of actions_setnotes.inc.php
++$permissiondellink_so	= $usercancreate; // Used by the include of actions_dellink.inc.php
++$permissiontoadd_so		= $usercancreate; // Used by the include of actions_addupdatedelete.inc.php and actions_lineupdown.inc.php
++
++// Common permissions
++$result = restrictedArea($user, 'fournisseur', $id, 'commande_fournisseur', 'commande', 'fk_soc', 'rowid', $isdraft);
++
++$usercanread_po			= ($user->rights->fournisseur->commande->lire || $user->rights->supplier_order->lire);
++$usercancreate_po		= ($user->rights->fournisseur->commande->creer || $user->rights->supplier_order->creer);
++$usercandelete_po		= (($user->rights->fournisseur->commande->supprimer || $user->rights->supplier_order->supprimer) || ($usercancreate && isset($object->statut) && $object->statut == $object::STATUS_DRAFT));
++
++$permissionnote_po		= $usercancreate; // Used by the include of actions_setnotes.inc.php
++$permissiondellink_po	= $usercancreate; // Used by the include of actions_dellink.inc.php
++$permissiontoedit_po	= $usercancreate; // Used by the include of actions_lineupdown.inc.php
++$permissiontoadd_po		= $usercancreate; // Used by the include of actions_addupdatedelete.inc.php
++
++$title = $langs->trans('Order')." - ".$langs->trans('Card');
++$help_url = 'EN:Customers_Orders|FR:Commandes_Clients|ES:Pedidos de clientes|DE:Modul_Kundenaufträge';
++llxHeader('', $title, $help_url);
++
++$sql = 'SELECT';
++$sql .= ' c.rowid as salesorder, c.ref as salesorderref, SO_ATA(c.rowid) as ATA, ';
++$sql .= " cf.rowid as supplierorder, cf.ref as supplierorderref ";
++$sql .= ' FROM '.MAIN_DB_PREFIX.'commande as c';
++$sql .= ' LEFT JOIN (';
++$sql .= " SELECT ee1.fk_source as fk_source, ee1.fk_target as fk_target FROM ".MAIN_DB_PREFIX."element_element as ee1 WHERE (ee1.sourcetype = 'order_supplier' AND ee1.targettype = 'commande')";
++$sql .= ' UNION ';
++$sql .= " SELECT ee2.fk_target as fk_source, ee2.fk_source as fk_target FROM ".MAIN_DB_PREFIX."element_element as ee2 WHERE (ee2.targettype = 'order_supplier' AND ee2.sourcetype = 'commande')";
++$sql .= ' ) as eecommande ON (c.rowid = eecommande.fk_target)';
++$sql .= " LEFT JOIN ".MAIN_DB_PREFIX."commande_fournisseur as cf on (cf.rowid = eecommande.fk_source)";
++$sql .= " WHERE c.ref = '". $search_ref." ' ";
++
++$resql = $db->query($sql);
++$obj = $db->fetch_object($resql);
++
++print '<form method="POST" id="searchorder" action="'.$_SERVER["PHP_SELF"].'">';
++print '<h2 style="color:Crimson;">Search Order</h2>';
++print 'SO No : <input class="flat" size="6" type="text" name="search_ref" value="'.dol_escape_htmltag($search_ref).'">';
++print '<input type="submit" class="button" name="search" value="'.$langs->trans("Search").'">';
++print '<br><br><br>';
++
++$form = new Form($db);
++$formfile = new FormFile($db);
++$object_so = new Commande($db);
++$object_po = new CommandeFournisseur($db);
++
++$soc = new Societe($db);
++if ($socid > 0) {
++	$res = $soc->fetch($socid);
++}
++
++$object_so->fetch($obj->salesorder);
++$object_po->fetch($obj->supplierorder);
++
++// Sales Order
++
++print '<div class="fichecenter"><div class="fichehalfleft">';
++print '<h3 style="color:DarkBlue;">Sales Order</h3>';
++print '<h4 style="color:DarkGreen;">ATA :  '.dol_print_date($obj->ATA, 0).'</h4>';
++$objref_so = dol_sanitizeFileName($object_so->ref);
++$relativepath_so = $objref_so.'/'.$objref_so.'.pdf';
++$filedir_so = $conf->commande->multidir_output[$object_so->entity].'/'.$objref_so;
++$urlsource_so = $_SERVER["PHP_SELF"]."?id=".$object_so->id;
++$genallowed_so = $usercanread_so;
++$delallowed_so = $usercancreate_so;
++
++print $formfile->showdocuments('commande', $objref_so, $filedir_so, $urlsource_so, $genallowed_so, 0, '', 1, 0, 0, 0, 0, '', '', '', $soc->default_lang);
++$form->showLinkedObjectBlock($object_so, '', false);
++print '</div>';
++
++// Purchase Order
++
++print '<div class="fichehalfright"><div class="ficheaddleft">';
++print '<h3 style="color:DarkBlue;">Purchase Order</h3>';
++
++$objref_po = dol_sanitizeFileName($object_po->ref);
++$file_po = $conf->fournisseur->dir_output.'/commande/'.$objref_po.'/'.$objref_po.'.pdf';
++$relativepath_po = $objref_po.'/'.$objref_po.'.pdf';
++$filedir_po = $conf->fournisseur->dir_output.'/commande/'.$objref_po;
++$urlsource_po = $_SERVER["PHP_SELF"]."?id=".$objref_po->id;
++$genallowed_po = $usercanread_po;
++$delallowed_po = $usercancreate_po;
++
++print $formfile->showdocuments('commande_fournisseur', $objref_po, $filedir_po, $urlsource_po, $genallowed_po, 0, '', 1, 0, 0, 0, 0, '', '', '', $soc->default_lang);
++$form->showLinkedObjectBlock($object_po, '', false);
++
++print '</div></div></div>';
++
++// End of page
++llxFooter();
++$db->close();
+diff --git a/htdocs/fourn/commande/tpl/linkedobjectblock.tpl.php b/htdocs/fourn/commande/tpl/linkedobjectblock.tpl.php
+index a152ca26ff1..301e5e09450 100644
+--- a/htdocs/fourn/commande/tpl/linkedobjectblock.tpl.php
++++ b/htdocs/fourn/commande/tpl/linkedobjectblock.tpl.php
+@@ -35,6 +35,9 @@ $linkedObjectBlock = $GLOBALS['linkedObjectBlock'];
+ $langs->load("orders");
+ 
+ $total = 0;
++if (!empty($conf->multicurrency->enabled)) {
++	$multicurrency_total = 0;
++}
+ $ilink = 0;
+ foreach ($linkedObjectBlock as $key => $objectlink) {
+ 	$ilink++;
+@@ -50,9 +53,13 @@ foreach ($linkedObjectBlock as $key => $objectlink) {
+ 		<td class="left"><?php echo $objectlink->ref_supplier; ?></td>
+ 		<td class="center"><?php echo dol_print_date($objectlink->date, 'day'); ?></td>
+ 		<td class="right"><?php
+-		if ($user->rights->fournisseur->commande->lire) {
++		if ($user->rights->expedition->lire) {
++			if (!empty($conf->multicurrency->enabled) && !empty($objectlink->multicurrency_code) && ($conf->currency!=$objectlink->multicurrency_code)) {
++				$multicurrency_total = $multicurrency_total + $objectlink->multicurrency_total_ht;
++				echo $objectlink->multicurrency_code.' '.price($objectlink->multicurrency_total_ht).'<br>';
++			}
+ 			$total = $total + $objectlink->total_ht;
+-			echo price($objectlink->total_ht);
++			echo $conf->currency.' '.price($objectlink->total_ht);
+ 		} ?></td>
+ 		<td class="right"><?php echo $objectlink->getLibStatut(3); ?></td>
+ 		<td class="right"><a class="reposition" href="<?php echo $_SERVER["PHP_SELF"].'?id='.$object->id.'&action=dellink&dellinkid='.$key; ?>"><?php echo img_picto($langs->transnoentitiesnoconv("RemoveLink"), 'unlink'); ?></a></td>
+@@ -66,7 +73,7 @@ if (count($linkedObjectBlock) > 1) {
+ 		<td></td>
+ 		<td class="center"></td>
+ 		<td class="center"></td>
+-		<td class="right"><?php echo price($total); ?></td>
++		<td class="right"><?php echo $conf->currency.' '.price($total); ?></td>
+ 		<td class="right"></td>
+ 		<td class="right"></td>
+ 	</tr>
+diff --git a/htdocs/fourn/facture/card.php b/htdocs/fourn/facture/card.php
+index 366047da07c..3a3d19d842a 100644
+--- a/htdocs/fourn/facture/card.php
++++ b/htdocs/fourn/facture/card.php
+@@ -529,9 +529,9 @@ if (empty($reshook)) {
+ 				if ($line->product_type < 9 && $line->total_ht != 0) { // Remove lines with product_type greater than or equal to 9 and no need to create discount if amount is null
+ 					$keyforvatrate = $line->tva_tx.($line->vat_src_code ? ' ('.$line->vat_src_code.')' : '');
+ 
+-					$amount_ht[$keyforvatrate] += $line->total_ht;
+-					$amount_tva[$keyforvatrate] += $line->total_tva;
+-					$amount_ttc[$keyforvatrate] += $line->total_ttc;
++					$amount_ht[$line->tva_tx] += $line->total_ht;
++					$amount_tva[$line->tva_tx] += $line->total_tva;
++					$amount_ttc[$line->tva_tx] += $line->total_ttc;
+ 					$multicurrency_amount_ht[$keyforvatrate] += $line->multicurrency_total_ht;
+ 					$multicurrency_amount_tva[$keyforvatrate] += $line->multicurrency_total_tva;
+ 					$multicurrency_amount_ttc[$keyforvatrate] += $line->multicurrency_total_ttc;
+@@ -1451,10 +1451,10 @@ if (empty($reshook)) {
+ 				}
+ 
+ 				$type = $productsupplier->type;
+-				if (GETPOST('price_ht') != '' || GETPOST('price_ht_devise') != '') {
++				if ($price_ht != '' || $price_ht_devise != '') {
+ 					$price_base_type = 'HT';
+ 					$pu = price2num($price_ht, 'MU');
+-					$pu_ht_devise = price2num($price_ht_devise, 'CU');
++					$pu_ht_devise = price2num($price_ht_devise, 'MU');
+ 				} else {
+ 					$price_base_type = ($productsupplier->fourn_price_base_type ? $productsupplier->fourn_price_base_type : 'HT');
+ 					if (empty($object->multicurrency_code) || ($productsupplier->fourn_multicurrency_code != $object->multicurrency_code)) {	// If object is in a different currency and price not in this currency
+@@ -1941,7 +1941,7 @@ if ($action == 'create') {
+ 		print $societe->getNomUrl(1);
+ 		print '<input type="hidden" name="socid" value="'.$societe->id.'">';
+ 	} else {
+-		print img_picto('', 'company').$form->select_company($societe->id, 'socid', '(s.fournisseur = 1 and s.status = 1)', 'SelectThirdParty', 0, 0, null, 0, 'minwidth300 widthcentpercentminusxx');
++		print img_picto('', 'company').$form->select_company($societe->id, 'socid', 's.fournisseur=1', 'SelectThirdParty', 0, 0, null, 0, 'minwidth300 widthcentpercentminusxx');
+ 		// reload page to retrieve supplier informations
+ 		if (!empty($conf->global->RELOAD_PAGE_ON_SUPPLIER_CHANGE)) {
+ 			print '<script type="text/javascript">
+@@ -2415,15 +2415,21 @@ if ($action == 'create') {
+ 			$multicurrency_totaldeposits = $object->getSumDepositsUsed(1);
+ 			$multicurrency_resteapayer = price2num($object->multicurrency_total_ttc - $multicurrency_totalpaye - $multicurrency_totalcreditnotes - $multicurrency_totaldeposits, 'MT');
+ 			// Code to fix case of corrupted data
+-			if ($resteapayer == 0 && $multicurrency_resteapayer != 0) {
++/*			if ($resteapayer != 0 && $multicurrency_resteapayer == 0) {
+ 				$resteapayer = price2num($multicurrency_resteapayer / $object->multicurrency_tx, 'MT');
+ 			}
+-		}
++*/		}
+ 
+ 		if ($object->paye) {
+ 			$resteapayer = 0;
++			if (!empty($conf->multicurrency->enabled)) {
++				$multicurrency_resteapayer = 0;
++			}
+ 		}
+ 		$resteapayeraffiche = $resteapayer;
++		if (!empty($conf->multicurrency->enabled)) {
++			$multicurrency_resteapayeraffiche = $multicurrency_resteapayer;
++		}
+ 
+ 		if (!empty($conf->global->FACTURE_DEPOSITS_ARE_JUST_PAYMENTS)) {	// Never use this
+ 			$filterabsolutediscount = "fk_invoice_supplier_source IS NULL"; // If we want deposit to be substracted to payments only and not to total of final invoice
+@@ -2555,13 +2561,18 @@ if ($action == 'create') {
+ 			}
+ 			$formconfirm = $form->formconfirm($_SERVER["PHP_SELF"].'?id='.$object->id, $langs->trans('UnvalidateBill'), $langs->trans('ConfirmUnvalidateBill', $object->ref), 'confirm_edit', $formquestion, 1, 1);
+ 		}
+-
++		
++		$sign = 1;
++		if ($object->type == FactureFournisseur::TYPE_CREDIT_NOTE) {
++			$sign = - 1;
++		}
++		
+ 		// Confirmation set paid
+-		if ($action == 'paid' && $resteapayer <= 0) {
++		if ($action == 'paid' && ($sign * (!empty($conf->stock->enabled) ? $multicurrency_resteapayer : $resteapayer)) <= 0) {
+ 			$formconfirm = $form->formconfirm($_SERVER["PHP_SELF"].'?id='.$object->id, $langs->trans('ClassifyPaid'), $langs->trans('ConfirmClassifyPaidBill', $object->ref), 'confirm_paid', '', 0, 1);
+ 		}
+ 
+-		if ($action == 'paid' && $resteapayer > 0) {
++		if ($action == 'paid' && ($sign * (!empty($conf->stock->enabled) ? $multicurrency_resteapayer : $resteapayer) > 0)) {
+ 			$close = array();
+ 			// Code
+ 			$i = 0;
+@@ -2581,9 +2592,9 @@ if ($action == 'create') {
+ 			$i++;
+ 			// Text
+ 			$i = 0;
+-			$close[$i]['reason'] = $form->textwithpicto($langs->transnoentities("ConfirmClassifyPaidPartiallyReasonDiscount", $resteapayer, $langs->trans("Currency".$conf->currency)), $close[$i]['label'], 1);
++			$close[$i]['reason'] = $form->textwithpicto($langs->transnoentities("ConfirmClassifyPaidPartiallyReasonDiscount", ($sign * $resteapayer), $langs->trans("Currency".$conf->currency)), $close[$i]['label'], 1);
+ 			$i++;
+-			$close[$i]['reason'] = $form->textwithpicto($langs->transnoentities("ConfirmClassifyPaidPartiallyReasonBadCustomer", $resteapayer, $langs->trans("Currency".$conf->currency)), $close[$i]['label'], 1);
++			$close[$i]['reason'] = $form->textwithpicto($langs->transnoentities("ConfirmClassifyPaidPartiallyReasonBadCustomer", ($sign * $resteapayer), $langs->trans("Currency".$conf->currency)), $close[$i]['label'], 1);
+ 			$i++;
+ 			$close[$i]['reason'] = $form->textwithpicto($langs->transnoentities("Other"), $close[$i]['label'], 1);
+ 			$i++;
+@@ -3007,10 +3018,8 @@ if ($action == 'create') {
+ 		// List of payments
+ 
+ 		$totalpaye = 0;
+-
+-		$sign = 1;
+-		if ($object->type == FactureFournisseur::TYPE_CREDIT_NOTE) {
+-			$sign = - 1;
++		if ($object->multicurrency_code != $conf->currency || $object->multicurrency_tx != 1) {
++			$multicurrency_totalpaye = 0;
+ 		}
+ 
+ 		$nbrows = 9; $nbcols = 3;
+@@ -3038,6 +3047,9 @@ if ($action == 'create') {
+ 		$sql = 'SELECT p.datep as dp, p.ref, p.num_paiement as num_payment, p.rowid, p.fk_bank,';
+ 		$sql .= ' c.id as paiement_type,';
+ 		$sql .= ' pf.amount,';
++		if ($object->multicurrency_code != $conf->currency || $object->multicurrency_tx != 1) {
++			$sql .= ' pf.multicurrency_amount,';
++		}
+ 		$sql .= ' ba.rowid as baid, ba.ref as baref, ba.label, ba.number as banumber, ba.account_number, ba.fk_accountancy_journal';
+ 		$sql .= ' FROM '.MAIN_DB_PREFIX.'paiementfourn as p';
+ 		$sql .= ' LEFT JOIN '.MAIN_DB_PREFIX.'bank as b ON p.fk_bank = b.rowid';
+@@ -3061,6 +3073,9 @@ if ($action == 'create') {
+ 			if (!empty($conf->banque->enabled)) {
+ 				print '<td class="right">'.$langs->trans('BankAccount').'</td>';
+ 			}
++			if ($object->multicurrency_code != $conf->currency || $object->multicurrency_tx != 1) {
++				print '<td class="right">'.$langs->trans('AmountMulticurrency').'</td>';
++			}
+ 			print '<td class="right">'.$langs->trans('Amount').'</td>';
+ 			print '<td width="18">&nbsp;</td>';
+ 			print '</tr>';
+@@ -3103,6 +3118,9 @@ if ($action == 'create') {
+ 						}
+ 						print '</td>';
+ 					}
++					if ($object->multicurrency_code != $conf->currency || $object->multicurrency_tx != 1) {
++						print '<td class="right">'.price($sign * $objp->multicurrency_amount).'</td>';
++					}
+ 					print '<td class="right">'.price($sign * $objp->amount).'</td>';
+ 					print '<td class="center">';
+ 					if ($object->statut == FactureFournisseur::STATUS_VALIDATED && $object->paye == 0 && $user->socid == 0) {
+@@ -3113,6 +3131,9 @@ if ($action == 'create') {
+ 					print '</td>';
+ 					print '</tr>';
+ 					$totalpaye += $objp->amount;
++					if ($object->multicurrency_code != $conf->currency || $object->multicurrency_tx != 1) {
++						$multicurrency_totalpaye += $objp->multicurrency_amount;
++					}
+ 					$i++;
+ 				}
+ 			} else {
+@@ -3147,19 +3168,31 @@ if ($action == 'create') {
+ 				print $langs->trans('AlreadyPaid');
+ 			}
+ 			print '</span>';
++			if ($object->multicurrency_code != $conf->currency || $object->multicurrency_tx != 1) {
++				print '</td><td class="right"'.(($multicurrency_totalpaye > 0) ? ' class="amountalreadypaid"' : '').'>'.price($multicurrency_totalpaye);
++			}
+ 			print '</td><td class="right"'.(($totalpaye > 0) ? ' class="amountalreadypaid"' : '').'>'.price($totalpaye).'</td><td>&nbsp;</td></tr>';
+ 
+ 			//$resteapayer = $object->total_ttc - $totalpaye;
+ 			$resteapayeraffiche = $resteapayer;
++			if (!empty($conf->multicurrency->enabled)) {
++				$multicurrency_resteapayeraffiche = $multicurrency_resteapayer;
++			}
+ 
+ 			$cssforamountpaymentcomplete = 'amountpaymentcomplete';
+ 
+ 			// Loop on each credit note or deposit amount applied
+ 			$creditnoteamount = 0;
+ 			$depositamount = 0;
+-
++			if ($object->multicurrency_code != $conf->currency || $object->multicurrency_tx != 1) {
++				$multicurrency_creditnoteamount = 0;
++				$multicurrency_depositamount = 0;
++			}
+ 
+ 			$sql = "SELECT re.rowid, re.amount_ht, re.amount_tva, re.amount_ttc,";
++			if ($object->multicurrency_code != $conf->currency || $object->multicurrency_tx != 1) {
++				$sql .= " re.multicurrency_amount_ttc,";
++			}
+ 			$sql .= " re.description, re.fk_invoice_supplier_source";
+ 			$sql .= " FROM ".MAIN_DB_PREFIX."societe_remise_except as re";
+ 			$sql .= " WHERE fk_invoice_supplier = ".$object->id;
+@@ -3180,6 +3213,9 @@ if ($action == 'create') {
+ 					}
+ 					print $invoice->getNomUrl(0);
+ 					print ' :</td>';
++					if ($object->multicurrency_code != $conf->currency || $object->multicurrency_tx != 1) {
++						print '<td class="right">'.price($obj->multicurrency_amount_ttc).'</td>';
++					}
+ 					print '<td class="right">'.price($obj->amount_ttc).'</td>';
+ 					print '<td class="right">';
+ 					print '<a href="'.$_SERVER["PHP_SELF"].'?facid='.$object->id.'&action=unlinkdiscount&discountid='.$obj->rowid.'">'.img_delete().'</a>';
+@@ -3187,9 +3223,15 @@ if ($action == 'create') {
+ 					$i++;
+ 					if ($invoice->type == FactureFournisseur::TYPE_CREDIT_NOTE) {
+ 						$creditnoteamount += $obj->amount_ttc;
++						if ($object->multicurrency_code != $conf->currency || $object->multicurrency_tx != 1) {
++							$multicurrency_creditnoteamount += $obj->multicurrency_amount_ttc;
++						}
+ 					}
+ 					if ($invoice->type == FactureFournisseur::TYPE_DEPOSIT) {
+ 						$depositamount += $obj->amount_ttc;
++						if ($object->multicurrency_code != $conf->currency || $object->multicurrency_tx != 1) {
++							$multicurrency_depositamount += $obj->multicurrency_amount_ttc;
++						}
+ 					}
+ 				}
+ 			} else {
+@@ -3202,8 +3244,14 @@ if ($action == 'create') {
+ 				print '<span class="opacitymedium">';
+ 				print $form->textwithpicto($langs->trans("Discount"), $langs->trans("HelpEscompte"), - 1);
+ 				print '</span>';
++				if ($object->multicurrency_code != $conf->currency || $object->multicurrency_tx != 1) {
++					print '</td><td class="right">'.price($object->multicurrency_total_ttc - $multicurrency_creditnoteamount - $multicurrency_depositamount - $multicurrency_totalpaye);
++				}
+ 				print '</td><td class="right">'.price($object->total_ttc - $creditnoteamount - $depositamount - $totalpaye).'</td><td>&nbsp;</td></tr>';
+ 				$resteapayeraffiche = 0;
++				if (!empty($conf->multicurrency->enabled)) {
++					$multicurrency_resteapayeraffiche = 0;
++				}
+ 				$cssforamountpaymentcomplete = 'amountpaymentneutral';
+ 			}
+ 			// Paye partiellement ou Abandon 'badsupplier'
+@@ -3212,6 +3260,9 @@ if ($action == 'create') {
+ 				print '<span class="opacitymedium">';
+ 				print $form->textwithpicto($langs->trans("Abandoned"), $langs->trans("HelpAbandonBadCustomer"), - 1);
+ 				print '</span>';
++				if ($object->multicurrency_code != $conf->currency || $object->multicurrency_tx != 1) {
++					print '</td><td class="right">'.price($object->multicurrency_total_ttc - $multicurrency_creditnoteamount - $multicurrency_depositamount - $multicurrency_totalpaye);
++				}
+ 				print '</td><td class="right">'.price($object->total_ttc - $creditnoteamount - $depositamount - $totalpaye).'</td><td>&nbsp;</td></tr>';
+ 				// $resteapayeraffiche=0;
+ 				$cssforamountpaymentcomplete = 'amountpaymentneutral';
+@@ -3222,8 +3273,14 @@ if ($action == 'create') {
+ 				print '<span class="opacitymedium">';
+ 				print $form->textwithpicto($langs->trans("ProductReturned"), $langs->trans("HelpAbandonProductReturned"), - 1);
+ 				print '</span>';
++				if ($object->multicurrency_code != $conf->currency || $object->multicurrency_tx != 1) {
++					print '</td><td class="right">'.price($object->multicurrency_total_ttc - $multicurrency_creditnoteamount - $multicurrency_depositamount - $multicurrency_totalpaye);
++				}
+ 				print '</td><td class="right">'.price($object->total_ttc - $creditnoteamount - $depositamount - $totalpaye).'</td><td>&nbsp;</td></tr>';
+ 				$resteapayeraffiche = 0;
++				if (!empty($conf->multicurrency->enabled)) {
++					$multicurrency_resteapayeraffiche = 0;
++				}
+ 				$cssforamountpaymentcomplete = 'amountpaymentneutral';
+ 			}
+ 			// Paye partiellement ou Abandon 'abandon'
+@@ -3236,8 +3293,14 @@ if ($action == 'create') {
+ 				print '<span class="opacitymedium">';
+ 				print $form->textwithpicto($langs->trans("Abandoned"), $text, - 1);
+ 				print '</span>';
++				if ($object->multicurrency_code != $conf->currency || $object->multicurrency_tx != 1) {
++					print '</td><td class="right">'.price($object->multicurrency_total_ttc - $multicurrency_creditnoteamount - $multicurrency_depositamount - $multicurrency_totalpaye);
++				}
+ 				print '</td><td class="right">'.price($object->total_ttc - $creditnoteamount - $depositamount - $totalpaye).'</td><td>&nbsp;</td></tr>';
+ 				$resteapayeraffiche = 0;
++				if (!empty($conf->multicurrency->enabled)) {
++					$multicurrency_resteapayeraffiche = 0;
++				}
+ 				$cssforamountpaymentcomplete = 'amountpaymentneutral';
+ 			}
+ 
+@@ -3246,44 +3309,60 @@ if ($action == 'create') {
+ 			print '<span class="opacitymedium">';
+ 			print $langs->trans("Billed");
+ 			print '</span>';
+-			print '</td><td class="right">'.price($object->total_ttc).'</td><td>&nbsp;</td></tr>';
++			if ($object->multicurrency_code != $conf->currency || $object->multicurrency_tx != 1) {
++				print '</td><td class="right">'.price($object->multicurrency_total_ttc, 0, '', 1, -1, -1, $object->multicurrency_code);
++			}
++			print '</td><td class="right">'.price($object->total_ttc, 0, '', 1, -1, -1, $conf->currency).'</td><td>&nbsp;</td></tr>';
+ 
+ 			// Remainder to pay
+ 			print '<tr><td colspan="'.$nbcols.'" class="right">';
+ 			print '<span class="opacitymedium">';
+-			if ($resteapayeraffiche >= 0) {
++			if ((!empty($conf->multicurrency->enabled) ? $multicurrency_resteapayeraffiche : $resteapayeraffiche) >= 0) {
+ 				print $langs->trans('RemainderToPay');
+ 			} else {
+ 				print $langs->trans('ExcessPaid');
+ 			}
+ 			print '</span>';
+ 			print '</td>';
+-			print '<td class="right'.($resteapayeraffiche ? ' amountremaintopay' : (' '.$cssforamountpaymentcomplete)).'">'.price($resteapayeraffiche).'</td>';
+-			print '<td class="nowrap">&nbsp;</td></tr>';
++            if ($object->multicurrency_code != $conf->currency || $object->multicurrency_tx != 1) {
++                print '<td class="right'.($resteapayeraffiche ? ' amountremaintopay' : (' '.$cssforamountpaymentcomplete)).'">'.price($sign * $multicurrency_resteapayeraffiche).'</td>';
++            }
++			print '<td class="right'.($resteapayeraffiche ? ' amountremaintopay' : (' '.$cssforamountpaymentcomplete)).'">'.price($sign * $resteapayeraffiche).'</td><td>&nbsp;</td></tr>';
++
+ 		} else // Credit note
+ 		{
+ 			$cssforamountpaymentcomplete = 'amountpaymentneutral';
+ 
+ 			// Total already paid back
+ 			print '<tr><td colspan="'.$nbcols.'" class="right">';
+-			print $langs->trans('AlreadyPaidBack');
+-			print ' :</td><td class="right">'.price($sign * $totalpaye).'</td><td>&nbsp;</td></tr>';
++			print $langs->trans('AlreadyPaidBack').' :';
++            if ($object->multicurrency_code != $conf->currency || $object->multicurrency_tx != 1) {
++				print '</td><td class="right">'.price($sign * $multicurrency_totalpaye);
++			}
++			print ' </td><td class="right">'.price($sign * $totalpaye).'</td><td>&nbsp;</td></tr>';
+ 
+ 			// Billed
+-			print '<tr><td colspan="'.$nbcols.'" class="right">'.$langs->trans("Billed").' :</td><td class="right">'.price($sign * $object->total_ttc).'</td><td>&nbsp;</td></tr>';
++			print '<tr><td colspan="'.$nbcols.'" class="right">'.$langs->trans("Billed").' :</td>';
++            if ($object->multicurrency_code != $conf->currency || $object->multicurrency_tx != 1) {
++				print '<td class="right">'.price($sign * $object->multicurrency_total_ttc, 0, '', 1, -1, -1, $object->multicurrency_code).'</td>';
++			}
++            print '<td class="right">'.price($sign * $object->total_ttc, 0, '', 1, -1, -1, $conf->currency).'</td><td>&nbsp;</td></tr>';
+ 
+ 			// Remainder to pay back
+ 			print '<tr><td colspan="'.$nbcols.'" class="right">';
+ 			print '<span class="opacitymedium">';
+-			if ($resteapayeraffiche <= 0) {
++			if ((!empty($conf->multicurrency->enabled) ? $multicurrency_resteapayeraffiche : $resteapayeraffiche) <= 0) {
+ 				print $langs->trans('RemainderToPayBack');
+ 			} else {
+ 				print $langs->trans('ExcessPaid');
+ 			}
+ 			print '</td>';
+ 			print '</span>';
++            if ($object->multicurrency_code != $conf->currency || $object->multicurrency_tx != 1) {
++                print '<td class="right'.($multicurrency_resteapayeraffiche ? ' amountremaintopay' : (' '.$cssforamountpaymentcomplete)).'">'.price($sign * $multicurrency_resteapayeraffiche).'</td>';
++            }
+ 			print '<td class="right'.($resteapayeraffiche ? ' amountremaintopay' : (' '.$cssforamountpaymentcomplete)).'">'.price($sign * $resteapayeraffiche).'</td>';
+-			print '<td class="nowrap">&nbsp;</td></tr>';
++			print '<td>&nbsp;</td></tr>';
+ 
+ 			// Sold credit note
+ 			// print '<tr><td colspan="'.$nbcols.'" class="right">'.$langs->trans('TotalTTC').' :</td>';
+@@ -3313,7 +3392,6 @@ if ($action == 'create') {
+ 			include DOL_DOCUMENT_ROOT.'/core/tpl/bloc_showhide.tpl.php';
+ 		}
+ 
+-
+ 		/*
+ 		 * Lines
+ 		 */
+@@ -3442,7 +3520,7 @@ if ($action == 'create') {
+ 				if ($object->type == FactureFournisseur::TYPE_CREDIT_NOTE || $object->type == FactureFournisseur::TYPE_DEPOSIT || $object->type == FactureFournisseur::TYPE_STANDARD) {
+ 					// For credit note only
+ 					if ($object->type == FactureFournisseur::TYPE_CREDIT_NOTE && $object->statut == 1 && $object->paye == 0) {
+-						if ($resteapayer == 0) {
++						if ((!empty($conf->multicurrency->enabled) ? $multicurrency_resteapayer : $resteapayer) == 0) {
+ 							print '<span class="butActionRefused classfortooltip" title="'.$langs->trans("DisabledBecauseRemainderToPayIsZero").'">'.$langs->trans('DoPaymentBack').'</span>';
+ 						} else {
+ 							print '<a class="butAction" href="'.DOL_URL_ROOT.'/fourn/facture/paiement.php?facid='.$object->id.'&amp;action=create&amp;accountid='.$object->fk_account.'">'.$langs->trans('DoPaymentBack').'</a>';
+@@ -3450,7 +3528,7 @@ if ($action == 'create') {
+ 					}
+ 
+ 					// For standard invoice with excess paid
+-					if ($object->type == FactureFournisseur::TYPE_STANDARD && empty($object->paye) && ($object->total_ttc - $totalpaye - $totalcreditnotes - $totaldeposits) < 0 && $usercancreate && empty($discount->id)) {
++					if ($object->type == FactureFournisseur::TYPE_STANDARD && empty($object->paye) && (!empty($conf->multicurrency->enabled) ? $multicurrency_resteapayer : $resteapayer) < 0 && $usercancreate && empty($discount->id)) {
+ 						print '<a class="butAction'.($conf->use_javascript_ajax ? ' reposition' : '').'" href="'.$_SERVER["PHP_SELF"].'?facid='.$object->id.'&amp;action=converttoreduc">'.$langs->trans('ConvertExcessPaidToReduc').'</a>';
+ 					}
+ 					// For credit note
+@@ -3466,15 +3544,15 @@ if ($action == 'create') {
+ 				}
+ 
+ 				// Classify paid
+-				if (($object->statut == FactureFournisseur::STATUS_VALIDATED && $object->paye == 0 && (($object->type != FactureFournisseur::TYPE_CREDIT_NOTE && $object->type != FactureFournisseur::TYPE_DEPOSIT && $resteapayer <= 0) || ($object->type == FactureFournisseur::TYPE_CREDIT_NOTE && $resteapayer >= 0)))
+-					|| ($object->type == FactureFournisseur::TYPE_DEPOSIT && $object->paye == 0 && $object->total_ttc > 0 && $resteapayer == 0 && empty($discount->id))
+-				) {
++				if (($object->statut == FactureFournisseur::STATUS_VALIDATED && $object->paye == 0 && 
++					(($object->type != FactureFournisseur::TYPE_CREDIT_NOTE && $object->type != FactureFournisseur::TYPE_DEPOSIT && (!empty($conf->multicurrency->enabled) ? $multicurrency_resteapayer : $resteapayer) <= 0) || ($object->type == FactureFournisseur::TYPE_CREDIT_NOTE && (!empty($conf->multicurrency->enabled) ? $multicurrency_resteapayer : $resteapayer) >= 0)))
++					|| ($object->type == FactureFournisseur::TYPE_DEPOSIT && $object->paye == 0 && $object->total_ttc > 0 && (!empty($conf->multicurrency->enabled) ? $multicurrency_resteapayer : $resteapayer) == 0 && empty($discount->id))) {
+ 					print '<a class="butAction'.($conf->use_javascript_ajax ? ' reposition' : '').'" href="'.$_SERVER["PHP_SELF"].'?id='.$object->id.'&amp;action=paid">'.$langs->trans('ClassifyPaid').'</a>';
+ 				}
+ 
+ 				// Classify 'closed not completely paid' (possible if validated and not yet filed paid)
+-				if ($object->statut == FactureFournisseur::STATUS_VALIDATED && $object->paye == 0 && $resteapayer > 0) {
+-					if ($totalpaye > 0 || $totalcreditnotes > 0) {
++				if ($object->statut == FactureFournisseur::STATUS_VALIDATED && $object->paye == 0 && ($sign * (!empty($conf->multicurrency->enabled) ? $multicurrency_resteapayer : $resteapayer)) > 0) {
++					if (($sign * $totalpaye) > 0 || $totalcreditnotes > 0) {
+ 						// If one payment or one credit note was linked to this invoice
+ 						print '<a class="butAction'.($conf->use_javascript_ajax ? ' reposition' : '').'" href="'.$_SERVER['PHP_SELF'].'?id='.$object->id.'&amp;action=paid">'.$langs->trans('ClassifyPaidPartially').'</a>';
+ 					} else {
+diff --git a/htdocs/fourn/facture/list.php b/htdocs/fourn/facture/list.php
+index a752c0d1545..317acb12ada 100644
+--- a/htdocs/fourn/facture/list.php
++++ b/htdocs/fourn/facture/list.php
+@@ -41,6 +41,7 @@ require_once DOL_DOCUMENT_ROOT.'/core/class/html.formcompany.class.php';
+ require_once DOL_DOCUMENT_ROOT.'/compta/bank/class/account.class.php';
+ require_once DOL_DOCUMENT_ROOT.'/fourn/class/fournisseur.facture.class.php';
+ require_once DOL_DOCUMENT_ROOT.'/fourn/class/fournisseur.class.php';
++require_once DOL_DOCUMENT_ROOT.'/fourn/class/fournisseur.commande.class.php';
+ require_once DOL_DOCUMENT_ROOT.'/core/lib/date.lib.php';
+ require_once DOL_DOCUMENT_ROOT.'/core/lib/company.lib.php';
+ require_once DOL_DOCUMENT_ROOT.'/projet/class/project.class.php';
+@@ -73,6 +74,7 @@ $search_amount_no_tax = GETPOST("search_amount_no_tax", "alpha");
+ $search_amount_all_tax = GETPOST("search_amount_all_tax", "alpha");
+ $search_product_category = GETPOST('search_product_category', 'int');
+ $search_ref = GETPOST('sf_ref') ?GETPOST('sf_ref', 'alpha') : GETPOST('search_ref', 'alpha');
++$search_supplierorder = GETPOST('search_supplierorder', 'alpha');
+ $search_refsupplier = GETPOST('search_refsupplier', 'alpha');
+ $search_type = GETPOST('search_type', 'int');
+ $search_project = GETPOST('search_project', 'alpha');
+@@ -150,6 +152,7 @@ $now = dol_now();
+ $object = new FactureFournisseur($db);
+ $hookmanager->initHooks(array('supplierinvoicelist'));
+ $extrafields = new ExtraFields($db);
++$supplierorder = new CommandeFournisseur($db);
+ 
+ // fetch optionals attributes and labels
+ $extrafields->fetch_name_optionals_label($object->table_element);
+@@ -159,6 +162,7 @@ $search_array_options = $extrafields->getOptionalsFromPost($object->table_elemen
+ // List of fields to search into when doing a "search in all"
+ $fieldstosearchall = array(
+ 	'f.ref'=>'Ref',
++	'c.ref'=>'SupplierOrder',
+ 	'f.ref_supplier'=>'RefSupplier',
+ 	'pd.description'=>'Description',
+ 	's.nom'=>"ThirdParty",
+@@ -171,6 +175,7 @@ if (empty($user->socid)) {
+ $checkedtypetiers = 0;
+ $arrayfields = array(
+ 	'f.ref'=>array('label'=>"Ref", 'checked'=>1),
++	'c.ref'=>array('label'=>"SupplierOrder", 'checked'=>1),
+ 	'f.ref_supplier'=>array('label'=>"RefSupplier", 'checked'=>1),
+ 	'f.type'=>array('label'=>"Type", 'checked'=>0),
+ 	'f.label'=>array('label'=>"Label", 'checked'=>0),
+@@ -247,6 +252,7 @@ if (empty($reshook)) {
+ 		$search_sale = '';
+ 		$search_product_category = '';
+ 		$search_ref = "";
++		$search_supplierorder = "";
+ 		$search_refsupplier = "";
+ 		$search_type = "";
+ 		$search_label = "";
+@@ -408,6 +414,7 @@ if ($search_all || $search_product_category > 0) {
+ 	$sql = 'SELECT DISTINCT';
+ }
+ $sql .= " f.rowid as facid, f.ref, f.ref_supplier, f.type, f.datef, f.date_lim_reglement as datelimite, f.fk_mode_reglement, f.fk_cond_reglement,";
++$sql .= " c.rowid as orderid, c.ref as supplierorder,";
+ $sql .= " f.total_ht, f.total_ttc, f.total_tva as total_vat, f.paye as paye, f.fk_statut as fk_statut, f.libelle as label, f.datec as date_creation, f.tms as date_update,";
+ $sql .= " f.localtax1 as total_localtax1, f.localtax2 as total_localtax2,";
+ $sql .= ' f.fk_multicurrency, f.multicurrency_code, f.multicurrency_tx, f.multicurrency_total_ht, f.multicurrency_total_tva as multicurrency_total_vat, f.multicurrency_total_ttc,';
+@@ -460,6 +467,12 @@ if ($search_product_category > 0) {
+ }
+ $sql .= ' LEFT JOIN '.MAIN_DB_PREFIX.'user AS u ON f.fk_user_author = u.rowid';
+ $sql .= " LEFT JOIN ".MAIN_DB_PREFIX."projet as p ON p.rowid = f.fk_projet";
++$sql .= ' LEFT JOIN (';
++$sql .= " SELECT ee1.fk_source as fk_source, ee1.fk_target as fk_target FROM ".MAIN_DB_PREFIX."element_element as ee1 WHERE (ee1.sourcetype = 'order_supplier' AND ee1.targettype = 'invoice_supplier')";
++$sql .= ' UNION ';
++$sql .= " SELECT ee2.fk_target as fk_source, ee2.fk_source as fk_target FROM ".MAIN_DB_PREFIX."element_element as ee2 WHERE (ee2.targettype = 'order_supplier' AND ee2.sourcetype = 'invoice_supplier')";
++$sql .= ' ) as eecommande ON (f.rowid = eecommande.fk_target)';
++$sql .= " LEFT JOIN ".MAIN_DB_PREFIX."commande_fournisseur as c on (c.rowid = eecommande.fk_source)";
+ // We'll need this table joined to the select in order to filter by sale
+ if ($search_sale > 0 || (!$user->rights->societe->client->voir && !$socid)) {
+ 	$sql .= ", ".MAIN_DB_PREFIX."societe_commerciaux as sc";
+@@ -493,6 +506,9 @@ if ($search_ref) {
+ if ($search_ref) {
+ 	$sql .= natural_search('f.ref', $search_ref);
+ }
++if ($search_supplierorder) {
++	$sql .= natural_search('c.ref', $search_refsupplier);
++}
+ if ($search_refsupplier) {
+ 	$sql .= natural_search('f.ref_supplier', $search_refsupplier);
+ }
+@@ -624,6 +640,7 @@ $sql .= $hookmanager->resPrint;
+ 
+ if (!$search_all) {
+ 	$sql .= " GROUP BY f.rowid, f.ref, f.ref_supplier, f.type, f.datef, f.date_lim_reglement, f.fk_mode_reglement, f.fk_cond_reglement,";
++	$sql .= " c.ref,";
+ 	$sql .= " f.total_ht, f.total_ttc, f.total_tva, f.paye, f.fk_statut, f.libelle, f.datec, f.tms,";
+ 	$sql .= " f.localtax1, f.localtax2,";
+ 	$sql .= ' f.fk_multicurrency, f.multicurrency_code, f.multicurrency_tx, f.multicurrency_total_ht, f.multicurrency_total_tva, f.multicurrency_total_ttc,';
+@@ -745,6 +762,9 @@ if ($resql) {
+ 	if ($search_ref) {
+ 		$param .= '&search_ref='.urlencode($search_ref);
+ 	}
++	if ($search_supplierorder) {
++		$param .= '&search_supplierorder='.urlencode($search_supplierorder);
++	}
+ 	if ($search_refsupplier) {
+ 		$param .= '&search_refsupplier='.urlencode($search_refsupplier);
+ 	}
+@@ -978,6 +998,12 @@ if ($resql) {
+ 		print '<input class="flat maxwidth50" type="text" name="search_ref" value="'.$search_ref.'">';
+ 		print '</td>';
+ 	}
++	// Supplier Order
++	if (!empty($arrayfields['c.ref']['checked'])) {
++		print '<td class="liste_titre">';
++		print '<input class="flat maxwidth50" type="text" name="search_supplierorder" value="'.$search_supplierorder.'">';
++		print '</td>';
++	}
+ 	// Ref supplier
+ 	if (!empty($arrayfields['f.ref_supplier']['checked'])) {
+ 		print '<td class="liste_titre">';
+@@ -1199,6 +1225,9 @@ if ($resql) {
+ 	if (!empty($arrayfields['f.ref']['checked'])) {
+ 		print_liste_field_titre($arrayfields['f.ref']['label'], $_SERVER['PHP_SELF'], 'f.ref,f.rowid', '', $param, '', $sortfield, $sortorder);
+ 	}
++	if (!empty($arrayfields['c.ref']['checked'])) {
++		print_liste_field_titre($arrayfields['c.ref']['label'], $_SERVER["PHP_SELF"], 'c.ref', '', $param, '', $sortfield, $sortorder);
++	}
+ 	if (!empty($arrayfields['f.ref_supplier']['checked'])) {
+ 		print_liste_field_titre($arrayfields['f.ref_supplier']['label'], $_SERVER["PHP_SELF"], 'f.ref_supplier', '', $param, '', $sortfield, $sortorder);
+ 	}
+@@ -1312,6 +1341,7 @@ if ($resql) {
+ 	if ($num > 0) {
+ 		$i = 0;
+ 		$totalarray = array();
++		$totalarray['nbfield'] = 0;
+ 		while ($i < min($num, $limit)) {
+ 			$obj = $db->fetch_object($resql);
+ 
+@@ -1344,19 +1374,21 @@ if ($resql) {
+ 			$paiement = $facturestatic->getSommePaiement();
+ 			$totalcreditnotes = $facturestatic->getSumCreditNotesUsed();
+ 			$totaldeposits = $facturestatic->getSumDepositsUsed();
+-			$totalpay = $paiement + $totalcreditnotes + $totaldeposits;
+-			$remaintopay = $obj->total_ttc - $totalpay;
++			$totalpay = $facturestatic->getSommePaiement();
++			$remaintopay = $facturestatic->getRemainToPay();
+ 			$multicurrency_paiement = $facturestatic->getSommePaiement(1);
+ 			$multicurrency_totalcreditnotes = $facturestatic->getSumCreditNotesUsed(1);
+ 			$multicurrency_totaldeposits = $facturestatic->getSumDepositsUsed(1);
+-			$multicurrency_totalpay = $multicurrency_paiement + $multicurrency_totalcreditnotes + $multicurrency_totaldeposits;
+-			$multicurrency_remaintopay = price2num($facturestatic->multicurrency_total_ttc - $multicurrency_totalpay);
++			$multicurrency_totalpay = $facturestatic->getSommePaiement(1);
++			$multicurrency_remaintopay = $facturestatic->getRemainToPay(1);
+ 
+ 			$facturestatic->alreadypaid = ($paiement ? $paiement : 0);
+ 			$facturestatic->paye = $obj->paye;
+ 			$facturestatic->statut = $obj->fk_statut;
+ 			$facturestatic->type = $obj->type;
+-
++			
++			$supplierorder->id = $obj->orderid;
++			$supplierorder->ref = $obj->supplierorder;
+ 
+ 			//If invoice has been converted and the conversion has been used, we dont have remain to pay on invoice
+ 			if ($facturestatic->type == FactureFournisseur::TYPE_CREDIT_NOTE) {
+@@ -1385,7 +1417,17 @@ if ($resql) {
+ 					$totalarray['nbfield']++;
+ 				}
+ 			}
+-
++			
++			// Ref Order
++			if (!empty($arrayfields['c.ref']['checked'])) {
++				print "<td>";
++				print $supplierorder->id ? $supplierorder->getNomUrl(1) : '';
++				print "</td>\n";
++				if (!$i) {
++					$totalarray['nbfield']++;
++				}
++			}
++			
+ 			// Supplier ref
+ 			if (!empty($arrayfields['f.ref_supplier']['checked'])) {
+ 				print '<td class="nowrap tdoverflowmax150" title="'.dol_escape_htmltag($obj->ref_supplier).'">';
+@@ -1531,14 +1573,14 @@ if ($resql) {
+ 
+ 			// Amount HT
+ 			if (!empty($arrayfields['f.total_ht']['checked'])) {
+-				  print '<td class="right nowrap"><span class="amount">'.price($obj->total_ht)."</span></td>\n";
++				print '<td class="right nowrap"><span class="amount">'.price($obj->total_ht)."</span></td>\n";
+ 				if (!$i) {
+ 					$totalarray['nbfield']++;
+ 				}
+ 				if (!$i) {
+ 					$totalarray['pos'][$totalarray['nbfield']] = 'f.total_ht';
+ 				}
+-				  $totalarray['val']['f.total_ht'] += $obj->total_ht;
++				$totalarray['val']['f.total_ht'] += $obj->total_ht;
+ 			}
+ 			// Amount VAT
+ 			if (!empty($arrayfields['f.total_vat']['checked'])) {
+@@ -1637,7 +1679,13 @@ if ($resql) {
+ 
+ 			// Currency
+ 			if (!empty($arrayfields['f.multicurrency_code']['checked'])) {
+-				  print '<td class="nowrap">'.$obj->multicurrency_code.' - '.$langs->trans('Currency'.$obj->multicurrency_code)."</td>\n";
++				print '<td class="nowraponall tdoverflowmax125" title="'.dol_escape_htmltag($obj->multicurrency_code.' - '.$langs->transnoentitiesnoconv('Currency'.$obj->multicurrency_code)).'">';
++				if (empty($conf->global->MAIN_SHOW_ONLY_CODE_MULTICURRENCY)) {
++					print $langs->transnoentitiesnoconv('Currency'.$obj->multicurrency_code);
++				} else {
++					print dol_escape_htmltag($obj->multicurrency_code);
++				}
++				print "</td>\n";
+ 				if (!$i) {
+ 					$totalarray['nbfield']++;
+ 				}
+@@ -1658,6 +1706,10 @@ if ($resql) {
+ 				if (!$i) {
+ 					$totalarray['nbfield']++;
+ 				}
++				if (!$i) {
++					$totalarray['pos'][$totalarray['nbfield']] = 'f.multicurrency_total_ht';
++				}
++				$totalarray['val']['f.multicurrency_total_ht'] += $obj->multicurrency_total_ht;
+ 			}
+ 			// Amount VAT
+ 			if (!empty($arrayfields['f.multicurrency_total_vat']['checked'])) {
+@@ -1665,6 +1717,10 @@ if ($resql) {
+ 				if (!$i) {
+ 					$totalarray['nbfield']++;
+ 				}
++				if (!$i) {
++					$totalarray['pos'][$totalarray['nbfield']] = 'f.multicurrency_total_vat';
++				}
++				$totalarray['val']['f.multicurrency_total_vat'] += $obj->multicurrency_total_vat;
+ 			}
+ 			// Amount TTC
+ 			if (!empty($arrayfields['f.multicurrency_total_ttc']['checked'])) {
+@@ -1672,12 +1728,20 @@ if ($resql) {
+ 				if (!$i) {
+ 					$totalarray['nbfield']++;
+ 				}
++				if (!$i) {
++					$totalarray['pos'][$totalarray['nbfield']] = 'c.multicurrency_total_ttc';
++				}
++				$totalarray['val']['c.multicurrency_total_ttc'] += $obj->multicurrency_total_ttc;
+ 			}
+ 			if (!empty($arrayfields['multicurrency_dynamount_payed']['checked'])) {
+ 				print '<td class="right nowrap"><span class="amount">'.(!empty($multicurrency_totalpay) ?price($multicurrency_totalpay, 0, $langs) : '').'</span></td>'; // TODO Use a denormalized field
+ 				if (!$i) {
+ 					$totalarray['nbfield']++;
+ 				}
++				if (!$i) {
++					$totalarray['pos'][$totalarray['nbfield']] = 'multicurrency_dynamount_payed';
++				}
++				$totalarray['val']['multicurrency_dynamount_payed'] += $multicurrency_totalpay;
+ 			}
+ 
+ 			// Pending amount
+@@ -1688,6 +1752,10 @@ if ($resql) {
+ 				if (!$i) {
+ 					$totalarray['nbfield']++;
+ 				}
++				if (!$i) {
++					$totalarray['pos'][$totalarray['nbfield']] = 'multicurrency_rtp';
++				}
++				$totalarray['val']['multicurrency_rtp'] += $multicurrency_remaintopay;
+ 			}
+ 
+ 
+diff --git a/htdocs/fourn/facture/paiement.php b/htdocs/fourn/facture/paiement.php
+index 76e15127098..bb5e758bd4f 100644
+--- a/htdocs/fourn/facture/paiement.php
++++ b/htdocs/fourn/facture/paiement.php
+@@ -404,9 +404,11 @@ if ($action == 'create' || $action == 'confirm_paiement' || $action == 'add_paie
+ 							var form = $("#payment_form");
+ 
+ 							json["invoice_type"] = $("#invoice_type").val();
+-            				json["amountPayment"] = $("#amountpayment").attr("value");
++							json["amountPayment"] = $("#amountpayment").attr("value");
+ 							json["amounts"] = _elemToJson(form.find("input.amount"));
+ 							json["remains"] = _elemToJson(form.find("input.remain"));
++							json["multicurrency_amounts"] = _elemToJson(form.find("input.multicurrency_amount"));
++							json["multicurrency_remains"] = _elemToJson(form.find("input.multicurrency_remain"));
+ 
+ 							if (imgId != null) {
+ 								json["imgClicked"] = imgId;
+@@ -420,7 +422,15 @@ if ($action == 'create' || $action == 'confirm_paiement' || $action == 'add_paie
+ 
+ 								for (var key in json)
+ 								{
+-									if (key == "result")	{
++									if (key == "multicurrency_result")	{
++										if (json["multicurrency_makeRed"]) {
++											$("#"+key).addClass("error");
++										} else {
++											$("#"+key).removeClass("error");
++										}
++										json[key]=json["multicurrency_label"]+" "+json[key];
++										$("#"+key).text(json[key]);
++									} else if (key == "result")	{
+ 										if (json["makeRed"]) {
+ 											$("#"+key).addClass("error");
+ 										} else {
+@@ -443,7 +453,13 @@ if ($action == 'create' || $action == 'confirm_paiement' || $action == 'add_paie
+ 						$("#payment_form").find("input.amount").keyup(function() {
+ 							callForResult();
+ 						});
+-			';
++						$("#payment_form").find("input.multicurrency_amount").change(function() {
++							callForResult();
++						});
++						$("#payment_form").find("input.multicurrency_amount").keyup(function() {
++							callForResult();
++						});
++				';
+ 
+ 				print '	});'."\n";
+ 
+@@ -506,13 +522,23 @@ if ($action == 'create' || $action == 'confirm_paiement' || $action == 'add_paie
+ 				 */
+ 				$sql = 'SELECT f.rowid as facid, f.ref, f.ref_supplier, f.type, f.total_ht, f.total_ttc,';
+ 				$sql .= ' f.multicurrency_code, f.multicurrency_tx, f.multicurrency_total_ht, f.multicurrency_total_tva, f.multicurrency_total_ttc,';
+-				$sql .= ' f.datef as df, f.date_lim_reglement as dlr,';
++				$sql .= ' f.datef as df, f.fk_soc as socid, f.date_lim_reglement as dlr,';
+ 				$sql .= ' SUM(pf.amount) as am, SUM(pf.multicurrency_amount) as multicurrency_am';
+ 				$sql .= ' FROM '.MAIN_DB_PREFIX.'facture_fourn as f';
+ 				$sql .= ' LEFT JOIN '.MAIN_DB_PREFIX.'paiementfourn_facturefourn as pf ON pf.fk_facturefourn = f.rowid';
+-				$sql .= " WHERE f.entity = ".$conf->entity;
+-				$sql .= ' AND f.fk_soc = '.$object->socid;
+-				$sql .= ' AND f.paye = 0';
++				$sql .= ' WHERE f.entity IN ('.$conf->entity.')';
++				$sql .= ' AND (f.fk_soc = '.$object->socid;
++
++				// Can pay invoices of all child of parent company
++				if (!empty($conf->global->FACTURE_PAYMENTS_ON_DIFFERENT_THIRDPARTIES_BILLS) && !empty($supplierstatic->parent)) {
++					$sql .= ' OR f.fk_soc IN (SELECT rowid FROM '.MAIN_DB_PREFIX.'societe WHERE parent = '.$supplierstatic->parent.')';
++				}
++				// Can pay invoices of all child of myself
++				if (!empty($conf->global->FACTURE_PAYMENTS_ON_SUBSIDIARY_COMPANIES)) {
++					$sql .= ' OR f.fk_soc IN (SELECT rowid FROM '.MAIN_DB_PREFIX.'societe WHERE parent = '.$supplierstatic->id.')';
++				}
++
++				$sql .= ') AND f.paye = 0';
+ 				$sql .= ' AND f.fk_statut = 1'; // Status=0 => unvalidated, Status=2 => canceled
+ 				if ($object->type != FactureFournisseur::TYPE_CREDIT_NOTE) {
+ 					$sql .= ' AND f.type IN (0,1,3,5)'; // Standard invoice, replacement, deposit, situation
+@@ -546,26 +572,31 @@ if ($action == 'create' || $action == 'confirm_paiement' || $action == 'add_paie
+ 						print '<table class="tagtable liste'.($moreforfilter ? " listwithfilterbefore" : "").'">'."\n";
+ 
+ 						print '<tr class="liste_titre">';
+-						print '<td>'.$langs->trans('Invoice').'</td>';
+-						print '<td>'.$langs->trans('RefSupplier').'</td>';
++						print '<td class="center">'.$langs->trans('Invoice').'</td>';
++						print '<td class="center">'.$langs->trans('RefSupplier').'</td>';
+ 						print '<td class="center">'.$langs->trans('Date').'</td>';
+ 						print '<td class="center">'.$langs->trans('DateMaxPayment').'</td>';
+ 						if (!empty($conf->multicurrency->enabled)) {
+-							print '<td>'.$langs->trans('Currency').'</td>';
+-							print '<td class="right">'.$langs->trans('MulticurrencyAmountTTC').'</td>';
+-							print '<td class="right">'.$langs->trans('MulticurrencyAlreadyPaid').'</td>';
+-							print '<td class="right">'.$langs->trans('MulticurrencyRemainderToPay').'</td>';
++							print '<td class="center">'.$langs->trans('MulticurrencyAmountTTC').'</td>';
++							print '<td class="center">'.$langs->trans('MulticurrencyAlreadyPaid').'</td>';
++							print '<td class="center">'.$langs->trans('MulticurrencyRemainderToPay').'</td>';
+ 							print '<td class="center">'.$langs->trans('MulticurrencyPaymentAmount').'</td>';
+ 						}
+-						print '<td class="right">'.$langs->trans('AmountTTC').'</td>';
+-						print '<td class="right">'.$langs->trans('AlreadyPaid').'</td>';
+-						print '<td class="right">'.$langs->trans('RemainderToPay').'</td>';
++						print '<td class="center">'.$langs->trans('AmountTTC').'</td>';
++						print '<td class="center">'.$langs->trans('AlreadyPaid').'</td>';
++						print '<td class="center">'.$langs->trans('RemainderToPay').'</td>';
+ 						print '<td class="center">'.$langs->trans('PaymentAmount').'</td>';
+ 						print '</tr>';
+ 
+ 						$total = 0;
+ 						$total_ttc = 0;
+ 						$totalrecu = 0;
++						// Multicurrency
++						if (!empty($conf->multicurrency->enabled)) {
++							$multicurrency_total = 0;
++							$multicurrency_total_ttc = 0;
++							$multicurrency_totalrecu = 0;
++						}
+ 						while ($i < $num) {
+ 							$objp = $db->fetch_object($resql);
+ 
+@@ -574,6 +605,9 @@ if ($action == 'create' || $action == 'confirm_paiement' || $action == 'add_paie
+ 								$sign = -1;
+ 							}
+ 
++							$soc = new Societe($db);
++							$soc->fetch($objp->socid);
++
+ 							$invoice = new FactureFournisseur($db);
+ 							$invoice->fetch($objp->facid);
+ 
+@@ -584,7 +618,7 @@ if ($action == 'create' || $action == 'confirm_paiement' || $action == 'add_paie
+ 							$creditnotes = $invoice->getSumCreditNotesUsed();
+ 							$deposits = $invoice->getSumDepositsUsed();
+ 							$alreadypayed = price2num($paiement + $creditnotes + $deposits, 'MT');
+-							$remaintopay = price2num($invoice->total_ttc - $paiement - $creditnotes - $deposits, 'MT');
++							$remaintopay = $invoice->getRemainToPay();
+ 
+ 							// Multicurrency Price
+ 							if (!empty($conf->multicurrency->enabled)) {
+@@ -592,15 +626,18 @@ if ($action == 'create' || $action == 'confirm_paiement' || $action == 'add_paie
+ 								$multicurrency_creditnotes = $invoice->getSumCreditNotesUsed(1);
+ 								$multicurrency_deposits = $invoice->getSumDepositsUsed(1);
+ 								$multicurrency_alreadypayed = price2num($multicurrency_payment + $multicurrency_creditnotes + $multicurrency_deposits, 'MT');
+-								$multicurrency_remaintopay = price2num($invoice->multicurrency_total_ttc - $multicurrency_payment - $multicurrency_creditnotes - $multicurrency_deposits, 'MT');
++								$multicurrency_remaintopay = $invoice->getRemainToPay(1);
+ 							}
+ 
+ 							print '<tr class="oddeven'.(($invoice->id == $facid) ? ' highlight' : '').'">';
+ 
+ 							// Ref
+ 							print '<td class="nowraponall">';
+-							print $invoicesupplierstatic->getNomUrl(1);
+-							print '</td>';
++							print $invoicesupplierstatic->getNomUrl(1, '');
++							if ($objp->socid != $supplierstatic->id) {
++								print '<br>'.$soc->getNomUrl(1,'',25).' ';
++							}
++							print "</td>\n";
+ 
+ 							// Ref supplier
+ 							print '<td>'.$objp->ref_supplier.'</td>';
+@@ -629,64 +666,48 @@ if ($action == 'create' || $action == 'confirm_paiement' || $action == 'add_paie
+ 
+ 							// Multicurrency
+ 							if (!empty($conf->multicurrency->enabled)) {
+-								// Currency
+-								print '<td class="center">'.$objp->multicurrency_code."</td>\n";
+-
+-								print '<td class="right">';
+-								if ($objp->multicurrency_code && $objp->multicurrency_code != $conf->currency) {
+-									print price($objp->multicurrency_total_ttc);
+-								}
+-								print '</td>';
++								print '<td class="center"><span class="amount">'.price($objp->multicurrency_total_ttc, 0, '', 1, -1, -1, $objp->multicurrency_code).'</span></td>';
+ 
+-								print '<td class="right">';
+-								if ($objp->multicurrency_code && $objp->multicurrency_code != $conf->currency) {
+-									print price($sign * $multicurrency_payment);
+-									if ($multicurrency_creditnotes) {
+-										print '+'.price($multicurrency_creditnotes);
+-									}
+-									if ($multicurrency_deposits) {
+-										print '+'.price($multicurrency_deposits);
+-									}
++								print '<td class="center"><span class="amount">'.price($sign * $multicurrency_payment, 0, '', 1, -1, -1, $objp->multicurrency_code);
++								if ($multicurrency_creditnotes) {
++									print '<span class="opacitymedium">+'.price($multicurrency_creditnotes).'</span>';
+ 								}
+-								print '</td>';
+-
+-								print '<td class="right">';
+-								if ($objp->multicurrency_code && $objp->multicurrency_code != $conf->currency) {
+-									print price($sign * $multicurrency_remaintopay);
++								if ($multicurrency_deposits) {
++									print '<span class="opacitymedium">+'.price($multicurrency_deposits).'</span>';
+ 								}
+-								print '</td>';
++								print '</span></td>';
+ 
+-								print '<td class="right">';
++								print '<td class="center">'.price($sign * $multicurrency_remaintopay, 0, '', 1, -1, -1, $objp->multicurrency_code).'</td>';
++							
++								print '<td class="center">';
+ 								// Add remind multicurrency amount
+-								$namef = 'multicurrency_amount_'.$objp->facid;
+-								$nameRemain = 'multicurrency_remain_'.$objp->facid;
+-								if ($objp->multicurrency_code && $objp->multicurrency_code != $conf->currency) {
+-									if ($action != 'add_paiement') {
+-										if (!empty($conf->use_javascript_ajax)) {
+-											print img_picto("Auto fill", 'rightarrow', "class='AutoFillAmout' data-rowname='".$namef."' data-value='".($sign * $multicurrency_remaintopay)."'");
+-										}
+-											print '<input type=hidden class="multicurrency_remain" name="'.$nameRemain.'" value="'.$multicurrency_remaintopay.'">';
+-											print '<input type="text" size="8" class="multicurrency_amount" name="'.$namef.'" value="'.$_POST[$namef].'">';
+-									} else {
+-										print '<input type="text" size="8" name="'.$namef.'_disabled" value="'.$_POST[$namef].'" disabled>';
+-										print '<input type="hidden" name="'.$namef.'" value="'.$_POST[$namef].'">';
++								$multicurrency_namef = 'multicurrency_amount_'.$objp->facid;
++								$multicurrency_nameRemain = 'multicurrency_remain_'.$objp->facid;
++								if ($action != 'add_paiement') {
++									if (!empty($conf->use_javascript_ajax)) {
++										print img_picto("Auto fill", 'rightarrow', "class='AutoFillAmout' data-rowname='".$multicurrency_namef."' data-value='".($sign * $multicurrency_remaintopay)."'");
+ 									}
++									print '<input type=hidden class="multicurrency_remain" name="'.$multicurrency_nameRemain.'" value="'.$multicurrency_remaintopay.'">';
++									print '<input type="text" size="8" class="multicurrency_amount" name="'.$multicurrency_namef.'" value="'.$_POST[$multicurrency_namef].'">';	// class is requied to be used by javascript callForResult();
++								} else {
++									print '<input type="text" size="8" name="'.$multicurrency_namef.'_disabled" value="'.$_POST[$multicurrency_namef].'" disabled>';
++									print '<input type="hidden" name="'.$multicurrency_namef.'" value="'.$_POST[$multicurrency_namef].'">'; // class is requied to be used by javascript callForResult();
+ 								}
+ 								print "</td>";
+ 							}
+ 
+-							print '<td class="right">'.price($sign * $objp->total_ttc).'</td>';
++							print '<td class="center"><span class="amount">'.price($sign * $objp->total_ttc).'</span></td>';
+ 
+-							print '<td class="right">'.price($sign * $objp->am);
++							print '<td class="center"><span class="amount">'.price($sign * $objp->am);
+ 							if ($creditnotes) {
+-								print '+'.price($creditnotes);
++								print '<span class="opacitymedium">+'.price($creditnotes).'</span>';
+ 							}
+ 							if ($deposits) {
+-								print '+'.price($deposits);
++								print '<span class="opacitymedium">+'.price($deposits).'</span>';
+ 							}
+-							print '</td>';
++							print '</span></td>';
+ 
+-							print '<td class="right">'.price($sign * $remaintopay).'</td>';
++							print '<td class="center">'.price($sign * $remaintopay).'</td>';
+ 
+ 							// Amount
+ 							print '<td class="center nowraponall">';
+@@ -712,29 +733,46 @@ if ($action == 'create' || $action == 'confirm_paiement' || $action == 'add_paie
+ 							$totalrecu += $objp->am;
+ 							$totalrecucreditnote += $creditnotes;
+ 							$totalrecudeposits += $deposits;
++
++							// Multicurrency
++							if (!empty($conf->multicurrency->enabled)) {
++								$multicurrency_total += $objp->multicurrency_total_ht;
++								$multicurrency_total_ttc += $objp->multicurrency_total_ttc;
++								$multicurrency_totalrecu += $objp->multicurrency_payment;
++								$multicurrency_totalrecucreditnote += $multicurrency_creditnotes;
++								$multicurrency_totalrecudeposits += $multicurrency_deposits;
++							}
++
+ 							$i++;
+ 						}
+ 						if ($i > 1) {
+ 							// Print total
+ 							print '<tr class="liste_total">';
+-							print '<td colspan="4" class="left">'.$langs->trans('TotalTTC').':</td>';
++							print '<td colspan="3" class="left">'.$langs->trans('TotalTTC').':</td>';
+ 							if (!empty($conf->multicurrency->enabled)) {
+ 								print '<td>&nbsp;</td>';
+-								print '<td>&nbsp;</td>';
+-								print '<td>&nbsp;</td>';
+-								print '<td>&nbsp;</td>';
+-								print '<td class="right" id="multicurrency_result" style="font-weight: bold;"></td>';
++								print '<td class="center"><b>'.price($sign * $multicurrency_total_ttc).'</b></td>';
++								print '<td class="center"><b>'.price($sign * $multicurrency_totalrecu);
++								if ($multicurrency_totalrecucreditnote) {
++									print '+'.price($multicurrency_totalrecucreditnote);
++								}
++								if ($multicurrency_totalrecudeposits) {
++									print '+'.price($multicurrency_totalrecudeposits);
++								}
++								print	'</b></td>';
++								print '<td class="center"><b>'.price($sign * price2num($multicurrency_total_ttc - $multicurrency_totalrecu - $multicurrency_totalrecucreditnote - $multicurrency_totalrecudeposits, 'MT')).'</b></td>';
++								print '<td class="center" id="multicurrency_result" style="font-weight: bold;"></td>';
+ 							}
+-							print '<td class="right"><b>'.price($sign * $total_ttc).'</b></td>';
+-							print '<td class="right"><b>'.price($sign * $totalrecu);
++							print '<td class="center"><b>'.price($sign * $total_ttc).'</b></td>';
++							print '<td class="center"><b>'.price($sign * $totalrecu);
+ 							if ($totalrecucreditnote) {
+ 								print '+'.price($totalrecucreditnote);
+ 							}
+ 							if ($totalrecudeposits) {
+ 								print '+'.price($totalrecudeposits);
+ 							}
+-							print	'</b></td>';
+-							print '<td class="right"><b>'.price($sign * price2num($total_ttc - $totalrecu - $totalrecucreditnote - $totalrecudeposits, 'MT')).'</b></td>';
++							print '</b></td>';
++							print '<td class="center"><b>'.price($sign * price2num($total_ttc - $totalrecu - $totalrecucreditnote - $totalrecudeposits, 'MT')).'</b></td>';
+ 							print '<td class="center" id="result" style="font-weight: bold;"></td>'; // Autofilled
+ 							print "</tr>\n";
+ 						}
+diff --git a/htdocs/fourn/facture/tpl/linkedobjectblock.tpl.php b/htdocs/fourn/facture/tpl/linkedobjectblock.tpl.php
+index ae600ec4080..07ee78e4734 100644
+--- a/htdocs/fourn/facture/tpl/linkedobjectblock.tpl.php
++++ b/htdocs/fourn/facture/tpl/linkedobjectblock.tpl.php
+@@ -58,13 +58,18 @@ foreach ($linkedObjectBlock as $key => $objectlink) {
+ 			}
+ 			if ($objectlink->statut != 3) {
+ 				// If not abandonned
++				if (!empty($conf->multicurrency->enabled) && !empty($objectlink->multicurrency_code) && ($conf->currency!=$objectlink->multicurrency_code)) {
++					$multicurrency_total = $multicurrency_total + $objectlink->multicurrency_total_ht;
++					echo $objectlink->multicurrency_code.' '.price($objectlink->multicurrency_total_ht).'<br>';
++				}
+ 				$total = $total + $sign * $objectlink->total_ht;
+-				echo price($objectlink->total_ht);
++				echo $conf->currency.' '.price($objectlink->total_ht);
+ 			} else {
+-				echo '<strike>'.price($objectlink->total_ht).'</strike>';
++				echo '<strike>'.((!empty($conf->multicurrency->enabled) && !empty($objectlink->multicurrency_code) && ($conf->currency!=$objectlink->multicurrency_code)) ? $objectlink->multicurrency_code.' '.price($objectlink->multicurrency_total_ht).'<br>'.$conf->currency.' '.price($objectlink->total_ht) : $conf->currency.' '.price($objectlink->total_ht)).'</strike>';
+ 			}
+-		} ?></td>
+-		<td class="right"><?php
++			?></td>
++			<td class="right"><?php
++		} 
+ 		if (method_exists($objectlink, 'getSommePaiement')) {
+ 			echo $objectlink->getLibStatut(3, $objectlink->getSommePaiement());
+ 		} else {
+@@ -82,7 +87,7 @@ if (count($linkedObjectBlock) > 1) {
+ 		<td></td>
+ 		<td class="center"></td>
+ 		<td class="center"></td>
+-		<td class="right"><?php echo price($total); ?></td>
++		<td class="right"><?php echo $conf->currency.' '.price($total); ?></td>
+ 		<td class="right"></td>
+ 		<td class="right"></td>
+ 	</tr>
+diff --git a/htdocs/fourn/paiement/card.php b/htdocs/fourn/paiement/card.php
+index ccc29105e4f..b024e1b4932 100644
+--- a/htdocs/fourn/paiement/card.php
++++ b/htdocs/fourn/paiement/card.php
+@@ -204,7 +204,7 @@ if ($result > 0) {
+ 
+ 	// Amount
+ 	print '<tr><td>'.$langs->trans('Amount').'</td>';
+-	print '<td>'.price($object->amount, '', $langs, 0, 0, -1, $conf->currency).'</td></tr>';
++	print '<td>'.$conf->currency.' '.price(price2num($object->amount, 'MT')).'</td></tr>';
+ 
+ 	if (!empty($conf->global->BILL_ADD_PAYMENT_VALIDATION)) {
+ 		print '<tr><td>'.$langs->trans('Status').'</td>';
+@@ -221,12 +221,19 @@ if ($result > 0) {
+ 				$allow_delete = 0;
+ 				$title_button = dol_escape_htmltag($langs->transnoentitiesnoconv("CantRemoveConciliatedPayment"));
+ 			}
++			$accountstatic = new Account($db);
++			$accountstatic->fetch($bankline->fk_account);
++
++            // Multicurrency Amount
++            if (!empty($conf->multicurrency->enabled) && ($accountstatic->currency_code!=$conf->currency)) {
++                print '<td>&nbsp;</td>';
++	            print '<td>'.$accountstatic->currency_code.' '.price(-$bankline->amount).'</td></tr>';
++            }
+ 
+ 			print '<tr>';
+ 			print '<td>'.$langs->trans('BankAccount').'</td>';
+ 			print '<td>';
+-			$accountstatic = new Account($db);
+-			$accountstatic->fetch($bankline->fk_account);
++
+ 			print $accountstatic->getNomUrl(1);
+ 			print '</td>';
+ 			print '</tr>';
+@@ -257,6 +264,10 @@ if ($result > 0) {
+ 	 */
+ 	$sql = 'SELECT f.rowid, f.rowid as facid, f.ref, f.ref_supplier, f.type, f.paye, f.total_ht, f.total_tva, f.total_ttc, f.datef as date, f.fk_statut as status,';
+ 	$sql .= ' pf.amount, s.nom as name, s.rowid as socid';
++	// Multicurrency
++	if (!empty($conf->multicurrency->enabled)) {
++		$sql .= ', f.multicurrency_code, f.multicurrency_total_ttc, pf.multicurrency_amount';
++	}
+ 	$sql .= ' FROM '.MAIN_DB_PREFIX.'paiementfourn_facturefourn as pf,'.MAIN_DB_PREFIX.'facture_fourn as f,'.MAIN_DB_PREFIX.'societe as s';
+ 	$sql .= ' WHERE pf.fk_facturefourn = f.rowid AND f.fk_soc = s.rowid';
+ 	$sql .= ' AND pf.fk_paiementfourn = '.$object->id;
+@@ -269,45 +280,50 @@ if ($result > 0) {
+ 
+ 		print '<table class="noborder centpercent">';
+ 		print '<tr class="liste_titre">';
+-		print '<td>'.$langs->trans('Invoice').'</td>';
+-		print '<td>'.$langs->trans('RefSupplier').'</td>';
+-		print '<td>'.$langs->trans('Company').'</td>';
+-		print '<td class="right">'.$langs->trans('ExpectedToPay').'</td>';
+-		print '<td class="right">'.$langs->trans('PayedByThisPayment').'</td>';
+-		print '<td class="right">'.$langs->trans('Status').'</td>';
++		print '<td class="left">'.$langs->trans('Invoice').'</td>';
++		print '<td class="left">'.$langs->trans('SupplierOrder').'</td>';
++		print '<td class="left">'.$langs->trans('RefSupplier').'</td>';
++		print '<td class="left">'.$langs->trans('Company').'</td>';
++		print '<td class="center">'.$langs->trans('ExpectedToPay').'</td>';
++		print '<td class="center">'.$langs->trans('PayedByThisPayment').'</td>';
++		print '<td class="center">'.$langs->trans('RemainderToPay').'</td>';
++		print '<td class="center">'.$langs->trans('Status').'</td>';
+ 		print "</tr>\n";
+ 
+ 		if ($num > 0) {
+-			$facturestatic = new FactureFournisseur($db);
+-
+ 			while ($i < $num) {
+ 				$objp = $db->fetch_object($resql);
+ 
+-				$facturestatic->id = $objp->facid;
+-				$facturestatic->ref = ($objp->ref ? $objp->ref : $objp->rowid);
+-				$facturestatic->date = $db->jdate($objp->date);
+-				$facturestatic->type = $objp->type;
+-				$facturestatic->total_ht = $objp->total_ht;
+-				$facturestatic->total_tva = $objp->total_tva;
+-				$facturestatic->total_ttc = $objp->total_ttc;
+-				$facturestatic->statut = $objp->status;
+-				$facturestatic->alreadypaid = -1; // unknown
++				$facturestatic = new FactureFournisseur($db);
++				$facturestatic->fetch($objp->facid);
++				
++				$remaintopay = $facturestatic->getRemainToPay();
++				// Multicurrency
++				if (!empty($conf->multicurrency->enabled)) {
++					$multicurrency_remaintopay = $facturestatic->getRemainToPay(1);
++				}
+ 
+ 				print '<tr class="oddeven">';
+ 				// Ref
+ 				print '<td>';
+ 				print $facturestatic->getNomUrl(1);
+-				print "</td>\n";
++				print "</td>\n";		
++				// Ref Order
++				$facturestatic->fetchObjectLinked();
++				print '<td>'.($facturestatic->linkedObjects['order_supplier'] > 0 ? end($facturestatic->linkedObjects['order_supplier'])->getNomUrl(1) : '').'</td>';
++
+ 				// Ref supplier
+ 				print '<td>'.$objp->ref_supplier."</td>\n";
+ 				// Third party
+ 				print '<td><a href="'.DOL_URL_ROOT.'/fourn/card.php?socid='.$objp->socid.'">'.img_object($langs->trans('ShowCompany'), 'company').' '.$objp->name.'</a></td>';
+ 				// Expected to pay
+-				print '<td class="right">'.price($objp->total_ttc).'</td>';
++				print '<td class="center">'.(!empty($conf->multicurrency->enabled) ? $objp->multicurrency_code.' '.price($objp->multicurrency_total_ttc).'<br>'.$conf->currency.' '.price($objp->total_ttc) : $conf->currency.' '.price($objp->total_ttc)).'</td>';
+ 				// Paid
+-				print '<td class="right">'.price($objp->amount).'</td>';
++				print '<td class="center">'.(!empty($conf->multicurrency->enabled) ? $objp->multicurrency_code.' '.price($objp->multicurrency_amount).'<br>'.$conf->currency.' '.price($objp->amount) : $conf->currency.' '.price($objp->amount)).'</td>';
++				// Remain to pay
++				print '<td class="center"><span class="amount">'.(!empty($conf->multicurrency->enabled) ? $objp->multicurrency_code.' '.price($multicurrency_remaintopay).'<br>'.$conf->currency.' '.price($remaintopay) : $conf->currency.' '.price($remaintopay)).'</span></td>';
+ 				// Status
+-				print '<td class="right">'.$facturestatic->LibStatut($objp->paye, $objp->status, 6, 1).'</td>';
++				print '<td class="center">'.$facturestatic->LibStatut($objp->paye, $objp->status, 6, 1).'</td>';
+ 				print "</tr>\n";
+ 
+ 				if ($objp->paye == 1) {
+diff --git a/htdocs/fourn/paiement/list.php b/htdocs/fourn/paiement/list.php
+index 2ac24706cb6..f5db66d73f6 100644
+--- a/htdocs/fourn/paiement/list.php
++++ b/htdocs/fourn/paiement/list.php
+@@ -12,6 +12,7 @@
+  * Copyright (C) 2018-2021	Frédéric France			<frederic.france@netlogic.fr>
+  * Copyright (C) 2020		Tobias Sekan			<tobias.sekan@startmail.com>
+  * Copyright (C) 2021		Ferran Marcet			<fmarcet@2byte.es>
++ * Copyright (C) 2022		Henry Guo				<henrynopo@hotmail.com>
+  *
+  * This program is free software; you can redistribute it and/or modify
+  * it under the terms of the GNU General Public License as published by
+@@ -35,6 +36,7 @@
+ 
+ require '../../main.inc.php';
+ require_once DOL_DOCUMENT_ROOT.'/fourn/class/paiementfourn.class.php';
++require_once DOL_DOCUMENT_ROOT.'/compta/bank/class/account.class.php';
+ require_once DOL_DOCUMENT_ROOT.'/core/class/html.formother.class.php';
+ 
+ // Load translation files required by the page
+@@ -58,7 +60,11 @@ $search_company = GETPOST('search_company', 'alpha');
+ $search_payment_type	= GETPOST('search_payment_type');
+ $search_cheque_num = GETPOST('search_cheque_num', 'alpha');
+ $search_bank_account	= GETPOST('search_bank_account', 'int');
++$search_payment_num	= GETPOST('search_payment_num', 'alpha');
+ $search_amount = GETPOST('search_amount', 'alpha'); // alpha because we must be able to search on '< x'
++if (!empty($conf->multicurrency->enabled)) {
++	$search_multicurrency_amount = GETPOST("search_multicurrency_amount", 'alpha');
++}
+ 
+ $limit = GETPOST('limit', 'int') ? GETPOST('limit', 'int') : $conf->liste_limit;
+ $sortfield				= GETPOST('sortfield', 'alpha');
+@@ -87,6 +93,7 @@ $fieldstosearchall = array(
+ 	's.nom'=>"ThirdParty",
+ 	'p.num_paiement'=>"Numero",
+ 	'p.amount'=>"Amount",
++	'p.multicurrency_amount'=>"multicurrency_Amount",
+ );
+ 
+ $arrayfields = array(
+@@ -94,8 +101,10 @@ $arrayfields = array(
+ 	'p.datep'			=>array('label'=>"Date", 'checked'=>1, 'position'=>20),
+ 	's.nom'				=>array('label'=>"ThirdParty", 'checked'=>1, 'position'=>30),
+ 	'c.libelle'			=>array('label'=>"Type", 'checked'=>1, 'position'=>40),
++	'transaction'		=> array('label'=>"BankTransactionLine", 'checked'=>1, 'position'=>45, 'enabled'=>(!empty($conf->banque->enabled))),
+ 	'p.num_paiement'	=>array('label'=>"Numero", 'checked'=>1, 'position'=>50, 'tooltip'=>"ChequeOrTransferNumber"),
+ 	'ba.label'			=>array('label'=>"Account", 'checked'=>1, 'position'=>60, 'enable'=>(!empty($conf->banque->enabled))),
++	'p.multicurrency_amount'=> array('label'=>"AmountMulticurrency", 'checked'=>1, 'position'=>65),
+ 	'p.amount'			=>array('label'=>"Amount", 'checked'=>1, 'position'=>70),
+ );
+ $arrayfields = dol_sort_array($arrayfields, 'position');
+@@ -145,9 +154,13 @@ if (empty($reshook)) {
+ 		$search_year = '';
+ 		$search_company = '';
+ 		$search_payment_type = '';
++		$search_payment_num = '';
+ 		$search_cheque_num = '';
+ 		$search_bank_account = '';
+ 		$search_amount = '';
++		if (!empty($conf->multicurrency->enabled)) {
++			$search_multicurrency_amount = '';
++		}
+ 	}
+ }
+ 
+@@ -161,8 +174,9 @@ $form = new Form($db);
+ $formother = new FormOther($db);
+ $companystatic = new Societe($db);
+ $paymentfournstatic = new PaiementFourn($db);
++$bankline = new AccountLine($db);
+ 
+-$sql = 'SELECT p.rowid, p.ref, p.datep, p.amount as pamount, p.num_paiement';
++$sql = 'SELECT p.rowid, p.ref, p.datep, p.fk_bank, p.amount as pamount, p.multicurrency_amount, p.num_paiement';
+ $sql .= ', s.rowid as socid, s.nom as name, s.email';
+ $sql .= ', c.code as paiement_type, c.libelle as paiement_libelle';
+ $sql .= ', ba.rowid as bid, ba.label';
+@@ -170,6 +184,7 @@ if (!$user->rights->societe->client->voir) {
+ 	$sql .= ', sc.fk_soc, sc.fk_user';
+ }
+ $sql .= ', SUM(pf.amount)';
++$sql .= ', SUM(pf.multicurrency_amount)';
+ 
+ $sql .= ' FROM '.MAIN_DB_PREFIX.'paiementfourn AS p';
+ $sql .= ' LEFT JOIN '.MAIN_DB_PREFIX.'paiementfourn_facturefourn AS pf ON p.rowid=pf.fk_paiementfourn';
+@@ -199,9 +214,15 @@ if ($search_company) {
+ if ($search_payment_type != '') {
+ 	$sql .= " AND c.code='".$db->escape($search_payment_type)."'";
+ }
++if ($search_payment_num != '') {
++	$sql .= natural_search('p.num_paiement', $search_payment_num);
++}
+ if ($search_cheque_num != '') {
+ 	$sql .= natural_search('p.num_paiement', $search_cheque_num);
+ }
++if (!empty($conf->multicurrency->enabled) && $search_multicurrency_amount) {
++	$sql .= natural_search('p.multicurrency_amount', $search_multicurrency_amount, 1);
++}
+ if ($search_amount) {
+ 	$sql .= natural_search('p.amount', $search_amount, 1);
+ }
+@@ -215,7 +236,7 @@ if ($search_all) {
+ // Add where from extra fields
+ include DOL_DOCUMENT_ROOT.'/core/tpl/extrafields_list_search_sql.tpl.php';
+ 
+-$sql .= ' GROUP BY p.rowid, p.ref, p.datep, p.amount, p.num_paiement, s.rowid, s.nom, s.email, c.code, c.libelle, ba.rowid, ba.label';
++$sql .= ' GROUP BY p.rowid, p.ref, p.datep, p.amount, p.multicurrency_amount, p.num_paiement, s.rowid, s.nom, s.email, c.code, c.libelle, ba.rowid, ba.label';
+ if (!$user->rights->societe->client->voir) {
+ 	$sql .= ', sc.fk_soc, sc.fk_user';
+ }
+@@ -274,9 +295,15 @@ if ($search_company) {
+ if ($search_payment_type) {
+ 	$param .= '&search_company='.urlencode($search_payment_type);
+ }
++if ($search_payment_num) {
++	$param .= '&search_payment_num='.urlencode($search_payment_num);
++}
+ if ($search_cheque_num) {
+ 	$param .= '&search_cheque_num='.urlencode($search_cheque_num);
+ }
++if (!empty($conf->multicurrency->enabled) && $search_multicurrency_amount) {
++	$param .= '&search_multicurrency_amount='.urlencode($search_multicurrency_amount);
++}
+ if ($search_amount) {
+ 	$param .= '&search_amount='.urlencode($search_amount);
+ }
+@@ -331,10 +358,17 @@ print '<table class="tagtable nobottomiftotal liste'.($moreforfilter ? " listwit
+ 
+ print '<tr class="liste_titre_filter">';
+ 
++// Filters: Lines (placeholder)
++print '<tr class="liste_titre_filter">';
++if (!empty($conf->global->MAIN_VIEW_LINE_NUMBER_IN_LIST)) {
++	print '<td class="liste_titre">';
++	print '</td>';
++}
++
+ // Filter: Ref
+ if (!empty($arrayfields['p.ref']['checked'])) {
+ 	print '<td  class="liste_titre left">';
+-	print '<input class="flat" type="text" size="4" name="search_ref" value="'.dol_escape_htmltag($search_ref).'">';
++	print '<input class="flat" type="text" size="6" name="search_ref" value="'.dol_escape_htmltag($search_ref).'">';
+ 	print '</td>';
+ }
+ 
+@@ -352,7 +386,7 @@ if (!empty($arrayfields['p.datep']['checked'])) {
+ // Filter: Thirdparty
+ if (!empty($arrayfields['s.nom']['checked'])) {
+ 	print '<td class="liste_titre">';
+-	print '<input class="flat" type="text" size="6" name="search_company" value="'.dol_escape_htmltag($search_company).'">';
++	print '<input class="flat" type="text" size="10" name="search_company" value="'.dol_escape_htmltag($search_company).'">';
+ 	print '</td>';
+ }
+ 
+@@ -363,6 +397,13 @@ if (!empty($arrayfields['c.libelle']['checked'])) {
+ 	print '</td>';
+ }
+ 
++// Filter: Bank transaction number
++if (!empty($arrayfields['transaction']['checked'])) {
++	print '<td class="liste_titre">';
++	print '<input class="flat" type="text" size="4" name="search_payment_num" value="'.dol_escape_htmltag($search_payment_num).'">';
++	print '</td>';
++}
++
+ // Filter: Cheque number (fund transfer)
+ if (!empty($arrayfields['p.num_paiement']['checked'])) {
+ 	print '<td class="liste_titre">';
+@@ -377,10 +418,17 @@ if (!empty($arrayfields['ba.label']['checked'])) {
+ 	print '</td>';
+ }
+ 
++// Filter: Multicurrency Amount
++if (!empty($conf->multicurrency->enabled) && !empty($arrayfields['p.multicurrency_amount']['checked'])) {
++	print '<td class="liste_titre right">';
++	print '<input class="flat" type="text" size="6" name="search_multicurrency_amount" value="'.dol_escape_htmltag($search_multicurrency_amount).'">';
++	print '</td>';
++}
++
+ // Filter: Amount
+ if (!empty($arrayfields['p.amount']['checked'])) {
+ 	print '<td class="liste_titre right">';
+-	print '<input class="flat" type="text" size="4" name="search_amount" value="'.dol_escape_htmltag($search_amount).'">';
++	print '<input class="flat" type="text" size="6" name="search_amount" value="'.dol_escape_htmltag($search_amount).'">';
+ 	print '</td>';
+ }
+ 
+@@ -415,9 +463,15 @@ if (!empty($arrayfields['c.libelle']['checked'])) {
+ if (!empty($arrayfields['p.num_paiement']['checked'])) {
+ 	print_liste_field_titre($arrayfields['p.num_paiement']['label'], $_SERVER["PHP_SELF"], "p.num_paiement", '', $param, '', $sortfield, $sortorder, '', $arrayfields['p.num_paiement']['tooltip']);
+ }
++if (!empty($arrayfields['transaction']['checked'])) {
++	print_liste_field_titre($arrayfields['transaction']['label'], $_SERVER["PHP_SELF"], '', '', $param, '', $sortfield, $sortorder);
++}
+ if (!empty($arrayfields['ba.label']['checked'])) {
+ 	print_liste_field_titre($arrayfields['ba.label']['label'], $_SERVER["PHP_SELF"], 'ba.label', '', $param, '', $sortfield, $sortorder);
+ }
++if (!empty($conf->multicurrency->enabled) && !empty($arrayfields['p.multicurrency_amount']['checked'])) {
++	print_liste_field_titre($arrayfields['p.multicurrency_amount']['label'], $_SERVER["PHP_SELF"], "p.multicurrency_amount", '', $param, 'class="right"', $sortfield, $sortorder);
++}
+ if (!empty($arrayfields['p.amount']['checked'])) {
+ 	print_liste_field_titre($arrayfields['p.amount']['label'], $_SERVER["PHP_SELF"], 'p.amount', '', $param, '', $sortfield, $sortorder, 'right ');
+ }
+@@ -509,6 +563,15 @@ while ($i < min($num, $limit)) {
+ 		}
+ 	}
+ 
++	// Bank transaction
++	if (!empty($arrayfields['transaction']['checked'])) {
++		$bankline->fetch($objp->fk_bank);
++		print '<td>'.$bankline->getNomUrl(1, 0).'</td>';
++		if (!$i) {
++			$totalarray['nbfield']++;
++		}
++	}
++
+ 	// Account
+ 	if (!empty($arrayfields['ba.label']['checked'])) {
+ 		print '<td>';
+@@ -523,6 +586,16 @@ while ($i < min($num, $limit)) {
+ 		}
+ 	}
+ 
++	// multicurrency Amount
++	if (!empty($conf->multicurrency->enabled) && !empty($arrayfields['p.multicurrency_amount']['checked'])) {
++		print '<td class="right"><span class="amount">'.price($objp->multicurrency_amount).'</span></td>';
++		if (!$i) {
++			$totalarray['nbfield']++;
++		}
++		$totalarray['pos'][$checkedCount] = 'multicurrency_amount';
++		$totalarray['val']['multicurrency_amount'] += $objp->multicurrency_amount;
++	}
++	
+ 	// Amount
+ 	if (!empty($arrayfields['p.amount']['checked'])) {
+ 		print '<td class="right"><span class="amount">'.price($objp->pamount).'</span></td>';
