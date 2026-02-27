@@ -361,10 +361,25 @@ if (empty($reshook)) {
 			$action = '';
 		}
 	} elseif ($action == 'unlinkdiscount' && $usercancreate) {
-		// Delete link of credit note to invoice
-		$discount = new DiscountAbsolute($db);
-		$result = $discount->fetch(GETPOSTINT("discountid"));
-		$discount->unlink_invoice();
+		// Delete link of credit note/deposit to invoice (SLY: allow when draft or validated but not paid, same as customer invoice)
+		$ret = $object->fetch($id);
+		if ($ret > 0 && ($object->statut == FactureFournisseur::STATUS_DRAFT || ($object->statut == FactureFournisseur::STATUS_VALIDATED && $object->paye == 0))) {
+			$discount = new DiscountAbsolute($db);
+			$result = $discount->fetch(GETPOSTINT("discountid"));
+			if (!empty($discount->fk_invoice_supplier) && $discount->fk_invoice_supplier == $object->id) {
+				$result = $discount->unlink_invoice();
+				if ($result > 0) {
+					$object->update_price(1);
+					if (!getDolGlobalString('MAIN_DISABLE_PDF_AUTOUPDATE')) {
+						$object->generateDocument($object->model_pdf, $langs, getDolGlobalString('MAIN_GENERATE_DOCUMENTS_HIDE_DETAILS') ? 1 : 0, getDolGlobalString('MAIN_GENERATE_DOCUMENTS_HIDE_DESC') ? 1 : 0, getDolGlobalString('MAIN_GENERATE_DOCUMENTS_HIDE_REF') ? 1 : 0);
+					}
+				}
+			} else {
+				setEventMessages($langs->trans("ErrorDiscountNotLinkedToInvoice"), null, 'errors');
+			}
+		} else {
+			setEventMessages($langs->trans("ErrorInvoiceStatusNotAllowedToUnlinkDiscount"), null, 'errors');
+		}
 	} elseif ($action == 'confirm_paid' && $confirm == 'yes' && $usercancreate) {
 		$object->fetch($id);
 		$result = $object->setPaid($user);
@@ -536,71 +551,75 @@ if (empty($reshook)) {
 			dol_print_error($db, $object->error);
 		}
 	} elseif ($action == "setabsolutediscount" && $usercancreate) {
-		$db->begin();
-		// We use the credit to reduce amount of invoice
-		if (GETPOSTINT("remise_id")) {
-			$ret = $object->fetch($id);
-			if ($ret > 0) {
+		// On create form: store selected discount in session so it is applied when invoice is created
+		if (empty($id) && GETPOSTINT("remise_id")) {
+			$_SESSION['pending_supplier_invoice_discount_remise_id'] = GETPOSTINT("remise_id");
+			$socid = GETPOSTINT('socid');
+			setEventMessages($langs->trans("SelectedDiscountWillBeAppliedWhenInvoiceIsCreated"), null, 'warnings');
+			header("Location: ".$_SERVER["PHP_SELF"]."?action=create".($socid ? "&socid=".((int) $socid) : "").(GETPOST('origin') ? '&origin='.urlencode(GETPOST('origin')) : '').(GETPOST('originid') ? '&originid='.GETPOSTINT('originid') : ''));
+			exit;
+		}
+		// Apply discount/credit note only in draft mode (when editing existing invoice)
+		$ret = !empty($id) ? $object->fetch($id) : 0;
+		if (!empty($id) && $ret > 0 && $object->statut == FactureFournisseur::STATUS_DRAFT) {
+			$db->begin();
+			// We use the credit to reduce amount of invoice
+			if (GETPOSTINT("remise_id")) {
 				$result = $object->insert_discount(GETPOSTINT("remise_id"));
 				if ($result < 0) {
 					setEventMessages($object->error, $object->errors, 'errors');
 				}
-			} else {
-				dol_print_error($db, $object->error);
 			}
-		}
-		// We use the credit to reduce remain to pay
-		if (GETPOSTINT("remise_id_for_payment")) {
-			require_once DOL_DOCUMENT_ROOT.'/core/class/discount.class.php';
-			$discount = new DiscountAbsolute($db);
-			$discount->fetch(GETPOSTINT("remise_id_for_payment"));
+			// We use the credit to reduce remain to pay
+			if (GETPOSTINT("remise_id_for_payment")) {
+				require_once DOL_DOCUMENT_ROOT.'/core/class/discount.class.php';
+				$discount = new DiscountAbsolute($db);
+				$discount->fetch(GETPOSTINT("remise_id_for_payment"));
 
-			//var_dump($object->getRemainToPay(0));
-			//var_dump($discount->amount_ttc);exit;
-			$remaintopay = $object->getRemainToPay(0);
-			if (price2num($discount->amount_ttc) > price2num($remaintopay)) {
-				// TODO Split the discount in 2 automatically
-				$error++;
-				setEventMessages($langs->trans("ErrorDiscountLargerThanRemainToPaySplitItBefore"), null, 'errors');
-			}
-
-			if (!$error) {
-				$result = $discount->link_to_invoice(0, $id);
-				if ($result < 0) {
+				$remaintopay = $object->getRemainToPay(0);
+				if (price2num($discount->amount_ttc) > price2num($remaintopay)) {
 					$error++;
-					setEventMessages($discount->error, $discount->errors, 'errors');
+					setEventMessages($langs->trans("ErrorDiscountLargerThanRemainToPaySplitItBefore"), null, 'errors');
+				}
+
+				if (!$error) {
+					$result = $discount->link_to_invoice(0, $id);
+					if ($result < 0) {
+						$error++;
+						setEventMessages($discount->error, $discount->errors, 'errors');
+					}
+				}
+				if (!$error) {
+					$newremaintopay = $object->getRemainToPay(0);
+					if ($newremaintopay == 0) {
+						$object->setPaid($user);
+					}
 				}
 			}
 			if (!$error) {
-				$newremaintopay = $object->getRemainToPay(0);
-				if ($newremaintopay == 0) {
-					$object->setPaid($user);
+				$db->commit();
+			} else {
+				$db->rollback();
+			}
+			if (empty($error) && !getDolGlobalString('MAIN_DISABLE_PDF_AUTOUPDATE')) {
+				$outputlangs = $langs;
+				$newlang = '';
+				if (getDolGlobalInt('MAIN_MULTILANGS') /* && empty($newlang) */ && GETPOST('lang_id', 'aZ09')) {
+					$newlang = GETPOST('lang_id', 'aZ09');
 				}
-			}
-		}
-		if (!$error) {
-			$db->commit();
-		} else {
-			$db->rollback();
-		}
-		if (empty($error) && !getDolGlobalString('MAIN_DISABLE_PDF_AUTOUPDATE')) {
-			$outputlangs = $langs;
-			$newlang = '';
-			if (getDolGlobalInt('MAIN_MULTILANGS') /* && empty($newlang) */ && GETPOST('lang_id', 'aZ09')) {
-				$newlang = GETPOST('lang_id', 'aZ09');
-			}
-			if (getDolGlobalInt('MAIN_MULTILANGS') && empty($newlang)) {
-				$newlang = $object->thirdparty->default_lang;
-			}
-			if (!empty($newlang)) {
-				$outputlangs = new Translate("", $conf);
-				$outputlangs->setDefaultLang($newlang);
-			}
-			$ret = $object->fetch($id); // Reload to get new records
+				if (getDolGlobalInt('MAIN_MULTILANGS') && empty($newlang)) {
+					$newlang = $object->thirdparty->default_lang;
+				}
+				if (!empty($newlang)) {
+					$outputlangs = new Translate("", $conf);
+					$outputlangs->setDefaultLang($newlang);
+				}
+				$ret = $object->fetch($id); // Reload to get new records
 
-			$result = $object->generateDocument($object->model_pdf, $outputlangs, $hidedetails, $hidedesc, $hideref);
-			if ($result < 0) {
-				setEventMessages($object->error, $object->errors, 'errors');
+				$result = $object->generateDocument($object->model_pdf, $outputlangs, $hidedetails, $hidedesc, $hideref);
+				if ($result < 0) {
+					setEventMessages($object->error, $object->errors, 'errors');
+				}
 			}
 		}
 	} elseif ($action == 'confirm_converttoreduc' && $confirm == 'yes' && $usercancreate) {
@@ -1449,6 +1468,13 @@ if (empty($reshook)) {
 			//$_GET['socid'] = $_POST['socid'];
 		} else {
 			$db->commit();
+
+			// Apply discount selected on create form (stored in session when user clicked "Use line" before creating)
+			if (!empty($_SESSION['pending_supplier_invoice_discount_remise_id']) && $id > 0) {
+				$object->fetch($id);
+				$object->insert_discount((int) $_SESSION['pending_supplier_invoice_discount_remise_id']);
+				unset($_SESSION['pending_supplier_invoice_discount_remise_id']);
+			}
 
 			if (!getDolGlobalString('MAIN_DISABLE_PDF_AUTOUPDATE')) {
 				$outputlangs = $langs;
@@ -2726,12 +2752,22 @@ if ($action == 'create') {
 		}
 
 		if (!empty($societe->id) && $societe->id > 0) {
-			// Discounts for third party
+			// Discounts for third party (create form: show dropdown so discount can be selected and applied after invoice is created)
 			print '<tr><td>'.$langs->trans('Discounts').'</td><td>';
 
 			$thirdparty = $societe;
 			$discount_type = 1;
 			$backtopage = urlencode($_SERVER["PHP_SELF"].'?socid='.$societe->id.'&action='.$action.'&origin='.GETPOST('origin').'&originid='.GETPOST('originid'));
+			if (getDolGlobalString('FACTURE_SUPPLIER_DEPOSITS_ARE_JUST_PAYMENTS')) {
+				$filterabsolutediscount = "fk_invoice_supplier_source IS NULL";
+			} else {
+				$filterabsolutediscount = "fk_invoice_supplier_source IS NULL OR (description LIKE '(DEPOSIT)%' AND description NOT LIKE '(EXCESS PAID)%')";
+			}
+			$absolute_discount = $societe->getAvailableDiscounts(null, $filterabsolutediscount, 0, 1);
+			$absolute_discount = price2num($absolute_discount, 'MT');
+			$absolute_creditnote = $societe->getAvailableDiscounts(null, (getDolGlobalString('FACTURE_SUPPLIER_DEPOSITS_ARE_JUST_PAYMENTS') ? "fk_invoice_supplier_source IS NOT NULL" : "fk_invoice_supplier_source IS NOT NULL AND (description NOT LIKE '(DEPOSIT)%' OR description LIKE '(EXCESS PAID)%')"), 0, 1);
+			$absolute_creditnote = price2num($absolute_creditnote, 'MT');
+			$discount_form_action = $_SERVER["PHP_SELF"].'?action=create&socid='.((int) $societe->id).(GETPOST('origin') ? '&origin='.urlencode(GETPOST('origin')) : '').(GETPOST('originid') ? '&originid='.GETPOSTINT('originid') : '');
 			include DOL_DOCUMENT_ROOT.'/core/tpl/object_discounts.tpl.php';
 
 			print '</td></tr>';
@@ -3027,6 +3063,9 @@ if ($action == 'create') {
 
 		if ($object->paid) {
 			$resteapayer = 0;
+			if (isModEnabled("multicurrency")) {
+				$multicurrency_resteapayer = 0;
+			}
 		}
 		$resteapayeraffiche = $resteapayer;
 
@@ -3422,11 +3461,32 @@ if ($action == 'create') {
 
 			// Relative and absolute discounts
 			print '<!-- Discounts -->'."\n";
+			// Default select the discount (credit/deposit) from the same supplier order as this invoice, when available
+			$preselected_remise_id_for_payment = 0;
+			$object->fetchObjectLinked();
+			if (!empty($object->linkedObjectsIds['order_supplier'])) {
+				$firstOrder = reset($object->linkedObjectsIds['order_supplier']);
+				$currentOrderSupplierId = is_object($firstOrder) ? $firstOrder->id : $firstOrder;
+				$sqlPresel = "SELECT re.rowid FROM ".MAIN_DB_PREFIX."societe_remise_except re";
+				$sqlPresel .= " INNER JOIN ".MAIN_DB_PREFIX."facture_fourn f ON re.fk_invoice_supplier_source = f.rowid";
+				$sqlPresel .= " INNER JOIN ".MAIN_DB_PREFIX."element_element ee ON (";
+				$sqlPresel .= " (ee.fk_target = f.rowid AND (ee.targettype = 'invoice_supplier' OR ee.targettype = 'facture_fourn') AND ee.sourcetype = 'order_supplier' AND ee.fk_source = ".((int) $currentOrderSupplierId).")";
+				$sqlPresel .= " OR (ee.fk_source = f.rowid AND (ee.sourcetype = 'invoice_supplier' OR ee.sourcetype = 'facture_fourn') AND ee.targettype = 'order_supplier' AND ee.fk_target = ".((int) $currentOrderSupplierId).")";
+				$sqlPresel .= ")";
+				$sqlPresel .= " WHERE re.fk_soc = ".((int) $societe->id)." AND re.fk_invoice_supplier IS NULL AND re.entity = ".((int) $conf->entity);
+				$sqlPresel .= " AND (".$filtercreditnote.")";
+				$resPresel = $db->query($sqlPresel);
+				if ($resPresel && $db->num_rows($resPresel) > 0) {
+					$rowPresel = $db->fetch_object($resPresel);
+					$preselected_remise_id_for_payment = (int) $rowPresel->rowid;
+				}
+			}
 			print '<tr><td>'.$langs->trans('DiscountStillRemaining');
 			print '</td><td>';
 
 			$thirdparty = $societe;
 			$discount_type = 1;
+			$backtopage = $_SERVER["PHP_SELF"].'?facid='.$object->id;
 			include DOL_DOCUMENT_ROOT.'/core/tpl/object_discounts.tpl.php';
 
 			print '</td></tr>';
@@ -3632,15 +3692,14 @@ if ($action == 'create') {
 
 			print '<tr>';
 			print '<td class="titlefieldmiddle">' . $langs->trans('AmountHT') . '</td>';
-			print '<td class="nowrap amountcard right">' . price($object->total_ht, 0, $langs, 0, -1, -1, $conf->currency) . '</td>';
 			if (isModEnabled("multicurrency") && ($object->multicurrency_code && $object->multicurrency_code != $conf->currency)) {
 				print '<td class="nowrap amountcard right">' . price($object->multicurrency_total_ht, 0, $langs, 0, -1, -1, $object->multicurrency_code) . '</td>';
 			}
+			print '<td class="nowrap amountcard right">' . price($object->total_ht, 0, $langs, 0, -1, -1, $conf->currency) . '</td>';
 			print '</tr>';
 
 			print '<tr>';
 			print '<td>' . $langs->trans('AmountVAT') . '</td>';
-			print '<td class="nowrap amountcard right">';
 			if (GETPOST('calculationrule')) {
 				$calculationrule = GETPOST('calculationrule', 'alpha');
 			} else {
@@ -3651,21 +3710,36 @@ if ($action == 'create') {
 			} else {
 				$calculationrulenum = 2;
 			}
-			// Show link for "recalculate"
-			if ($object->getVentilExportCompta() == 0) {
-				$s = '<span class="hideonsmartphone opacitymedium">' . $langs->trans("ReCalculate") . ' </span>';
-				$s .= '<a href="' . $_SERVER["PHP_SELF"] . '?id=' . $object->id . '&action=calculate&token='.newToken().'&calculationrule=totalofround">' . $langs->trans("Mode1") . '</a>';
-				$s .= ' / ';
-				$s .= '<a href="' . $_SERVER["PHP_SELF"] . '?id=' . $object->id . '&action=calculate&token='.newToken().'&calculationrule=roundoftotal">' . $langs->trans("Mode2") . '</a>';
-				print '<div class="inline-block">';
-				print $form->textwithtooltip($s, $langs->trans("CalculationRuleDesc", $calculationrulenum) . '<br>' . $langs->trans("CalculationRuleDescSupplier"), 2, 1, img_picto('', 'help'), '', 3, '', 0, 'recalculate');
-				print '&nbsp; &nbsp; &nbsp; &nbsp;';
-				print '</div>';
-			}
-			print '<span class="nowraponall">'.price($object->total_tva, 1, $langs, 0, -1, -1, $conf->currency).'</span>';
-			print '</td>';
 			if (isModEnabled("multicurrency") && ($object->multicurrency_code && $object->multicurrency_code != $conf->currency)) {
-				print '<td class="nowraponall amountcard right">' . price($object->multicurrency_total_tva, 0, $langs, 0, -1, -1, $object->multicurrency_code) . '</td>';
+				// Recalculate to the left of foreign currency amount (same column)
+				print '<td class="nowraponall amountcard right">';
+				if ($object->getVentilExportCompta() == 0) {
+					$s = '<span class="hideonsmartphone opacitymedium">' . $langs->trans("ReCalculate") . ' </span>';
+					$s .= '<a href="' . $_SERVER["PHP_SELF"] . '?id=' . $object->id . '&action=calculate&token='.newToken().'&calculationrule=totalofround">' . $langs->trans("Mode1") . '</a>';
+					$s .= ' / ';
+					$s .= '<a href="' . $_SERVER["PHP_SELF"] . '?id=' . $object->id . '&action=calculate&token='.newToken().'&calculationrule=roundoftotal">' . $langs->trans("Mode2") . '</a>';
+					print '<div class="inline-block">';
+					print $form->textwithtooltip($s, $langs->trans("CalculationRuleDesc", $calculationrulenum) . '<br>' . $langs->trans("CalculationRuleDescSupplier"), 2, 1, img_picto('', 'help'), '', 3, '', 0, 'recalculate');
+					print '&nbsp; &nbsp; &nbsp; &nbsp;';
+					print '</div>';
+				}
+				print '<span class="nowraponall">'.price($object->multicurrency_total_tva, 0, $langs, 0, -1, -1, $object->multicurrency_code).'</span>';
+				print '</td>';
+				print '<td class="nowraponall amountcard right">'.price($object->total_tva, 1, $langs, 0, -1, -1, $conf->currency).'</td>';
+			} else {
+				print '<td class="nowrap amountcard right">';
+				if ($object->getVentilExportCompta() == 0) {
+					$s = '<span class="hideonsmartphone opacitymedium">' . $langs->trans("ReCalculate") . ' </span>';
+					$s .= '<a href="' . $_SERVER["PHP_SELF"] . '?id=' . $object->id . '&action=calculate&token='.newToken().'&calculationrule=totalofround">' . $langs->trans("Mode1") . '</a>';
+					$s .= ' / ';
+					$s .= '<a href="' . $_SERVER["PHP_SELF"] . '?id=' . $object->id . '&action=calculate&token='.newToken().'&calculationrule=roundoftotal">' . $langs->trans("Mode2") . '</a>';
+					print '<div class="inline-block">';
+					print $form->textwithtooltip($s, $langs->trans("CalculationRuleDesc", $calculationrulenum) . '<br>' . $langs->trans("CalculationRuleDescSupplier"), 2, 1, img_picto('', 'help'), '', 3, '', 0, 'recalculate');
+					print '&nbsp; &nbsp; &nbsp; &nbsp;';
+					print '</div>';
+				}
+				print '<span class="nowraponall">'.price($object->total_tva, 1, $langs, 0, -1, -1, $conf->currency).'</span>';
+				print '</td>';
 			}
 			print '</tr>';
 
@@ -3684,10 +3758,10 @@ if ($action == 'create') {
 
 			print '<tr>';
 			print '<td>' . $langs->trans('AmountTTC') . '</td>';
-			print '<td class="nowrap amountcard right">' . price($object->total_ttc, 0, $langs, 0, -1, -1, $conf->currency) . '</td>';
 			if (isModEnabled("multicurrency") && ($object->multicurrency_code && $object->multicurrency_code != $conf->currency)) {
 				print '<td class="nowrap amountcard right">' . price($object->multicurrency_total_ttc, 0, $langs, 0, -1, -1, $object->multicurrency_code) . '</td>';
 			}
+			print '<td class="nowrap amountcard right">' . price($object->total_ttc, 0, $langs, 0, -1, -1, $conf->currency) . '</td>';
 			print '</tr>';
 
 			print '</table>';
@@ -3711,6 +3785,7 @@ if ($action == 'create') {
 				$nbrows++;
 				$nbcols++;
 			}
+			// nbcols = label columns only (Payments, Date, Type, Bank); do not add for multicurrency amount column
 			if (isModEnabled('incoterm')) {
 				$nbrows++;
 			}
@@ -3738,6 +3813,8 @@ if ($action == 'create') {
 			$sql .= ' WHERE pf.fk_facturefourn = '.((int) $object->id);
 			$sql .= ' ORDER BY p.datep, p.tms';
 
+			$show_multicurrency_column = (isModEnabled('multicurrency') && (!empty($object->multicurrency_code) && $object->multicurrency_code != $conf->currency || $object->multicurrency_tx != 1));
+
 			$result = $db->query($sql);
 			if ($result) {
 				$num = $db->num_rows($result);
@@ -3751,6 +3828,9 @@ if ($action == 'create') {
 				print '<td><span class="hideonsmartphone">'.$langs->trans('Type').'</span></td>';
 				if (isModEnabled("bank")) {
 					print '<td class="right">'.$langs->trans('BankAccount').'</td>';
+				}
+				if ($show_multicurrency_column) {
+					print '<td class="liste_titre right">'.$langs->trans('AmountMulticurrency').'</td>';
 				}
 				print '<td class="right">'.$langs->trans('Amount').'</td>';
 				print '<td width="18">&nbsp;</td>';
@@ -3798,7 +3878,11 @@ if ($action == 'create') {
 							}
 							print '</td>';
 						}
-						print '<td class="right">'.price($sign * $objp->amount).'</td>';
+						if ($show_multicurrency_column) {
+							$amount_in_invoice_currency = price2num($sign * $objp->amount * $object->multicurrency_tx, 'MT');
+							print '<td class="right"><span class="amount">'.price($amount_in_invoice_currency, 0, $langs, 0, -1, -1, (empty($object->multicurrency_code) ? $conf->currency : $object->multicurrency_code)).'</span></td>';
+						}
+						print '<td class="right">'.price($sign * $objp->amount, 0, $langs, 0, -1, -1, $conf->currency).'</td>';
 						print '<td class="center">';
 						if ($object->status == FactureFournisseur::STATUS_VALIDATED && $object->paid == 0 && $user->socid == 0) {
 							print '<a href="'.$_SERVER["PHP_SELF"].'?id='.$object->id.'&action=deletepayment&token='.newToken().'&paiement_id='.$objp->rowid.'">';
@@ -3811,7 +3895,11 @@ if ($action == 'create') {
 						$i++;
 					}
 				} else {
-					print '<tr class="oddeven"><td colspan="'.$nbcols.'"><span class="opacitymedium">'.$langs->trans("None").'</span></td><td></td><td></td></tr>';
+					print '<tr class="oddeven"><td colspan="'.$nbcols.'"><span class="opacitymedium">'.$langs->trans("None").'</span></td>';
+					if (!empty($show_multicurrency_column)) {
+						print '<td></td>';
+					}
+					print '<td></td><td></td></tr>';
 				}
 
 				/*
@@ -3842,7 +3930,12 @@ if ($action == 'create') {
 					print $langs->trans('AlreadyPaid');
 				}
 				print '</span>';
-				print '</td><td class="right"'.(($totalpaid > 0) ? ' class="amountalreadypaid"' : '').'>'.price($totalpaid).'</td><td>&nbsp;</td></tr>';
+				print '</td>';
+				if (!empty($show_multicurrency_column)) {
+					$multicurrency_totalpaid = price2num($totalpaid * $object->multicurrency_tx, 'MT');
+					print '<td class="right"'.(($totalpaid > 0) ? ' class="amountalreadypaid"' : '').'>'.price($multicurrency_totalpaid, 0, $langs, 0, -1, -1, (empty($object->multicurrency_code) ? $conf->currency : $object->multicurrency_code)).'</td>';
+				}
+				print '<td class="right"'.(($totalpaid > 0) ? ' class="amountalreadypaid"' : '').'>'.price($totalpaid, 0, $langs, 0, -1, -1, $conf->currency).'</td><td>&nbsp;</td></tr>';
 
 				//$resteapayer = $object->total_ttc - $totalpaid;
 				$resteapayeraffiche = $resteapayer;
@@ -3854,9 +3947,9 @@ if ($action == 'create') {
 				$depositamount = 0;
 
 				$sql = "SELECT re.rowid, re.amount_ht, re.amount_tva, re.amount_ttc,";
-				$sql .= " re.description, re.fk_invoice_supplier_source";
+				$sql .= " re.description, re.fk_invoice_supplier_source, re.multicurrency_amount_ttc, re.multicurrency_code";
 				$sql .= " FROM ".MAIN_DB_PREFIX."societe_remise_except as re";
-				$sql .= " WHERE fk_invoice_supplier = ".((int) $object->id);
+				$sql .= " WHERE re.fk_invoice_supplier = ".((int) $object->id);
 				$resql = $db->query($sql);
 				if ($resql) {
 					$num = $db->num_rows($resql);
@@ -3865,6 +3958,22 @@ if ($action == 'create') {
 					while ($i < $num) {
 						$obj = $db->fetch_object($resql);
 						$invoice->fetch($obj->fk_invoice_supplier_source);
+						// Original currency amount for discount: from discount row or proportional from source invoice
+						$discount_orig_amount = null;
+						$discount_orig_code = '';
+						if (!empty($show_multicurrency_column)) {
+							if (!empty($obj->multicurrency_amount_ttc) && !empty($obj->multicurrency_code)) {
+								$discount_orig_amount = (float) $obj->multicurrency_amount_ttc;
+								$discount_orig_code = $obj->multicurrency_code;
+							} elseif ($invoice->total_ttc != 0 && !empty($invoice->multicurrency_code) && (float) $invoice->multicurrency_total_ttc != 0) {
+								$discount_orig_amount = price2num($obj->amount_ttc * ($invoice->multicurrency_total_ttc / $invoice->total_ttc), 'MT');
+								$discount_orig_code = $invoice->multicurrency_code;
+							} elseif (!empty($object->multicurrency_code) && (float) $object->multicurrency_tx != 0) {
+								// Fallback: use current invoice rate for credit note/deposit (e.g. when source has no multicurrency)
+								$discount_orig_amount = price2num($obj->amount_ttc * $object->multicurrency_tx, 'MT');
+								$discount_orig_code = $object->multicurrency_code;
+							}
+						}
 						print '<tr><td colspan="'.$nbcols.'" class="right">';
 						if ($invoice->type == FactureFournisseur::TYPE_CREDIT_NOTE) {
 							print $langs->trans("CreditNote").' ';
@@ -3874,11 +3983,19 @@ if ($action == 'create') {
 						}
 						print $invoice->getNomUrl(0);
 						print ' :</td>';
-						print '<td class="right">'.price($obj->amount_ttc).'</td>';
+						if (!empty($show_multicurrency_column)) {
+							print '<td class="right">'.($discount_orig_amount !== null ? price($discount_orig_amount, 0, $langs, 0, -1, -1, $discount_orig_code) : '').'</td>';
+						}
+						print '<td class="right">'.price($obj->amount_ttc, 0, $langs, 0, -1, -1, $conf->currency).'</td>';
 						print '<td class="right">';
-						print '<a href="'.$_SERVER["PHP_SELF"].'?facid='.$object->id.'&action=unlinkdiscount&discountid='.$obj->rowid.'">';
-						print img_picto($langs->transnoentitiesnoconv("RemoveDiscount"), 'unlink');
-						print '</a>';
+						// SLY: show delete discount when invoice not closed (draft or validated but not paid)
+						if ($object->statut == FactureFournisseur::STATUS_DRAFT || ($object->statut == FactureFournisseur::STATUS_VALIDATED && $object->paye == 0)) {
+							print '<a href="'.$_SERVER["PHP_SELF"].'?facid='.$object->id.'&action=unlinkdiscount&token='.newToken().'&discountid='.$obj->rowid.'">';
+							print img_picto($langs->transnoentitiesnoconv("RemoveDiscount"), 'unlink');
+							print '</a>';
+						} else {
+							print '&nbsp;';
+						}
 						print '</td></tr>';
 						$i++;
 						if ($invoice->type == FactureFournisseur::TYPE_CREDIT_NOTE) {
@@ -3898,7 +4015,11 @@ if ($action == 'create') {
 					print '<span class="opacitymedium">';
 					print $form->textwithpicto($langs->trans("Discount"), $langs->trans("HelpEscompte"), - 1);
 					print '</span>';
-					print '</td><td class="right">'.price($object->total_ttc - $creditnoteamount - $depositamount - $totalpaid).'</td><td>&nbsp;</td></tr>';
+					print '</td>';
+					if (!empty($show_multicurrency_column)) {
+						print '<td class="right"></td>';
+					}
+					print '<td class="right">'.price($object->total_ttc - $creditnoteamount - $depositamount - $totalpaid, 0, $langs, 0, -1, -1, $conf->currency).'</td><td>&nbsp;</td></tr>';
 					$resteapayeraffiche = 0;
 					$cssforamountpaymentcomplete = 'amountpaymentneutral';
 				}
@@ -3908,7 +4029,11 @@ if ($action == 'create') {
 					print '<span class="opacitymedium">';
 					print $form->textwithpicto($langs->trans("Abandoned"), $langs->trans("HelpAbandonBadCustomer"), - 1);
 					print '</span>';
-					print '</td><td class="right">'.price($object->total_ttc - $creditnoteamount - $depositamount - $totalpaid).'</td><td>&nbsp;</td></tr>';
+					print '</td>';
+					if (!empty($show_multicurrency_column)) {
+						print '<td class="right"></td>';
+					}
+					print '<td class="right">'.price($object->total_ttc - $creditnoteamount - $depositamount - $totalpaid, 0, $langs, 0, -1, -1, $conf->currency).'</td><td>&nbsp;</td></tr>';
 					// $resteapayeraffiche=0;
 					$cssforamountpaymentcomplete = 'amountpaymentneutral';
 				}
@@ -3918,7 +4043,11 @@ if ($action == 'create') {
 					print '<span class="opacitymedium">';
 					print $form->textwithpicto($langs->trans("ProductReturned"), $langs->trans("HelpAbandonProductReturned"), - 1);
 					print '</span>';
-					print '</td><td class="right">'.price($object->total_ttc - $creditnoteamount - $depositamount - $totalpaid).'</td><td>&nbsp;</td></tr>';
+					print '</td>';
+					if (!empty($show_multicurrency_column)) {
+						print '<td class="right"></td>';
+					}
+					print '<td class="right">'.price($object->total_ttc - $creditnoteamount - $depositamount - $totalpaid, 0, $langs, 0, -1, -1, $conf->currency).'</td><td>&nbsp;</td></tr>';
 					$resteapayeraffiche = 0;
 					$cssforamountpaymentcomplete = 'amountpaymentneutral';
 				}
@@ -3933,7 +4062,11 @@ if ($action == 'create') {
 					// @phan-suppress-next-line PhanPluginSuspiciousParamPosition
 					print $form->textwithpicto($langs->trans("Abandoned"), $text, - 1);
 					print '</span>';
-					print '</td><td class="right">'.price($object->total_ttc - $creditnoteamount - $depositamount - $totalpaid).'</td><td>&nbsp;</td></tr>';
+					print '</td>';
+					if (!empty($show_multicurrency_column)) {
+						print '<td class="right"></td>';
+					}
+					print '<td class="right">'.price($object->total_ttc - $creditnoteamount - $depositamount - $totalpaid, 0, $langs, 0, -1, -1, $conf->currency).'</td><td>&nbsp;</td></tr>';
 					$resteapayeraffiche = 0;
 					$cssforamountpaymentcomplete = 'amountpaymentneutral';
 				}
@@ -3943,7 +4076,11 @@ if ($action == 'create') {
 				print '<span class="opacitymedium">';
 				print $langs->trans("Billed");
 				print '</span>';
-				print '</td><td class="right">'.price($object->total_ttc).'</td><td>&nbsp;</td></tr>';
+				print '</td>';
+				if (!empty($show_multicurrency_column)) {
+					print '<td class="right">'.price($object->multicurrency_total_ttc, 0, $langs, 0, -1, -1, (empty($object->multicurrency_code) ? $conf->currency : $object->multicurrency_code)).'</td>';
+				}
+				print '<td class="right">'.price($object->total_ttc, 0, $langs, 0, -1, -1, $conf->currency).'</td><td>&nbsp;</td></tr>';
 
 				// Remainder to pay
 				print '<tr><td colspan="'.$nbcols.'" class="right">';
@@ -3954,10 +4091,13 @@ if ($action == 'create') {
 				}
 				print '</span>';
 				print '</td>';
-				print '<td class="right'.($resteapayeraffiche ? ' amountremaintopay' : (' '.$cssforamountpaymentcomplete)).'">'.price($resteapayeraffiche).'</td><td>&nbsp;</td></tr>';
+				if (!empty($show_multicurrency_column)) {
+					print '<td class="right'.($resteapayeraffiche ? ' amountremaintopay' : (' '.$cssforamountpaymentcomplete)).'">'.price(price2num($multicurrency_resteapayer, 'MT'), 0, $langs, 0, -1, -1, (empty($object->multicurrency_code) ? $conf->currency : $object->multicurrency_code)).'</td>';
+				}
+				print '<td class="right'.($resteapayeraffiche ? ' amountremaintopay' : (' '.$cssforamountpaymentcomplete)).'">'.price($resteapayeraffiche, 0, $langs, 0, -1, -1, $conf->currency).'</td><td>&nbsp;</td></tr>';
 
-				// Remainder to pay Multicurrency
-				if (isModEnabled('multicurrency') && $object->multicurrency_code != $conf->currency || $object->multicurrency_tx != 1) {
+				// Remainder to pay Multicurrency (legacy separate row - keep for compatibility, or hide when we already show multicurrency in same table)
+				if (isModEnabled('multicurrency') && ($object->multicurrency_code != $conf->currency || $object->multicurrency_tx != 1) && empty($show_multicurrency_column)) {
 					print '<tr><td colspan="'.$nbcols.'" class="right">';
 					print '<span class="opacitymedium">';
 					print $langs->trans('RemainderToPayMulticurrency');
@@ -3974,10 +4114,18 @@ if ($action == 'create') {
 				// Total already paid back
 				print '<tr><td colspan="'.$nbcols.'" class="right">';
 				print $langs->trans('AlreadyPaidBack');
-				print ' :</td><td class="right">'.price($sign * $totalpaid).'</td><td>&nbsp;</td></tr>';
+				print ' :</td>';
+				if (!empty($show_multicurrency_column)) {
+					print '<td class="right">'.price($sign * $totalpaid * $object->multicurrency_tx, 0, $langs, 0, -1, -1, (empty($object->multicurrency_code) ? $conf->currency : $object->multicurrency_code)).'</td>';
+				}
+				print '<td class="right">'.price($sign * $totalpaid).'</td><td>&nbsp;</td></tr>';
 
 				// Billed
-				print '<tr><td colspan="'.$nbcols.'" class="right">'.$langs->trans("Billed").' :</td><td class="right">'.price($sign * $object->total_ttc).'</td><td>&nbsp;</td></tr>';
+				print '<tr><td colspan="'.$nbcols.'" class="right">'.$langs->trans("Billed").' :</td>';
+				if (!empty($show_multicurrency_column)) {
+					print '<td class="right">'.price($sign * $object->multicurrency_total_ttc, 0, $langs, 0, -1, -1, (empty($object->multicurrency_code) ? $conf->currency : $object->multicurrency_code)).'</td>';
+				}
+				print '<td class="right">'.price($sign * $object->total_ttc).'</td><td>&nbsp;</td></tr>';
 
 				// Remainder to pay back
 				print '<tr><td colspan="'.$nbcols.'" class="right">';
@@ -3986,12 +4134,16 @@ if ($action == 'create') {
 				if ($resteapayeraffiche > 0) {
 					print ' ('.$langs->trans('NegativeIfExcessRefunded').')';
 				}
-				print '</td>';
 				print '</span>';
+				print '</td>';
+				if (!empty($show_multicurrency_column)) {
+					$mc_remainder_back = price2num($sign * $multicurrency_resteapayer, 'MT');
+					print '<td class="right'.($resteapayeraffiche ? ' amountremaintopay' : (' '.$cssforamountpaymentcomplete)).'">'.price($mc_remainder_back, 0, $langs, 0, -1, -1, (empty($object->multicurrency_code) ? $conf->currency : $object->multicurrency_code)).'</td>';
+				}
 				print '<td class="right'.($resteapayeraffiche ? ' amountremaintopay' : (' '.$cssforamountpaymentcomplete)).'">'.price($sign * $resteapayeraffiche).'</td><td>&nbsp;</td></tr>';
 
-				// Remainder to pay back Multicurrency
-				if (isModEnabled('multicurrency') && $object->multicurrency_code != $conf->currency || $object->multicurrency_tx != 1) {
+				// Remainder to pay back Multicurrency (legacy separate row)
+				if (isModEnabled('multicurrency') && ($object->multicurrency_code != $conf->currency || $object->multicurrency_tx != 1) && empty($show_multicurrency_column)) {
 					print '<tr><td colspan="'.$nbcols.'" class="right">';
 					print '<span class="opacitymedium">';
 					print $langs->trans('RemainderToPayBackMulticurrency');

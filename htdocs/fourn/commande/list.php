@@ -1406,6 +1406,10 @@ if ($resql) {
 	if (!empty($arrayfields['cf.ref']['checked'])) {
 		print '<td class="liste_titre"><input size="8" type="text" class="flat maxwidth75" name="search_ref" value="'.$search_ref.'"></td>';
 	}
+	// Hook: columns after Ref (e.g. Source order from modules)
+	$parameters = array('arrayfields' => $arrayfields, 'insert_after' => 'cf.ref');
+	$reshook = $hookmanager->executeHooks('printFieldListOption', $parameters, $object, $action);
+	print $hookmanager->resPrint;
 	// Ref customer
 	if (!empty($arrayfields['cf.ref_supplier']['checked'])) {
 		print '<td class="liste_titre"><input type="text" class="flat maxwidth75" name="search_refsupp" value="'.$search_refsupp.'"></td>';
@@ -1529,7 +1533,7 @@ if ($resql) {
 
 	// Fields from hook
 	$parameters = array('arrayfields' => $arrayfields);
-	$reshook = $hookmanager->executeHooks('printFieldListOption', $parameters); // Note that $action and $object may have been modified by hook
+	$reshook = $hookmanager->executeHooks('printFieldListOption', $parameters, $object, $action); // Note that $action and $object may have been modified by hook
 	print $hookmanager->resPrint;
 	// Date creation
 	if (!empty($arrayfields['cf.date_creation']['checked'])) {
@@ -1608,6 +1612,10 @@ if ($resql) {
 		print_liste_field_titre($arrayfields['cf.ref']['label'], $_SERVER["PHP_SELF"], "cf.ref", "", $param, '', $sortfield, $sortorder);
 		$totalarray['nbfield']++;
 	}
+	// Hook: column titles after Ref
+	$parameters = array('arrayfields' => $arrayfields, 'param' => $param, 'sortfield' => $sortfield, 'sortorder' => $sortorder, 'totalarray' => &$totalarray, 'insert_after' => 'cf.ref');
+	$reshook = $hookmanager->executeHooks('printFieldListTitle', $parameters, $object, $action);
+	print $hookmanager->resPrint;
 	if (!empty($arrayfields['cf.ref_supplier']['checked'])) {
 		print_liste_field_titre($arrayfields['cf.ref_supplier']['label'], $_SERVER["PHP_SELF"], "cf.ref_supplier", "", $param, '', $sortfield, $sortorder, 'tdoverflowmax100imp ');
 		$totalarray['nbfield']++;
@@ -1696,8 +1704,8 @@ if ($resql) {
 	// Extra fields
 	include DOL_DOCUMENT_ROOT.'/core/tpl/extrafields_list_search_title.tpl.php';
 	// Hook fields
-	$parameters = array('arrayfields' => $arrayfields, 'param' => $param, 'sortfield' => $sortfield, 'sortorder' => $sortorder);
-	$reshook = $hookmanager->executeHooks('printFieldListTitle', $parameters); // Note that $action and $object may have been modified by hook
+	$parameters = array('arrayfields' => $arrayfields, 'param' => $param, 'sortfield' => $sortfield, 'sortorder' => $sortorder, 'totalarray' => &$totalarray);
+	$reshook = $hookmanager->executeHooks('printFieldListTitle', $parameters, $object, $action); // Note that $action and $object may have been modified by hook
 	print $hookmanager->resPrint;
 	if (!empty($arrayfields['cf.date_creation']['checked'])) {
 		print_liste_field_titre($arrayfields['cf.date_creation']['label'], $_SERVER["PHP_SELF"], "cf.date_creation", "", $param, '', $sortfield, $sortorder, 'center nowraponall ');
@@ -1747,7 +1755,7 @@ if ($resql) {
 
 	$i = 0;
 	$savnbfield = $totalarray['nbfield'];
-	$totalarray = array('nbfield' => 0, 'val' => array(), 'pos' => array());
+	$totalarray = array('nbfield' => 0, 'val' => array(), 'pos' => array(), 'val_by_currency' => array());
 	$totalarray['val']['cf.total_ht'] = 0;
 	$totalarray['val']['cf.total_ttc'] = 0;
 	$totalarray['val']['cf.total_tva'] = 0;
@@ -1755,6 +1763,8 @@ if ($resql) {
 	$imaxinloop = ($limit ? min($num, $limit) : $num);
 	while ($i < $imaxinloop) {
 		$obj = $db->fetch_object($resql);
+
+		$row_currency = !empty($obj->multicurrency_code) ? $obj->multicurrency_code : $conf->currency;
 
 		$notshippable = 0;
 		$warning = 0;
@@ -1827,6 +1837,10 @@ if ($resql) {
 					$totalarray['nbfield']++;
 				}
 			}
+			// Hook: column values after Ref
+			$parameters = array('arrayfields' => $arrayfields, 'object' => $object, 'obj' => $obj, 'i' => $i, 'totalarray' => &$totalarray, 'insert_after' => 'cf.ref');
+			$reshook = $hookmanager->executeHooks('printFieldListValue', $parameters, $object, $action);
+			print $hookmanager->resPrint;
 			// Ref Supplier
 			if (!empty($arrayfields['cf.ref_supplier']['checked'])) {
 				print '<td class="tdoverflowmax150" title="'.dol_escape_htmltag($obj->ref_supplier).'">'.dol_escape_htmltag($obj->ref_supplier).'</td>'."\n";
@@ -2017,33 +2031,51 @@ if ($resql) {
 					$totalarray['nbfield']++;
 				}
 			}
-			// Amount HT
+			// Amount HT (foreign currency)
 			if (!empty($arrayfields['cf.multicurrency_total_ht']['checked'])) {
 				print '<td class="right nowrap"><span class="amount">'.price($obj->multicurrency_total_ht)."</span></td>\n";
 				if (!$i) {
 					$totalarray['nbfield']++;
+					$totalarray['pos'][$totalarray['nbfield']] = 'cf.multicurrency_total_ht';
 				}
+				$amt_mht = !empty($obj->multicurrency_code) ? $obj->multicurrency_total_ht : 0;
+				if (!isset($totalarray['val_by_currency'][$row_currency])) {
+					$totalarray['val_by_currency'][$row_currency] = array();
+				}
+				$totalarray['val_by_currency'][$row_currency]['cf.multicurrency_total_ht'] = ($totalarray['val_by_currency'][$row_currency]['cf.multicurrency_total_ht'] ?? 0) + $amt_mht;
 			}
-			// Amount VAT
+			// Amount VAT (foreign currency)
 			if (!empty($arrayfields['cf.multicurrency_total_tva']['checked'])) {
 				print '<td class="right nowrap"><span class="amount">'.price($obj->multicurrency_total_tva)."</span></td>\n";
 				if (!$i) {
 					$totalarray['nbfield']++;
+					$totalarray['pos'][$totalarray['nbfield']] = 'cf.multicurrency_total_tva';
 				}
+				$amt_mtva = !empty($obj->multicurrency_code) ? $obj->multicurrency_total_tva : 0;
+				if (!isset($totalarray['val_by_currency'][$row_currency])) {
+					$totalarray['val_by_currency'][$row_currency] = array();
+				}
+				$totalarray['val_by_currency'][$row_currency]['cf.multicurrency_total_tva'] = ($totalarray['val_by_currency'][$row_currency]['cf.multicurrency_total_tva'] ?? 0) + $amt_mtva;
 			}
-			// Amount TTC
+			// Amount TTC (foreign currency)
 			if (!empty($arrayfields['cf.multicurrency_total_ttc']['checked'])) {
 				print '<td class="right nowrap"><span class="amount">'.price($obj->multicurrency_total_ttc)."</span></td>\n";
 				if (!$i) {
 					$totalarray['nbfield']++;
+					$totalarray['pos'][$totalarray['nbfield']] = 'cf.multicurrency_total_ttc';
 				}
+				$amt_mttc = !empty($obj->multicurrency_code) ? $obj->multicurrency_total_ttc : 0;
+				if (!isset($totalarray['val_by_currency'][$row_currency])) {
+					$totalarray['val_by_currency'][$row_currency] = array();
+				}
+				$totalarray['val_by_currency'][$row_currency]['cf.multicurrency_total_ttc'] = ($totalarray['val_by_currency'][$row_currency]['cf.multicurrency_total_ttc'] ?? 0) + $amt_mttc;
 			}
 
 			// Extra fields
 			include DOL_DOCUMENT_ROOT.'/core/tpl/extrafields_list_print_fields.tpl.php';
 			// Fields from hook
 			$parameters = array('arrayfields' => $arrayfields, 'obj' => $obj, 'i' => $i, 'totalarray' => &$totalarray);
-			$reshook = $hookmanager->executeHooks('printFieldListValue', $parameters); // Note that $action and $object may have been modified by hook
+			$reshook = $hookmanager->executeHooks('printFieldListValue', $parameters, $object, $action); // Note that $action and $object may have been modified by hook
 			print $hookmanager->resPrint;
 			// Date creation
 			if (!empty($arrayfields['cf.date_creation']['checked'])) {

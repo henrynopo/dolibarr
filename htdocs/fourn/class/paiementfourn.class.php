@@ -290,6 +290,17 @@ class PaiementFourn extends Paiement
 								//$deposits = 0;
 								$alreadypayed = price2num($paiement + $creditnotes + $deposits, 'MT');
 								$remaintopay = price2num($invoice->total_ttc - $paiement - $creditnotes - $deposits, 'MT');
+								// When invoice is in another currency, use multicurrency remainder for auto-close decision (SLY, same as customer paiement.class.php)
+								if (isModEnabled('multicurrency') && !empty($invoice->multicurrency_code) && $invoice->multicurrency_code != $conf->currency) {
+									$mc_paid = $invoice->getSommePaiement(1);
+									$mc_creditnotes = $invoice->getSumCreditNotesUsed(1);
+									$mc_deposits = $invoice->getSumDepositsUsed(1);
+									$mc_remaintopay = price2num($invoice->multicurrency_total_ttc - $mc_paid - $mc_creditnotes - $mc_deposits, 'MT');
+									$mc_remaintopay_float = (float) $mc_remaintopay;
+									if ($mc_remaintopay_float <= 0 || abs($mc_remaintopay_float) < 0.01) {
+										$remaintopay = 0;
+									}
+								}
 								if ($remaintopay == 0) {
 									// If invoice is a down payment, we also convert down payment to discount
 									if ($invoice->type == FactureFournisseur::TYPE_DEPOSIT) {

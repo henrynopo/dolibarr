@@ -262,6 +262,7 @@ $reshook = $hookmanager->executeHooks('doActions', $parameters, $object, $action
 if ($reshook < 0) {
 	setEventMessages($hookmanager->error, $hookmanager->errors, 'errors');
 }
+$arrayfields = dol_sort_array($arrayfields, 'position');
 
 if (empty($reshook)) {
 	// Selection of new fields
@@ -1133,6 +1134,10 @@ if (!empty($arrayfields['f.ref']['checked'])) {
 	print '<input class="flat maxwidth50" type="text" name="search_ref" value="'.dol_escape_htmltag($search_ref).'">';
 	print '</td>';
 }
+// Hook: columns after Ref (e.g. Source order from modules)
+$parameters = array('arrayfields' => $arrayfields, 'insert_after' => 'f.ref');
+$reshook = $hookmanager->executeHooks('printFieldListOption', $parameters, $object, $action);
+print $hookmanager->resPrint;
 // Ref supplier
 if (!empty($arrayfields['f.ref_supplier']['checked'])) {
 	print '<td class="liste_titre">';
@@ -1377,6 +1382,10 @@ if (!empty($arrayfields['f.ref']['checked'])) {
 	print_liste_field_titre($arrayfields['f.ref']['label'], $_SERVER['PHP_SELF'], 'f.ref,f.rowid', '', $param, '', $sortfield, $sortorder);
 	$totalarray['nbfield']++;
 }
+// Hook: column titles after Ref
+$parameters = array('arrayfields' => $arrayfields, 'param' => $param, 'sortfield' => $sortfield, 'sortorder' => $sortorder, 'totalarray' => &$totalarray, 'insert_after' => 'f.ref');
+$reshook = $hookmanager->executeHooks('printFieldListTitle', $parameters, $object, $action);
+print $hookmanager->resPrint;
 if (!empty($arrayfields['f.ref_supplier']['checked'])) {
 	print_liste_field_titre($arrayfields['f.ref_supplier']['label'], $_SERVER["PHP_SELF"], 'f.ref_supplier', '', $param, '', $sortfield, $sortorder);
 	$totalarray['nbfield']++;
@@ -1554,6 +1563,7 @@ $totalarray['val']['f.total_localtax2'] = 0;
 $totalarray['val']['f.total_ttc'] = 0;
 $totalarray['val']['totalam'] = 0;
 $totalarray['val']['rtp'] = 0;
+$totalarray['val_by_currency'] = array(); // currency code => array of field => sum (for Total row per-currency display)
 
 $imaxinloop = ($limit ? min($num, $limit) : $num);
 while ($i < $imaxinloop) {
@@ -1640,6 +1650,9 @@ while ($i < $imaxinloop) {
 
 	$facturestatic->alreadypaid = ($paiement ? $paiement : 0);
 
+	// Row currency for per-currency totals (original invoice currency)
+	$row_currency = !empty($obj->multicurrency_code) ? $obj->multicurrency_code : $conf->currency;
+
 	$facturestatic->paye = $obj->paye;
 	$facturestatic->paid = $obj->paye;
 
@@ -1712,6 +1725,11 @@ while ($i < $imaxinloop) {
 				$totalarray['nbfield']++;
 			}
 		}
+
+		// Hook: column values after Ref
+		$parameters = array('arrayfields' => $arrayfields, 'object' => $object, 'obj' => $obj, 'i' => $i, 'totalarray' => &$totalarray, 'insert_after' => 'f.ref');
+		$reshook = $hookmanager->executeHooks('printFieldListValue', $parameters, $object, $action);
+		print $hookmanager->resPrint;
 
 		// Supplier ref
 		if (!empty($arrayfields['f.ref_supplier']['checked'])) {
@@ -1994,43 +2012,73 @@ while ($i < $imaxinloop) {
 				$totalarray['nbfield']++;
 			}
 		}
-		// Amount HT
+		// Amount HT (original currency)
 		if (!empty($arrayfields['f.multicurrency_total_ht']['checked'])) {
 			print '<td class="right nowrap"><span class="amount">'.price($obj->multicurrency_total_ht)."</span></td>\n";
 			if (!$i) {
 				$totalarray['nbfield']++;
+				$totalarray['pos'][$totalarray['nbfield']] = 'f.multicurrency_total_ht';
 			}
+			$amt_mht = !empty($obj->multicurrency_code) ? $obj->multicurrency_total_ht : 0;
+			if (!isset($totalarray['val_by_currency'][$row_currency])) {
+				$totalarray['val_by_currency'][$row_currency] = array();
+			}
+			$totalarray['val_by_currency'][$row_currency]['f.multicurrency_total_ht'] = ($totalarray['val_by_currency'][$row_currency]['f.multicurrency_total_ht'] ?? 0) + $amt_mht;
 		}
-		// Amount VAT
+		// Amount VAT (original currency)
 		if (!empty($arrayfields['f.multicurrency_total_vat']['checked'])) {
 			print '<td class="right nowrap"><span class="amount">'.price($obj->multicurrency_total_vat)."</span></td>\n";
 			if (!$i) {
 				$totalarray['nbfield']++;
+				$totalarray['pos'][$totalarray['nbfield']] = 'f.multicurrency_total_vat';
 			}
+			$amt_mvat = !empty($obj->multicurrency_code) ? $obj->multicurrency_total_vat : 0;
+			if (!isset($totalarray['val_by_currency'][$row_currency])) {
+				$totalarray['val_by_currency'][$row_currency] = array();
+			}
+			$totalarray['val_by_currency'][$row_currency]['f.multicurrency_total_vat'] = ($totalarray['val_by_currency'][$row_currency]['f.multicurrency_total_vat'] ?? 0) + $amt_mvat;
 		}
-		// Amount TTC
+		// Amount TTC (original currency)
 		if (!empty($arrayfields['f.multicurrency_total_ttc']['checked'])) {
 			print '<td class="right nowrap"><span class="amount">'.price($obj->multicurrency_total_ttc)."</span></td>\n";
 			if (!$i) {
 				$totalarray['nbfield']++;
+				$totalarray['pos'][$totalarray['nbfield']] = 'f.multicurrency_total_ttc';
 			}
+			$amt_mttc = !empty($obj->multicurrency_code) ? $obj->multicurrency_total_ttc : 0;
+			if (!isset($totalarray['val_by_currency'][$row_currency])) {
+				$totalarray['val_by_currency'][$row_currency] = array();
+			}
+			$totalarray['val_by_currency'][$row_currency]['f.multicurrency_total_ttc'] = ($totalarray['val_by_currency'][$row_currency]['f.multicurrency_total_ttc'] ?? 0) + $amt_mttc;
 		}
-		// Dynamic amount paid
+		// Dynamic amount paid (original currency)
 		if (!empty($arrayfields['multicurrency_dynamount_payed']['checked'])) {
 			print '<td class="right nowrap"><span class="amount">'.(!empty($multicurrency_totalpay) ? price($multicurrency_totalpay, 0, $langs) : '').'</span></td>'; // TODO Use a denormalized field
 			if (!$i) {
 				$totalarray['nbfield']++;
+				$totalarray['pos'][$totalarray['nbfield']] = 'multicurrency_dynamount_payed';
 			}
+			$amt_mpayed = !empty($obj->multicurrency_code) ? $multicurrency_totalpay : 0;
+			if (!isset($totalarray['val_by_currency'][$row_currency])) {
+				$totalarray['val_by_currency'][$row_currency] = array();
+			}
+			$totalarray['val_by_currency'][$row_currency]['multicurrency_dynamount_payed'] = ($totalarray['val_by_currency'][$row_currency]['multicurrency_dynamount_payed'] ?? 0) + $amt_mpayed;
 		}
 
-		// Pending amount
+		// Pending amount (original currency)
 		if (!empty($arrayfields['multicurrency_rtp']['checked'])) {
 			print '<td class="right nowrap"><span class="amount">';
 			print(!empty($multicurrency_remaintopay) ? price($multicurrency_remaintopay, 0, $langs) : '');
 			print '</span></td>'; // TODO Use a denormalized field
 			if (!$i) {
 				$totalarray['nbfield']++;
+				$totalarray['pos'][$totalarray['nbfield']] = 'multicurrency_rtp';
 			}
+			$amt_mrtp = !empty($obj->multicurrency_code) ? $multicurrency_remaintopay : 0;
+			if (!isset($totalarray['val_by_currency'][$row_currency])) {
+				$totalarray['val_by_currency'][$row_currency] = array();
+			}
+			$totalarray['val_by_currency'][$row_currency]['multicurrency_rtp'] = ($totalarray['val_by_currency'][$row_currency]['multicurrency_rtp'] ?? 0) + $amt_mrtp;
 		}
 
 
@@ -2089,6 +2137,11 @@ while ($i < $imaxinloop) {
 	}
 
 	$i++;
+}
+
+// Ensure pos exists when there are rows; keep nbfield from data loop so Total row has same column count as data rows
+if ($num > 0 && (!isset($totalarray['pos']) || !is_array($totalarray['pos']))) {
+	$totalarray['pos'] = array();
 }
 
 // Show total line

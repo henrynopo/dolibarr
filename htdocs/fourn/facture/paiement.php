@@ -190,7 +190,7 @@ if (empty($reshook)) {
 				if ($result <= 0) {
 					dol_print_error($db);
 				}
-				$amountsresttopay[$cursorfacid] = price2num($tmpinvoice->total_ttc - $tmpinvoice->getSommePaiement());
+				$amountsresttopay[$cursorfacid] = price2num($tmpinvoice->getRemainToPay());
 				if ($amounts[$cursorfacid]) {
 					// Check amount
 					if ((abs((float) $amounts[$cursorfacid]) > abs((float) $amountsresttopay[$cursorfacid]))) {
@@ -217,7 +217,7 @@ if (empty($reshook)) {
 				if ($result <= 0) {
 					dol_print_error($db);
 				}
-				$multicurrency_amountsresttopay[$cursorfacid] = price2num($tmpinvoice->multicurrency_total_ttc - $tmpinvoice->getSommePaiement(1));
+				$multicurrency_amountsresttopay[$cursorfacid] = price2num($tmpinvoice->getRemainToPay(1));
 				if ($multicurrency_amounts[$cursorfacid]) {
 					// Check amount
 					if ((abs((float) $multicurrency_amounts[$cursorfacid]) > abs((float) $multicurrency_amountsresttopay[$cursorfacid]))) {
@@ -447,9 +447,11 @@ if ($action == 'create' || $action == 'confirm_paiement' || $action == 'add_paie
 							var form = $("#payment_form");
 
 							json["invoice_type"] = $("#invoice_type").val();
-            				json["amountPayment"] = $("#amountpayment").attr("value");
+							json["amountPayment"] = $("#amountpayment").attr("value");
 							json["amounts"] = _elemToJson(form.find("input.amount"));
 							json["remains"] = _elemToJson(form.find("input.remain"));
+							json["multicurrency_amounts"] = _elemToJson(form.find("input.multicurrency_amount"));
+							json["multicurrency_remains"] = _elemToJson(form.find("input.multicurrency_remain"));
 							json["token"] = "'.currentToken().'";
 							if (imgId != null) {
 								json["imgClicked"] = imgId;
@@ -463,7 +465,15 @@ if ($action == 'create' || $action == 'confirm_paiement' || $action == 'add_paie
 
 								for (var key in json)
 								{
-									if (key == "result")	{
+									if (key == "multicurrency_result") {
+										if (json["multicurrency_makeRed"]) {
+											$("#"+key).addClass("error");
+										} else {
+											$("#"+key).removeClass("error");
+										}
+										json[key]=json["multicurrency_label"]+" "+json[key];
+										$("#"+key).text(json[key]);
+									} else if (key == "result") {
 										if (json["makeRed"]) {
 											$("#"+key).addClass("error");
 										} else {
@@ -484,6 +494,12 @@ if ($action == 'create' || $action == 'confirm_paiement' || $action == 'add_paie
 							callForResult();
 						});
 						$("#payment_form").find("input.amount").keyup(function() {
+							callForResult();
+						});
+						$("#payment_form").find("input.multicurrency_amount").change(function() {
+							callForResult();
+						});
+						$("#payment_form").find("input.multicurrency_amount").keyup(function() {
 							callForResult();
 						});
 			';
@@ -595,7 +611,7 @@ if ($action == 'create' || $action == 'confirm_paiement' || $action == 'add_paie
 							print ' $(document).ready(function () {';
 							print ' 	$(".AutoFillAmount").on(\'click touchstart\', function(e){
 											e.preventDefault();
-											$("input[name="+$(this).data(\'rowname\')+"]").val($(this).data("value"));
+											$("input[name="+$(this).data(\'rowname\')+"]").val($(this).data("value")).trigger("change");
 										});';
 							print '	});'."\n";
 							print '	</script>'."\n";
@@ -629,6 +645,16 @@ if ($action == 'create' || $action == 'confirm_paiement' || $action == 'add_paie
 						print '<thead>';
 						print '<tr class="liste_titre">';
 						print '<th>'.$langs->trans('Invoice').'</th>';
+						// Source order (purchase order linked to supplier invoice, same as customer payment page)
+						$langs->load('orders');
+						if (isModEnabled('slycustom')) {
+							$langs->load('slycustom@slycustom');
+						}
+						$sourceorderlabel = $langs->trans('SourceOrder');
+						if ($sourceorderlabel === 'SourceOrder') {
+							$sourceorderlabel = $langs->trans('Order');
+						}
+						print '<th>'.$sourceorderlabel.'</th>';
 						print '<th>'.$langs->trans('RefSupplier').'</th>';
 						if ($displayAllInvoices) {
 							print '<th class="center">' . $langs->trans('Type') . '</th>';
@@ -652,8 +678,12 @@ if ($action == 'create' || $action == 'confirm_paiement' || $action == 'add_paie
 						$total = 0;
 						$total_ttc = 0;
 						$totalrecu = 0;
-						$totalrecucreditnote = 0;	// PHP Warning:  Undefined variable $totalrecucreditnote
-						$totalrecudeposits = 0;		// PHP Warning:  Undefined variable $totalrecudeposits
+						$totalrecucreditnote = 0;
+						$totalrecudeposits = 0;
+						$multicurrency_total_ttc = 0;
+						$multicurrency_totalrecu = 0;
+						$multicurrency_totalrecucreditnote = 0;
+						$multicurrency_totalrecudeposits = 0;
 						while ($i < $num) {
 							$objp = $db->fetch_object($resql);
 
@@ -672,7 +702,7 @@ if ($action == 'create' || $action == 'confirm_paiement' || $action == 'add_paie
 							$creditnotes = $invoice->getSumCreditNotesUsed();
 							$deposits = $invoice->getSumDepositsUsed();
 							$alreadypayed = price2num($paiement + $creditnotes + $deposits, 'MT');
-							$remaintopay = price2num($invoice->total_ttc - $paiement - $creditnotes - $deposits, 'MT');
+							$remaintopay = $invoice->getRemainToPay();
 
 							// Multicurrency Price
 							$multicurrency_payment = 0;
@@ -684,7 +714,7 @@ if ($action == 'create' || $action == 'confirm_paiement' || $action == 'add_paie
 								$multicurrency_creditnotes = $invoice->getSumCreditNotesUsed(1);
 								$multicurrency_deposits = $invoice->getSumDepositsUsed(1);
 								$multicurrency_alreadypayed = price2num($multicurrency_payment + $multicurrency_creditnotes + $multicurrency_deposits, 'MT');
-								$multicurrency_remaintopay = price2num($invoice->multicurrency_total_ttc - $multicurrency_payment - $multicurrency_creditnotes - $multicurrency_deposits, 'MT');
+								$multicurrency_remaintopay = $invoice->getRemainToPay(1);
 							}
 
 							print '<tr data-row-type="'.$objp->type.'" class="oddeven'.(($invoice->id == $facid) ? ' highlight' : '').'">';
@@ -693,6 +723,25 @@ if ($action == 'create' || $action == 'confirm_paiement' || $action == 'add_paie
 							print '<td data-col="object-name" class="nowraponall">';
 							print $invoicesupplierstatic->getNomUrl(1);
 							print '</td>';
+
+							// Source order (purchase order linked via element_element)
+							$p = MAIN_DB_PREFIX;
+							$sqlco = "SELECT cf.ref, cf.rowid AS id FROM ".$p."element_element ee";
+							$sqlco .= " INNER JOIN ".$p."commande_fournisseur cf ON (cf.rowid = ee.fk_source AND (ee.sourcetype = 'order_supplier') AND (ee.targettype = 'invoice_supplier' OR ee.targettype = 'facture_fourn') AND ee.fk_target = ".(int) $objp->facid.")";
+							$sqlco .= " UNION ALL SELECT cf2.ref, cf2.rowid AS id FROM ".$p."element_element ee2";
+							$sqlco .= " INNER JOIN ".$p."commande_fournisseur cf2 ON (cf2.rowid = ee2.fk_target AND (ee2.targettype = 'order_supplier') AND (ee2.sourcetype = 'invoice_supplier' OR ee2.sourcetype = 'facture_fourn') AND ee2.fk_source = ".(int) $objp->facid.")";
+							$sqlco .= " LIMIT 1";
+							$resqlco = $db->query($sqlco);
+							if ($resqlco && $db->num_rows($resqlco) > 0) {
+								$objco = $db->fetch_object($resqlco);
+								$db->free($resqlco);
+								print '<td class="tdoverflowmax150"><a href="'.DOL_URL_ROOT.'/fourn/commande/card.php?id='.((int) $objco->id).'">'.dol_escape_htmltag($objco->ref).'</a></td>';
+							} else {
+								if ($resqlco) {
+									$db->free($resqlco);
+								}
+								print '<td class="tdoverflowmax150">&nbsp;</td>';
+							}
 
 							// Ref supplier
 							print '<td data-col="ref-supplier" >'.$objp->ref_supplier.'</td>';
@@ -859,39 +908,50 @@ if ($action == 'create' || $action == 'confirm_paiement' || $action == 'add_paie
 							$totalrecu += $objp->am;
 							$totalrecucreditnote += $creditnotes;
 							$totalrecudeposits += $deposits;
+							if (isModEnabled('multicurrency')) {
+								$multicurrency_total_ttc += $objp->multicurrency_total_ttc;
+								$multicurrency_totalrecu += $multicurrency_payment;
+								$multicurrency_totalrecucreditnote += $multicurrency_creditnotes;
+								$multicurrency_totalrecudeposits += $multicurrency_deposits;
+							}
 							$i++;
 						}
 						print '</tbody>';
 
 						if ($i > 1) {
 							print '<tfoot>';
-							// Print total
-							print '<tr class="liste_total">';
-							$colspan = 4;
-
-							// type
+							// Print total (Invoice, SourceOrder, RefSupplier, [Type], Date, DateMaxPayment = 5 or 6)
+							$colspan = 5;
 							if ($displayAllInvoices) {
 								$colspan++;
 							}
 
+							print '<tr class="liste_total">';
 							print '<td colspan="'.$colspan.'" class="left">'.$langs->trans('TotalTTC').':</td>';
 							if (isModEnabled("multicurrency")) {
 								print '<td>&nbsp;</td>';
-								print '<td>&nbsp;</td>';
-								print '<td>&nbsp;</td>';
-								print '<td>&nbsp;</td>';
+								print '<td class="right"><b>'.price($sign * $multicurrency_total_ttc).'</b></td>';
+								print '<td class="right"><b>'.price($sign * $multicurrency_totalrecu);
+								if ($multicurrency_totalrecucreditnote) {
+									print '+'.price($multicurrency_totalrecucreditnote);
+								}
+								if ($multicurrency_totalrecudeposits) {
+									print '+'.price($multicurrency_totalrecudeposits);
+								}
+								print '</b></td>';
+								print '<td class="right"><b>'.price($sign * price2num($multicurrency_total_ttc - $multicurrency_totalrecu - $multicurrency_totalrecucreditnote - $multicurrency_totalrecudeposits, 'MT')).'</b></td>';
 								print '<td class="right" id="multicurrency_result" style="font-weight: bold;"></td>';
 							}
-							print '<td class="right"><b>'.price($total_ttc).'</b></td>';
-							print '<td class="right"><b>'.price($totalrecu);
+							print '<td class="right"><b>'.price($sign * $total_ttc).'</b></td>';
+							print '<td class="right"><b>'.price($sign * $totalrecu);
 							if ($totalrecucreditnote) {
 								print '+'.price($totalrecucreditnote);
 							}
 							if ($totalrecudeposits) {
 								print '+'.price($totalrecudeposits);
 							}
-							print	'</b></td>';
-							print '<td class="right"><b>'.price((float) price2num($total_ttc - $totalrecu - $totalrecucreditnote - $totalrecudeposits, 'MT')).'</b></td>';
+							print '</b></td>';
+							print '<td class="right"><b>'.price($sign * (float) price2num($total_ttc - $totalrecu - $totalrecucreditnote - $totalrecudeposits, 'MT')).'</b></td>';
 							print '<td class="center" id="result" style="font-weight: bold;"></td>'; // Autofilled
 							print "</tr>\n";
 							print '</tfoot>';
