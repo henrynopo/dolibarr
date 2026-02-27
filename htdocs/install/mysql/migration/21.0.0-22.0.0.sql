@@ -329,3 +329,9 @@ ALTER TABLE llx_blockedlog ADD COLUMN debuginfo mediumtext;
 ALTER TABLE llx_webhook_history ADD COLUMN trigger_code text NOT NULL;
 ALTER TABLE llx_webhook_history ADD COLUMN error_message text;
 ALTER TABLE llx_webhook_history MODIFY COLUMN url varchar(255);
+
+-- Loan: multi-phase schedule (rate/repayment by term range, no new table)
+ALTER TABLE llx_loan ADD COLUMN schedule_phases text;
+
+-- Third party: registered capital currency (independent of company accounting currency, e.g. CNY/USD)
+ALTER TABLE llx_societe ADD COLUMN capital_currency varchar(3) DEFAULT NULL AFTER capital;

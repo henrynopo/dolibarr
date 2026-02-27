@@ -77,6 +77,7 @@ create table llx_societe
   idprof6                  varchar(128),                         		-- IDProf6: depends on country (example: nu for france, ...
   tva_intra                varchar(20),                         		-- vat numero
   capital                  double(24,8)   DEFAULT NULL,        			-- capital of company
+  capital_currency         varchar(3)     DEFAULT NULL,        			-- currency of capital (e.g. CNY, USD), independent of accounting currency
   fk_stcomm                integer        DEFAULT 0 NOT NULL,      		-- commercial status
   note_private             text,                                		--
   note_public              text,                                        --

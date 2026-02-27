@@ -51,5 +51,7 @@ create table llx_loan
 
   fk_user_author				integer DEFAULT NULL,
   fk_user_modif					integer DEFAULT NULL,
-  active						tinyint DEFAULT 1  NOT NULL
+  active						tinyint DEFAULT 1  NOT NULL,
+
+  schedule_phases				text					-- JSON array of phases for multi-phase schedule (rate/repayment changes by term range)
 )ENGINE=innodb;

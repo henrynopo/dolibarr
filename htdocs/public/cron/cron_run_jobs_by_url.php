@@ -149,18 +149,26 @@ if ($result < 0) {
 	exit;
 }
 
+$qualifiedjobs = array();
+foreach ($object->lines as $val) {
+	if (!verifCond($val->test)) {
+		continue;
+	}
+	$qualifiedjobs[] = $val;
+}
+
 // TODO Duplicate code. This sequence of code must be shared with code into cron_run_jobs.php script.
 
 // current date
-$nbofjobs = count($object->lines);
+$nbofjobs = count($qualifiedjobs);
 $nbofjobslaunchedok = 0;
 $nbofjobslaunchedko = 0;
 
-if (is_array($object->lines) && (count($object->lines) > 0)) {
+if (is_array($qualifiedjobs) && (count($qualifiedjobs) > 0)) {
 	$savconf = dol_clone($conf, 0);
 
 	// Loop over job
-	foreach ($object->lines as $line) {
+	foreach ($qualifiedjobs as $line) {
 		'@phan-var-force Cronjob $line';
 		dol_syslog("cron_run_jobs.php cronjobid: ".$line->id." priority=".$line->priority." entity=".$line->entity." label=".$line->label, LOG_DEBUG);
 		echo "cron_run_jobs.php cronjobid: ".$line->id." priority=".$line->priority." entity=".$line->entity." label=".$line->label;
@@ -189,10 +197,6 @@ if (is_array($object->lines) && (count($object->lines) > 0)) {
 				}
 				$user->loadRights();
 			}
-		}
-
-		if (!verifCond($line->test)) {
-			continue;
 		}
 
 		//If date_next_jobs is less of current date, execute the program, and store the execution time of the next execution in database
