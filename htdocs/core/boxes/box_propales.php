@@ -84,6 +84,10 @@ class box_propales extends ModeleBoxes
 			$sql .= ", s.code_client, s.code_compta, s.client";
 			$sql .= ", s.logo, s.email, s.entity";
 			$sql .= ", p.rowid, p.ref, p.fk_statut as status, p.datep as dp, p.datec, p.fin_validite, p.date_cloture, p.total_ht, p.total_tva, p.total_ttc, p.tms";
+			if (isModEnabled('multicurrency')) {
+				$sql .= ", p.multicurrency_total_ht";
+				$sql .= ", p.multicurrency_code";
+			}
 			$sql .= " FROM ".MAIN_DB_PREFIX."propal as p, ".MAIN_DB_PREFIX."societe as s";
 			if (empty($user->socid) && !$user->hasRight('societe', 'client', 'voir')) {
 				$sql .= ", ".MAIN_DB_PREFIX."societe_commerciaux as sc";
@@ -156,9 +160,13 @@ class box_propales extends ModeleBoxes
 						'asis' => 1,
 					);
 
+					$amountText = price($objp->total_ht, 0, $langs, 0, -1, -1, $conf->currency);
+					if (isModEnabled('multicurrency') && !empty($objp->multicurrency_code)) {
+						$amountText = price($objp->multicurrency_total_ht, 0, $langs, 0, -1, -1, $objp->multicurrency_code);
+					}
 					$this->info_box_contents[$line][] = array(
 						'td' => 'class="nowraponall right amount"',
-						'text' => price($objp->total_ht, 0, $langs, 0, -1, -1, $conf->currency),
+						'text' => $amountText,
 					);
 
 					$this->info_box_contents[$line][] = array(

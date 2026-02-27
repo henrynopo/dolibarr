@@ -148,7 +148,10 @@ class mod_payment_ant extends ModeleNumRefPayments
 			return 0;
 		}
 
-		$numFinal = get_next_value($db, $mask, 'paiement', 'ref', '', $objsoc, $object->datepaye);
+		// $object 可能为 null（例如在 admin 配置页面调用 getExample 时），此时使用当前时间避免 "Attempt to read property 'datepaye' on null"
+		$datepaye = (!empty($object) && !empty($object->datepaye)) ? $object->datepaye : dol_now();
+
+		$numFinal = get_next_value($db, $mask, 'paiement', 'ref', '', $objsoc, $datepaye);
 
 		return  $numFinal;
 	}

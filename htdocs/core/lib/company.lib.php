@@ -2836,9 +2836,16 @@ function htmlPrintOnlineFooter($fromcompany, $langs, $addformmessage = 0, $suffi
 	if ($fromcompany->forme_juridique_code) {
 		$line1 .= ($line1 ? " - " : "").getFormeJuridiqueLabel((string) $fromcompany->forme_juridique_code);
 	}
-	// Capital
+	// Capital (currency: societe.capital_currency, or MAIN_INFO_CAPITAL_CURRENCY for main company)
 	if ($fromcompany->capital) {
-		$line1 .= ($line1 ? " - " : "").$langs->transnoentities("CapitalOf", (string) $fromcompany->capital)." ".$langs->transnoentities("Currency".$conf->currency);
+		$capitalCurrency = (!empty($fromcompany->capital_currency)) ? $fromcompany->capital_currency : null;
+		if (empty($capitalCurrency) && !empty($fromcompany->id) && (int) $fromcompany->id === 1) {
+			$capitalCurrency = getDolGlobalString('MAIN_INFO_CAPITAL_CURRENCY');
+		}
+		if (empty($capitalCurrency)) {
+			$capitalCurrency = $conf->currency;
+		}
+		$line1 .= ($line1 ? " - " : "").$langs->transnoentities("CapitalOf", price($fromcompany->capital, 0, $langs, 0, 0, 0, ''))." ".$langs->transnoentities("Currency".$capitalCurrency);
 	}
 	// Prof Id 1
 	if ($fromcompany->idprof1 && ($fromcompany->country_code != 'FR' || !$fromcompany->idprof2)) {

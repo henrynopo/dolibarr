@@ -81,9 +81,13 @@ class box_factures extends ModeleBoxes
 
 		if ($user->hasRight('facture', 'lire')) {
 			$sql = "SELECT f.rowid as facid";
-			$sql .= ", f.ref, f.type, f.total_ht";
+				$sql .= ", f.ref, f.type, f.total_ht";
 			$sql .= ", f.total_tva";
 			$sql .= ", f.total_ttc";
+			if (isModEnabled('multicurrency')) {
+				$sql .= ", f.multicurrency_total_ht";
+				$sql .= ", f.multicurrency_code";
+			}
 			$sql .= ", f.datef as date";
 			$sql .= ", f.paye, f.fk_statut as status, f.datec, f.tms";
 			$sql .= ", f.date_lim_reglement as datelimite";
@@ -109,6 +113,9 @@ class box_factures extends ModeleBoxes
 			}
 			$sql .= " GROUP BY s.rowid, s.nom, s.name_alias, s.code_client, s.code_compta, s.client, s.logo, s.email, s.entity, s.tva_intra, s.siren, s.siret, s.ape, s.idprof4, s.idprof5, s.idprof6,";
 			$sql .= " f.rowid, f.ref, f.type, f.total_ht, f.total_tva, f.total_ttc, f.datef, f.paye, f.fk_statut, f.datec, f.tms, f.date_lim_reglement";
+			if (isModEnabled('multicurrency')) {
+				$sql .= ", f.multicurrency_total_ht, f.multicurrency_code";
+			}
 			if (getDolGlobalString('MAIN_LASTBOX_ON_OBJECT_DATE')) {
 				$sql .= " ORDER BY f.datef DESC, f.ref DESC ";
 			} else {
@@ -181,9 +188,13 @@ class box_factures extends ModeleBoxes
 						'asis' => 1,
 					);
 
+					$amountText = price($objp->total_ht, 0, $langs, 0, -1, -1, $conf->currency);
+					if (isModEnabled('multicurrency') && !empty($objp->multicurrency_code)) {
+						$amountText = price($objp->multicurrency_total_ht, 0, $langs, 0, -1, -1, $objp->multicurrency_code);
+					}
 					$this->info_box_contents[$line][] = array(
 						'td' => 'class="right nowraponall amount"',
-						'text' => price($objp->total_ht, 0, $langs, 0, -1, -1, $conf->currency),
+						'text' => $amountText,
 					);
 
 					$this->info_box_contents[$line][] = array(

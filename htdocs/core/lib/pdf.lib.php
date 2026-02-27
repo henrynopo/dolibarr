@@ -569,11 +569,16 @@ function pdf_build_address($outputlangs, $sourcecompany, $targetcompany = '', $t
 
 					$stringaddress .= ($stringaddress ? "\n" : '').$outputlangs->convToOutputCharset(dol_format_address($companytouseforaddress))."\n";
 				}
-				// Country
+				// Country: single newline before country, country name in uppercase
+				$countryToAdd = '';
 				if (!empty($targetcontact->country_code) && $targetcontact->country_code != $sourcecompany->country_code) {
-					$stringaddress .= (($stringaddress && !getDolGlobalString('MAIN_PDF_REMOVE_BREAK_BEFORE_COUNTRY')) ? "\n" : '').$outputlangs->convToOutputCharset($outputlangs->transnoentitiesnoconv("Country".$targetcontact->country_code));
+					$countryToAdd = $outputlangs->convToOutputCharset($outputlangs->transnoentitiesnoconv("Country".$targetcontact->country_code));
 				} elseif (empty($targetcontact->country_code) && !empty($targetcompany->country_code) && ($targetcompany->country_code != $sourcecompany->country_code)) {
-					$stringaddress .= (($stringaddress && !getDolGlobalString('MAIN_PDF_REMOVE_BREAK_BEFORE_COUNTRY')) ? "\n" : '').$outputlangs->convToOutputCharset($outputlangs->transnoentitiesnoconv("Country".$targetcompany->country_code));
+					$countryToAdd = $outputlangs->convToOutputCharset($outputlangs->transnoentitiesnoconv("Country".$targetcompany->country_code));
+				}
+				if ($countryToAdd !== '') {
+					$stringaddress = rtrim($stringaddress);
+					$stringaddress .= (($stringaddress && !getDolGlobalString('MAIN_PDF_REMOVE_BREAK_BEFORE_COUNTRY')) ? "\n" : '').(function_exists('mb_strtoupper') ? mb_strtoupper($countryToAdd, 'UTF-8') : strtoupper($countryToAdd));
 				}
 
 				if (getDolGlobalString('MAIN_PDF_ADDALSOTARGETDETAILS') || preg_match('/targetwithdetails/', $mode)) {
@@ -614,11 +619,14 @@ function pdf_build_address($outputlangs, $sourcecompany, $targetcompany = '', $t
 			} else {
 				if (is_object($targetcompany)) {
 					$stringaddress .= ($stringaddress ? "\n" : '').$outputlangs->convToOutputCharset(dol_format_address($targetcompany));
-					// Country
+					// Country: single newline before country, country name in uppercase
 					if (!empty($targetcompany->country_code) && $targetcompany->country_code != $sourcecompany->country_code) {
-						$stringaddress .= ($stringaddress ? "\n" : '').$outputlangs->convToOutputCharset($outputlangs->transnoentitiesnoconv("Country".$targetcompany->country_code));
+						$stringaddress = rtrim($stringaddress);
+						$countryLabel = $outputlangs->convToOutputCharset($outputlangs->transnoentitiesnoconv("Country".$targetcompany->country_code));
+						$stringaddress .= "\n".(function_exists('mb_strtoupper') ? mb_strtoupper($countryLabel, 'UTF-8') : strtoupper($countryLabel));
 					} else {
-						$stringaddress .= ($stringaddress ? "\n" : '');
+						$stringaddress = rtrim($stringaddress);
+						$stringaddress .= "\n";
 					}
 
 					if (getDolGlobalString('MAIN_PDF_ADDALSOTARGETDETAILS') || preg_match('/targetwithdetails/', $mode)) {
@@ -1042,9 +1050,10 @@ function pdf_bank(&$pdf, $outputlangs, $curx, $cury, $account, $onlynumber = 0, 
  *  @param	int			$hidefreetext	1=Hide free text, 0=Show free text
  *  @param	float		$page_largeur	Page width
  *  @param	string		$watermark		Watermark text to print on page
+ *  @param	int			$hidefooterline	1=Do not draw the horizontal line above footer
  * 	@return	int							Return height of bottom margin including footer text
  */
-function pdf_pagefoot(&$pdf, $outputlangs, $paramfreetext, $fromcompany, $marge_basse, $marge_gauche, $page_hauteur, $object, $showdetails = 0, $hidefreetext = 0, $page_largeur = 0, $watermark = '')
+function pdf_pagefoot(&$pdf, $outputlangs, $paramfreetext, $fromcompany, $marge_basse, $marge_gauche, $page_hauteur, $object, $showdetails = 0, $hidefreetext = 0, $page_largeur = 0, $watermark = '', $hidefooterline = 0)
 {
 	global $conf, $hookmanager;
 
@@ -1082,42 +1091,73 @@ function pdf_pagefoot(&$pdf, $outputlangs, $paramfreetext, $fromcompany, $marge_
 	$line4 = "";
 
 	if (is_object($fromcompany) && in_array($showdetails, array(1, 3))) {
-		// Company name
-		if ($fromcompany->name) {
-			$line1 .= ($line1 ? " - " : "").$outputlangs->transnoentities("RegisteredOffice").": ".$fromcompany->name;
-		}
-		// Address
-		if ($fromcompany->address) {
-			$line1 .= ($line1 ? " - " : "").str_replace("\n", ", ", $fromcompany->address);
-		}
-		// Zip code
-		if ($fromcompany->zip) {
-			$line1 .= ($line1 ? " - " : "").$fromcompany->zip;
-		}
-		// Town
-		if ($fromcompany->town) {
-			$line1 .= ($line1 ? " " : "").$fromcompany->town;
-		}
-		// Country
-		if ($fromcompany->country) {
-			$line1 .= ($line1 ? ", " : "").$fromcompany->country;
-		}
-		// Phone
-		if ($fromcompany->phone) {
-			$line2 .= ($line2 ? " - " : "").$outputlangs->transnoentities("Phone").": ".$fromcompany->phone;
-		}
-		// Fax
-		if ($fromcompany->fax) {
-			$line2 .= ($line2 ? " - " : "").$outputlangs->transnoentities("Fax").": ".$fromcompany->fax;
-		}
-
-		// URL
-		if ($fromcompany->url) {
-			$line2 .= ($line2 ? " - " : "").$fromcompany->url;
-		}
-		// Email
-		if ($fromcompany->email) {
-			$line2 .= ($line2 ? " - " : "").$fromcompany->email;
+		if (!empty($fromcompany->country_code) && $fromcompany->country_code == 'SG') {
+			// Singapore convention: Line1 = Company (UEN: xxx), Line2 = Address, Line3 = Phone - Email (normal case)
+			if ($fromcompany->name) {
+				$uenLabel = $outputlangs->transcountrynoentities("ProfId1", "SG");
+				if (preg_match('/\((.*)\)/i', $uenLabel, $reg)) {
+					$uenLabel = $reg[1];
+				}
+				$line1 = $fromcompany->name;
+				if (!empty($fromcompany->idprof1)) {
+					$line1 .= " (".$uenLabel.": ".$outputlangs->convToOutputCharset($fromcompany->idprof1).")";
+				}
+			}
+			$addrParts = array();
+			if ($fromcompany->address) {
+				$addrParts[] = str_replace("\n", ", ", $fromcompany->address);
+			}
+			if ($fromcompany->town || $fromcompany->zip) {
+				$addrParts[] = trim(($fromcompany->town ? $fromcompany->town : '').($fromcompany->town && $fromcompany->zip ? ' ' : '').($fromcompany->zip ? $fromcompany->zip : ''));
+			}
+			if (count($addrParts) > 0) {
+				$line2 = strtoupper(implode(", ", $addrParts));
+			}
+			$contactParts = array();
+			if ($fromcompany->phone) {
+				$contactParts[] = $outputlangs->transnoentities("Phone").": ".$fromcompany->phone;
+			}
+			if ($fromcompany->email) {
+				$contactParts[] = $outputlangs->transnoentities("Email").": ".$outputlangs->convToOutputCharset($fromcompany->email);
+			}
+			if (count($contactParts) > 0) {
+				$line3 = implode(" - ", $contactParts);
+			}
+		} else {
+			// Company name
+			if ($fromcompany->name) {
+				$line1 .= ($line1 ? " - " : "").$outputlangs->transnoentities("RegisteredOffice").": ".$fromcompany->name;
+			}
+			// Address
+			if ($fromcompany->address) {
+				$line1 .= ($line1 ? " - " : "").str_replace("\n", ", ", $fromcompany->address);
+			}
+			// Zip / Town / Country
+			if ($fromcompany->zip) {
+				$line1 .= ($line1 ? " - " : "").$fromcompany->zip;
+			}
+			if ($fromcompany->town) {
+				$line1 .= ($line1 ? " " : "").$fromcompany->town;
+			}
+			if ($fromcompany->country) {
+				$line1 .= ($line1 ? ", " : "").$fromcompany->country;
+			}
+			// Phone
+			if ($fromcompany->phone) {
+				$line2 .= ($line2 ? " - " : "").$outputlangs->transnoentities("Phone").": ".$fromcompany->phone;
+			}
+			// Fax
+			if ($fromcompany->fax) {
+				$line2 .= ($line2 ? " - " : "").$outputlangs->transnoentities("Fax").": ".$fromcompany->fax;
+			}
+			// URL
+			if ($fromcompany->url) {
+				$line2 .= ($line2 ? " - " : "").$fromcompany->url;
+			}
+			// Email
+			if ($fromcompany->email) {
+				$line2 .= ($line2 ? " - " : "").$outputlangs->transnoentities("Email").": ".$outputlangs->convToOutputCharset($fromcompany->email);
+			}
 		}
 	}
 	if ($showdetails == 2 || $showdetails == 3 || (!empty($fromcompany->country_code) && $fromcompany->country_code == 'DE')) {
@@ -1127,38 +1167,48 @@ function pdf_pagefoot(&$pdf, $outputlangs, $paramfreetext, $fromcompany, $marge_
 		}
 	}
 
-	// Line 3 of company infos
-	// Juridical status
-	if (!empty($fromcompany->forme_juridique_code) && $fromcompany->forme_juridique_code) {
-		$line3 .= ($line3 ? " - " : "").$outputlangs->convToOutputCharset(getFormeJuridiqueLabel((string) $fromcompany->forme_juridique_code));
-	}
-	// Capital
-	if (!empty($fromcompany->capital)) {
-		$tmpamounttoshow = price2num($fromcompany->capital); // This field is a free string or a float
-		if (is_numeric($tmpamounttoshow) && $tmpamounttoshow > 0) {
-			$line3 .= ($line3 ? " - " : "").$outputlangs->transnoentities("CapitalOf", price($tmpamounttoshow, 0, $outputlangs, 0, 0, 0, $conf->currency));
-		} elseif (!empty($fromcompany->capital)) {
-			$line3 .= ($line3 ? " - " : "").$outputlangs->transnoentities("CapitalOf", (string) $fromcompany->capital);
+	// Line 3 of company infos (skip for Singapore: UEN already on line1, Phone/Email already on line3)
+	if (is_object($fromcompany) && (empty($fromcompany->country_code) || $fromcompany->country_code != 'SG')) {
+		// Juridical status
+		if (!empty($fromcompany->forme_juridique_code) && $fromcompany->forme_juridique_code) {
+			$line3 .= ($line3 ? " - " : "").$outputlangs->convToOutputCharset(getFormeJuridiqueLabel((string) $fromcompany->forme_juridique_code));
 		}
-	}
-	// Prof Id 1
-	if (!empty($fromcompany->idprof1) && $fromcompany->idprof1 && ($fromcompany->country_code != 'FR' || !$fromcompany->idprof2)) {
-		$field = $outputlangs->transcountrynoentities("ProfId1", $fromcompany->country_code);
-		if (preg_match('/\((.*)\)/i', $field, $reg)) {
-			$field = $reg[1];
+		// Capital (currency: societe.capital_currency, or MAIN_INFO_CAPITAL_CURRENCY for main company)
+		if (!empty($fromcompany->capital)) {
+			$tmpamounttoshow = price2num($fromcompany->capital); // This field is a free string or a float
+			$capitalCurrency = (!empty($fromcompany->capital_currency)) ? $fromcompany->capital_currency : null;
+			if (empty($capitalCurrency) && !empty($fromcompany->id) && (int) $fromcompany->id === 1) {
+				$capitalCurrency = getDolGlobalString('MAIN_INFO_CAPITAL_CURRENCY');
+			}
+			if (empty($capitalCurrency)) {
+				$capitalCurrency = $conf->currency;
+			}
+			if (is_numeric($tmpamounttoshow) && $tmpamounttoshow > 0) {
+				$line3 .= ($line3 ? " - " : "").$outputlangs->transnoentities("CapitalOf", price($tmpamounttoshow, 0, $outputlangs, 0, 0, 0, $capitalCurrency));
+			} elseif (!empty($fromcompany->capital)) {
+				$line3 .= ($line3 ? " - " : "").$outputlangs->transnoentities("CapitalOf", (string) $fromcompany->capital);
+			}
 		}
-		$line3 .= ($line3 ? " - " : "").$field.": ".$outputlangs->convToOutputCharset($fromcompany->idprof1);
-	}
-	// Prof Id 2
-	if (!empty($fromcompany->idprof2) && $fromcompany->idprof2) {
-		$field = $outputlangs->transcountrynoentities("ProfId2", $fromcompany->country_code);
-		if (preg_match('/\((.*)\)/i', $field, $reg)) {
-			$field = $reg[1];
+		// Prof Id 1
+		if (!empty($fromcompany->idprof1) && $fromcompany->idprof1 && ($fromcompany->country_code != 'FR' || !$fromcompany->idprof2)) {
+			$field = $outputlangs->transcountrynoentities("ProfId1", $fromcompany->country_code);
+			if (preg_match('/\((.*)\)/i', $field, $reg)) {
+				$field = $reg[1];
+			}
+			$line3 .= ($line3 ? " - " : "").$field.": ".$outputlangs->convToOutputCharset($fromcompany->idprof1);
 		}
-		$line3 .= ($line3 ? " - " : "").$field.": ".$outputlangs->convToOutputCharset($fromcompany->idprof2);
+		// Prof Id 2
+		if (!empty($fromcompany->idprof2) && $fromcompany->idprof2) {
+			$field = $outputlangs->transcountrynoentities("ProfId2", $fromcompany->country_code);
+			if (preg_match('/\((.*)\)/i', $field, $reg)) {
+				$field = $reg[1];
+			}
+			$line3 .= ($line3 ? " - " : "").$field.": ".$outputlangs->convToOutputCharset($fromcompany->idprof2);
+		}
 	}
 
-	// Line 4 of company infos
+	// Line 4 of company infos (skip for Singapore)
+	if (is_object($fromcompany) && (empty($fromcompany->country_code) || $fromcompany->country_code != 'SG')) {
 	// Prof Id 3
 	if (!empty($fromcompany->idprof3) && $fromcompany->idprof3) {
 		$field = $outputlangs->transcountrynoentities("ProfId3", $fromcompany->country_code);
@@ -1226,6 +1276,7 @@ function pdf_pagefoot(&$pdf, $outputlangs, $paramfreetext, $fromcompany, $marge_
 	// IntraCommunautary VAT
 	if (!empty($fromcompany->tva_intra)  && $fromcompany->tva_intra != '') {
 		$line4 .= ($line4 ? " - " : "").$outputlangs->transnoentities("VATIntraShort").": ".$outputlangs->convToOutputCharset($fromcompany->tva_intra);
+	}
 	}
 
 	$pdf->SetFont('', '', 7);
@@ -1348,8 +1399,8 @@ function pdf_pagefoot(&$pdf, $outputlangs, $paramfreetext, $fromcompany, $marge_
 
 			// Option for hide all footer (page number will no hidden)
 			if (!getDolGlobalInt('PDF_FOOTER_HIDDEN')) {
-				// Hide footer line if footer background color is set
-				if (!getDolGlobalString('PDF_FOOTER_BACKGROUND_COLOR')) {
+				// Hide footer line if footer background color is set or $hidefooterline requested
+				if (empty($hidefooterline) && !getDolGlobalString('PDF_FOOTER_BACKGROUND_COLOR')) {
 					$pdf->line($dims['lm'], $dims['hk'] - $posy, $dims['wk'] - $dims['rm'], $dims['hk'] - $posy);
 				}
 

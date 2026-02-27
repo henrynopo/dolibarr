@@ -2037,28 +2037,83 @@ class Form
 	 * @param	string	$filter		Optional filter critreria
 	 * @param	int		$socid		Id of thirdparty
 	 * @param	int		$maxvalue	Max value for lines that can be selected
+	 * @param	string	$morecss		Extra CSS class for Select2 (e.g. 'onrightofpage' so dropdown stays inside parent)
+	 * @param	int		$discount_type	0=customer, 1=supplier
 	 * @return	int					Return number of qualifed lines in list
 	 */
-	public function select_remises($selected, $htmlname, $filter, $socid, $maxvalue = 0)
+	public function select_remises($selected, $htmlname, $filter, $socid, $maxvalue = 0, $morecss = '', $discount_type = 0)
 	{
 		// phpcs:enable
 		global $langs, $conf;
 
-		// On recherche les remises
-		$sql = "SELECT re.rowid, re.amount_ht, re.amount_tva, re.amount_ttc,";
-		$sql .= " re.description, re.fk_facture_source";
-		$sql .= " FROM " . $this->db->prefix() . "societe_remise_except as re";
-		$sql .= " WHERE re.fk_soc = " . (int) $socid;
-		$sql .= " AND re.entity = " . $conf->entity;
+		// Qualify filter columns with re. to avoid ambiguity with joined tables
+		$filterQualified = $filter;
 		if ($filter) {
-			$sql .= " AND " . $filter;
+			$filterQualified = preg_replace('/\b(?!re\.)(fk_facture_source)\b/', 're.$1', $filterQualified);
+			$filterQualified = preg_replace('/\b(?!re\.)(fk_facture)\b/', 're.$1', $filterQualified);
+			$filterQualified = preg_replace('/\b(?!re\.)(fk_facture_line)\b/', 're.$1', $filterQualified);
+			$filterQualified = preg_replace('/\b(?!re\.)(fk_invoice_supplier_source)\b/', 're.$1', $filterQualified);
+			$filterQualified = preg_replace('/\b(?!re\.)(fk_invoice_supplier)\b/', 're.$1', $filterQualified);
+			$filterQualified = preg_replace('/\b(?!re\.)(fk_invoice_supplier_line)\b/', 're.$1', $filterQualified);
+			$filterQualified = preg_replace('/\b(?!re\.)(description)\b/', 're.$1', $filterQualified);
+			$filterQualified = preg_replace('/\b(?!re\.)(discount_type)\b/', 're.$1', $filterQualified);
 		}
-		$sql .= " ORDER BY re.description ASC";
+
+		if (!empty($discount_type)) {
+			// Supplier discounts: source is facture_fourn, order is commande_fournisseur
+			$sql = "SELECT re.rowid, re.amount_ht, re.amount_tva, re.amount_ttc,";
+			$sql .= " re.description, re.fk_invoice_supplier_source, re.multicurrency_amount_ttc, re.multicurrency_code";
+			$sql .= ", fsup.ref as ref_facture_source, fsup.total_ttc as fac_total_ttc, fsup.multicurrency_total_ttc as fac_multicurrency_total_ttc, fsup.multicurrency_code as fac_multicurrency_code";
+			$sql .= ", re.fk_facture_source";
+			$sql .= ", COALESCE(";
+			$sql .= " (SELECT cf.ref FROM " . $this->db->prefix() . "element_element ee INNER JOIN " . $this->db->prefix() . "commande_fournisseur cf ON cf.rowid = ee.fk_source";
+			$sql .= " WHERE ee.fk_target = fsup.rowid AND (ee.targettype = 'invoice_supplier' OR ee.targettype = 'facture_fourn') AND ee.sourcetype = 'order_supplier' LIMIT 1),";
+			$sql .= " (SELECT cf.ref FROM " . $this->db->prefix() . "element_element ee INNER JOIN " . $this->db->prefix() . "commande_fournisseur cf ON cf.rowid = ee.fk_target";
+			$sql .= " WHERE ee.fk_source = fsup.rowid AND (ee.sourcetype = 'invoice_supplier' OR ee.sourcetype = 'facture_fourn') AND ee.targettype = 'order_supplier' LIMIT 1)";
+			$sql .= ") as order_ref";
+			$sql .= " FROM " . $this->db->prefix() . "societe_remise_except as re";
+			$sql .= " LEFT JOIN " . $this->db->prefix() . "facture_fourn as fsup ON re.fk_invoice_supplier_source = fsup.rowid";
+			$sql .= " WHERE re.fk_soc = " . (int) $socid;
+			$sql .= " AND re.entity = " . $conf->entity;
+			if ($filterQualified) {
+				$sql .= " AND " . $filterQualified;
+			}
+			$sql .= " ORDER BY re.description ASC";
+		} else {
+			// Customer discounts: source is facture, order is commande
+			$sql = "SELECT re.rowid, re.amount_ht, re.amount_tva, re.amount_ttc,";
+			$sql .= " re.description, re.fk_facture_source, re.multicurrency_amount_ttc, re.multicurrency_code";
+			$sql .= ", f.ref as ref_facture_source, f.total_ttc as fac_total_ttc, f.multicurrency_total_ttc as fac_multicurrency_total_ttc, f.multicurrency_code as fac_multicurrency_code";
+			if (isModEnabled('order')) {
+				$sql .= ", COALESCE(";
+				$sql .= " (SELECT c.ref FROM " . $this->db->prefix() . "element_element ee INNER JOIN " . $this->db->prefix() . "commande c ON c.rowid = ee.fk_source";
+				$sql .= " WHERE ee.fk_target = f.rowid AND ee.targettype = 'facture' AND ee.sourcetype = 'commande' LIMIT 1),";
+				$sql .= " (SELECT c.ref FROM " . $this->db->prefix() . "element_element ee INNER JOIN " . $this->db->prefix() . "commande c ON c.rowid = ee.fk_target";
+				$sql .= " WHERE ee.fk_source = f.rowid AND ee.sourcetype = 'facture' AND ee.targettype = 'commande' LIMIT 1)";
+				$sql .= ") as order_ref";
+			} else {
+				$sql .= ", NULL as order_ref";
+			}
+			$sql .= " FROM " . $this->db->prefix() . "societe_remise_except as re";
+			$sql .= " LEFT JOIN " . $this->db->prefix() . "facture as f ON re.fk_facture_source = f.rowid";
+			$sql .= " WHERE re.fk_soc = " . (int) $socid;
+			$sql .= " AND re.entity = " . $conf->entity;
+			if ($filterQualified) {
+				$sql .= " AND " . $filterQualified;
+			}
+			$sql .= " ORDER BY re.description ASC";
+		}
 
 		dol_syslog(get_class($this) . "::select_remises", LOG_DEBUG);
 		$resql = $this->db->query($sql);
 		if ($resql) {
-			print '<select id="select_' . $htmlname . '" class="flat maxwidthonsmartphone" name="' . $htmlname . '">';
+			// Wrapper constrains width and is dropdownParent for Select2 so dropdown does not overflow or misalign
+			$wrapperClass = 'remise-dispo-select-wrapper';
+			if (preg_match('/onrightofpage/', $morecss)) {
+				$wrapperClass .= ' parentonrightofpage';
+			}
+			print '<div class="' . $wrapperClass . '" style="display: inline-block; min-width: 480px; max-width: 100%;">';
+			print '<select id="select_' . $htmlname . '" class="flat maxwidthonsmartphone" style="width: 100%; max-width: 100%;" name="' . $htmlname . '">';
 			$num = $this->db->num_rows($resql);
 
 			$qualifiedlines = $num;
@@ -2082,6 +2137,29 @@ class Form
 						$desc = preg_replace('/\(EXCESS PAID\)/', $langs->trans("ExcessPaid"), $desc);
 					}
 
+					// Append source invoice ref (发票号) and order ref (订单号): "Deposit - 发票号 - 订单号"
+					$refPart = '';
+					if (!empty($obj->ref_facture_source)) {
+						$refPart = ' - ' . $obj->ref_facture_source;
+					} elseif (!empty($obj->fk_facture_source)) {
+						$tmpfac = new Facture($this->db);
+						if ($tmpfac->fetch($obj->fk_facture_source) > 0) {
+							$refPart = ' - ' . $tmpfac->ref;
+						}
+					} elseif (!empty($obj->fk_invoice_supplier_source)) {
+						require_once DOL_DOCUMENT_ROOT . '/fourn/class/fournisseur.facture.class.php';
+						$tmpfac = new FactureFournisseur($this->db);
+						if ($tmpfac->fetch($obj->fk_invoice_supplier_source) > 0) {
+							$refPart = ' - ' . $tmpfac->ref;
+						}
+					}
+					if (!empty($obj->order_ref)) {
+						$refPart .= ' - ' . $obj->order_ref;
+					}
+					if ($refPart !== '') {
+						$desc = $desc . $refPart;
+					}
+
 					$selectstring = '';
 					if ($selected > 0 && $selected == $obj->rowid) {
 						$selectstring = ' selected';
@@ -2093,19 +2171,41 @@ class Form
 						$disabled = ' disabled';
 					}
 
-					if (getDolGlobalString('MAIN_SHOW_FACNUMBER_IN_DISCOUNT_LIST') && !empty($obj->fk_facture_source)) {
-						$tmpfac = new Facture($this->db);
-						if ($tmpfac->fetch($obj->fk_facture_source) > 0) {
-							$desc = $desc . ' - ' . $tmpfac->ref;
+					// Amount part (TTC): multicurrency " (原币 - 本币)" when available, else " (HT - TTC)"
+					$amountLabel = '';
+					$useMulticurrency = false;
+					$amtLocal = 0;
+					$amtOrig = 0;
+					$codeLocal = $conf->currency;
+					$codeOrig = '';
+					if (isModEnabled('multicurrency')) {
+						if (!empty($obj->multicurrency_code) && (float) $obj->multicurrency_amount_ttc != 0) {
+							$useMulticurrency = true;
+							$amtLocal = $obj->amount_ttc;
+							$amtOrig = $obj->multicurrency_amount_ttc;
+							$codeOrig = $obj->multicurrency_code;
+						} elseif (!empty($obj->fac_multicurrency_code) && (float) $obj->fac_multicurrency_total_ttc != 0 && (float) $obj->fac_total_ttc != 0) {
+							// Discount line has no multicurrency; use source invoice TTC totals for display
+							$useMulticurrency = true;
+							$amtLocal = $obj->fac_total_ttc;
+							$amtOrig = $obj->fac_multicurrency_total_ttc;
+							$codeOrig = $obj->fac_multicurrency_code;
 						}
 					}
+					if ($useMulticurrency) {
+						// (原币 - 本币) TTC
+						$amountLabel = ' (' . price($amtOrig, 0, $langs, 0, 0, -1, $codeOrig) . ' - ' . price($amtLocal, 0, $langs, 0, 0, -1, $codeLocal) . ')';
+					} else {
+						$amountLabel = ' (' . price($obj->amount_ht) . ' ' . $langs->trans("HT") . ' - ' . price($obj->amount_ttc) . ' ' . $langs->trans("TTC") . ')';
+					}
 
-					print '<option value="' . $obj->rowid . '"' . $selectstring . $disabled . '>' . $desc . ' (' . price($obj->amount_ht) . ' ' . $langs->trans("HT") . ' - ' . price($obj->amount_ttc) . ' ' . $langs->trans("TTC") . ')</option>';
+					print '<option value="' . $obj->rowid . '"' . $selectstring . $disabled . '>' . $desc . $amountLabel . '</option>';
 					$i++;
 				}
 			}
 			print '</select>';
-			print ajax_combobox('select_' . $htmlname);
+			print '</div>';
+			print ajax_combobox('select_' . $htmlname, array(), 0, 0, 'resolve', '-1', $morecss);
 
 			return $qualifiedlines;
 		} else {
@@ -4849,8 +4949,8 @@ class Form
 
 		$this->load_cache_conditions_paiements();
 
-		// Set default value if not already set by caller
-		if (empty($selected) && getDolGlobalString('MAIN_DEFAULT_PAYMENT_TERM_ID')) {
+		// Set default value if not already set by caller (skip when addempty=1 so list filters can stay empty)
+		if (empty($selected) && getDolGlobalString('MAIN_DEFAULT_PAYMENT_TERM_ID') && empty($addempty)) {
 			dol_syslog(__METHOD__ . "Using deprecated option MAIN_DEFAULT_PAYMENT_TERM_ID", LOG_NOTICE);
 			$selected = getDolGlobalString('MAIN_DEFAULT_PAYMENT_TERM_ID');
 		}
@@ -6917,8 +7017,8 @@ class Form
 				if ($filter) {
 					$newfilter .= ' AND (' . $filter . ')';
 				}
-				// output the combo of discounts
-				$nbqualifiedlines = $this->select_remises((string) $selected, $htmlname, $newfilter, $socid, $maxvalue);
+				// output the combo of discounts (onrightofpage so Select2 dropdown stays inside wrapper, no overlap)
+				$nbqualifiedlines = $this->select_remises((string) $selected, $htmlname, $newfilter, $socid, $maxvalue, 'onrightofpage', (int) $discount_type);
 				if ($nbqualifiedlines > 0) {
 					print ' &nbsp; <input type="submit" class="button smallpaddingimp" value="' . dol_escape_htmltag($langs->trans("UseLine")) . '"';
 					if (!empty($discount_type) && $filter && $filter != "fk_invoice_supplier_source IS NULL OR (description LIKE '(DEPOSIT)%' AND description NOT LIKE '(EXCESS PAID)%')") {
@@ -7121,9 +7221,10 @@ class Form
 	 * @param 	bool 	$excludeConfCurrency 	false = If company current currency not in table, we add it into list. Should always be available.
 	 *                                  		true = we are in currency_rate update , we don't want to see conf->currency in select
 	 * @param 	string 	$morecss 				More css
+	 * @param 	bool 	$withFlagIcon 			true = prepend country flag emoji to each option (default true, set false to hide flag)
 	 * @return  string							HTML component
 	 */
-	public function selectMultiCurrency($selected = '', $htmlname = 'multicurrency_code', $useempty = 0, $filter = '', $excludeConfCurrency = false, $morecss = 'maxwidth200 widthcentpercentminusx')
+	public function selectMultiCurrency($selected = '', $htmlname = 'multicurrency_code', $useempty = 0, $filter = '', $excludeConfCurrency = false, $morecss = 'maxwidth200 widthcentpercentminusx', $withFlagIcon = true)
 	{
 		global $conf, $langs;
 
@@ -7160,9 +7261,11 @@ class Form
 					} else {
 						$out .= '<option value="' . $code_iso . '">';
 					}
-
+					if ($withFlagIcon) {
+						$out .= $this->getCurrencyFlagEmoji($code_iso) . ' ';
+					}
 					$out .= $currency['label'];
-					$out .= ' (' . $langs->getCurrencySymbol($code_iso) . ')';
+					$out .= ' (' . dol_escape_htmltag($langs->getCurrencySymbol($code_iso)) . ')';
 					$out .= '</option>';
 				}
 			}
@@ -7175,6 +7278,29 @@ class Form
 		$out .= ajax_combobox($htmlname);
 
 		return $out;
+	}
+
+	/**
+	 * Return country flag emoji for a currency code (for use in dropdowns, e.g. capital currency).
+	 *
+	 * @param 	string 	$currency_code 	ISO 4217 currency code (e.g. USD, CNY)
+	 * @return  string 	Flag emoji (UTF-8) or empty string
+	 */
+	public function getCurrencyFlagEmoji($currency_code)
+	{
+		$currency_to_country = array(
+			'AED' => 'AE', 'AUD' => 'AU', 'BRL' => 'BR', 'CAD' => 'CA', 'CHF' => 'CH', 'CNY' => 'CN',
+			'EUR' => 'FR', 'GBP' => 'GB', 'HKD' => 'HK', 'INR' => 'IN', 'JPY' => 'JP', 'MXN' => 'MX',
+			'SGD' => 'SG', 'USD' => 'US', 'ZAR' => 'ZA', 'COP' => 'CO', 'PEN' => 'PE', 'CLP' => 'CL',
+			'KRW' => 'KR', 'THB' => 'TH', 'MYR' => 'MY', 'IDR' => 'ID', 'PHP' => 'PH', 'VND' => 'VN',
+		);
+		$cc = isset($currency_to_country[$currency_code]) ? $currency_to_country[$currency_code] : '';
+		if ($cc === '' || strlen($cc) !== 2 || !function_exists('mb_chr')) {
+			return '';
+		}
+		$c1 = 0x1F1E6 + ord($cc[0]) - 65;
+		$c2 = 0x1F1E6 + ord($cc[1]) - 65;
+		return mb_chr($c1, 'UTF-8') . mb_chr($c2, 'UTF-8');
 	}
 
 	// phpcs:disable PEAR.NamingConventions.ValidFunctionName.ScopeNotCamelCaps
@@ -10044,6 +10170,23 @@ class Form
 
 		$object->fetchObjectLinked();
 
+		// For supplier order card: show vendor invoices first (with total), then sales order, same format
+		if ($object->element == 'order_supplier' && !empty($object->linkedObjects)) {
+			$wantedOrder = array('invoice_supplier', 'commande');
+			$reordered = array();
+			foreach ($wantedOrder as $type) {
+				if (isset($object->linkedObjects[$type])) {
+					$reordered[$type] = $object->linkedObjects[$type];
+				}
+			}
+			foreach ($object->linkedObjects as $type => $objs) {
+				if (!isset($reordered[$type])) {
+					$reordered[$type] = $objs;
+				}
+			}
+			$object->linkedObjects = $reordered;
+		}
+
 		// Bypass the default method
 		$hookmanager->initHooks(array('commonobject'));
 		$parameters = array(
@@ -10437,7 +10580,12 @@ class Form
 								$htmltoenteralink .= '<input type="checkbox" name="idtolinkto[' . $key . '_' . $objp->rowid . ']" id="' . $key . '_' . $objp->rowid . '" value="' . $objp->rowid . '">';
 							}
 							$htmltoenteralink .= '</td>';
-							$htmltoenteralink .= '<td><label for="' . $key . '_' . $objp->rowid . '">' . $objp->ref . '</label></td>';
+							// Use <label for="id"> only when checkbox exists (not already linked); otherwise use <span> to avoid label without matching id
+							if ($alreadylinked) {
+								$htmltoenteralink .= '<td><span>' . $objp->ref . '</span></td>';
+							} else {
+								$htmltoenteralink .= '<td><label for="' . $key . '_' . $objp->rowid . '">' . $objp->ref . '</label></td>';
+							}
 							$htmltoenteralink .= '<td>' . (!empty($objp->ref_client) ? $objp->ref_client : (!empty($objp->ref_supplier) ? $objp->ref_supplier : '')) . '</td>';
 							$htmltoenteralink .= '<td class="right">';
 							if ($possiblelink['label'] == 'LinkToContract') {

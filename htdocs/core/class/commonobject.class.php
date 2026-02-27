@@ -6645,12 +6645,18 @@ abstract class CommonObject
 				// If field is a computed field, value must become result of compute (regardless of whether a row exists
 				// in the element's extrafields table)
 				if (is_array($extrafields->attributes[$this->table_element]['label'])) {
+					// Ensure all extrafield keys exist before running computed formulas (formulas may reference other options_* keys; avoid "Undefined array key" in PHP 8+)
+					foreach ($extrafields->attributes[$this->table_element]['label'] as $key => $val) {
+						if (!array_key_exists('options_'.$key, $this->array_options)) {
+							$this->array_options['options_'.$key] = null;
+						}
+					}
 					foreach ($extrafields->attributes[$this->table_element]['label'] as $key => $val) {
 						if (!empty($extrafields->attributes[$this->table_element]) && !empty($extrafields->attributes[$this->table_element]['computed'][$key])) {
 							//var_dump($conf->disable_compute);
 							if (empty($conf->disable_compute)) {
-								global $objectoffield;        // We set a global variable to $objectoffield so
-								$objectoffield = $this;        // we can use it inside computed formula
+								global $objectoffield;        // So computed formula can use $objectoffield
+								$objectoffield = $this;
 								$this->array_options['options_' . $key] = dol_eval((string) $extrafields->attributes[$this->table_element]['computed'][$key], 1, 0, '2');
 							}
 						}
@@ -6780,6 +6786,8 @@ abstract class CommonObject
 
 			if (!empty($attrfieldcomputed)) {
 				if (getDolGlobalString('MAIN_STORE_COMPUTED_EXTRAFIELDS')) {
+					global $objectoffield;
+					$objectoffield = $this;
 					$value = dol_eval((string) $attrfieldcomputed, 1, 0, '2');
 					dol_syslog($langs->trans("Extrafieldcomputed")." on ".$attributeLabel."(".$value.")", LOG_DEBUG);
 					$new_array_options[$key] = $value;
@@ -7229,6 +7237,8 @@ abstract class CommonObject
 			//dol_syslog("attributeType=".$attributeType, LOG_DEBUG);
 			if (!empty($attrfieldcomputed)) {
 				if (getDolGlobalString('MAIN_STORE_COMPUTED_EXTRAFIELDS')) {
+					global $objectoffield;
+					$objectoffield = $this;
 					$value = dol_eval((string) $attrfieldcomputed, 1, 0, '2');
 					dol_syslog($langs->trans("Extrafieldcomputed")." on ".$attributeLabel."(".$value.")", LOG_DEBUG);
 
@@ -8544,6 +8554,8 @@ abstract class CommonObject
 
 		// If field is a computed field, value must become result of compute
 		if ($computed) {
+			global $objectoffield;
+			$objectoffield = $this;
 			// Make the eval of compute string
 			//var_dump($computed);
 			$value = dol_eval((string) $computed, 1, 0, '2');

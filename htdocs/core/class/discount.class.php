@@ -490,6 +490,62 @@ class DiscountAbsolute extends CommonObject
 	}
 
 
+	/**
+	 *  Delete only this discount row (by rowid). Use when discount has same source as others and you want to remove just one.
+	 *  Does not update facture/facture_fourn statut.
+	 *
+	 *  @param	User	$user		Object of user asking to delete
+	 *  @return	int<-1,1>			Return integer <0 if KO, >0 if OK
+	 */
+	public function deleteOne($user)
+	{
+		$sql = "DELETE FROM ".$this->db->prefix()."societe_remise_except ";
+		$sql .= " WHERE rowid = ".((int) $this->id);
+		$sql .= " AND (fk_facture_line IS NULL AND fk_facture IS NULL)";
+		$sql .= " AND (fk_invoice_supplier_line IS NULL AND fk_invoice_supplier IS NULL)";
+
+		dol_syslog(get_class($this)."::deleteOne Delete one discount row", LOG_DEBUG);
+		$result = $this->db->query($sql);
+		if ($result) {
+			return 1;
+		}
+		$this->error = $this->db->lasterror();
+		return -1;
+	}
+
+
+	/**
+	 *  Add amounts from another discount to this one (in database). Used when merging two discounts.
+	 *
+	 *  @param	DiscountAbsolute	$other		Discount to add (amounts will be added to $this)
+	 *  @return	int<-1,1>						Return integer <0 if KO, >0 if OK
+	 */
+	public function addAmountsFrom($other)
+	{
+		$sql = "UPDATE ".$this->db->prefix()."societe_remise_except";
+		$sql .= " SET amount_ht = amount_ht + ".price2num($other->amount_ht);
+		$sql .= ", amount_tva = amount_tva + ".price2num($other->amount_tva);
+		$sql .= ", amount_ttc = amount_ttc + ".price2num($other->amount_ttc);
+		$sql .= ", multicurrency_amount_ht = multicurrency_amount_ht + ".price2num($other->multicurrency_amount_ht);
+		$sql .= ", multicurrency_amount_tva = multicurrency_amount_tva + ".price2num($other->multicurrency_amount_tva);
+		$sql .= ", multicurrency_amount_ttc = multicurrency_amount_ttc + ".price2num($other->multicurrency_amount_ttc);
+		$sql .= " WHERE rowid = ".((int) $this->id);
+
+		dol_syslog(get_class($this)."::addAmountsFrom Merge amounts", LOG_DEBUG);
+		$resql = $this->db->query($sql);
+		if ($resql) {
+			$this->amount_ht = (float) $this->amount_ht + (float) $other->amount_ht;
+			$this->amount_tva = (float) $this->amount_tva + (float) $other->amount_tva;
+			$this->amount_ttc = (float) $this->amount_ttc + (float) $other->amount_ttc;
+			$this->multicurrency_amount_ht = (float) $this->multicurrency_amount_ht + (float) $other->multicurrency_amount_ht;
+			$this->multicurrency_amount_tva = (float) $this->multicurrency_amount_tva + (float) $other->multicurrency_amount_tva;
+			$this->multicurrency_amount_ttc = (float) $this->multicurrency_amount_ttc + (float) $other->multicurrency_amount_ttc;
+			return 1;
+		}
+		$this->error = $this->db->lasterror();
+		return -1;
+	}
+
 
 	// phpcs:disable PEAR.NamingConventions.ValidFunctionName.ScopeNotCamelCaps
 	/**

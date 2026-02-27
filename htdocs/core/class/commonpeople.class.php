@@ -161,7 +161,8 @@ trait CommonPeople
 	{
 		global $conf, $langs, $form, $extralanguages;
 
-		$countriesusingstate = array('AU', 'US', 'IN', 'GB', 'ES', 'UK', 'TR'); // See also option MAIN_FORCE_STATE_INTO_ADDRESS
+		// Countries for which state is already included in address by dol_format_address (AU, CA, US, CN). Do not append state again.
+		$countriesusingstate = array('AU', 'CA', 'US', 'CN', 'IN', 'GB', 'ES', 'UK', 'TR'); // See also option MAIN_FORCE_STATE_INTO_ADDRESS
 
 		$contactid = 0;
 		$thirdpartyid = 0;

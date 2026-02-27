@@ -72,6 +72,29 @@ if (!function_exists('printTotalValCell')) { // allow two list with total on sam
 	}
 }
 
+if (!function_exists('printTotalValCellByCurrency')) {
+	/** Print a total cell with amounts per currency, one currency per line (e.g. "USD 10,000" then "+ EUR 5,000" on next line)
+	 *
+	 * @param array<string,float> $amountsByCurrency currency code => amount (only non-zero are shown)
+	 * @return void
+	 */
+	function printTotalValCellByCurrency($amountsByCurrency)
+	{
+		global $langs;
+		$parts = array();
+		foreach ($amountsByCurrency as $currency_code => $amount) {
+			if ($amount != 0 && $amount !== '' && $amount !== null) {
+				// Format as "USD 10,000" (same as Related Objects: code + space + price)
+				$parts[] = $currency_code . ' ' . price(price2num($amount), 0, $langs, 1, -1, -1, '');
+			}
+		}
+		// Line break: use real newline + pre-line so it works even if <br> is escaped by theme/JS
+		print '<td class="right total-by-currency-cell" style="white-space: pre-line !important;">';
+		print implode("\n+ ", $parts);
+		print '</td>';
+	}
+}
+
 // Move fields of totalizable into the common array pos and val
 if (!empty($totalarray['totalizable']) && is_array($totalarray['totalizable'])) {
 	foreach ($totalarray['totalizable'] as $keytotalizable => $valtotalizable) {
@@ -79,15 +102,38 @@ if (!empty($totalarray['totalizable']) && is_array($totalarray['totalizable'])) 
 		$totalarray['val'][$keytotalizable] = isset($valtotalizable['total']) ? $valtotalizable['total'] : 0;
 	}
 }
-// Show total line
-if (isset($totalarray['pos'])) {
+// Show total line (when we have totalizable columns with pos, or when we have data and column count so at least "Total" label is shown)
+$showTotalLine = isset($totalarray['pos']) && is_array($totalarray['pos'])
+	|| (isset($num) && $num > 0 && !empty($totalarray['nbfield']));
+if ($showTotalLine) {
+	if (!isset($totalarray['pos']) || !is_array($totalarray['pos'])) {
+		$totalarray['pos'] = array();
+	}
 	//print '<tfoot>';
-	print '<tr class="liste_total'.(empty($trforbreaknobg) ? '' : ' trforbreaknobg').'">';
+	// liste_total_wrap + inline style: allow line break in cells (multi-currency "USD x" / "+ EUR y"); style is fallback if theme strips second class
+	print '<tr class="liste_total liste_total_wrap'.(empty($trforbreaknobg) ? '' : ' trforbreaknobg').'" style="white-space: normal;">';
+	// When list has checkbox as first column, that column does not increment nbfield in data row; output one empty cell so Total row aligns with header/data
+	if (!empty($totalarray['first_column_empty'])) {
+		print '<td></td>';
+	}
 	$i = 0;
 	while ($i < $totalarray['nbfield']) {
 		$i++;
 		if (!empty($totalarray['pos'][$i])) {
-			printTotalValCell($totalarray['type'][$i] ?? '', empty($totalarray['val'][$totalarray['pos'][$i]]) ? '0' : (string) $totalarray['val'][$totalarray['pos'][$i]]);
+			$fieldName = $totalarray['pos'][$i];
+			$amountsByCurrency = array();
+			if (!empty($totalarray['val_by_currency']) && is_array($totalarray['val_by_currency'])) {
+				foreach ($totalarray['val_by_currency'] as $currency_code => $byField) {
+					if (isset($byField[$fieldName]) && $byField[$fieldName] != 0 && $byField[$fieldName] !== '' && $byField[$fieldName] !== null) {
+						$amountsByCurrency[$currency_code] = $byField[$fieldName];
+					}
+				}
+			}
+			if (!empty($amountsByCurrency)) {
+				printTotalValCellByCurrency($amountsByCurrency);
+			} else {
+				printTotalValCell($totalarray['type'][$i] ?? '', empty($totalarray['val'][$fieldName]) ? '0' : (string) $totalarray['val'][$fieldName]);
+			}
 		} else {
 			if ($i == 1) {
 				if ((!isset($limit) || $num < $limit) && empty($offset)) {
@@ -130,6 +176,9 @@ if (isset($totalarray['pos'])) {
 			}
 			if (is_array($sumsarray) && count($sumsarray) > 0) {
 				print '<tr class="liste_grandtotal">';
+				if (!empty($totalarray['first_column_empty'])) {
+					print '<td></td>';
+				}
 				$i = 0;
 				while ($i < $totalarray['nbfield']) {
 					$i++;

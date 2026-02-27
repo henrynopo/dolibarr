@@ -580,6 +580,9 @@ function getCustomerInvoiceDraftTable($maxCount = 500, $socid = 0)
 		$tmpinvoice = new Facture($db);
 
 		$sql = "SELECT f.rowid, f.ref, f.datef as date, f.total_ht, f.total_tva, f.total_ttc, f.ref_client";
+		if (isModEnabled('multicurrency')) {
+			$sql .= ", f.multicurrency_code, f.multicurrency_total_ttc";
+		}
 		$sql .= ", f.type, f.fk_statut as status, f.paye";
 		$sql .= ", s.nom as name";
 		$sql .= ", s.rowid as socid, s.email";
@@ -607,6 +610,9 @@ function getCustomerInvoiceDraftTable($maxCount = 500, $socid = 0)
 		$sql .= $hookmanager->resPrint;
 
 		$sql .= " GROUP BY f.rowid, f.ref, f.datef, f.total_ht, f.total_tva, f.total_ttc, f.ref_client, f.type, f.fk_statut, f.paye,";
+		if (isModEnabled('multicurrency')) {
+			$sql .= " f.multicurrency_code, f.multicurrency_total_ttc,";
+		}
 		$sql .= " s.nom, s.rowid, s.email, s.code_client, s.code_compta, s.code_fournisseur, s.code_compta_fournisseur,";
 		$sql .= " cc.rowid, cc.code";
 		if (empty($user->socid) && !$user->hasRight('societe', 'client', 'voir')) {
@@ -682,7 +688,9 @@ function getCustomerInvoiceDraftTable($maxCount = 500, $socid = 0)
 					$result .= '<td class="nowrap tdoverflowmax100">';
 					$result .= $companystatic->getNomUrl(1, 'customer');
 					$result .= '</td>';
-					$result .= '<td class="nowrap right"><span class="amount">'.price($obj->total_ttc).'</span></td>';
+					$disp_ttc = (isModEnabled('multicurrency') && !empty($obj->multicurrency_code)) ? $obj->multicurrency_total_ttc : $obj->total_ttc;
+					$disp_currency = (isModEnabled('multicurrency') && !empty($obj->multicurrency_code)) ? $obj->multicurrency_code : $conf->currency;
+					$result .= '<td class="nowrap right"><span class="amount">'.price($disp_ttc, 0, $langs, 1, -1, -1, $disp_currency).'</span></td>';
 					$result .= '</tr>';
 					$tot_ttc += $obj->total_ttc;
 					$i++;
@@ -697,7 +705,7 @@ function getCustomerInvoiceDraftTable($maxCount = 500, $socid = 0)
 				}
 
 				$result .= '<tr class="liste_total"><td class="left">'.$langs->trans("Total").'</td>';
-				$result .= '<td colspan="2" class="right">'.price($tot_ttc).'</td>';
+				$result .= '<td colspan="2" class="right">'.price($tot_ttc, 0, $langs, 1, -1, -1, $conf->currency).'</td>';
 				$result .= '</tr>';
 			} else {
 				$result .= '<tr class="oddeven"><td colspan="3"><span class="opacitymedium">'.$langs->trans("NoInvoice").'</span></td></tr>';
@@ -734,6 +742,9 @@ function getDraftSupplierTable($maxCount = 500, $socid = 0)
 		$facturesupplierstatic = new FactureFournisseur($db);
 
 		$sql = "SELECT f.ref, f.rowid, f.total_ht, f.total_tva, f.total_ttc, f.type, f.ref_supplier, f.fk_statut as status, f.paye";
+		if (isModEnabled('multicurrency')) {
+			$sql .= ", f.multicurrency_code, f.multicurrency_total_ttc";
+		}
 		$sql .= ", s.nom as name";
 		$sql .= ", s.rowid as socid, s.email";
 		$sql .= ", s.code_client, s.code_compta";
@@ -820,7 +831,9 @@ function getDraftSupplierTable($maxCount = 500, $socid = 0)
 					$result .= '<td class="nowrap tdoverflowmax100">';
 					$result .= $companystatic->getNomUrl(1, 'supplier');
 					$result .= '</td>';
-					$result .= '<td class="right"><span class="amount">'.price($obj->total_ttc).'</span></td>';
+					$disp_ttc_ff = (isModEnabled('multicurrency') && !empty($obj->multicurrency_code)) ? $obj->multicurrency_total_ttc : $obj->total_ttc;
+					$disp_currency_ff = (isModEnabled('multicurrency') && !empty($obj->multicurrency_code)) ? $obj->multicurrency_code : $conf->currency;
+					$result .= '<td class="right"><span class="amount">'.price($disp_ttc_ff, 0, $langs, 1, -1, -1, $disp_currency_ff).'</span></td>';
 					$result .= '</tr>';
 					$tot_ttc += $obj->total_ttc;
 					$i++;
@@ -835,7 +848,7 @@ function getDraftSupplierTable($maxCount = 500, $socid = 0)
 				}
 
 				$result .= '<tr class="liste_total"><td class="left">'.$langs->trans("Total").'</td>';
-				$result .= '<td colspan="2" class="right">'.price($tot_ttc).'</td>';
+				$result .= '<td colspan="2" class="right">'.price($tot_ttc, 0, $langs, 1, -1, -1, $conf->currency).'</td>';
 				$result .= '</tr>';
 			} else {
 				$result .= '<tr class="oddeven"><td colspan="3"><span class="opacitymedium">'.$langs->trans("NoInvoice").'</span></td></tr>';
