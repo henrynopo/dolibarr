@@ -1,0 +1,14 @@
+diff --git a/htdocs/core/lib/functions.lib.php b/htdocs/core/lib/functions.lib.php
+index 1a30083040d..8dde42350c2 100644
+--- a/htdocs/core/lib/functions.lib.php
++++ b/htdocs/core/lib/functions.lib.php
+@@ -7163,7 +7163,8 @@ function price($amount, $form = 0, $outlangs = '', $trunc = 1, $rounding = -1, $
+ 
+ 		$listofcurrenciesbefore = array('AUD', 'CAD', 'CNY', 'COP', 'CLP', 'GBP', 'HKD', 'MXN', 'PEN', 'USD', 'CRC', 'ZAR');
+ 		$listoflanguagesbefore = array('nl_NL');
+-		if (in_array($currency_code, $listofcurrenciesbefore) || in_array($outlangs->defaultlang, $listoflanguagesbefore)) {
++		// SLY: MAIN_CURRENCY_SYMBOL_BEFORE_VALUE forces symbol before amount (e.g. $ for credit note)
++		if (!empty($conf->global->MAIN_CURRENCY_SYMBOL_BEFORE_VALUE) || in_array($currency_code, $listofcurrenciesbefore) || in_array($outlangs->defaultlang, $listoflanguagesbefore)) {
+ 			$cursymbolbefore .= $outlangs->getCurrencySymbol($currency_code);
+ 		} else {
+ 			$tmpcur = $outlangs->getCurrencySymbol($currency_code);

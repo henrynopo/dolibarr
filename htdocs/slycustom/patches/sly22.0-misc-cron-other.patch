@@ -1,0 +1,107 @@
+diff --git a/htdocs/cron/class/cronjob.class.php b/htdocs/cron/class/cronjob.class.php
+index 84cd76766e9..2e8be0d2a2d 100644
+--- a/htdocs/cron/class/cronjob.class.php
++++ b/htdocs/cron/class/cronjob.class.php
+@@ -1242,7 +1242,7 @@ class Cronjob extends CommonObject
+ 		$this->datelastresult = null;
+ 		$this->lastoutput = '';
+ 		$this->lastresult = '';
+-		$this->processing = 1; // To know job was started
++		$this->processing = 0; // To know job was started (SLY: 0 to avoid numerous errors with updateshipment)
+ 		$this->pid = function_exists('getmypid') ? getmypid() : null; // Avoid dol_getmypid to get null if the function is not available
+ 		$this->nbrun += 1;
+ 		$result = $this->update($user); // This include begin/commit
+diff --git a/htdocs/cron/list.php b/htdocs/cron/list.php
+index e73ad3d3ae1..b2449a66b33 100644
+--- a/htdocs/cron/list.php
++++ b/htdocs/cron/list.php
+@@ -382,10 +382,6 @@ if ($action == 'execute') {
+ 	print $form->formconfirm($_SERVER['PHP_SELF']."?id=".$id.'&securitykey='.$securitykey.$param, $langs->trans("CronExecute"), $langs->trans("CronConfirmExecute"), "confirm_execute", '', '', 1);
+ }
+ 
+-if ($action == 'delete' && empty($toselect)) {	// Used when we make a delete on 1 line (not used for mass delete)
+-	print $form->formconfirm($_SERVER['PHP_SELF']."?id=".$id.$param, $langs->trans("CronDelete"), $langs->trans("CronConfirmDelete"), "confirm_delete", '', '', 1);
+-}
+-
+ // List of mass actions available
+ $arrayofmassactions = array(
+ //'presend'=>img_picto('', 'email', 'class="pictofixedwidth"').$langs->trans("SendByMail"),
+diff --git a/htdocs/delivery/class/delivery.class.php b/htdocs/delivery/class/delivery.class.php
+index e1d44df841b..496541e3bf8 100644
+--- a/htdocs/delivery/class/delivery.class.php
++++ b/htdocs/delivery/class/delivery.class.php
+@@ -1123,7 +1123,7 @@ class Delivery extends CommonObject
+ 	 *  @param     int			$hideref        Hide ref
+ 	 *  @return    int             				0 if KO, 1 if OK
+ 	 */
+-	public function generateDocument($modele, $outputlangs, $hidedetails = 0, $hidedesc = 0, $hideref = 0)
++	public function generateDocument($modele, $outputlangs = '', $hidedetails = 0, $hidedesc = 0, $hideref = 0)
+ 	{
+ 		global $conf, $langs;
+ 
+diff --git a/htdocs/don/class/don.class.php b/htdocs/don/class/don.class.php
+index f8431d7130d..79edc1823e3 100644
+--- a/htdocs/don/class/don.class.php
++++ b/htdocs/don/class/don.class.php
+@@ -809,7 +809,7 @@ class Don extends CommonObject
+ 	 */
+ 	public function setPaid($id, $modepayment = 0)
+ 	{
+-		$sql = "UPDATE ".MAIN_DB_PREFIX."don SET fk_statut = 2, paid = 1";
++		$sql = "UPDATE ".MAIN_DB_PREFIX."don SET fk_statut = 2";
+ 		if ($modepayment) {
+ 			$sql .= ", fk_payment = ".((int) $modepayment);
+ 		}
+@@ -819,7 +819,6 @@ class Don extends CommonObject
+ 		if ($resql) {
+ 			if ($this->db->affected_rows($resql)) {
+ 				$this->status = 2;
+-				$this->paid = 1;
+ 				return 1;
+ 			} else {
+ 				return 0;
+diff --git a/htdocs/public/cron/cron_run_jobs_by_url.php b/htdocs/public/cron/cron_run_jobs_by_url.php
+index bb27393d688..e54fdaa49d8 100644
+--- a/htdocs/public/cron/cron_run_jobs_by_url.php
++++ b/htdocs/public/cron/cron_run_jobs_by_url.php
+@@ -149,18 +149,26 @@ if ($result < 0) {
+ 	exit;
+ }
+ 
++$qualifiedjobs = array();
++foreach ($object->lines as $val) {
++	if (!verifCond($val->test)) {
++		continue;
++	}
++	$qualifiedjobs[] = $val;
++}
++
+ // TODO Duplicate code. This sequence of code must be shared with code into cron_run_jobs.php script.
+ 
+ // current date
+-$nbofjobs = count($object->lines);
++$nbofjobs = count($qualifiedjobs);
+ $nbofjobslaunchedok = 0;
+ $nbofjobslaunchedko = 0;
+ 
+-if (is_array($object->lines) && (count($object->lines) > 0)) {
++if (is_array($qualifiedjobs) && (count($qualifiedjobs) > 0)) {
+ 	$savconf = dol_clone($conf, 0);
+ 
+ 	// Loop over job
+-	foreach ($object->lines as $line) {
++	foreach ($qualifiedjobs as $line) {
+ 		'@phan-var-force Cronjob $line';
+ 		dol_syslog("cron_run_jobs.php cronjobid: ".$line->id." priority=".$line->priority." entity=".$line->entity." label=".$line->label, LOG_DEBUG);
+ 		echo "cron_run_jobs.php cronjobid: ".$line->id." priority=".$line->priority." entity=".$line->entity." label=".$line->label;
+@@ -191,10 +199,6 @@ if (is_array($object->lines) && (count($object->lines) > 0)) {
+ 			}
+ 		}
+ 
+-		if (!verifCond($line->test)) {
+-			continue;
+-		}
+-
+ 		//If date_next_jobs is less of current date, execute the program, and store the execution time of the next execution in database
+ 		$datenextrunok = (empty($line->datenextrun) || (int) $line->datenextrun < $now);
+ 		$datestartok = (empty($line->datestart) || $line->datestart <= $now);

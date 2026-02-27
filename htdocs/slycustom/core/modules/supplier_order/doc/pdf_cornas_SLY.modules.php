@@ -23,9 +23,9 @@
  */
 
 /**
- *	\file       htdocs/core/modules/supplier_order/doc/pdf_cornas_SLY.modules.php
+ *	\file       htdocs/slycustom/core/modules/supplier_order/doc/pdf_cornas_SLY.modules.php
  *	\ingroup    fournisseur
- *	\brief      File of class to generate suppliers orders from cornas_SLY model
+ *	\brief      SLY 采购订单 PDF 模版（基于 cornas，可在此定制）
  */
 
 require_once DOL_DOCUMENT_ROOT.'/core/modules/supplier_order/modules_commandefournisseur.php';
@@ -74,6 +74,11 @@ class pdf_cornas_SLY extends ModelePDFSuppliersOrders
 	public $version = 'dolibarr';
 
 	/**
+	 * @var string Constant name for ODT dir scan (empty = PDF). Required by admin/supplier_order.php for URL params.
+	 */
+	public $scandir = '';
+
+	/**
      * @var int page_largeur
      */
     public $page_largeur;
@@ -119,17 +124,21 @@ class pdf_cornas_SLY extends ModelePDFSuppliersOrders
 	 *	Constructor
 	 *
 	 *  @param	DoliDB		$db      	Database handler
+	 *  @param	object		$object		Optional (CommandeFournisseur or Societe when called from admin setup)
 	 */
-	public function __construct($db)
+	public function __construct($db, $object = null)
 	{
 		global $conf, $langs, $mysoc;
 
-		// Load translation files required by the page
-		$langs->loadLangs(array("main", "bills"));
+		if (!empty($langs)) {
+			$langs->loadLangs(array("main", "bills", "orders", "slycustom@slycustom"));
+		}
 
 		$this->db = $db;
 		$this->name = "cornas_SLY";
-		$this->description = $langs->trans('SuppliersCommandModel');
+		$this->description = (!empty($langs) && $langs->trans("SLYSupplierOrderModelDesc") != "SLYSupplierOrderModelDesc")
+			? $langs->trans("SLYSupplierOrderModelDesc")
+			: (isset($langs) ? $langs->trans('SuppliersCommandModel') : 'SuppliersCommandModel');
 
 		// Page size for A4 format
 		$this->type = 'pdf';
@@ -137,10 +146,10 @@ class pdf_cornas_SLY extends ModelePDFSuppliersOrders
 		$this->page_largeur = $formatarray['width'];
 		$this->page_hauteur = $formatarray['height'];
 		$this->format = array($this->page_largeur, $this->page_hauteur);
-		$this->marge_gauche = isset($conf->global->MAIN_PDF_MARGIN_LEFT) ? $conf->global->MAIN_PDF_MARGIN_LEFT : 10;
-		$this->marge_droite = isset($conf->global->MAIN_PDF_MARGIN_RIGHT) ? $conf->global->MAIN_PDF_MARGIN_RIGHT : 10;
-		$this->marge_haute = isset($conf->global->MAIN_PDF_MARGIN_TOP) ? $conf->global->MAIN_PDF_MARGIN_TOP : 10;
-		$this->marge_basse = isset($conf->global->MAIN_PDF_MARGIN_BOTTOM) ? $conf->global->MAIN_PDF_MARGIN_BOTTOM : 10;
+		$this->marge_gauche = getDolGlobalInt('MAIN_PDF_MARGIN_LEFT', 10);
+		$this->marge_droite = getDolGlobalInt('MAIN_PDF_MARGIN_RIGHT', 10);
+		$this->marge_haute = getDolGlobalInt('MAIN_PDF_MARGIN_TOP', 10);
+		$this->marge_basse = getDolGlobalInt('MAIN_PDF_MARGIN_BOTTOM', 10);
 
 		$this->option_logo = 1; // Affiche logo
 		$this->option_tva = 1; // Gere option tva FACTURE_TVAOPTION
@@ -187,28 +196,26 @@ class pdf_cornas_SLY extends ModelePDFSuppliersOrders
 
 		if (!is_object($outputlangs)) $outputlangs = $langs;
 		// For backward compatibility with FPDF, force output charset to ISO, because FPDF expect text to be encoded in ISO
-		if (!empty($conf->global->MAIN_USE_FPDF)) $outputlangs->charset_output = 'ISO-8859-1';
+		if (getDolGlobalString('MAIN_USE_FPDF')) $outputlangs->charset_output = 'ISO-8859-1';
 
 		// Load translation files required by the page
 		$outputlangs->loadLangs(array("main", "orders", "companies", "bills", "dict", "products"));
 
-		if (!empty($conf->global->PDF_USE_ALSO_LANGUAGE_CODE) && $outputlangs->defaultlang != $conf->global->PDF_USE_ALSO_LANGUAGE_CODE) {
+		$pdfUseAlsoLangCode = getDolGlobalString('PDF_USE_ALSO_LANGUAGE_CODE');
+		if (!empty($pdfUseAlsoLangCode) && $outputlangs->defaultlang != $pdfUseAlsoLangCode) {
 			global $outputlangsbis;
 			$outputlangsbis = new Translate('', $conf);
-			$outputlangsbis->setDefaultLang($conf->global->PDF_USE_ALSO_LANGUAGE_CODE);
+			$outputlangsbis->setDefaultLang($pdfUseAlsoLangCode);
 			$outputlangsbis->loadLangs(array("main", "orders", "companies", "bills", "dict", "products"));
 		}
 
 		$nblines = count($object->lines);
 
-		$hidetop = 0;
-		if (!empty($conf->global->MAIN_PDF_DISABLE_COL_HEAD_TITLE)) {
-		    $hidetop = $conf->global->MAIN_PDF_DISABLE_COL_HEAD_TITLE;
-		}
+		$hidetop = getDolGlobalInt('MAIN_PDF_DISABLE_COL_HEAD_TITLE', 0);
 
 		// Loop on each lines to detect if there is at least one image to show
 		$realpatharray = array();
-		if (!empty($conf->global->MAIN_GENERATE_SUPPLIER_ORDER_WITH_PICTURE))
+		if (getDolGlobalInt('MAIN_GENERATE_SUPPLIER_ORDER_WITH_PICTURE'))
 		{
 			for ($i = 0; $i < $nblines; $i++)
 			{
@@ -217,7 +224,7 @@ class pdf_cornas_SLY extends ModelePDFSuppliersOrders
 				$objphoto = new Product($this->db);
 				$objphoto->fetch($object->lines[$i]->fk_product);
 
-				if (!empty($conf->global->PRODUCT_USE_OLD_PATH_FOR_PHOTO))
+				if (getDolGlobalInt('PRODUCT_USE_OLD_PATH_FOR_PHOTO'))
 				{
 					$pdir = get_exdir($object->lines[$i]->fk_product, 2, 0, 0, $objphoto, 'product').$object->lines[$i]->fk_product."/photos/";
 					$dir = $conf->product->dir_output.'/'.$pdir;
@@ -264,7 +271,7 @@ class pdf_cornas_SLY extends ModelePDFSuppliersOrders
 				$objectrefsupplier = dol_sanitizeFileName($object->ref_supplier);
 				$dir = $conf->fournisseur->commande->dir_output.'/'.$objectref;
 				$file = $dir."/".$objectref.".pdf";
-				if (!empty($conf->global->SUPPLIER_REF_IN_NAME)) $file = $dir."/".$objectref.($objectrefsupplier ? "_".$objectrefsupplier : "").".pdf";
+				if (getDolGlobalString('SUPPLIER_REF_IN_NAME')) $file = $dir."/".$objectref.($objectrefsupplier ? "_".$objectrefsupplier : "").".pdf";
 			}
 
 			if (!file_exists($dir))
@@ -294,9 +301,9 @@ class pdf_cornas_SLY extends ModelePDFSuppliersOrders
                 $pdf = pdf_getInstance($this->format);
                 $default_font_size = pdf_getPDFFontSize($outputlangs); // Must be after pdf_getInstance
                 $heightforinfotot = 50; // Height reserved to output the info and total part
-		        $heightforfreetext = (isset($conf->global->MAIN_PDF_FREETEXT_HEIGHT) ? $conf->global->MAIN_PDF_FREETEXT_HEIGHT : 5); // Height reserved to output the free text on last page
+		        $heightforfreetext = getDolGlobalInt('MAIN_PDF_FREETEXT_HEIGHT', 5); // Height reserved to output the free text on last page
 	            $heightforfooter = $this->marge_basse + 8; // Height reserved to output the footer (value include bottom margin)
-	            if ($conf->global->MAIN_GENERATE_DOCUMENTS_SHOW_FOOT_DETAILS > 0) $heightforfooter += 6;
+	            if (getDolGlobalInt('MAIN_GENERATE_DOCUMENTS_SHOW_FOOT_DETAILS')) $heightforfooter += 6;
                 $pdf->SetAutoPageBreak(1, 0);
 
                 if (class_exists('TCPDF'))
@@ -306,9 +313,10 @@ class pdf_cornas_SLY extends ModelePDFSuppliersOrders
                 }
                 $pdf->SetFont(pdf_getPDFFont($outputlangs));
                 // Set path to the background PDF File
-                if (!empty($conf->global->MAIN_ADD_PDF_BACKGROUND))
+                $pdfBackground = getDolGlobalString('MAIN_ADD_PDF_BACKGROUND');
+                if (!empty($pdfBackground))
                 {
-                    $pagecount = $pdf->setSourceFile($conf->mycompany->dir_output.'/'.$conf->global->MAIN_ADD_PDF_BACKGROUND);
+                    $pagecount = $pdf->setSourceFile($conf->mycompany->dir_output.'/'.$pdfBackground);
                     $tplidx = $pdf->importPage(1);
                 }
 
@@ -321,7 +329,7 @@ class pdf_cornas_SLY extends ModelePDFSuppliersOrders
 				$pdf->SetCreator("Dolibarr ".DOL_VERSION);
 				$pdf->SetAuthor($outputlangs->convToOutputCharset($user->getFullName($outputlangs)));
 				$pdf->SetKeyWords($outputlangs->convToOutputCharset($object->ref)." ".$outputlangs->transnoentities("Order")." ".$outputlangs->convToOutputCharset($object->thirdparty->name));
-				if (!empty($conf->global->MAIN_DISABLE_PDF_COMPRESSION)) $pdf->SetCompression(false);
+				if (getDolGlobalInt('MAIN_DISABLE_PDF_COMPRESSION')) $pdf->SetCompression(false);
 
 				$pdf->SetMargins($this->marge_gauche, $this->marge_haute, $this->marge_droite); // Left, Top, Right
 
@@ -343,7 +351,7 @@ class pdf_cornas_SLY extends ModelePDFSuppliersOrders
 				$pdf->SetTextColor(0, 0, 0);
 
 				$tab_top = 90 + $top_shift;
-				$tab_top_newpage = (empty($conf->global->MAIN_PDF_DONOTREPEAT_HEAD) ? 42 + $top_shift : 10);
+				$tab_top_newpage = (getDolGlobalString('MAIN_PDF_DONOTREPEAT_HEAD') ? 10 : 42 + $top_shift);
 
 				// Incoterm
 				if ($conf->incoterm->enabled)
@@ -406,7 +414,7 @@ class pdf_cornas_SLY extends ModelePDFSuppliersOrders
 				            $pdf->AddPage();
 				            $pagenb++;
 				            if (!empty($tplidx)) $pdf->useTemplate($tplidx);
-				            if (empty($conf->global->MAIN_PDF_DONOTREPEAT_HEAD)) $this->_pagehead($pdf, $object, 0, $outputlangs);
+				            if (!getDolGlobalString('MAIN_PDF_DONOTREPEAT_HEAD')) $this->_pagehead($pdf, $object, 0, $outputlangs);
 				            // $this->_pagefoot($pdf,$object,$outputlangs,1);
 				            $pdf->setTopMargin($tab_top_newpage);
 				            // The only function to edit the bottom margin of current page to set it.
@@ -462,7 +470,7 @@ class pdf_cornas_SLY extends ModelePDFSuppliersOrders
 				        // apply note frame to last page
 				        $pdf->setPage($pageposafternote);
 				        if (!empty($tplidx)) $pdf->useTemplate($tplidx);
-				        if (empty($conf->global->MAIN_PDF_DONOTREPEAT_HEAD)) $this->_pagehead($pdf, $object, 0, $outputlangs);
+				        if (!getDolGlobalString('MAIN_PDF_DONOTREPEAT_HEAD')) $this->_pagehead($pdf, $object, 0, $outputlangs);
 				        $height_note = $posyafter - $tab_top_newpage;
 				        $pdf->Rect($this->marge_gauche, $tab_top_newpage - 1, $tab_width, $height_note + 1);
 				    }
@@ -482,7 +490,7 @@ class pdf_cornas_SLY extends ModelePDFSuppliersOrders
 				            $pageposafternote++;
 				            $pdf->setPage($pageposafternote);
 				            if (!empty($tplidx)) $pdf->useTemplate($tplidx);
-				            if (empty($conf->global->MAIN_PDF_DONOTREPEAT_HEAD)) $this->_pagehead($pdf, $object, 0, $outputlangs);
+				            if (!getDolGlobalString('MAIN_PDF_DONOTREPEAT_HEAD')) $this->_pagehead($pdf, $object, 0, $outputlangs);
 
 				            $posyafter = $tab_top_newpage;
 				        }
@@ -527,13 +535,13 @@ class pdf_cornas_SLY extends ModelePDFSuppliersOrders
 					{
 						$pdf->AddPage('', '', true);
 						if (!empty($tplidx)) $pdf->useTemplate($tplidx);
-						if (empty($conf->global->MAIN_PDF_DONOTREPEAT_HEAD)) $this->_pagehead($pdf, $object, 0, $outputlangs);
+						if (!getDolGlobalString('MAIN_PDF_DONOTREPEAT_HEAD')) $this->_pagehead($pdf, $object, 0, $outputlangs);
 						$pdf->setPage($pageposbefore + 1);
 
 						$curY = $tab_top_newpage;
 
 						// Allows data in the first page if description is long enough to break in multiples pages
-						if (!empty($conf->global->MAIN_PDF_DATA_ON_FIRST_PAGE))
+						if (getDolGlobalString('MAIN_PDF_DATA_ON_FIRST_PAGE'))
 							$showpricebeforepagebreak = 1;
 						else
 							$showpricebeforepagebreak = 0;
@@ -570,7 +578,7 @@ class pdf_cornas_SLY extends ModelePDFSuppliersOrders
 					            {
 					                $pdf->AddPage('', '', true);
 					                if (!empty($tplidx)) $pdf->useTemplate($tplidx);
-					                //if (empty($conf->global->MAIN_PDF_DONOTREPEAT_HEAD)) $this->_pagehead($pdf, $object, 0, $outputlangs);
+					                //if (!getDolGlobalString('MAIN_PDF_DONOTREPEAT_HEAD')) $this->_pagehead($pdf, $object, 0, $outputlangs);
 					                $pdf->setPage($pageposafter + 1);
 					            }
 					        }
@@ -578,7 +586,7 @@ class pdf_cornas_SLY extends ModelePDFSuppliersOrders
 					        {
 					            // We found a page break
 					        	// Allows data in the first page if description is long enough to break in multiples pages
-					        	if (!empty($conf->global->MAIN_PDF_DATA_ON_FIRST_PAGE))
+					        	if (getDolGlobalString('MAIN_PDF_DATA_ON_FIRST_PAGE'))
 					        		$showpricebeforepagebreak = 1;
 					        	else
 					        		$showpricebeforepagebreak = 0;
@@ -679,7 +687,7 @@ class pdf_cornas_SLY extends ModelePDFSuppliersOrders
 
 
 					// Collecte des totaux par valeur de tva dans $this->tva["taux"]=total_tva
-					if ($conf->multicurrency->enabled && $object->multicurrency_tx != 1) $tvaligne = $object->lines[$i]->multicurrency_total_tva;
+					if (isModEnabled('multicurrency') && $object->multicurrency_tx != 1) $tvaligne = $object->lines[$i]->multicurrency_total_tva;
 					else $tvaligne = $object->lines[$i]->total_tva;
 
 					$localtax1ligne = $object->lines[$i]->total_localtax1;
@@ -717,7 +725,7 @@ class pdf_cornas_SLY extends ModelePDFSuppliersOrders
 					if ($posYAfterImage > $posYAfterDescription) $nexY = $posYAfterImage;
 
 					// Add line
-					if (!empty($conf->global->MAIN_PDF_DASH_BETWEEN_LINES) && $i < ($nblines - 1))
+					if (getDolGlobalString('MAIN_PDF_DASH_BETWEEN_LINES') && $i < ($nblines - 1))
 					{
 						$pdf->setPage($pageposafter);
 						$pdf->SetLineStyle(array('dash'=>'1,1', 'color'=>array(80, 80, 80)));
@@ -742,7 +750,7 @@ class pdf_cornas_SLY extends ModelePDFSuppliersOrders
 						$pagenb++;
 						$pdf->setPage($pagenb);
 						$pdf->setPageOrientation('', 1, 0); // The only function to edit the bottom margin of current page to set it.
-						if (empty($conf->global->MAIN_PDF_DONOTREPEAT_HEAD)) $this->_pagehead($pdf, $object, 0, $outputlangs);
+						if (!getDolGlobalString('MAIN_PDF_DONOTREPEAT_HEAD')) $this->_pagehead($pdf, $object, 0, $outputlangs);
 					}
 					if (isset($object->lines[$i + 1]->pagebreak) && $object->lines[$i + 1]->pagebreak)
 					{
@@ -759,7 +767,7 @@ class pdf_cornas_SLY extends ModelePDFSuppliersOrders
 						$pdf->AddPage();
 						if (!empty($tplidx)) $pdf->useTemplate($tplidx);
 						$pagenb++;
-						if (empty($conf->global->MAIN_PDF_DONOTREPEAT_HEAD)) $this->_pagehead($pdf, $object, 0, $outputlangs);
+						if (!getDolGlobalString('MAIN_PDF_DONOTREPEAT_HEAD')) $this->_pagehead($pdf, $object, 0, $outputlangs);
 					}
 				}
 
@@ -806,8 +814,9 @@ class pdf_cornas_SLY extends ModelePDFSuppliersOrders
 				    $this->errors = $hookmanager->errors;
 				}
 
-				if (!empty($conf->global->MAIN_UMASK))
-				@chmod($file, octdec($conf->global->MAIN_UMASK));
+				$mainUmask = getDolGlobalString('MAIN_UMASK');
+				if (!empty($mainUmask))
+				@chmod($file, octdec($mainUmask));
 
 				$this->result = array('fullpath'=>$file);
 
@@ -947,7 +956,7 @@ class pdf_cornas_SLY extends ModelePDFSuppliersOrders
 		$pdf->SetXY($col1x, $tab2_top + 0);
 		$pdf->MultiCell($col2x - $col1x, $tab2_hl, $outputlangs->transnoentities("TotalHT"), 0, 'L', 1);
 
-		$total_ht = (($conf->multicurrency->enabled && isset($object->multicurrency_tx) && $object->multicurrency_tx != 1) ? $object->multicurrency_total_ht : $object->total_ht);
+		$total_ht = ((isModEnabled('multicurrency') && isset($object->multicurrency_tx) && $object->multicurrency_tx != 1) ? $object->multicurrency_total_ht : $object->total_ht);
 		$pdf->SetXY($col2x, $tab2_top + 0);
 		$pdf->MultiCell($largcol2, $tab2_hl, price($total_ht + (!empty($object->remise) ? $object->remise : 0)), 0, 'R', 1);
 
@@ -990,7 +999,7 @@ class pdf_cornas_SLY extends ModelePDFSuppliersOrders
 			$pdf->MultiCell($largcol2, $tab2_hl, price($object->total_tva), 0, 'R', 1);
 
 			// Total LocalTax1
-			if (!empty($conf->global->FACTURE_LOCAL_TAX1_OPTION) && $conf->global->FACTURE_LOCAL_TAX1_OPTION == 'localtax1on' && $object->total_localtax1 > 0)
+			if (getDolGlobalString('FACTURE_LOCAL_TAX1_OPTION') == 'localtax1on' && $object->total_localtax1 > 0)
 			{
 				$index++;
 				$pdf->SetXY($col1x, $tab2_top + $tab2_hl * $index);
@@ -1000,7 +1009,7 @@ class pdf_cornas_SLY extends ModelePDFSuppliersOrders
 			}
 
 			// Total LocalTax2
-			if (!empty($conf->global->FACTURE_LOCAL_TAX2_OPTION) && $conf->global->FACTURE_LOCAL_TAX2_OPTION == 'localtax2on' && $object->total_localtax2 > 0)
+			if (getDolGlobalString('FACTURE_LOCAL_TAX2_OPTION') == 'localtax2on' && $object->total_localtax2 > 0)
 			{
 				$index++;
 				$pdf->SetXY($col1x, $tab2_top + $tab2_hl * $index);
@@ -1083,7 +1092,7 @@ class pdf_cornas_SLY extends ModelePDFSuppliersOrders
 		$pdf->SetFillColor(224, 224, 224);
 		$pdf->MultiCell($col2x - $col1x, $tab2_hl, $outputlangs->transnoentities("TotalTTC"), $useborder, 'L', 1);
 
-		$total_ttc = ($conf->multicurrency->enabled && $object->multicurrency_tx != 1) ? $object->multicurrency_total_ttc : $object->total_ttc;
+		$total_ttc = (isModEnabled('multicurrency') && $object->multicurrency_tx != 1) ? $object->multicurrency_total_ttc : $object->total_ttc;
 		$pdf->SetXY($col2x, $tab2_top + $tab2_hl * $index);
 		$pdf->MultiCell($largcol2, $tab2_hl, price($total_ttc), $useborder, 'R', 1);
 		$pdf->SetFont('', '', $default_font_size - 1);
@@ -1160,8 +1169,9 @@ class pdf_cornas_SLY extends ModelePDFSuppliersOrders
 			$pdf->MultiCell(($pdf->GetStringWidth($titre) + 3), 2, $titre);
 
 			//$conf->global->MAIN_PDF_TITLE_BACKGROUND_COLOR='230,230,230';
-			if (!empty($conf->global->MAIN_PDF_TITLE_BACKGROUND_COLOR)) {
-				$pdf->Rect($this->marge_gauche, $tab_top, $this->page_largeur - $this->marge_droite - $this->marge_gauche, $this->tabTitleHeight, 'F', null, explode(',', $conf->global->MAIN_PDF_TITLE_BACKGROUND_COLOR));
+			$titleBgColor = getDolGlobalString('MAIN_PDF_TITLE_BACKGROUND_COLOR');
+			if (!empty($titleBgColor)) {
+				$pdf->Rect($this->marge_gauche, $tab_top, $this->page_largeur - $this->marge_droite - $this->marge_gauche, $this->tabTitleHeight, 'F', null, explode(',', $titleBgColor));
 			}
 		}
 
@@ -1276,7 +1286,7 @@ class pdf_cornas_SLY extends ModelePDFSuppliersOrders
 
 		$pdf->SetFont('', '', $default_font_size - 1);
 
-		if (!empty($conf->global->PDF_SHOW_PROJECT))
+		if (getDolGlobalInt('PDF_SHOW_PROJECT'))
 		{
 			$object->fetch_projet();
 			if (!empty($object->project->ref))
@@ -1306,7 +1316,7 @@ class pdf_cornas_SLY extends ModelePDFSuppliersOrders
 
 		$pdf->SetTextColor(0, 0, 60);
 		$usehourmin = 'day';
-		if (!empty($conf->global->SUPPLIER_ORDER_USE_HOUR_FOR_DELIVERY_DATE)) $usehourmin = 'dayhour';
+		if (getDolGlobalString('SUPPLIER_ORDER_USE_HOUR_FOR_DELIVERY_DATE')) $usehourmin = 'dayhour';
 		if (!empty($object->date_livraison))
 		{
 			$posy += 4;
@@ -1323,7 +1333,7 @@ class pdf_cornas_SLY extends ModelePDFSuppliersOrders
 		}
 
 		// Get contact
-		if (!empty($conf->global->DOC_SHOW_FIRST_SALES_REP))
+		if (getDolGlobalInt('DOC_SHOW_FIRST_SALES_REP'))
 		{
     		$arrayidcontact = $object->getIdContact('internal', 'SALESREPFOLL');
     		if (count($arrayidcontact) > 0)
@@ -1366,7 +1376,7 @@ class pdf_cornas_SLY extends ModelePDFSuppliersOrders
 			// Show sender
 			$posy = 42 + $top_shift;
 			$posx = $this->marge_gauche;
-			if (!empty($conf->global->MAIN_INVERT_SENDER_RECIPIENT)) $posx = $this->page_largeur - $this->marge_droite - 80;
+			if (getDolGlobalInt('MAIN_INVERT_SENDER_RECIPIENT')) $posx = $this->page_largeur - $this->marge_droite - 80;
 			$hautcadre = 40;
 
 			// Show sender frame
@@ -1403,7 +1413,7 @@ class pdf_cornas_SLY extends ModelePDFSuppliersOrders
 
 			//Recipient name
 			// On peut utiliser le nom de la societe du contact
-			if ($usecontact && !empty($conf->global->MAIN_USE_COMPANY_NAME_OF_CONTACT)) {
+			if ($usecontact && getDolGlobalInt('MAIN_USE_COMPANY_NAME_OF_CONTACT', 1)) {
 				$thirdparty = $object->contact;
 			} else {
 				$thirdparty = $object->thirdparty;
@@ -1418,7 +1428,7 @@ class pdf_cornas_SLY extends ModelePDFSuppliersOrders
 			if ($this->page_largeur < 210) $widthrecbox = 84; // To work with US executive format
 			$posy = 42 + $top_shift;
 			$posx = $this->page_largeur - $this->marge_droite - $widthrecbox;
-			if (!empty($conf->global->MAIN_INVERT_SENDER_RECIPIENT)) $posx = $this->marge_gauche;
+			if (getDolGlobalInt('MAIN_INVERT_SENDER_RECIPIENT')) $posx = $this->marge_gauche;
 
 			// Show recipient frame
 			$pdf->SetTextColor(0, 0, 0);
@@ -1456,7 +1466,7 @@ class pdf_cornas_SLY extends ModelePDFSuppliersOrders
 	protected function _pagefoot(&$pdf, $object, $outputlangs, $hidefreetext = 0)
 	{
 		global $conf;
-		$showdetails = $conf->global->MAIN_GENERATE_DOCUMENTS_SHOW_FOOT_DETAILS;
+		$showdetails = getDolGlobalInt('MAIN_GENERATE_DOCUMENTS_SHOW_FOOT_DETAILS');
 		return pdf_pagefoot($pdf, $outputlangs, 'SUPPLIER_ORDER_FREE_TEXT', $this->emetteur, $this->marge_basse, $this->marge_gauche, $this->page_hauteur, $object, $showdetails, $hidefreetext);
 	}
 
@@ -1527,7 +1537,7 @@ class pdf_cornas_SLY extends ModelePDFSuppliersOrders
 	    $rank = $rank + 10;
 	    $this->cols['photo'] = array(
 	        'rank' => $rank,
-	        'width' => (empty($conf->global->MAIN_DOCUMENTS_WITH_PICTURE_WIDTH) ? 20 : $conf->global->MAIN_DOCUMENTS_WITH_PICTURE_WIDTH), // in mm
+	        'width' => getDolGlobalInt('MAIN_DOCUMENTS_WITH_PICTURE_WIDTH', 20), // in mm
 	        'status' => false,
 	        'title' => array(
 	            'textkey' => 'Photo',
@@ -1539,7 +1549,7 @@ class pdf_cornas_SLY extends ModelePDFSuppliersOrders
 	        'border-left' => false, // remove left line separator
 	    );
 
-	    if (!empty($conf->global->MAIN_GENERATE_ORDERS_WITH_PICTURE))
+	    if (getDolGlobalInt('MAIN_GENERATE_ORDERS_WITH_PICTURE'))
 	    {
 	        $this->cols['photo']['status'] = true;
 	    }
@@ -1556,7 +1566,7 @@ class pdf_cornas_SLY extends ModelePDFSuppliersOrders
 	        'border-left' => true, // add left line separator
 	    );
 
-	    if (empty($conf->global->MAIN_GENERATE_DOCUMENTS_WITHOUT_VAT) && empty($conf->global->MAIN_GENERATE_DOCUMENTS_WITHOUT_VAT_COLUMN))
+	    if (!getDolGlobalInt('MAIN_GENERATE_DOCUMENTS_WITHOUT_VAT') && !getDolGlobalInt('MAIN_GENERATE_DOCUMENTS_WITHOUT_VAT_COLUMN'))
 	    {
 	        $this->cols['vat']['status'] = true;
 	    }
@@ -1593,7 +1603,7 @@ class pdf_cornas_SLY extends ModelePDFSuppliersOrders
 	        ),
 	        'border-left' => true, // add left line separator
 	    );
-	    if ($conf->global->PRODUCT_USE_UNITS) {
+	    if (getDolGlobalInt('PRODUCT_USE_UNITS')) {
 	        $this->cols['unit']['status'] = true;
 	    }
 

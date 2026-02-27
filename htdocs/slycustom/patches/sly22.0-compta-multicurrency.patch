@@ -1,0 +1,129 @@
+diff --git a/htdocs/compta/facture/card.php b/htdocs/compta/facture/card.php
+index b24203b0e33..92ec8e1cbcc 100644
+--- a/htdocs/compta/facture/card.php
++++ b/htdocs/compta/facture/card.php
+@@ -4737,6 +4737,14 @@ if ($action == 'create') {
+ 
+ 	if ($object->paye || $object->status == $object::STATUS_CLOSED) {
+ 		$resteapayer = 0;
++		if (isModEnabled('multicurrency')) {
++			$multicurrency_resteapayer = 0;
++		}
++	}
++	// For "Classify paid" decision: use multicurrency remainder when invoice is in another currency (SLY)
++	$effective_resteapayer = $resteapayer;
++	if (isModEnabled('multicurrency') && !empty($object->multicurrency_code) && $object->multicurrency_code != $conf->currency) {
++		$effective_resteapayer = $multicurrency_resteapayer;
+ 	}
+ 	$resteapayeraffiche = $resteapayer;
+ 
+@@ -4964,11 +4972,17 @@ if ($action == 'create') {
+ 		$formconfirm = $form->formconfirm($_SERVER["PHP_SELF"].'?facid='.$object->id, $langs->trans('UnvalidateBill'), $text, 'confirm_modif', $formquestion, "yes", 1);
+ 	}
+ 
+-	// Confirmation of payment classification
+-	if ($action == 'paid' && ($resteapayer <= 0 || (getDolGlobalString('INVOICE_CAN_SET_PAID_EVEN_IF_PARTIALLY_PAID') && $resteapayer == $object->total_ttc))) {
++	// Confirmation of payment classification (use effective_resteapayer for multicurrency: SLY)
++	if ($action == 'paid' && (
++		($object->type != Facture::TYPE_CREDIT_NOTE && ($effective_resteapayer <= 0 || (getDolGlobalString('INVOICE_CAN_SET_PAID_EVEN_IF_PARTIALLY_PAID') && $effective_resteapayer == $object->total_ttc))) ||
++		($object->type == Facture::TYPE_CREDIT_NOTE && $effective_resteapayer >= 0)
++	)) {
+ 		$formconfirm = $form->formconfirm($_SERVER["PHP_SELF"].'?facid='.$object->id, $langs->trans('ClassifyPaid'), $langs->trans('ConfirmClassifyPaidBill', $object->ref), 'confirm_paid', '', "yes", 1);
+ 	}
+-	if ($action == 'paid' && $resteapayer > 0 && (!getDolGlobalString('INVOICE_CAN_SET_PAID_EVEN_IF_PARTIALLY_PAID') || $resteapayer != $object->total_ttc)) {
++	if ($action == 'paid' && (
++		($object->type != Facture::TYPE_CREDIT_NOTE && $effective_resteapayer > 0 && (!getDolGlobalString('INVOICE_CAN_SET_PAID_EVEN_IF_PARTIALLY_PAID') || $effective_resteapayer != $object->total_ttc)) ||
++		($object->type == Facture::TYPE_CREDIT_NOTE && $effective_resteapayer < 0)
++	)) {
+ 		$close = array();
+ 		// Code
+ 		$i = 0;
+@@ -6519,10 +6533,10 @@ if ($action == 'create') {
+ 				}
+ 			}
+ 
+-			// Classify paid
++			// Classify paid (use effective_resteapayer for multicurrency: SLY)
+ 			if ($object->status == Facture::STATUS_VALIDATED && $object->paye == 0 && $usercanissuepayment && (
+-				($object->type != Facture::TYPE_CREDIT_NOTE && $object->type != Facture::TYPE_DEPOSIT && ($resteapayer <= 0 || (getDolGlobalString('INVOICE_CAN_SET_PAID_EVEN_IF_PARTIALLY_PAID') && $object->total_ttc == $resteapayer))) ||
+-				($object->type == Facture::TYPE_CREDIT_NOTE && $resteapayer >= 0) ||
++				($object->type != Facture::TYPE_CREDIT_NOTE && $object->type != Facture::TYPE_DEPOSIT && ($effective_resteapayer <= 0 || (getDolGlobalString('INVOICE_CAN_SET_PAID_EVEN_IF_PARTIALLY_PAID') && $object->total_ttc == $effective_resteapayer))) ||
++				($object->type == Facture::TYPE_CREDIT_NOTE && $effective_resteapayer >= 0) ||
+ 				($object->type == Facture::TYPE_DEPOSIT && $object->total_ttc > 0)
+ 			)
+ 			) {
+@@ -6536,8 +6550,11 @@ if ($action == 'create') {
+ 				}
+ 			}
+ 
+-			// Classify 'closed not completely paid' (possible if validated and not yet filed paid)
+-			if ($object->status == Facture::STATUS_VALIDATED && $object->paye == 0 && $resteapayer > 0 && (!getDolGlobalString('INVOICE_CAN_SET_PAID_EVEN_IF_PARTIALLY_PAID') || $resteapayer != $object->total_ttc) && $usercanissuepayment) {
++			// Classify 'closed not completely paid' (use effective_resteapayer for multicurrency: SLY)
++			if ($object->status == Facture::STATUS_VALIDATED && $object->paye == 0 && (
++				($object->type != Facture::TYPE_CREDIT_NOTE && $effective_resteapayer > 0 && (!getDolGlobalString('INVOICE_CAN_SET_PAID_EVEN_IF_PARTIALLY_PAID') || $effective_resteapayer != $object->total_ttc)) ||
++				($object->type == Facture::TYPE_CREDIT_NOTE && $effective_resteapayer < 0)
++			) && $usercanissuepayment) {
+ 				if ($totalpaid > 0 || $totalcreditnotes > 0) {
+ 					// If one payment or one credit note was linked to this invoice
+ 					print '<a class="butAction'.($conf->use_javascript_ajax ? ' reposition' : '').'" href="'.$_SERVER['PHP_SELF'].'?facid='.$object->id.'&action=paid&token='.newToken().'">'.$langs->trans('ClassifyPaidPartially').'</a>';
+diff --git a/htdocs/compta/facture/tpl/linkedobjectblock.tpl.php b/htdocs/compta/facture/tpl/linkedobjectblock.tpl.php
+index ef2a8901a32..000a1914843 100644
+--- a/htdocs/compta/facture/tpl/linkedobjectblock.tpl.php
++++ b/htdocs/compta/facture/tpl/linkedobjectblock.tpl.php
+@@ -38,6 +38,9 @@ $langs->load("bills");
+ $linkedObjectBlock = dol_sort_array($linkedObjectBlock, 'date', 'desc', 0, 0, 1);
+ 
+ $total = 0;
++if (isModEnabled('multicurrency')) {
++	$multicurrency_total = 0;
++}
+ $ilink = 0;
+ foreach ($linkedObjectBlock as $key => $objectlink) {
+ 	$ilink++;
+@@ -79,10 +82,14 @@ foreach ($linkedObjectBlock as $key => $objectlink) {
+ 		'@phan-var-force Facture $objectlink';
+ 		if ($objectlink->statut != 3) {
+ 			// If not abandoned
++			if (isModEnabled('multicurrency') && !empty($objectlink->multicurrency_code) && $conf->currency != $objectlink->multicurrency_code) {
++				$multicurrency_total += $objectlink->multicurrency_total_ht;
++				echo $objectlink->multicurrency_code.' '.price($objectlink->multicurrency_total_ht).'<br>';
++			}
+ 			$total += $objectlink->total_ht;
+-			echo price($objectlink->total_ht);
++			echo $conf->currency.' '.price($objectlink->total_ht);
+ 		} else {
+-			echo '<strike>'.price($objectlink->total_ht).'</strike>';
++			echo '<strike>'.((isModEnabled('multicurrency') && !empty($objectlink->multicurrency_code) && $conf->currency != $objectlink->multicurrency_code) ? $objectlink->multicurrency_code.' '.price($objectlink->multicurrency_total_ht).'<br>'.$conf->currency.' ' : '').price($objectlink->total_ht).'</strike>';
+ 		}
+ 	}
+ 
+@@ -114,7 +121,7 @@ if (count($linkedObjectBlock) > 1) {
+ 	print '<td></td>';
+ 	print '<td class="center"></td>';
+ 	print '<td class="center"></td>';
+-	print '<td class="right">'.price($total).'</td>';
++	print '<td class="right">'.$conf->currency.' '.price($total).'</td>';
+ 	print '<td class="right"></td>';
+ 	print '<td class="right"></td>';
+ 	print '</tr>';
+diff --git a/htdocs/compta/paiement/class/paiement.class.php b/htdocs/compta/paiement/class/paiement.class.php
+index 795af8254ee..d86471c6290 100644
+--- a/htdocs/compta/paiement/class/paiement.class.php
++++ b/htdocs/compta/paiement/class/paiement.class.php
+@@ -487,6 +487,16 @@ class Paiement extends CommonObject
+ 							$deposits = $invoice->getSumDepositsUsed();
+ 							$alreadypayed = price2num($paiement + $creditnotes + $deposits, 'MT');
+ 							$remaintopay = price2num($invoice->total_ttc - $paiement - $creditnotes - $deposits, 'MT');
++							// When invoice is in another currency, use multicurrency remainder for auto-close decision (SLY)
++							if (isModEnabled('multicurrency') && !empty($invoice->multicurrency_code) && $invoice->multicurrency_code != $conf->currency) {
++								$mc_paid = $invoice->getSommePaiement(1);
++								$mc_creditnotes = $invoice->getSumCreditNotesUsed(1);
++								$mc_deposits = $invoice->getSumDepositsUsed(1);
++								$mc_remaintopay = price2num($invoice->multicurrency_total_ttc - $mc_paid - $mc_creditnotes - $mc_deposits, 'MT');
++								if (price2num($mc_remaintopay, 'MT') == 0) {
++									$remaintopay = 0;
++								}
++							}
+ 
+ 							//var_dump($invoice->total_ttc.' - '.$paiement.' -'.$creditnotes.' - '.$deposits.' - '.$remaintopay);exit;
+ 

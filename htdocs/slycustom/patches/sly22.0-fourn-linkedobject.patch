@@ -1,0 +1,77 @@
+diff --git a/htdocs/fourn/commande/tpl/linkedobjectblock.tpl.php b/htdocs/fourn/commande/tpl/linkedobjectblock.tpl.php
+index bcbcda04656..c1c5dfebc66 100644
+--- a/htdocs/fourn/commande/tpl/linkedobjectblock.tpl.php
++++ b/htdocs/fourn/commande/tpl/linkedobjectblock.tpl.php
+@@ -41,6 +41,9 @@ $linkedObjectBlock = $GLOBALS['linkedObjectBlock'];
+ $langs->load("orders");
+ 
+ $total = 0;
++if (isModEnabled('multicurrency')) {
++	$multicurrency_total = 0;
++}
+ $ilink = 0;
+ foreach ($linkedObjectBlock as $key => $objectlink) {
+ 	$ilink++;
+@@ -56,8 +59,12 @@ foreach ($linkedObjectBlock as $key => $objectlink) {
+ 		<td class="center"><?php echo dol_print_date($objectlink->date, 'day'); ?></td>
+ 		<td class="right"><?php
+ 		if ($user->hasRight("fournisseur", "commande", "lire")) {
++			if (isModEnabled('multicurrency') && !empty($objectlink->multicurrency_code) && $conf->currency != $objectlink->multicurrency_code) {
++				$multicurrency_total += $objectlink->multicurrency_total_ht;
++				echo $objectlink->multicurrency_code.' '.price($objectlink->multicurrency_total_ht).'<br>';
++			}
+ 			$total += $objectlink->total_ht;
+-			echo price($objectlink->total_ht);
++			echo $conf->currency.' '.price($objectlink->total_ht);
+ 		} ?></td>
+ 		<td class="right"><?php echo $objectlink->getLibStatut(3); ?></td>
+ 		<td class="right"><a class="reposition" href="<?php echo $_SERVER["PHP_SELF"].'?id='.$object->id.'&action=dellink&token='.newToken().'&dellinkid='.$key; ?>"><?php echo img_picto($langs->transnoentitiesnoconv("RemoveLink"), 'unlink'); ?></a></td>
+@@ -71,7 +78,7 @@ if (count($linkedObjectBlock) > 1) {
+ 		<td></td>
+ 		<td class="center"></td>
+ 		<td class="center"></td>
+-		<td class="right"><?php echo price($total); ?></td>
++		<td class="right"><?php echo $conf->currency.' '.price($total); ?></td>
+ 		<td class="right"></td>
+ 		<td class="right"></td>
+ 	</tr>
+diff --git a/htdocs/fourn/facture/tpl/linkedobjectblock.tpl.php b/htdocs/fourn/facture/tpl/linkedobjectblock.tpl.php
+index 95ab5f22e01..198484c1d1d 100644
+--- a/htdocs/fourn/facture/tpl/linkedobjectblock.tpl.php
++++ b/htdocs/fourn/facture/tpl/linkedobjectblock.tpl.php
+@@ -43,6 +43,9 @@ $linkedObjectBlock = $GLOBALS['linkedObjectBlock'];
+ $langs->load("bills");
+ 
+ $total = 0;
++if (isModEnabled('multicurrency')) {
++	$multicurrency_total = 0;
++}
+ $ilink = 0;
+ foreach ($linkedObjectBlock as $key => $objectlink) {
+ 	$ilink++;
+@@ -64,10 +67,14 @@ foreach ($linkedObjectBlock as $key => $objectlink) {
+ 			}
+ 			if ($objectlink->statut != 3) {
+ 				// If not abandoned
++				if (isModEnabled('multicurrency') && !empty($objectlink->multicurrency_code) && $conf->currency != $objectlink->multicurrency_code) {
++					$multicurrency_total += $sign * $objectlink->multicurrency_total_ht;
++					echo $objectlink->multicurrency_code.' '.price($objectlink->multicurrency_total_ht).'<br>';
++				}
+ 				$total += $sign * $objectlink->total_ht;
+-				echo price($objectlink->total_ht);
++				echo $conf->currency.' '.price($objectlink->total_ht);
+ 			} else {
+-				echo '<strike>'.price($objectlink->total_ht).'</strike>';
++				echo '<strike>'.((isModEnabled('multicurrency') && !empty($objectlink->multicurrency_code) && $conf->currency != $objectlink->multicurrency_code) ? $objectlink->multicurrency_code.' '.price($objectlink->multicurrency_total_ht).'<br>'.$conf->currency.' ' : '').price($objectlink->total_ht).'</strike>';
+ 			}
+ 		} ?></td>
+ 		<td class="right"><?php
+@@ -88,7 +95,7 @@ if (count($linkedObjectBlock) > 1) {
+ 		<td></td>
+ 		<td class="center"></td>
+ 		<td class="center"></td>
+-		<td class="right"><?php echo price($total); ?></td>
++		<td class="right"><?php echo $conf->currency.' '.price($total); ?></td>
+ 		<td class="right"></td>
+ 		<td class="right"></td>
+ 	</tr>

@@ -1,0 +1,51 @@
+diff --git a/htdocs/commande/card.php b/htdocs/commande/card.php
+index b67dc1ccbbc..0da39c56ab5 100644
+--- a/htdocs/commande/card.php
++++ b/htdocs/commande/card.php
+@@ -2300,7 +2300,8 @@ if ($action == 'create' && $usercancreate) {
+ 			print '</td>';
+ 		} else {
+ 			print '<td class="valuefieldcreate">';
+-			$filter = '((s.client:IN:1,2,3) AND (s.status:=:1))';
++			// SLY: allow inactive thirdparties in draft so user can change customer (草稿改客户)
++			$filter = '(s.client:IN:1,2,3)';
+ 			print img_picto('', 'company', 'class="pictofixedwidth"').$form->select_company('', 'socid', $filter, 'SelectThirdParty', 1, 0, array(), 0, 'minwidth175 maxwidth500 widthcentpercentminusxx');
+ 			// reload page to retrieve customer information
+ 			if (!getDolGlobalString('RELOAD_PAGE_ON_CUSTOMER_CHANGE_DISABLED')) {
+diff --git a/htdocs/commande/tpl/linkedobjectblock.tpl.php b/htdocs/commande/tpl/linkedobjectblock.tpl.php
+index befaf531bfb..b28217df0b5 100644
+--- a/htdocs/commande/tpl/linkedobjectblock.tpl.php
++++ b/htdocs/commande/tpl/linkedobjectblock.tpl.php
+@@ -40,6 +40,9 @@ $linkedObjectBlock = dol_sort_array($linkedObjectBlock, 'date', 'desc', 0, 0, 1)
+ '@phan-var-force CommonObject[] $linkedObjectBlock';  // Repeat because type lost after dol_sort_array)
+ 
+ $total = 0;
++if (isModEnabled('multicurrency')) {
++	$multicurrency_total = 0;
++}
+ $ilink = 0;
+ foreach ($linkedObjectBlock as $key => $objectlink) {
+ 	$ilink++;
+@@ -59,8 +62,12 @@ foreach ($linkedObjectBlock as $key => $objectlink) {
+ 	echo '<td class="linkedcol-date center">'.dol_print_date($objectlink->date, 'day').'</td>';
+ 	echo '<td class="linkedcol-amount right">';
+ 	if ($user->hasRight('commande', 'lire')) {
++		if (isModEnabled('multicurrency') && !empty($objectlink->multicurrency_code) && $conf->currency != $objectlink->multicurrency_code) {
++			$multicurrency_total += $objectlink->multicurrency_total_ht;
++			echo $objectlink->multicurrency_code.' '.price($objectlink->multicurrency_total_ht).'<br>';
++		}
+ 		$total += $objectlink->total_ht;
+-		echo price($objectlink->total_ht);
++		echo $conf->currency.' '.price($objectlink->total_ht);
+ 	}
+ 	echo '</td>';
+ 	echo '<td class="linkedcol-statut right">'.$objectlink->getLibStatut(3).'</td>';
+@@ -78,7 +85,7 @@ if (count($linkedObjectBlock) > 1) {
+ 	echo '<td></td>';
+ 	echo '<td class="center"></td>';
+ 	echo '<td class="center"></td>';
+-	echo '<td class="right">'.price($total).'</td>';
++	echo '<td class="right">'.$conf->currency.' '.price($total).'</td>';
+ 	echo '<td class="right"></td>';
+ 	echo '<td class="right"></td>';
+ 	echo "</tr>\n";

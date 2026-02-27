@@ -13,7 +13,7 @@
    - 在「外部模块」中找到 **SLY Custom**，启用。
 
 3. **可测试内容**
-   - **PDF 模板**：在 设置 中为订单/发票/发货单/采购订单 选择 SLY 模板（如 pdf_eratosthene_SLY、pdf_sponge_SLY_consignee 等）。
+   - **PDF 模板**：在 设置 中为订单/发票/发货单/采购订单 选择 SLY 模板（如 pdf_sly_order、pdf_sly_proforma、pdf_sly_invoice、pdf_sly_packinglist 等）。
    - **SLY Exports 菜单**：左侧菜单「商业」下的 SLY 导出入口。
    - ShipsGo 类已包含在模块中，但 22.0 核心无 ShipsGo 集成（无发货单卡片/列表的 API 调用与扩展字段），需按 `PATCHES-OFFICIAL-14.md` 思路在 22.0 上单独实现或放弃。
 

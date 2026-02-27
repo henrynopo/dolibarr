@@ -1,6 +1,6 @@
 # SLY Custom 模块
 
-将 SLY14.0 独有功能以 Dolibarr **外部模块**形式提供，便于在**官方 Dolibarr 14.0** 上直接采用官方版本，仅启用本模块即可使用 SLY 定制，无需维护整份 SLY14.0 分支。
+将 SLY 独有功能以 Dolibarr **外部模块**形式提供，支持**官方 Dolibarr 14.0 与 22.0**。在官方版上启用本模块即可使用 SLY PDF、ShipsGo、列表来源订单列、语言选择器等；无需维护整份 SLY 分支。22.0 上配合少量 core 补丁可恢复多币种、linkedobject 等完整能力（见 `patches/APPLY-ON-22.md`、`patches/PATCHES-BY-MODULE.md`）。
 
 ## 安装
 
@@ -11,12 +11,13 @@
 
 ### 1. PDF 模板（开箱即用）
 
-- **客户订单**：`pdf_eratosthene_SLY`、`pdf_proforma_SLY`
-- **发货单**：`pdf_espadon_SLY_PL`（装箱单）
-- **客户发票**：`pdf_sponge_SLY_consignee`
+- **客户订单**：`pdf_sly_order`、`pdf_sly_proforma`
+- **发货单**：`pdf_sly_packinglist`（装箱单）
+- **客户发票**：`pdf_sly_invoice`
+- **采购发票 / Debit Note**：`pdf_sly_debitnote`（SLY Debit Note，我们发给供应商的借记通知单；**请勿设为默认**，仅在需要向供应商发送时手动生成 PDF）
 - **采购订单**：`pdf_cornas_SLY`
 
-启用模块后，在 **设置** 中为对应文档类型选择上述模板即可。
+启用模块后，在 **设置** 中为对应文档类型选择上述模板即可。若发票或装箱单模板在设置页/下拉中不显示，请先**禁用** SLY Custom 再**重新启用**一次，以便将模板注册到系统中。
 
 ### 2. ShipsGo 物流（需配置）
 
@@ -27,7 +28,26 @@
 ### 3. SLY 导出入口
 
 - 左侧菜单 **商业** 下会多出 **SLY Exports**，指向 `slycustom/exports/index.php`。
+- **工具 (Tools)** 下为三级菜单：**SLY Export** → **SLY ALL-in-One** → 五个详情（SO Details、SO Invoice Details、Shipment Details、PO Details、PO Invoice Details）。若 22.0 上未打 `sly22.0-menu-parent-match.patch`，层级可能错位，打补丁后需清理残余菜单：见 **docs/MENU-CLEANUP.md**（界面停用再启用，或 CLI `cli_reset_sly_menus.php`）。
 - 若你仍使用带 SLY 导出脚本的环境（如原 `htdocs/exports/export_all.php` 等），可从该页链接过去；若完全使用官方 14.0 且未复制这些脚本，需自行把需要的导出脚本复制到 `slycustom/exports/` 或其它可访问目录并在本模块中加链接。
+
+### 4. 列表与界面（22.0 上启用即生效，14.0 需 core 支持）
+
+- **列表来源订单列**：客户发票/订单、采购订单、供应商发票列表可显示「来源订单」列并筛选（由模块 hook 提供；22.0 上若打了 `patches/APPLY-ON-22.md` 中的列表列位置补丁则列紧跟在 Ref 后）。
+- **语言选择器**：顶部菜单语言下拉、可选登录页语言选择；在 **设置 → 其它** 或 SLY Custom 设置中配置。
+- **订单生成文档**：销售订单生成文档时可勾选「附加销售条款」并选模板（`builddoc_order.php`）。
+- **Shipment 菜单位置**：发货单从「产品/服务」移至「商业」左侧菜单（仅 22.0，由 hook 实现）。
+
+## 22.0 部署说明（策略 B 移植，零 core 补丁）
+
+若部署在**官方 Dolibarr 22.0.x** 上，本模块采用**零 core 补丁**方式：
+
+- **Phase 3（仪表盘 boxes）**：slycustom 提供 5 个替代 widget（订单多币种、待办 fk_user_done、生日 gmt、采购订单多币种、待收货 fa-dolly）。用户需在 **首页 → 配置 → 仪表盘** 中停用原 core widget、启用 SLY 的 widget。
+- **Phase 4（ShipsGo）**：已迁入 slycustom 模块，零 core 补丁。
+
+详见 **PORT-TO-22.md**（移植策略）、**patches/APPLY-ON-22.md**（22.0 补丁应用顺序）、**patches/PATCHES-BY-MODULE.md**（按模块索引与迁移缺口）。**迁移全部功能**（CORE 清单中所有定制）见 **CORE-CUSTOMIZATIONS-FULL-LIST.md** 与 **patches/PATCHES-BY-MODULE.md**。
+
+---
 
 ## 与官方 14.0 的兼容性说明
 
@@ -56,10 +76,11 @@ slycustom/
 ├── core/
 │   └── modules/
 │       ├── modSlyCustom.class.php
-│       ├── commande/doc/   # pdf_eratosthene_SLY, pdf_proforma_SLY
-│       ├── expedition/doc/ # pdf_espadon_SLY_PL
-│       ├── facture/doc/    # pdf_sponge_SLY_consignee
-│       └── supplier_order/doc/ # pdf_cornas_SLY
+│       ├── commande/doc/       # pdf_sly_order, pdf_sly_proforma
+│       ├── expedition/doc/     # pdf_sly_packinglist
+│       ├── facture/doc/        # pdf_sly_invoice
+│       ├── supplier_order/doc/ # pdf_cornas_SLY
+│       └── supplier_invoice/doc/ # pdf_sly_debitnote (SLY Debit Note，仅手动生成)
 ├── exports/
 │   └── index.php
 ├── langs/
@@ -67,6 +88,10 @@ slycustom/
 │   └── zh_CN/
 └── temp/
 ```
+
+## 文档索引
+
+本目录下有多份 .md 说明（移植、补丁、core 最小化等）。各文件用途及去重说明见 **docs/README-MD-FILES.md**。
 
 ## 版本
 

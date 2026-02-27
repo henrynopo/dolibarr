@@ -17,18 +17,32 @@ if (!is_object($conf->slycustom) || empty($conf->slycustom->enabled)) {
 
 $langs->loadLangs(array("slycustom@slycustom", "other"));
 
-$title = $langs->trans("SLYExports");
+$title = $langs->trans("SLYExportMenu");
 llxHeader('', $title);
 
 print load_fiche_titre($title, '', 'title_export');
 
+// Export scripts are in slycustom module
+$export_base = DOL_URL_ROOT.'/slycustom/exports';
+
+$links = array(
+	'SLYExportAllInOne' => 'export_all.php',
+	'SLYExportSODetails' => 'export_SO_Details.php',
+	'SLYExportSOInvoiceDetails' => 'export_SO_Inv_Details.php',
+	'SLYExportShipmentDetails' => 'export_Shipment_Details.php',
+	'SLYExportPODetails' => 'export_PO_Details.php',
+	'SLYExportPOInvoiceDetails' => 'export_PO_Inv_Details.php',
+);
+
 print '<div class="div-table-responsive-no-min">';
 print '<table class="noborder centpercent">';
 print '<tr class="liste_titre"><th>'.$langs->trans("Export").'</th><th>'.$langs->trans("Description").'</th></tr>';
-
-// SLY report exports (Tools → SLY Export) are in slycustom/exports/
-print '<tr><td><a href="'.DOL_URL_ROOT.'/slycustom/exports/tools.php">'.$langs->trans("SLYExportMenu").'</a></td><td>'.$langs->trans("SLYExportMenu").' ('.dol_escape_htmltag($langs->trans("SLYExportAllInOne")).', '.$langs->trans("SLYExportSODetails").', '.$langs->trans("SLYExportShipmentDetails").', '.$langs->trans("SLYExportPODetails").', …)</td></tr>';
-print '<tr><td colspan="2">'.$langs->trans("SLYCustomDescriptionLong").'</td></tr>';
+foreach ($links as $langkey => $script) {
+	$url = $export_base.'/'.$script.'?mainmenu=tools&leftmenu=sly_export';
+	$label = $langs->trans($langkey);
+	print '<tr class="oddeven"><td><a href="'.dol_escape_htmltag($url).'">'.dol_escape_htmltag($label).'</a></td>';
+	print '<td>'.dol_escape_htmltag($label).'</td></tr>';
+}
 print '</table>';
 print '</div>';
 

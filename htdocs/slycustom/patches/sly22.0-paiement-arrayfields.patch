@@ -1,0 +1,13 @@
+diff --git a/htdocs/compta/paiement/list.php b/htdocs/compta/paiement/list.php
+index 7043765ee46..5f842e3ceb6 100644
+--- a/htdocs/compta/paiement/list.php
++++ b/htdocs/compta/paiement/list.php
+@@ -147,7 +147,7 @@ $result = restrictedArea($user, 'facture', $facid, '');
+  * Actions
+  */
+ 
+-$parameters = array('socid' => $socid);
++$parameters = array('socid' => $socid, 'arrayfields' => &$arrayfields);
+ $reshook = $hookmanager->executeHooks('doActions', $parameters, $object, $action); // Note that $action and $object may have been modified by some hooks
+ if ($reshook < 0) {
+ 	setEventMessages($hookmanager->error, $hookmanager->errors, 'errors');

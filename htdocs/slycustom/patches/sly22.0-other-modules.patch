@@ -1,0 +1,221 @@
+diff --git a/htdocs/adherents/card.php b/htdocs/adherents/card.php
+index dc27e946daf..1899390b134 100644
+--- a/htdocs/adherents/card.php
++++ b/htdocs/adherents/card.php
+@@ -970,8 +970,8 @@ if (is_object($objcanvas) && $objcanvas->displayCanvasExists($action)) {
+ 			$object->country = $tmparray['label'];
+ 		}
+ 
+-		$soc = new Societe($db);
+ 		if (!empty($socid)) {
++			$soc = new Societe($db);
+ 			if ($socid > 0) {
+ 				$soc->fetch($socid);
+ 			}
+diff --git a/htdocs/adherents/class/adherent.class.php b/htdocs/adherents/class/adherent.class.php
+index 544e52288de..610f80000b6 100644
+--- a/htdocs/adherents/class/adherent.class.php
++++ b/htdocs/adherents/class/adherent.class.php
+@@ -388,8 +388,8 @@ class Adherent extends CommonObject
+ 		'public' => array('type' => 'smallint(6)', 'label' => 'Public', 'enabled' => 1, 'visible' => 3, 'notnull' => 1, 'position' => 145),
+ 		'datefin' => array('type' => 'datetime', 'label' => 'DateEnd', 'enabled' => 1, 'visible' => 1, 'position' => 150),
+ 		'default_lang' => array('type' => 'varchar(6)', 'label' => 'Default lang', 'enabled' => 1, 'visible' => -1, 'position' => 153),
+-		'note_public' => array('type' => 'text', 'label' => 'NotePublic', 'enabled' => 1, 'visible' => 0, 'position' => 155),
+-		'note_private' => array('type' => 'text', 'label' => 'NotePrivate', 'enabled' => 1, 'visible' => 0, 'position' => 160),
++		'note_private' => array('type' => 'text', 'label' => 'NotePublic', 'enabled' => 1, 'visible' => 0, 'position' => 155),
++		'note_public' => array('type' => 'text', 'label' => 'NotePrivate', 'enabled' => 1, 'visible' => 0, 'position' => 160),
+ 		'datevalid' => array('type' => 'datetime', 'label' => 'DateValidation', 'enabled' => 1, 'visible' => -1, 'position' => 165),
+ 		'datec' => array('type' => 'datetime', 'label' => 'DateCreation', 'enabled' => 1, 'visible' => -1, 'position' => 170),
+ 		'tms' => array('type' => 'timestamp', 'label' => 'DateModification', 'enabled' => 1, 'visible' => -1, 'notnull' => 1, 'position' => 175),
+@@ -2533,7 +2533,7 @@ class Adherent extends CommonObject
+ 			$labelStatus = $langs->trans("MemberStatusDraft");
+ 			$labelStatusShort = $langs->trans("MemberStatusDraftShort");
+ 		} elseif ($status >= self::STATUS_VALIDATED) {
+-			if ($need_subscription === 0) {
++			if ($need_subscription == 0) {
+ 				$statusType = 'status4';
+ 				$labelStatus = $langs->trans("Validated").' - '.$langs->trans("MemberStatusNoSubscription");
+ 				$labelStatusShort = $langs->trans("MemberStatusNoSubscriptionShort");
+diff --git a/htdocs/adherents/class/api_members.class.php b/htdocs/adherents/class/api_members.class.php
+index 3fa27ce40fa..f8812159412 100644
+--- a/htdocs/adherents/class/api_members.class.php
++++ b/htdocs/adherents/class/api_members.class.php
+@@ -492,15 +492,14 @@ class Members extends DolibarrApi
+ 		}
+ 
+ 
+-		$res = $member->delete(DolibarrApiAccess::$user);
+-		if ($res < 0) {
+-			throw new RestException(500, "Can't delete, error occurs");
++		if (!$member->delete(DolibarrApiAccess::$user)) {
++			throw new RestException(401, 'error when deleting member');
+ 		}
+ 
+ 		return array(
+ 			'success' => array(
+ 				'code' => 200,
+-				'message' => 'Member deleted'
++				'message' => 'member deleted'
+ 			)
+ 		);
+ 	}
+diff --git a/htdocs/adherents/class/api_memberstypes.class.php b/htdocs/adherents/class/api_memberstypes.class.php
+index 68d24732235..35556c2dac8 100644
+--- a/htdocs/adherents/class/api_memberstypes.class.php
++++ b/htdocs/adherents/class/api_memberstypes.class.php
+@@ -251,17 +251,14 @@ class MembersTypes extends DolibarrApi
+ 			throw new RestException(401, 'Access not allowed for login '.DolibarrApiAccess::$user->login);
+ 		}
+ 
+-		$res = $membertype->delete(DolibarrApiAccess::$user);
+-		if ($res < 0) {
+-			throw new RestException(500, "Can't delete, error occurs");
+-		} elseif ($res == 0) {
+-			throw new RestException(409, "Can't delete, that product is probably used");
++		if (!$membertype->delete(DolibarrApiAccess::$user)) {
++			throw new RestException(401, 'error when deleting member type');
+ 		}
+ 
+ 		return array(
+ 			'success' => array(
+ 				'code' => 200,
+-				'message' => 'Member type deleted'
++				'message' => 'member type deleted'
+ 			)
+ 		);
+ 	}
+diff --git a/htdocs/adherents/class/api_subscriptions.class.php b/htdocs/adherents/class/api_subscriptions.class.php
+index 18e55424e7a..944f6255f6e 100644
+--- a/htdocs/adherents/class/api_subscriptions.class.php
++++ b/htdocs/adherents/class/api_subscriptions.class.php
+@@ -282,17 +282,14 @@ class Subscriptions extends DolibarrApi
+ 			throw new RestException(404, 'Subscription not found');
+ 		}
+ 
+-		$res = $subscription->delete(DolibarrApiAccess::$user);
+-		if ($res < 0) {
+-			throw new RestException(500, "Can't delete, error occurs");
+-		} elseif ($res == 0) {
+-			throw new RestException(409, "No subscription whas deleted");
++		if (!$subscription->delete(DolibarrApiAccess::$user)) {
++			throw new RestException(401, 'error when deleting subscription');
+ 		}
+ 
+ 		return array(
+ 			'success' => array(
+ 				'code' => 200,
+-				'message' => 'Subscription deleted'
++				'message' => 'subscription deleted'
+ 			)
+ 		);
+ 	}
+diff --git a/htdocs/adherents/subscription.php b/htdocs/adherents/subscription.php
+index ca0ee7abd29..d122635204b 100644
+--- a/htdocs/adherents/subscription.php
++++ b/htdocs/adherents/subscription.php
+@@ -1115,12 +1115,12 @@ if (($action == 'addsubscription' || $action == 'create_thirdparty') && $user->h
+ 			// Bank account
+ 			print '<tr class="bankswitchclass"><td class="fieldrequired">'.$langs->trans("FinancialAccount").'</td><td>';
+ 			print img_picto('', 'bank_account', 'class="pictofixedwidth"');
+-			$form->select_comptes(GETPOST('accountid'), 'accountid', 0, '', 2, '', 0, 'minwidth200');
++			$form->select_comptes(GETPOST('accountid'), 'accountid', 0, '', 2);
+ 			print "</td></tr>\n";
+ 
+ 			// Payment mode
+ 			print '<tr class="bankswitchclass"><td class="fieldrequired">'.$langs->trans("PaymentMode").'</td><td>';
+-			print $form->select_types_paiements(GETPOST('operation'), 'operation', '', 2, 1, 0, 0, 1, 'minwidth200', 1);
++			print $form->select_types_paiements(GETPOST('operation'), 'operation', '', 2);
+ 			print "</td></tr>\n";
+ 
+ 			// Date of payment
+diff --git a/htdocs/contact/card.php b/htdocs/contact/card.php
+index 9aaacf211ca..a1ba4167fcc 100644
+--- a/htdocs/contact/card.php
++++ b/htdocs/contact/card.php
+@@ -515,31 +515,6 @@ if (empty($reshook)) {
+ 		}
+ 	}
+ 
+-	// Update extrafields
+-	if ($action == 'update_extras' && $permissiontoeditextra) {
+-		$object->oldcopy = dol_clone($object, 2);   // @phan-suppress-current-line PhanTypeMismatchProperty
+-
+-		$attribute_name = GETPOST('attribute', 'aZ09');
+-
+-		// Fill array 'array_options' with data from update form
+-		$ret = $extrafields->setOptionalsFromPost(null, $object, $attribute_name);
+-		if ($ret < 0) {
+-			$error++;
+-		}
+-
+-		if (!$error) {
+-			$result = $object->updateExtraField($attribute_name, 'CONTACT_MODIFY');
+-			if ($result < 0) {
+-				setEventMessages($object->error, $object->errors, 'errors');
+-				$error++;
+-			}
+-		}
+-
+-		if ($error) {
+-			$action = 'edit_extras';
+-		}
+-	}
+-
+ 	// Actions to send emails
+ 	$triggersendname = 'CONTACT_SENTBYMAIL';
+ 	$paramname = 'id';
+diff --git a/htdocs/contact/class/contact.class.php b/htdocs/contact/class/contact.class.php
+index 1a24d6ef483..fb93a26fc0e 100644
+--- a/htdocs/contact/class/contact.class.php
++++ b/htdocs/contact/class/contact.class.php
+@@ -1310,15 +1310,6 @@ class Contact extends CommonObject
+ 
+ 		$this->db->begin();
+ 
+-		if (!$error && !$notrigger) {
+-			// Call trigger
+-			$result = $this->call_trigger('CONTACT_DELETE', $user);
+-			if ($result < 0) {
+-				$error++;
+-			}
+-			// End call triggers
+-		}
+-
+ 		if (!$error) {
+ 			// Get all rowid of element_contact linked to a type that is link to llx_socpeople
+ 			$sql = "SELECT ec.rowid";
+@@ -1409,6 +1400,15 @@ class Contact extends CommonObject
+ 			}
+ 		}
+ 
++		if (!$error && !$notrigger) {
++			// Call trigger
++			$result = $this->call_trigger('CONTACT_DELETE', $user);
++			if ($result < 0) {
++				$error++;
++			}
++			// End call triggers
++		}
++
+ 		if (!$error) {
+ 			$this->db->commit();
+ 			return 1;
+diff --git a/htdocs/contrat/agenda.php b/htdocs/contrat/agenda.php
+index 3866feb6f51..a54a96b758b 100644
+--- a/htdocs/contrat/agenda.php
++++ b/htdocs/contrat/agenda.php
+@@ -262,13 +262,11 @@ if ($object->id > 0) {
+ 	$newcardbutton = '';
+ 	if (isModEnabled('agenda')) {
+ 		if ($user->hasRight('agenda', 'myactions', 'create') || $user->hasRight('agenda', 'allactions', 'create')) {
+-			$backtopage = $_SERVER['PHP_SELF'].'?id='.$object->id;
+-			$out = '&origin='.$object->element.'&originid='.$object->id.'&backtopage='.urlencode($backtopage);
+ 			$messagingUrl = DOL_URL_ROOT.'/contrat/messaging.php?id='.$object->id;
+ 			$newcardbutton .= dolGetButtonTitle($langs->trans('ShowAsConversation'), '', 'fa fa-comments imgforviewmode', $messagingUrl, '', 1);
+ 			$messagingUrl = DOL_URL_ROOT.'/contrat/agenda.php?id='.$object->id;
+ 			$newcardbutton .= dolGetButtonTitle($langs->trans('MessageListViewType'), '', 'fa fa-bars imgforviewmode', $messagingUrl, '', 2);
+-			$newcardbutton .= dolGetButtonTitle($langs->trans('AddAction'), '', 'fa fa-plus-circle', DOL_URL_ROOT.'/comm/action/card.php?action=create'.$out);
++			$newcardbutton .= dolGetButtonTitle($langs->trans('AddAction'), '', 'fa fa-plus-circle', DOL_URL_ROOT.'/comm/action/card.php?action=create&origin='.$object->element.'&originid='.$object->id);
+ 		}
+ 	}
+ 

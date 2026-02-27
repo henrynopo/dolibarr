@@ -1,0 +1,16 @@
+diff --git a/htdocs/compta/facture/class/facture.class.php b/htdocs/compta/facture/class/facture.class.php
+index ecb5ebe6897..313f64d46b8 100644
+--- a/htdocs/compta/facture/class/facture.class.php
++++ b/htdocs/compta/facture/class/facture.class.php
+@@ -5736,6 +5736,11 @@ class Facture extends CommonInvoice
+ 			}
+ 		}
+ 
++		// SLY: fallback removed template (pdf_sponge_SLY_consignee) to current default
++		if (in_array($modele, array('sponge_SLY_consignee', 'sponge SLY consignee'), true)) {
++			$modele = getDolGlobalString('FACTURE_ADDON_PDF') ?: 'sly_invoice';
++		}
++
+ 		$modelpath = "core/modules/facture/doc/";
+ 
+ 		return $this->commonGenerateDocument($modelpath, $modele, $outputlangs, $hidedetails, $hidedesc, $hideref, $moreparams);

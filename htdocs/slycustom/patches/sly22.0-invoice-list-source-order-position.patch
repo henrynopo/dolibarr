@@ -1,0 +1,38 @@
+diff --git a/htdocs/compta/facture/list.php b/htdocs/compta/facture/list.php
+index 9027cc16f60..aa1d6398f2e 100644
+--- a/htdocs/compta/facture/list.php
++++ b/htdocs/compta/facture/list.php
+@@ -1565,6 +1565,10 @@ if (!empty($arrayfields['f.ref']['checked'])) {
+ 	print '<input class="flat maxwidth50imp" type="text" name="search_ref" value="'.dol_escape_htmltag($search_ref).'">';
+ 	print '</td>';
+ }
++// Hook: columns after Ref (e.g. Source order from modules)
++$parameters = array('arrayfields' => $arrayfields, 'insert_after' => 'f.ref');
++$reshook = $hookmanager->executeHooks('printFieldListOption', $parameters, $object, $action);
++print $hookmanager->resPrint;
+ // Ref customer
+ if (!empty($arrayfields['f.ref_client']['checked'])) {
+ 	print '<td class="liste_titre">';
+@@ -1906,6 +1910,10 @@ if (!empty($arrayfields['f.ref']['checked'])) {
+ 	print_liste_field_titre($arrayfields['f.ref']['label'], $_SERVER['PHP_SELF'], 'f.ref', '', $param, '', $sortfield, $sortorder);
+ 	$totalarray['nbfield']++;
+ }
++// Hook: column titles after Ref
++$parameters = array('arrayfields' => $arrayfields, 'param' => $param, 'sortfield' => $sortfield, 'sortorder' => $sortorder, 'totalarray' => &$totalarray, 'insert_after' => 'f.ref');
++$reshook = $hookmanager->executeHooks('printFieldListTitle', $parameters, $object, $action);
++print $hookmanager->resPrint;
+ if (!empty($arrayfields['f.ref_client']['checked'])) {
+ 	print_liste_field_titre($arrayfields['f.ref_client']['label'], $_SERVER["PHP_SELF"], 'f.ref_client', '', $param, '', $sortfield, $sortorder);
+ 	$totalarray['nbfield']++;
+@@ -2355,6 +2363,11 @@ if ($num > 0) {
+ 				}
+ 			}
+ 
++			// Hook: column values after Ref
++			$parameters = array('arrayfields' => $arrayfields, 'object' => $object, 'obj' => $obj, 'i' => $i, 'totalarray' => &$totalarray, 'insert_after' => 'f.ref');
++			$reshook = $hookmanager->executeHooks('printFieldListValue', $parameters, $object, $action);
++			print $hookmanager->resPrint;
++
+ 			// Customer ref
+ 			if (!empty($arrayfields['f.ref_client']['checked'])) {
+ 				$tdcss = (getDolGlobalInt('MAIN_SHOW_GLOBAL_REF_CUSTOMER_SUPPLIER') ? 'class="minwidth400 maxwidth400"' : 'class="nowrap tdoverflowmax200"');

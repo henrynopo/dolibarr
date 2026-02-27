@@ -1,0 +1,13 @@
+-- SLY ShipsGo：为 llx_expedition_extrafields 增加 ShipsGo 所需列
+-- 在官方 Dolibarr 22.0 上若使用 ShipsGo 功能，需执行本 SQL 一次（表前缀请按 MAIN_DB_PREFIX 修改，默认 llx_）
+
+ALTER TABLE llx_expedition_extrafields
+  ADD COLUMN sailingstatusid INT NULL DEFAULT NULL,
+  ADD COLUMN pol VARCHAR(64) NULL DEFAULT NULL,
+  ADD COLUMN atd DATE NULL DEFAULT NULL,
+  ADD COLUMN pod VARCHAR(64) NULL DEFAULT NULL,
+  ADD COLUMN ata DATE NULL DEFAULT NULL,
+  ADD COLUMN livemapurl VARCHAR(255) NULL DEFAULT NULL,
+  ADD COLUMN updatedtime DATETIME NULL DEFAULT NULL,
+  ADD COLUMN requestid INT NULL DEFAULT NULL,
+  ADD COLUMN blno VARCHAR(64) NULL DEFAULT NULL;

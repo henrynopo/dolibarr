@@ -1,0 +1,46 @@
+diff --git a/htdocs/fourn/facture/list.php b/htdocs/fourn/facture/list.php
+index f9dc8e8da4f..75fb752240c 100644
+--- a/htdocs/fourn/facture/list.php
++++ b/htdocs/fourn/facture/list.php
+@@ -269,6 +269,7 @@ $parameters = array('socid' => $socid, 'arrayfields' => &$arrayfields);
+ $reshook = $hookmanager->executeHooks('doActions', $parameters, $object, $action); // Note that $action and $object may have been modified by some hooks
+ if ($reshook < 0) {
+ 	setEventMessages($hookmanager->error, $hookmanager->errors, 'errors');
+ }
++$arrayfields = dol_sort_array($arrayfields, 'position');
+ 
+ if (empty($reshook)) {
+@@ -1143,6 +1144,10 @@ if (!empty($arrayfields['f.ref']['checked'])) {
+ 	print '<input class="flat maxwidth50" type="text" name="search_ref" value="'.dol_escape_htmltag($search_ref).'">';
+ 	print '</td>';
+ }
++// Hook: columns after Ref (e.g. Source order from modules)
++$parameters = array('arrayfields' => $arrayfields, 'insert_after' => 'f.ref');
++$reshook = $hookmanager->executeHooks('printFieldListOption', $parameters, $object, $action);
++print $hookmanager->resPrint;
+ // Ref supplier
+ if (!empty($arrayfields['f.ref_supplier']['checked'])) {
+ 	print '<td class="liste_titre">';
+@@ -1387,6 +1392,10 @@ if (!empty($arrayfields['f.ref']['checked'])) {
+ 	print_liste_field_titre($arrayfields['f.ref']['label'], $_SERVER['PHP_SELF'], 'f.ref,f.rowid', '', $param, '', $sortfield, $sortorder);
+ 	$totalarray['nbfield']++;
+ }
++// Hook: column titles after Ref
++$parameters = array('arrayfields' => $arrayfields, 'param' => $param, 'sortfield' => $sortfield, 'sortorder' => $sortorder, 'totalarray' => &$totalarray, 'insert_after' => 'f.ref');
++$reshook = $hookmanager->executeHooks('printFieldListTitle', $parameters, $object, $action);
++print $hookmanager->resPrint;
+ if (!empty($arrayfields['f.ref_supplier']['checked'])) {
+ 	print_liste_field_titre($arrayfields['f.ref_supplier']['label'], $_SERVER["PHP_SELF"], 'f.ref_supplier', '', $param, '', $sortfield, $sortorder);
+ 	$totalarray['nbfield']++;
+@@ -1723,6 +1728,11 @@ while ($i < $imaxinloop) {
+ 			}
+ 		}
+ 
++		// Hook: column values after Ref
++		$parameters = array('arrayfields' => $arrayfields, 'object' => $object, 'obj' => $obj, 'i' => $i, 'totalarray' => &$totalarray, 'insert_after' => 'f.ref');
++		$reshook = $hookmanager->executeHooks('printFieldListValue', $parameters, $object, $action);
++		print $hookmanager->resPrint;
++
+ 		// Supplier ref
+ 		if (!empty($arrayfields['f.ref_supplier']['checked'])) {
+ 			print '<td class="nowrap tdoverflowmax150" title="'.dol_escape_htmltag($obj->ref_supplier).'">';

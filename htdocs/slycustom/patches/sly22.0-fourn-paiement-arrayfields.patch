@@ -1,0 +1,13 @@
+diff --git a/htdocs/fourn/paiement/list.php b/htdocs/fourn/paiement/list.php
+index 9710a0d1f6f..51e733bad55 100644
+--- a/htdocs/fourn/paiement/list.php
++++ b/htdocs/fourn/paiement/list.php
+@@ -149,7 +149,7 @@ if ((!$user->hasRight("fournisseur", "facture", "lire") && !getDolGlobalString('
+  * Actions
+  */
+ 
+-$parameters = array('socid' => $socid);
++$parameters = array('socid' => $socid, 'arrayfields' => &$arrayfields);
+ $reshook = $hookmanager->executeHooks('doActions', $parameters, $object, $action); // Note that $action and $object may have been modified by some hooks
+ if ($reshook < 0) {
+ 	setEventMessages($hookmanager->error, $hookmanager->errors, 'errors');

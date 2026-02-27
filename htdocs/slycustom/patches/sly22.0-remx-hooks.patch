@@ -1,0 +1,22 @@
+diff --git a/htdocs/comm/remx.php b/htdocs/comm/remx.php
+index 1da9f4f1566..f1a55828d60 100644
+--- a/htdocs/comm/remx.php
++++ b/htdocs/comm/remx.php
+@@ -68,7 +68,7 @@ $result = restrictedArea($user, 'societe', $id, '&societe', '', 'fk_soc', 'rowid
+ 
+ $permissiontocreate = ($user->hasRight('societe', 'creer') || $user->hasRight('facture', 'creer'));
+ 
+-
++$hookmanager->initHooks(array('remx'));
+ 
+ /*
+  * Actions
+@@ -162,6 +162,8 @@ if ($action == 'confirm_split' && GETPOST("confirm", "alpha") == 'yes' && $permi
+ 		$newid2 = $newdiscount2->create($user);
+ 		if ($res > 0 && $newid1 > 0 && $newid2 > 0) {
+ 			$db->commit();
++			$parameters = array('remid' => $remid, 'newid1' => $newid1, 'newid2' => $newid2, 'socid' => $id);
++			$hookmanager->executeHooks('afterSplitDiscount', $parameters, $discount, $action);
+ 			header("Location: ".$_SERVER["PHP_SELF"].'?id='.$id.($backtopage ? '&backtopage='.urlencode($backtopage) : '')); // To avoid pb with back
+ 			exit;
+ 		} else {

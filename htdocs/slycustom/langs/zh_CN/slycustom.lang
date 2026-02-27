@@ -1,17 +1,120 @@
 # SLY Custom 模块 - 简体中文
 # Copyright (C) 2025 SLY
 
-[ModuleSLYCustomName]
-SLY 定制
+ModuleSLYCustomName=SLY 定制
+ModuleSLYCustomDesc=SLY 定制：发票/订单/发货单 PDF 模板、ShipsGo、导出等。
+SLYCustomSetup=SLY 定制设置
+SLYCustomDescription=关于本模块
+SLYCustomDescriptionLong=本模块在官方 Dolibarr 14.0 上提供 SLY 定制功能：PDF 模板（发票、订单、形式发票、发货单、采购订单）、可选 ShipsGo 集成及自定义导出页面。兼容性说明及仍可能依赖核心补丁的功能请见模块目录下 README。
+SLYExports=SLY 导出
+API_KEY_SHIPSGO=ShipsGo API 密钥
+API_KEY_SHIPSGOTooltip=ShipsGo 集成的 API 密钥。留空则禁用 ShipsGo 功能。
+SLYCUSTOM_SHIPPING_ENABLE_UNVALIDATE=启用发货单反确认
+SLYCUSTOM_SHIPPING_ENABLE_UNVALIDATETooltip=允许用户将已确认的发货单反确认（设回草稿）。
+SLYCUSTOM_DASHBOARD_BOXES=仪表盘 Widget
+SLYCUSTOM_DASHBOARD_BOXES_DESC=SLY Custom 提供 9 个替代 widget：5 个（客户订单、待办、生日、采购订单、待收货）+ 4 个发票类多币种（最近客户发票、最早未付客户发票、最近供应商发票、最早未付供应商发票）。使用方法：进入仪表盘设置，停用原 core widget，启用 SLY 的 widget（note 为 SLY）。
+SLYCUSTOM_GO_TO_DASHBOARD_SETUP=前往仪表盘设置
+SLYCUSTOM_SYNC_BOXES=同步 SLY boxes
+SLYCUSTOM_SYNC_BOXES_TOOLTIP=若仪表盘设置中看不到 SLY widget，请点击此按钮将其注册到数据库（例如在添加 boxes 之前启用模块的情况）。
+SLYCUSTOM_BOXES_SYNCED=SLY boxes 已成功同步。你可以在仪表盘设置中添加它们。
+SLYCUSTOM_PDF_TEMPLATES_SECTION=PDF 模板（发票 / 装箱单）
+SLYCUSTOM_SYNC_PDF_MODELS=同步 PDF 模板到列表
+SLYCUSTOM_SYNC_PDF_MODELS_TOOLTIP=将 SLY 发票与装箱单模板注册到系统，使其出现在「默认 PDF 模板」下拉中（设置 → 发票 / 发货）。若下拉中看不到模板，可点击一次。
+SLYCUSTOM_PDF_MODELS_SYNCED=PDF 模板（sly_invoice、sly_packinglist）已同步，应已出现在默认模板下拉中。
+UpdateShips=更新 ShipsGo 状态
+ShipmentUpdated=发货状态已成功更新
+UnvalidateShipment=反确认发货单
+ConfirmUnvalidateShipment=确定要将发货单 %s 设回草稿吗？
+SourceOrder=来源订单
+SourcePurchaseOrder=来源采购订单
+SearchOrder=搜索订单
+SLYExportMenu=SLY 导出
+SLYExportAllInOne=SLY 一站式
+SLYExportSODetails=SLY 销售订单明细
+SLYExportSOInvoiceDetails=SLY 销售发票明细
+SLYExportShipmentDetails=SLY 发货明细
+SLYExportPODetails=SLY 采购订单明细
+SLYExportPOInvoiceDetails=SLY 采购发票明细
+MultipleOrdersFound=找到多条订单
+OrderContact=订单联系人
+InvoiceContact=发票联系人
+ShipmentContact=发货联系人
+Purchaser=采购人员
+FollowUpPurchaser=跟进采购人员
+Prepayment=预付款
+Document=票据信息
+GST=消费税
+TotalVATSG=GST 总计
+# SLY Debit Note（我们发给供应商的借记通知单，仅手动生成）
+SLYDebitNoteModel=SLY Debit Note
+SLYDebitNoteModelDesc=发给供应商的借记通知单。请勿设为默认模板；仅在需要向供应商发送时手动生成 PDF。（平时多为供应商提供 credit note 给我们。）
+# SLY 采购订单 PDF 模版
+SLYSupplierOrderModelDesc=SLY 采购订单 PDF 模版（可定制）。
 
-[ModuleSLYCustomDesc]
-SLY 定制：发票/订单/发货单 PDF 模板、ShipsGo、导出等。
+# 设置页标签
+SLYCUSTOM_GENERAL_OPTIONS=常规选项
+SLYCUSTOM_TAB_GENERAL=常规
+SLYCUSTOM_TAB_PDF=PDF 模板
+SLYCUSTOM_TAB_BOXES=仪表盘
+SLYCUSTOM_TAB_CGV=销售条款
+SLYCUSTOM_TAB_RUBIS=销售条款
+SLYCUSTOM_TAB_LANGPICKER=语言选择器
 
-[SLYCustomDescription]
-关于本模块
+# 销售条款（原 Rubis 升级版）
+SLYCUSTOM_RUBIS_UPGRADE_DESC=本功能为原 Rubis 模块的升级版本，用于在订单（及可选发票）PDF 末尾附加销售条款 PDF。下方选项与原 Rubis 的「销售条款(CGV)」设置一致，可在本页上传、替换或删除默认及分语言的条款文件。
+SLYCUSTOM_CGV_SECTION=销售条款
+SLYCUSTOM_CGV_DESC=上传 PDF 作为订单（及可选发票）PDF 的通用条款附件。单语言：documents/mycompany/terms/terms.pdf；多语言：documents/mycompany/terms/<语言>/terms.pdf（如 en_US、zh_CN）。
+SLYCUSTOM_CGV_OPTIONS_NOTE=以下每行对应原 Rubis 的条款文件：默认（单语言）即全局一份 PDF；分语言即各语言单独 PDF（如中文、英文），生成订单/发票 PDF 时按客户语言自动附加对应条款。
+SLYCUSTOM_CGV_FILE=文件
+SLYCUSTOM_CGV_ACTIONS=操作
+SLYCUSTOM_CGV_CURRENT_FILE=现有文件
+SLYCUSTOM_CGV_DEFAULT=默认（单语言）
+SLYCUSTOM_CGV_PATH=路径
+SLYCUSTOM_CGV_LANG=销售条款（%s）
+SLYCUSTOM_CGV_UPLOAD=上传
+SLYCUSTOM_CGV_REPLACE=替换
+SLYCUSTOM_CGV_UPLOAD_FOR_LANG=按语言上传销售条款
+SLYCUSTOM_CGV_UPLOADED=销售条款 PDF 已上传。
+SLYCUSTOM_CGV_DELETED=销售条款 PDF 已删除。
+SLYCUSTOM_CGV_CONFIRM_DELETE=确定删除该销售条款文件？
+SLYCUSTOM_TERMS_MIGRATE=迁移为 terms.pdf
+SLYCUSTOM_TERMS_OLD_PATH=旧路径
+SLYCUSTOM_TERMS_MIGRATED=已迁移为新名称（terms.pdf）。
+SLYCUSTOM_TERMS_DEFAULT_SET=默认条款模版已更新。
+SLYCUSTOM_TERMS_DEFAULT_TEMPLATE=默认模版
+SLYCUSTOM_TERMS_SET_DEFAULT=设为默认
+SLYCUSTOM_CGV_FILENAME_OPTIONAL=可选：保存为此文件名（如 terms_contract.pdf），留空则使用 terms.pdf
+SLYCUSTOM_TERMS_UPLOAD_MODE=上传方式
+SLYCUSTOM_TERMS_SAVE_AS_NEW=另存为新版本
+SLYCUSTOM_TERMS_OVERWRITE=覆盖已有版本
+SLYCUSTOM_TERMS_FILENAME_REMARK=文件备注名（如 terms_contract.pdf）
+SLYCUSTOM_TERMS_OVERWRITE_SELECT=选择要覆盖的文件
+SLYCUSTOM_TERMS_NO_FILE_TO_OVERWRITE=当前语言下没有可覆盖的文件。
+SLYCUSTOM_TERMS_FILENAME_REQUIRED=请输入新版本的文件名（如 terms_contract.pdf）。
+SLYCUSTOM_TERMS_UPLOAD_CHOOSE_MODE=请选择「另存为新版本」并填写文件名，或选择「覆盖已有版本」并选择文件。
+SLYCUSTOM_ADD_TERMS_LABEL=在 PDF 中加入销售条款
+SLYCUSTOM_ADD_TERMS_HINT=根据所选语言使用对应默认条款 PDF
+SLYCUSTOM_TERMS_NO_TEMPLATE=当前语言暂无销售条款模版
+SLYCUSTOM_TERMS_SELECT_TEMPLATE=模版
 
-[SLYCustomDescriptionLong]
-本模块在官方 Dolibarr 14.0 上提供 SLY 定制功能：PDF 模板（发票、订单、形式发票、发货单、采购订单）、可选 ShipsGo 集成及自定义导出页面。兼容性说明及仍可能依赖核心补丁的功能请见模块目录下 README。
+# 语言选择器（来自 custom/langpicker）
+SelectLanguage=选择语言
+LangPickerSection=语言选择器
+LangPickerSectionDesc=在顶部菜单显示语言下拉，并可在登录页显示语言选择。
+LANG_PICKER_ADD_TO_LOGIN_PAGE=在登录页显示语言选择
+LANG_PICKER_LOGIN_PAGE_DEFAULT_LANG=登录页默认语言
+LANG_PICKER_HIDDEN=在顶部菜单隐藏语言选择器
+LANG_PICKER_POSITION=距右侧距离（像素）
+LangPickerLanguages=菜单中显示的语言
+AddLangSuccess=语言已添加
+DeleteLangSuccess=语言已删除
+ConfirmDeleteLang=确定从选择器列表中移除此语言？
+Language=语言
+LangCode=语言代码
+Position=顺序
+Up=上移
+Down=下移
+LangPickerHooksUpdated=语言选择器钩子已更新。请刷新页面或进入首页即可在顶部菜单看到语言选择；重新打开登录页可看到语言选项。
 
-[SLYExports]
-SLY 导出
+# 第三方注册资本货币（与公司会计货币可独立）
+CapitalCurrency=注册资本货币
