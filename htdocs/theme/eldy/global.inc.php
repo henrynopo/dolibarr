@@ -4992,6 +4992,10 @@ input.liste_titre {
 .noborder tr.liste_total td, tr.liste_total td, form.liste_total div {
 	white-space: nowrap;
 }
+/* Allow line break for multi-currency total (e.g. USD x + EUR y on separate lines) */
+tr.liste_total td.total-by-currency-cell {
+	white-space: normal;
+}
 .noborder tr.liste_total_wrap td, tr.liste_total_wrap td, form.liste_total_wrap div {
 	white-space: normal;
 }

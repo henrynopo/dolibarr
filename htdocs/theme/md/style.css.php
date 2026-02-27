@@ -4943,14 +4943,13 @@ tr.pair:last-of-type td, tr.impair:last-of-type td {
 tr.pair td .nobordernopadding tr td, tr.impair td .nobordernopadding tr td {
 	border-bottom: 0px !important;
 }
-/*
 table.nobottomiftotal tr.liste_total td {
 	background-color: var(--inputbackgroundcolor);
+	min-height: 1.5em;
 	<?php if (!$userborderontable) { ?>
 	border-bottom: 0px !important;
 	<?php } ?>
 }
-*/
 div.liste_titre .tagtd {
 	vertical-align: middle;
 }
