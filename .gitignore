@@ -76,6 +76,8 @@ doc/install.lock
 
 # Logs
 /*.log
+error_log
+dolibarr.zip
 
 # Vim swap files
 *.sw?
