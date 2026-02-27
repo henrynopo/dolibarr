@@ -45,7 +45,7 @@
 - **Phase 3（仪表盘 boxes）**：slycustom 提供 5 个替代 widget（订单多币种、待办 fk_user_done、生日 gmt、采购订单多币种、待收货 fa-dolly）。用户需在 **首页 → 配置 → 仪表盘** 中停用原 core widget、启用 SLY 的 widget。
 - **Phase 4（ShipsGo）**：已迁入 slycustom 模块，零 core 补丁。
 
-详见 **PORT-TO-22.md**（移植策略）、**patches/APPLY-ON-22.md**（22.0 补丁应用顺序）、**patches/PATCHES-BY-MODULE.md**（按模块索引与迁移缺口）。**迁移全部功能**（CORE 清单中所有定制）见 **CORE-CUSTOMIZATIONS-FULL-LIST.md** 与 **patches/PATCHES-BY-MODULE.md**。
+详见 **PORT-TO-22.md**（移植策略）、**patches/APPLY-ON-22.md**（22.0 补丁应用顺序）、**patches/PATCHES-BY-MODULE.md**（按模块索引与迁移缺口）。**从 14.0.5 自定义版到 22.0.4 的升级路径与变更整理**见 **docs/UPGRADE-14.0.5-TO-22.0.4.md**。**迁移全部功能**（CORE 清单中所有定制）见 **CORE-CUSTOMIZATIONS-FULL-LIST.md** 与 **patches/PATCHES-BY-MODULE.md**。
 
 ---
 

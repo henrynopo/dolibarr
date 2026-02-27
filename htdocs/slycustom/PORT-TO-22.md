@@ -1,6 +1,6 @@
 # 将 CORE-CUSTOMIZATIONS-FULL-LIST 全部功能移植到 Dolibarr 22.0.4
 
-本文档说明如何把 **CORE-CUSTOMIZATIONS-FULL-LIST.md** 中列出的全部核心定制，以补丁或等效修改的形式移植到 **官方 22.0.4**。
+本文档说明如何把 **CORE-CUSTOMIZATIONS-FULL-LIST.md** 中列出的全部核心定制，以补丁或等效修改的形式移植到 **官方 22.0.4**。**从 SLY14.0（14.0.5）到 22.0.4 的升级路径与变更整理**见 [docs/UPGRADE-14.0.5-TO-22.0.4.md](docs/UPGRADE-14.0.5-TO-22.0.4.md)。
 
 ---
 
