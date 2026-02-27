@@ -238,7 +238,6 @@ class PaymentLoan extends CommonObject
 		}
 
 		if ($totalamount != 0 && !$error) {
-			$this->amount_capital = $totalamount;
 			$this->db->commit();
 			return $this->id;
 		} else {
@@ -522,7 +521,8 @@ class PaymentLoan extends CommonObject
 			$acc = new Account($this->db);
 			$acc->fetch($accountid);
 
-			$total = $this->amount_capital;
+			// Total = capital + insurance + interest; negative = repayment (debit), positive = drawdown (credit)
+			$total = (float) $this->amount_capital + (float) $this->amount_insurance + (float) $this->amount_interest;
 			if ($mode == 'payment_loan') {
 				$total = -$total;
 			}

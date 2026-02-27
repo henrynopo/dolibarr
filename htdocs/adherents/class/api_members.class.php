@@ -492,15 +492,14 @@ class Members extends DolibarrApi
 		}
 
 
-		$res = $member->delete(DolibarrApiAccess::$user);
-		if ($res < 0) {
-			throw new RestException(500, "Can't delete, error occurs");
+		if (!$member->delete(DolibarrApiAccess::$user)) {
+			throw new RestException(401, 'error when deleting member');
 		}
 
 		return array(
 			'success' => array(
 				'code' => 200,
-				'message' => 'Member deleted'
+				'message' => 'member deleted'
 			)
 		);
 	}

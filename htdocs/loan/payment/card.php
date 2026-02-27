@@ -65,6 +65,53 @@ if ($id > 0) {
  * Actions
  */
 
+// Update Capital/Insurance/Interest (total unchanged, for bank reconciliation)
+if ($action == 'update_amounts' && $id > 0 && $user->hasRight('loan', 'write')) {
+	$pay_capital = (float) price2num(GETPOST('amount_capital', 'alphanohtml'));
+	$pay_insurance = (float) price2num(GETPOST('amount_insurance', 'alphanohtml'));
+	$pay_interest = (float) price2num(GETPOST('amount_interest', 'alphanohtml'));
+
+	$total_before = (float) $payment->amount_capital + (float) $payment->amount_insurance + (float) $payment->amount_interest;
+	$total_after = $pay_capital + $pay_insurance + $pay_interest;
+
+	if ($pay_capital < 0 || $pay_insurance < 0 || $pay_interest < 0) {
+		setEventMessages(null, array($langs->trans("PaymentAmountsMustBePositive")), 'errors');
+	} elseif (abs($total_after - $total_before) > 0.02) {
+		setEventMessages(null, array($langs->trans("PaymentAmountsSumMustEqualTotal", price($total_before, 0, $langs, 1, -1, -1, $conf->currency))), 'errors');
+	} else {
+		$db->begin();
+		$payment->amount_capital = $pay_capital;
+		$payment->amount_insurance = $pay_insurance;
+		$payment->amount_interest = $pay_interest;
+		$payment->fk_user_modif = $user->id;
+		$result = $payment->update($user, 0);
+		if ($result > 0) {
+			require_once DOL_DOCUMENT_ROOT.'/loan/class/loanschedule.class.php';
+			$sql = "SELECT rowid FROM ".MAIN_DB_PREFIX."loan_schedule WHERE fk_payment_loan = ".((int) $payment->id);
+			$resql = $db->query($sql);
+			if ($resql) {
+				while ($obj = $db->fetch_object($resql)) {
+					$line = new LoanSchedule($db);
+					$line->fetch($obj->rowid);
+					$line->amount_capital = $pay_capital;
+					$line->amount_insurance = $pay_insurance;
+					$line->amount_interest = $pay_interest;
+					$line->fk_user_modif = $user->id;
+					$line->update($user, 0);
+				}
+				$db->free($resql);
+			}
+			$db->commit();
+			setEventMessages($langs->trans("PaymentAmountsUpdated"), null, 'mesgs');
+			$payment->fetch($id);
+		} else {
+			$db->rollback();
+			setEventMessages($payment->error, $payment->errors, 'errors');
+		}
+	}
+	$action = 'edit';
+}
+
 // Delete payment
 if ($action == 'confirm_delete' && $confirm == 'yes' && $user->hasRight('loan', 'delete')) {
 	$db->begin();
@@ -122,6 +169,8 @@ dol_banner_tab($payment, 'id', $linkback, 1, 'rowid', 'ref', $morehtmlref, '', 0
 print '<div class="fichecenter">';
 print '<div class="underbanner clearboth"></div>';
 
+$payment_total = (float) $payment->amount_capital + (float) $payment->amount_insurance + (float) $payment->amount_interest;
+
 print '<table class="border centpercent">';
 
 // Date
@@ -130,16 +179,49 @@ print '<tr><td>'.$langs->trans('Date').'</td><td>'.dol_print_date($payment->date
 // Mode
 print '<tr><td>'.$langs->trans('Mode').'</td><td>'.$langs->trans("PaymentType".$payment->type_code).'</td></tr>';
 
-// Amount
-print '<tr><td>'.$langs->trans('LoanCapital').'</td><td>'.price($payment->amount_capital, 0, $langs, 1, -1, -1, $conf->currency).'</td></tr>';
-print '<tr><td>'.$langs->trans('Insurance').'</td><td>'.price($payment->amount_insurance, 0, $langs, 1, -1, -1, $conf->currency).'</td></tr>';
-print '<tr><td>'.$langs->trans('Interest').'</td><td>'.price($payment->amount_interest, 0, $langs, 1, -1, -1, $conf->currency).'</td></tr>';
+// Amounts: editable when action=edit (keep total unchanged for bank reconciliation; Capital/Interest linked)
+if ($action == 'edit' && $user->hasRight('loan', 'write')) {
+	print '<form action="'.dol_escape_htmltag($_SERVER['PHP_SELF']).'?id='.((int) $id).'" method="post" id="form_payment_amounts">';
+	print '<input type="hidden" name="token" value="'.newToken().'">';
+	print '<input type="hidden" name="action" value="update_amounts">';
+	$fmt = function ($v) { return number_format((float) $v, 2, '.', ''); };
+	$payment_total_js = number_format((float) $payment_total, 2, '.', '');
+	print '<tr><td>'.$langs->trans('LoanCapital').'</td><td><input type="text" class="width100" name="amount_capital" id="amount_capital" value="'.dol_escape_htmltag($fmt($payment->amount_capital)).'" required></td></tr>';
+	print '<tr><td>'.$langs->trans('Insurance').'</td><td><input type="text" class="width100" name="amount_insurance" id="amount_insurance" value="'.dol_escape_htmltag($fmt($payment->amount_insurance)).'" required></td></tr>';
+	print '<tr><td>'.$langs->trans('Interest').'</td><td><input type="text" class="width100" name="amount_interest" id="amount_interest" value="'.dol_escape_htmltag($fmt($payment->amount_interest)).'" required></td></tr>';
+	print '<tr><td>'.$langs->trans('PaymentTotalUnchanged').'</td><td><strong id="payment_total_display">'.price($payment_total, 0, $langs, 1, -1, -1, $conf->currency).'</strong> <span class="opacitymedium">'.$langs->trans('PaymentTotalUnchangedHelp').'</span></td></tr>';
+	print '<script type="text/javascript">';
+	print "var paymentTotalFixed = ".$payment_total_js.";\n";
+	print "function parseNum(v){ var n = parseFloat(String(v).replace(/[^0-9.-]/g,'').replace(',','.')); return isNaN(n)?0:n; }\n";
+	print "function formatNum(n){ return Math.round(n*100)/100; }\n";
+	print "function syncAmounts(changedId){\n";
+	print "  var cap = parseNum(document.getElementById('amount_capital').value);\n";
+	print "  var ins = parseNum(document.getElementById('amount_insurance').value);\n";
+	print "  var intVal = parseNum(document.getElementById('amount_interest').value);\n";
+	print "  if (changedId === 'amount_capital') { intVal = formatNum(paymentTotalFixed - ins - cap); document.getElementById('amount_interest').value = intVal.toFixed(2); }\n";
+	print "  else if (changedId === 'amount_interest') { cap = formatNum(paymentTotalFixed - ins - intVal); document.getElementById('amount_capital').value = cap.toFixed(2); }\n";
+	print "  else if (changedId === 'amount_insurance') { intVal = formatNum(paymentTotalFixed - ins - cap); document.getElementById('amount_interest').value = intVal.toFixed(2); }\n";
+	print "}\n";
+	print "document.getElementById('amount_capital').addEventListener('input', function(){ syncAmounts('amount_capital'); });\n";
+	print "document.getElementById('amount_insurance').addEventListener('input', function(){ syncAmounts('amount_insurance'); });\n";
+	print "document.getElementById('amount_interest').addEventListener('input', function(){ syncAmounts('amount_interest'); });\n";
+	print "</script>";
+} else {
+	print '<tr><td>'.$langs->trans('LoanCapital').'</td><td>'.price($payment->amount_capital, 0, $langs, 1, -1, -1, $conf->currency).'</td></tr>';
+	print '<tr><td>'.$langs->trans('Insurance').'</td><td>'.price($payment->amount_insurance, 0, $langs, 1, -1, -1, $conf->currency).'</td></tr>';
+	print '<tr><td>'.$langs->trans('Interest').'</td><td>'.price($payment->amount_interest, 0, $langs, 1, -1, -1, $conf->currency).'</td></tr>';
+}
 
 // Note Private
 print '<tr><td>'.$langs->trans('NotePrivate').'</td><td>'.nl2br($payment->note_private).'</td></tr>';
 
 // Note Public
 print '<tr><td>'.$langs->trans('NotePublic').'</td><td>'.nl2br($payment->note_public).'</td></tr>';
+
+if ($action == 'edit' && $user->hasRight('loan', 'write')) {
+	print '<tr><td></td><td><input type="submit" class="button button-save" value="'.$langs->trans('Save').'"> ';
+	print '<a href="'.dol_escape_htmltag($_SERVER['PHP_SELF']).'?id='.((int) $id).'" class="button">'.$langs->trans('Cancel').'</a></td></tr>';
+}
 
 // Bank account
 if (isModEnabled("bank")) {
@@ -157,6 +239,9 @@ if (isModEnabled("bank")) {
 }
 
 print '</table>';
+if ($action == 'edit' && $user->hasRight('loan', 'write')) {
+	print '</form>';
+}
 
 print '</div>';
 
@@ -233,11 +318,19 @@ print '</div>';
 
 print '<div class="tabsAction">';
 
+if ($user->hasRight('loan', 'write')) {
+	if ($action == 'edit') {
+		print dolGetButtonAction($langs->trans("Cancel"), '', 'default', $_SERVER["PHP_SELF"].'?id='.$id, '', 1);
+	} else {
+		print dolGetButtonAction($langs->trans("EditAmounts"), '', 'edit', $_SERVER["PHP_SELF"].'?id='.$id.'&action=edit', '', 1);
+	}
+}
+
 if (empty($action) && $user->hasRight('loan', 'delete')) {
 	if (!$disable_delete) {
 		print dolGetButtonAction($langs->trans("Delete"), '', 'delete', $_SERVER["PHP_SELF"].'?id='.$id.'&action=delete&token='.newToken(), 'delete', 1);
 	} else {
-		print dolGetButtonAction($langs->trans("CantRemovePaymentWithOneInvoicePaid"), $langs->trans("Delete"), 'delete', $_SERVER["PHP_SELF"].'?id='.$object->id.'&action=delete&token='.newToken(), 'delete', 0);
+		print dolGetButtonAction($langs->trans("CantRemovePaymentWithOneInvoicePaid"), $langs->trans("Delete"), 'delete', $_SERVER["PHP_SELF"].'?id='.$id.'&action=delete&token='.newToken(), 'delete', 0);
 	}
 }
 

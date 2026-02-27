@@ -1046,7 +1046,7 @@ if ($resql) {
 	$projectstatic = new Project($db);
 
 	$savnbfield = $totalarray['nbfield'];
-	$totalarray = array('nbfield' => 0, 'val' => array(), 'pos' => array());
+	$totalarray = array('nbfield' => 0, 'val' => array(), 'pos' => array(), 'val_by_currency' => array());
 	$totalarray['val']['sp.total_ht'] = 0;
 	$totalarray['val']['sp.total_tva'] = 0;
 	$totalarray['val']['sp.total_ttc'] = 0;
@@ -1054,6 +1054,8 @@ if ($resql) {
 	$imaxinloop = ($limit ? min($num, $limit) : $num);
 	while ($i < $imaxinloop) {
 		$obj = $db->fetch_object($resql);
+
+		$row_currency = !empty($obj->multicurrency_code) ? $obj->multicurrency_code : $conf->currency;
 
 		$objectstatic->id = $obj->rowid;
 		$objectstatic->ref = $obj->ref;
@@ -1280,26 +1282,44 @@ if ($resql) {
 					$totalarray['nbfield']++;
 				}
 			}
-			// Amount HT
+			// Amount HT (foreign currency)
 			if (!empty($arrayfields['sp.multicurrency_total_ht']['checked'])) {
 				print '<td class="right nowrap"><span class="amount">'.price($obj->multicurrency_total_ht)."</span></td>\n";
 				if (!$i) {
 					$totalarray['nbfield']++;
+					$totalarray['pos'][$totalarray['nbfield']] = 'sp.multicurrency_total_ht';
 				}
+				$amt_mht = !empty($obj->multicurrency_code) ? $obj->multicurrency_total_ht : 0;
+				if (!isset($totalarray['val_by_currency'][$row_currency])) {
+					$totalarray['val_by_currency'][$row_currency] = array();
+				}
+				$totalarray['val_by_currency'][$row_currency]['sp.multicurrency_total_ht'] = ($totalarray['val_by_currency'][$row_currency]['sp.multicurrency_total_ht'] ?? 0) + $amt_mht;
 			}
-			// Amount VAT
+			// Amount VAT (foreign currency)
 			if (!empty($arrayfields['sp.multicurrency_total_vat']['checked'])) {
 				print '<td class="right nowrap"><span class="amount">'.price($obj->multicurrency_total_vat)."</span></td>\n";
 				if (!$i) {
 					$totalarray['nbfield']++;
+					$totalarray['pos'][$totalarray['nbfield']] = 'sp.multicurrency_total_vat';
 				}
+				$amt_mvat = !empty($obj->multicurrency_code) ? $obj->multicurrency_total_vat : 0;
+				if (!isset($totalarray['val_by_currency'][$row_currency])) {
+					$totalarray['val_by_currency'][$row_currency] = array();
+				}
+				$totalarray['val_by_currency'][$row_currency]['sp.multicurrency_total_vat'] = ($totalarray['val_by_currency'][$row_currency]['sp.multicurrency_total_vat'] ?? 0) + $amt_mvat;
 			}
-			// Amount TTC
+			// Amount TTC (foreign currency)
 			if (!empty($arrayfields['sp.multicurrency_total_ttc']['checked'])) {
 				print '<td class="right nowrap"><span class="amount">'.price($obj->multicurrency_total_ttc)."</span></td>\n";
 				if (!$i) {
 					$totalarray['nbfield']++;
+					$totalarray['pos'][$totalarray['nbfield']] = 'sp.multicurrency_total_ttc';
 				}
+				$amt_mttc = !empty($obj->multicurrency_code) ? $obj->multicurrency_total_ttc : 0;
+				if (!isset($totalarray['val_by_currency'][$row_currency])) {
+					$totalarray['val_by_currency'][$row_currency] = array();
+				}
+				$totalarray['val_by_currency'][$row_currency]['sp.multicurrency_total_ttc'] = ($totalarray['val_by_currency'][$row_currency]['sp.multicurrency_total_ttc'] ?? 0) + $amt_mttc;
 			}
 
 			$userstatic->id = $obj->fk_user_author;
@@ -1381,7 +1401,10 @@ if ($resql) {
 		$i++;
 	}
 
-	// Show total line
+	// Show total line (first_column_empty when checkbox is left so Total row column count matches header/data)
+	if (getDolGlobalString('MAIN_CHECKBOX_LEFT_COLUMN')) {
+		$totalarray['first_column_empty'] = 1;
+	}
 	include DOL_DOCUMENT_ROOT.'/core/tpl/list_print_total.tpl.php';
 
 	// If no record found

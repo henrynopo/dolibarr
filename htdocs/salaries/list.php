@@ -992,6 +992,11 @@ while ($i < $imaxinloop) {
 	$i++;
 }
 
+// Ensure pos exists when there are rows; keep nbfield from data loop so Total row has same column count as data rows
+if ($num > 0 && (!isset($totalarray['pos']) || !is_array($totalarray['pos']))) {
+	$totalarray['pos'] = array();
+}
+
 // Show total line
 include DOL_DOCUMENT_ROOT.'/core/tpl/list_print_total.tpl.php';
 

@@ -778,9 +778,8 @@ if ($id > 0) {
 					print '<div class="inline-block divButAction"><a class="butAction" href="'.DOL_URL_ROOT.'/loan/card.php?id='.$object->id.'&action=edit&token='.newToken().'">'.$langs->trans("Modify").'</a></div>';
 				}
 
-				// Emit payment
-				// TODO check if loan schedule is created ($echeances->lines > 0)
-				if (($object->paid == 0 || $object->paid == 2) && ((price2num($object->capital) > 0 && round($staytopay) < 0) || (price2num($object->capital) > 0 && round($staytopay) > 0)) && $user->hasRight('loan', 'write')) {
+				// Emit payment (repayment or further drawdown when capital negative)
+				if (($object->paid == 0 || $object->paid == 2) && price2num($object->capital) > 0 && $user->hasRight('loan', 'write')) {
 					print '<div class="inline-block divButAction"><a class="butAction" href="'.DOL_URL_ROOT.'/loan/payment/payment.php?id='.$object->id.'&action=create&token='.newToken().'">'.$langs->trans("DoPayment").'</a></div>';
 				}
 

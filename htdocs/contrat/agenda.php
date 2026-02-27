@@ -262,13 +262,11 @@ if ($object->id > 0) {
 	$newcardbutton = '';
 	if (isModEnabled('agenda')) {
 		if ($user->hasRight('agenda', 'myactions', 'create') || $user->hasRight('agenda', 'allactions', 'create')) {
-			$backtopage = $_SERVER['PHP_SELF'].'?id='.$object->id;
-			$out = '&origin='.$object->element.'&originid='.$object->id.'&backtopage='.urlencode($backtopage);
 			$messagingUrl = DOL_URL_ROOT.'/contrat/messaging.php?id='.$object->id;
 			$newcardbutton .= dolGetButtonTitle($langs->trans('ShowAsConversation'), '', 'fa fa-comments imgforviewmode', $messagingUrl, '', 1);
 			$messagingUrl = DOL_URL_ROOT.'/contrat/agenda.php?id='.$object->id;
 			$newcardbutton .= dolGetButtonTitle($langs->trans('MessageListViewType'), '', 'fa fa-bars imgforviewmode', $messagingUrl, '', 2);
-			$newcardbutton .= dolGetButtonTitle($langs->trans('AddAction'), '', 'fa fa-plus-circle', DOL_URL_ROOT.'/comm/action/card.php?action=create'.$out);
+			$newcardbutton .= dolGetButtonTitle($langs->trans('AddAction'), '', 'fa fa-plus-circle', DOL_URL_ROOT.'/comm/action/card.php?action=create&origin='.$object->element.'&originid='.$object->id);
 		}
 	}
 

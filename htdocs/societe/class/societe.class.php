@@ -540,6 +540,11 @@ class Societe extends CommonObject
 	public $capital;
 
 	/**
+	 * @var string Currency code for capital (e.g. CNY, USD), independent of company accounting currency
+	 */
+	public $capital_currency;
+
+	/**
 	 * @var int Type thirdparty
 	 */
 	public $typent_id = 0;
@@ -1682,6 +1687,7 @@ class Societe extends CommonObject
 			}
 
 			$sql .= ",capital = ".($this->capital === null ? "null" : $this->capital);
+			$sql .= ",capital_currency = ".(!empty($this->capital_currency) ? "'".$this->db->escape($this->capital_currency)."'" : "null");
 
 			$sql .= ",prefix_comm = ".(!empty($this->prefix_comm) ? "'".$this->db->escape($this->prefix_comm)."'" : "null");
 
@@ -1926,7 +1932,7 @@ class Societe extends CommonObject
 		$sql .= ', s.socialnetworks';
 		$sql .= ', s.url, s.zip, s.town, s.note_private, s.note_public, s.client, s.fournisseur';
 		$sql .= ', s.siren as idprof1, s.siret as idprof2, s.ape as idprof3, s.idprof4, s.idprof5, s.idprof6';
-		$sql .= ', s.capital, s.tva_intra';
+		$sql .= ', s.capital, s.capital_currency, s.tva_intra';
 		$sql .= ', s.fk_typent as typent_id';
 		$sql .= ', s.fk_effectif as effectif_id';
 		$sql .= ', s.fk_forme_juridique as forme_juridique_code';
@@ -2092,6 +2098,7 @@ class Societe extends CommonObject
 				$this->idprof6		= $obj->idprof6;
 
 				$this->capital = $obj->capital;
+				$this->capital_currency = $obj->capital_currency;
 
 				$this->code_client = $obj->code_client;
 				$this->code_fournisseur = $obj->code_fournisseur;

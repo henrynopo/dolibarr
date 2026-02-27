@@ -149,8 +149,10 @@ if ($action == 'add_payment' && $permissiontoadd) {
 			$error++;
 		}
 
-		if (empty($remaindertopay)) {
-			setEventMessages('Empty sumpaid', null, 'errors');
+		// When repaying (positive capital), remainder to pay must be > 0; when drawing (negative capital) we allow it
+		$remainder_num = (float) price2num($remaindertopay);
+		if ($pay_amount_capital > 0 && $remainder_num <= 0) {
+			setEventMessages($langs->trans('NoRemainderToPay'), null, 'errors');
 			$error++;
 		}
 
@@ -193,8 +195,8 @@ if ($action == 'add_payment' && $permissiontoadd) {
 				}
 			}
 
-			// Update loan schedule with payment value
-			if (!$error && !empty($line)) {
+			// Update loan schedule with payment value (only for repayments with a current term, not for further drawdowns)
+			if (!$error && !empty($line) && $pay_amount_capital >= 0) {
 				// If payment values are modified, recalculate schedule
 				if (($line->amount_capital != $pay_amount_capital) || ($line->amount_insurance != $pay_amount_insurance) || ($line->amount_interest != $pay_amount_interest)) {
 					$arr_term = loanCalcMonthlyPayment(($pay_amount_capital + $pay_amount_interest), $remaindertopay, ($loan->rate / 100), $echance, (int) $loan->nbterm);
@@ -373,23 +375,12 @@ if ($action == 'create') {
 	print '<td class="right" valign="center">'.price($loan->capital - $sumpaid)."</td>";
 
 	print '<td class="right">';
-	if ($sumpaid < $loan->capital) {
-		print $langs->trans("LoanCapital").': <input type="text" size="8" name="amount_capital" value="'.(GETPOSTISSET('amount_capital') ? GETPOST('amount_capital') : $amount_capital).'">';
-	} else {
-		print '-';
-	}
+	// Capital: positive = repayment, negative = further borrowing (drawdown)
+	print $langs->trans("LoanCapital").': <input type="text" size="8" name="amount_capital" value="'.(GETPOSTISSET('amount_capital') ? GETPOST('amount_capital') : $amount_capital).'">';
 	print '<br>';
-	if ($sumpaid < $loan->capital) {
-		print $langs->trans("Insurance").': <input type="text" size="8" name="amount_insurance" value="'.(GETPOSTISSET('amount_insurance') ? GETPOST('amount_insurance') : $amount_insurance).'">';
-	} else {
-		print '-';
-	}
+	print $langs->trans("Insurance").': <input type="text" size="8" name="amount_insurance" value="'.(GETPOSTISSET('amount_insurance') ? GETPOST('amount_insurance') : $amount_insurance).'">';
 	print '<br>';
-	if ($sumpaid < $loan->capital) {
-		print $langs->trans("Interest").': <input type="text" size="8" name="amount_interest" value="'.(GETPOSTISSET('amount_interest') ? GETPOST('amount_interest') : $amount_interest).'" '.(!empty($line) ? 'disabled title="'.$langs->trans('CantModifyInterestIfScheduleIsUsed').'"' : '').'>';
-	} else {
-		print '-';
-	}
+	print $langs->trans("Interest").': <input type="text" size="8" name="amount_interest" value="'.(GETPOSTISSET('amount_interest') ? GETPOST('amount_interest') : $amount_interest).'" '.(!empty($line) ? 'disabled title="'.$langs->trans('CantModifyInterestIfScheduleIsUsed').'"' : '').'>';
 	print "</td>";
 
 	print "</tr>\n";

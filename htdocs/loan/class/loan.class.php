@@ -153,6 +153,11 @@ class Loan extends CommonObject
 	public $totalpaid;
 
 	/**
+	 * @var string JSON array of schedule phases (multi-phase: rate/repayment by term range). Null or empty = single phase (current loan rate & type).
+	 */
+	public $schedule_phases;
+
+	/**
 	 * @var int
 	 */
 	const STATUS_UNPAID = 0;
@@ -179,6 +184,21 @@ class Loan extends CommonObject
 	}
 
 	/**
+	 * Check if schedule_phases column exists (cache per request).
+	 *
+	 * @return bool
+	 */
+	protected function hasSchedulePhasesColumn()
+	{
+		static $has = null;
+		if ($has === null) {
+			$res = $this->db->query("SHOW COLUMNS FROM ".MAIN_DB_PREFIX."loan LIKE 'schedule_phases'");
+			$has = ($res && $this->db->num_rows($res) > 0);
+		}
+		return $has;
+	}
+
+	/**
 	 *  Load object in memory from database
 	 *
 	 *  @param	int		$id		 id object
@@ -188,6 +208,9 @@ class Loan extends CommonObject
 	{
 		$sql = "SELECT l.rowid, l.label, l.capital, l.datestart, l.dateend, l.nbterm, l.rate, l.note_private, l.note_public, l.insurance_amount,";
 		$sql .= " l.paid, l.fk_bank, l.accountancy_account_capital, l.accountancy_account_insurance, l.accountancy_account_interest, l.fk_projet as fk_project";
+		if ($this->hasSchedulePhasesColumn()) {
+			$sql .= ", l.schedule_phases";
+		}
 		$sql .= " FROM ".MAIN_DB_PREFIX."loan as l";
 		$sql .= " WHERE l.rowid = ".((int) $id);
 
@@ -215,6 +238,7 @@ class Loan extends CommonObject
 				$this->account_insurance = $obj->accountancy_account_insurance;
 				$this->account_interest = $obj->accountancy_account_interest;
 				$this->fk_project = $obj->fk_project;
+				$this->schedule_phases = $this->hasSchedulePhasesColumn() ? $obj->schedule_phases : null;
 
 				$this->db->free($resql);
 				return 1;
@@ -299,8 +323,11 @@ class Loan extends CommonObject
 
 		$sql = "INSERT INTO ".MAIN_DB_PREFIX."loan (label, fk_bank, capital, datestart, dateend, nbterm, rate, note_private, note_public,";
 		$sql .= " accountancy_account_capital, accountancy_account_insurance, accountancy_account_interest, entity,";
-		$sql .= " datec, fk_projet, fk_user_author, insurance_amount)";
-		$sql .= " VALUES ('".$this->db->escape($this->label)."',";
+		$sql .= " datec, fk_projet, fk_user_author, insurance_amount";
+		if ($this->hasSchedulePhasesColumn()) {
+			$sql .= ", schedule_phases";
+		}
+		$sql .= ") VALUES ('".$this->db->escape($this->label)."',";
 		$sql .= " '".$this->db->escape((string) $this->fk_bank)."',";
 		$sql .= " '".price2num($newcapital)."',";
 		$sql .= " '".$this->db->idate($this->datestart)."',";
@@ -317,6 +344,9 @@ class Loan extends CommonObject
 		$sql .= " ".(empty($this->fk_project) ? 'NULL' : $this->fk_project).",";
 		$sql .= " ".((int) $user->id).",";
 		$sql .= " '".price2num($newinsuranceamount)."'";
+		if ($this->hasSchedulePhasesColumn()) {
+			$sql .= ", ".(isset($this->schedule_phases) && $this->schedule_phases !== '' ? "'".$this->db->escape($this->schedule_phases)."'" : "NULL");
+		}
 		$sql .= ")";
 
 		dol_syslog(get_class($this)."::create", LOG_DEBUG);
@@ -424,6 +454,9 @@ class Loan extends CommonObject
 		$sql .= " fk_projet=".(empty($this->fk_project) ? 'NULL' : ((int) $this->fk_project)).",";
 		$sql .= " fk_user_modif = ".((int) $user->id).",";
 		$sql .= " insurance_amount = '".price2num($this->db->escape((string) $this->insurance_amount))."'";
+		if ($this->hasSchedulePhasesColumn()) {
+			$sql .= ", schedule_phases = ".(isset($this->schedule_phases) && $this->schedule_phases !== '' ? "'".$this->db->escape($this->schedule_phases)."'" : "NULL");
+		}
 		$sql .= " WHERE rowid=".((int) $this->id);
 
 		dol_syslog(get_class($this)."::update", LOG_DEBUG);
