@@ -1,8 +1,762 @@
+diff --git a/htdocs/core/boxes/box_commandes.php b/htdocs/core/boxes/box_commandes.php
+index ce9961e4072..8280b581d0c 100644
+--- a/htdocs/core/boxes/box_commandes.php
++++ b/htdocs/core/boxes/box_commandes.php
+@@ -96,6 +96,10 @@ class box_commandes extends ModeleBoxes
+ 			$sql .= ", c.total_ht";
+ 			$sql .= ", c.total_tva";
+ 			$sql .= ", c.total_ttc";
++			if (isModEnabled('multicurrency')) {
++				$sql .= ", c.multicurrency_total_ht";
++				$sql .= ", c.multicurrency_code";
++			}
+ 			$sql .= " FROM ".MAIN_DB_PREFIX."commande as c, ".MAIN_DB_PREFIX."societe as s";
+ 			if (empty($user->socid) && !$user->hasRight('societe', 'client', 'voir')) {
+ 				$sql .= ", ".MAIN_DB_PREFIX."societe_commerciaux as sc";
+@@ -160,9 +164,13 @@ class box_commandes extends ModeleBoxes
+ 						'asis' => 1,
+ 					);
+ 
++					$amountText = price($objp->total_ht, 0, $langs, 0, -1, -1, $conf->currency);
++					if (isModEnabled('multicurrency') && !empty($objp->multicurrency_code)) {
++						$amountText = price($objp->multicurrency_total_ht, 0, $langs, 0, -1, -1, $objp->multicurrency_code);
++					}
+ 					$this->info_box_contents[$line][] = array(
+ 						'td' => 'class="nowraponall right amount"',
+-						'text' => price($objp->total_ht, 0, $langs, 0, -1, -1, $conf->currency),
++						'text' => $amountText,
+ 					);
+ 
+ 					if (getDolGlobalString('ORDER_BOX_LAST_ORDERS_SHOW_VALIDATE_USER')) {
+diff --git a/htdocs/core/boxes/box_factures.php b/htdocs/core/boxes/box_factures.php
+index 7130b514233..ad328e8872d 100644
+--- a/htdocs/core/boxes/box_factures.php
++++ b/htdocs/core/boxes/box_factures.php
+@@ -81,9 +81,13 @@ class box_factures extends ModeleBoxes
+ 
+ 		if ($user->hasRight('facture', 'lire')) {
+ 			$sql = "SELECT f.rowid as facid";
+-			$sql .= ", f.ref, f.type, f.total_ht";
++				$sql .= ", f.ref, f.type, f.total_ht";
+ 			$sql .= ", f.total_tva";
+ 			$sql .= ", f.total_ttc";
++			if (isModEnabled('multicurrency')) {
++				$sql .= ", f.multicurrency_total_ht";
++				$sql .= ", f.multicurrency_code";
++			}
+ 			$sql .= ", f.datef as date";
+ 			$sql .= ", f.paye, f.fk_statut as status, f.datec, f.tms";
+ 			$sql .= ", f.date_lim_reglement as datelimite";
+@@ -109,6 +113,9 @@ class box_factures extends ModeleBoxes
+ 			}
+ 			$sql .= " GROUP BY s.rowid, s.nom, s.name_alias, s.code_client, s.code_compta, s.client, s.logo, s.email, s.entity, s.tva_intra, s.siren, s.siret, s.ape, s.idprof4, s.idprof5, s.idprof6,";
+ 			$sql .= " f.rowid, f.ref, f.type, f.total_ht, f.total_tva, f.total_ttc, f.datef, f.paye, f.fk_statut, f.datec, f.tms, f.date_lim_reglement";
++			if (isModEnabled('multicurrency')) {
++				$sql .= ", f.multicurrency_total_ht, f.multicurrency_code";
++			}
+ 			if (getDolGlobalString('MAIN_LASTBOX_ON_OBJECT_DATE')) {
+ 				$sql .= " ORDER BY f.datef DESC, f.ref DESC ";
+ 			} else {
+@@ -181,9 +188,13 @@ class box_factures extends ModeleBoxes
+ 						'asis' => 1,
+ 					);
+ 
++					$amountText = price($objp->total_ht, 0, $langs, 0, -1, -1, $conf->currency);
++					if (isModEnabled('multicurrency') && !empty($objp->multicurrency_code)) {
++						$amountText = price($objp->multicurrency_total_ht, 0, $langs, 0, -1, -1, $objp->multicurrency_code);
++					}
+ 					$this->info_box_contents[$line][] = array(
+ 						'td' => 'class="right nowraponall amount"',
+-						'text' => price($objp->total_ht, 0, $langs, 0, -1, -1, $conf->currency),
++						'text' => $amountText,
+ 					);
+ 
+ 					$this->info_box_contents[$line][] = array(
+diff --git a/htdocs/core/boxes/box_factures_fourn.php b/htdocs/core/boxes/box_factures_fourn.php
+index 9f90f60f3ad..6e026d95f40 100644
+--- a/htdocs/core/boxes/box_factures_fourn.php
++++ b/htdocs/core/boxes/box_factures_fourn.php
+@@ -87,6 +87,10 @@ class box_factures_fourn extends ModeleBoxes
+ 			$sql .= ", f.total_ht";
+ 			$sql .= ", f.total_tva";
+ 			$sql .= ", f.total_ttc";
++			if (isModEnabled('multicurrency')) {
++				$sql .= ", f.multicurrency_total_ht";
++				$sql .= ", f.multicurrency_code";
++			}
+ 			$sql .= ", f.paye, f.fk_statut as status";
+ 			$sql .= ', f.datef as date';
+ 			$sql .= ', f.datec as datec';
+@@ -177,9 +181,13 @@ class box_factures_fourn extends ModeleBoxes
+ 						'asis' => 1,
+ 					);
+ 
++					$amountText = price($objp->total_ht, 0, $langs, 0, -1, -1, $conf->currency);
++					if (isModEnabled('multicurrency') && !empty($objp->multicurrency_code)) {
++						$amountText = price($objp->multicurrency_total_ht, 0, $langs, 0, -1, -1, $objp->multicurrency_code);
++					}
+ 					$this->info_box_contents[$line][] = array(
+ 						'td' => 'class="nowraponall right amount"',
+-						'text' => price($objp->total_ht, 0, $langs, 0, -1, -1, $conf->currency),
++						'text' => $amountText,
+ 					);
+ 
+ 					$this->info_box_contents[$line][] = array(
+diff --git a/htdocs/core/boxes/box_factures_fourn_imp.php b/htdocs/core/boxes/box_factures_fourn_imp.php
+index 188fc5be4c5..de52f75410e 100644
+--- a/htdocs/core/boxes/box_factures_fourn_imp.php
++++ b/htdocs/core/boxes/box_factures_fourn_imp.php
+@@ -87,6 +87,10 @@ class box_factures_fourn_imp extends ModeleBoxes
+ 			$sql1 .= ", f.total_ht";
+ 			$sql1 .= ", f.total_tva";
+ 			$sql1 .= ", f.total_ttc";
++			if (isModEnabled('multicurrency')) {
++				$sql1 .= ", f.multicurrency_total_ht";
++				$sql1 .= ", f.multicurrency_code";
++			}
+ 			$sql1 .= ", f.paye, f.fk_statut as status, f.type";
+ 			$sql1 .= ", f.tms";
+ 			$sql1 .= ", SUM(pf.amount) as am";
+@@ -109,6 +113,9 @@ class box_factures_fourn_imp extends ModeleBoxes
+ 			$sql3 = " GROUP BY s.rowid, s.nom, s.name_alias, s.code_fournisseur, s.code_compta_fournisseur, s.fournisseur, s.logo, s.email, s.entity, s.tva_intra, s.siren, s.siret, s.ape, s.idprof4, s.idprof5, s.idprof6,";
+ 			$sql3 .= " f.rowid, f.ref, f.ref_supplier, f.date_lim_reglement,";
+ 			$sql3 .= " f.type, f.datef, f.total_ht, f.total_tva, f.total_ttc, f.paye, f.fk_statut, f.tms";
++			if (isModEnabled('multicurrency')) {
++				$sql3 .= ", f.multicurrency_total_ht, f.multicurrency_code";
++			}
+ 			$sql3 .= " ORDER BY datelimite ASC, f.ref_supplier ASC";
+ 			$sql3 .= $this->db->plimit($this->max + 1, 0);
+ 
+@@ -184,9 +191,13 @@ class box_factures_fourn_imp extends ModeleBoxes
+ 						'asis' => 1,
+ 					);
+ 
++					$amountText = price($objp->total_ht, 0, $langs, 0, -1, -1, $conf->currency);
++					if (isModEnabled('multicurrency') && !empty($objp->multicurrency_code)) {
++						$amountText = price($objp->multicurrency_total_ht, 0, $langs, 0, -1, -1, $objp->multicurrency_code);
++					}
+ 					$this->info_box_contents[$line][] = array(
+ 						'td' => 'class="nowraponall right amount"',
+-						'text' => price($objp->total_ht, 0, $langs, 0, -1, -1, $conf->currency),
++						'text' => $amountText,
+ 					);
+ 
+ 					$this->info_box_contents[$line][] = array(
+diff --git a/htdocs/core/boxes/box_factures_imp.php b/htdocs/core/boxes/box_factures_imp.php
+index c59f62a80d9..715befbcfcb 100644
+--- a/htdocs/core/boxes/box_factures_imp.php
++++ b/htdocs/core/boxes/box_factures_imp.php
+@@ -98,6 +98,10 @@ class box_factures_imp extends ModeleBoxes
+ 			$sql1 .= ", f.total_ht";
+ 			$sql1 .= ", f.total_tva";
+ 			$sql1 .= ", f.total_ttc";
++			if (isModEnabled('multicurrency')) {
++				$sql1 .= ", f.multicurrency_total_ht";
++				$sql1 .= ", f.multicurrency_code";
++			}
+ 			$sql1 .= ", f.paye, f.fk_statut as status, f.rowid as facid";
+ 			$sql1 .= ", SUM(pf.amount) as am";
+ 			$sql2 = " FROM ".MAIN_DB_PREFIX."societe as s";
+@@ -127,6 +131,9 @@ class box_factures_imp extends ModeleBoxes
+ 			}
+ 			$sql3 .= " f.rowid, f.ref, f.date_lim_reglement,";
+ 			$sql3 .= " f.type, f.datef, f.total_ht, f.total_tva, f.total_ttc, f.paye, f.fk_statut";
++			if (isModEnabled('multicurrency')) {
++				$sql3 .= ", f.multicurrency_total_ht, f.multicurrency_code";
++			}
+ 			$sql3 .= " ORDER BY date_lim_reglement ASC, f.ref ASC";
+ 			$sql3 .= $this->db->plimit($this->max + 1, 0);
+ 
+@@ -199,9 +206,13 @@ class box_factures_imp extends ModeleBoxes
+ 						'asis' => 1,
+ 					);
+ 
++					$amountText = price($objp->total_ht, 0, $langs, 0, -1, -1, $conf->currency);
++					if (isModEnabled('multicurrency') && !empty($objp->multicurrency_code)) {
++						$amountText = price($objp->multicurrency_total_ht, 0, $langs, 0, -1, -1, $objp->multicurrency_code);
++					}
+ 					$this->info_box_contents[$line][] = array(
+ 						'td' => 'class="nowraponall right amount"',
+-						'text' => price($objp->total_ht, 0, $langs, 0, -1, -1, $conf->currency),
++						'text' => $amountText,
+ 					);
+ 
+ 					$this->info_box_contents[$line][] = array(
+diff --git a/htdocs/core/boxes/box_propales.php b/htdocs/core/boxes/box_propales.php
+index 3820900aa16..fdffee233e6 100644
+--- a/htdocs/core/boxes/box_propales.php
++++ b/htdocs/core/boxes/box_propales.php
+@@ -84,6 +84,10 @@ class box_propales extends ModeleBoxes
+ 			$sql .= ", s.code_client, s.code_compta, s.client";
+ 			$sql .= ", s.logo, s.email, s.entity";
+ 			$sql .= ", p.rowid, p.ref, p.fk_statut as status, p.datep as dp, p.datec, p.fin_validite, p.date_cloture, p.total_ht, p.total_tva, p.total_ttc, p.tms";
++			if (isModEnabled('multicurrency')) {
++				$sql .= ", p.multicurrency_total_ht";
++				$sql .= ", p.multicurrency_code";
++			}
+ 			$sql .= " FROM ".MAIN_DB_PREFIX."propal as p, ".MAIN_DB_PREFIX."societe as s";
+ 			if (empty($user->socid) && !$user->hasRight('societe', 'client', 'voir')) {
+ 				$sql .= ", ".MAIN_DB_PREFIX."societe_commerciaux as sc";
+@@ -156,9 +160,13 @@ class box_propales extends ModeleBoxes
+ 						'asis' => 1,
+ 					);
+ 
++					$amountText = price($objp->total_ht, 0, $langs, 0, -1, -1, $conf->currency);
++					if (isModEnabled('multicurrency') && !empty($objp->multicurrency_code)) {
++						$amountText = price($objp->multicurrency_total_ht, 0, $langs, 0, -1, -1, $objp->multicurrency_code);
++					}
+ 					$this->info_box_contents[$line][] = array(
+ 						'td' => 'class="nowraponall right amount"',
+-						'text' => price($objp->total_ht, 0, $langs, 0, -1, -1, $conf->currency),
++						'text' => $amountText,
+ 					);
+ 
+ 					$this->info_box_contents[$line][] = array(
+diff --git a/htdocs/core/boxes/box_supplier_orders.php b/htdocs/core/boxes/box_supplier_orders.php
+index f5cf01d3929..6ab1c071c12 100644
+--- a/htdocs/core/boxes/box_supplier_orders.php
++++ b/htdocs/core/boxes/box_supplier_orders.php
+@@ -85,6 +85,10 @@ class box_supplier_orders extends ModeleBoxes
+ 			$sql .= ", c.total_ht";
+ 			$sql .= ", c.total_tva";
+ 			$sql .= ", c.total_ttc";
++			if (isModEnabled('multicurrency')) {
++				$sql .= ", c.multicurrency_total_ht";
++				$sql .= ", c.multicurrency_code";
++			}
+ 			$sql .= ", c.fk_statut as status";
+ 			$sql .= " FROM ".MAIN_DB_PREFIX."societe as s";
+ 			$sql .= ", ".MAIN_DB_PREFIX."commande_fournisseur as c";
+@@ -145,9 +149,13 @@ class box_supplier_orders extends ModeleBoxes
+ 						'asis' => 1,
+ 					);
+ 
++					$amountText = price($objp->total_ht, 0, $langs, 0, -1, -1, $conf->currency);
++					if (isModEnabled('multicurrency') && !empty($objp->multicurrency_code)) {
++						$amountText = price($objp->multicurrency_total_ht, 0, $langs, 0, -1, -1, $objp->multicurrency_code);
++					}
+ 					$this->info_box_contents[$line][] = array(
+ 						'td' => 'class="nowraponall right amount"',
+-						'text' => price($objp->total_ht, 0, $langs, 0, -1, -1, $conf->currency),
++						'text' => $amountText,
+ 					);
+ 
+ 					$this->info_box_contents[$line][] = array(
+diff --git a/htdocs/core/boxes/box_supplier_orders_awaiting_reception.php b/htdocs/core/boxes/box_supplier_orders_awaiting_reception.php
+index 558c358a801..1c6d1f6f218 100644
+--- a/htdocs/core/boxes/box_supplier_orders_awaiting_reception.php
++++ b/htdocs/core/boxes/box_supplier_orders_awaiting_reception.php
+@@ -79,6 +79,10 @@ class box_supplier_orders_awaiting_reception extends ModeleBoxes
+ 			$sql .= ", c.total_ht";
+ 			$sql .= ", c.total_tva";
+ 			$sql .= ", c.total_ttc";
++			if (isModEnabled('multicurrency')) {
++				$sql .= ", c.multicurrency_total_ht";
++				$sql .= ", c.multicurrency_code";
++			}
+ 			$sql .= ", c.fk_statut as status";
+ 			$sql .= " FROM ".MAIN_DB_PREFIX."societe as s";
+ 			$sql .= ", ".MAIN_DB_PREFIX."commande_fournisseur as c";
+@@ -141,9 +145,13 @@ class box_supplier_orders_awaiting_reception extends ModeleBoxes
+ 						'asis' => 1,
+ 					);
+ 
++					$amountText = price($objp->total_ht, 0, $langs, 0, -1, -1, $conf->currency);
++					if (isModEnabled('multicurrency') && !empty($objp->multicurrency_code)) {
++						$amountText = price($objp->multicurrency_total_ht, 0, $langs, 0, -1, -1, $objp->multicurrency_code);
++					}
+ 					$this->info_box_contents[$line][] = array(
+ 						'td' => 'class="nowraponall right amount"',
+-						'text' => price($objp->total_ht, 0, $langs, 0, -1, -1, $conf->currency),
++						'text' => $amountText,
+ 					);
+ 
+ 					$delayIcon = '';
+diff --git a/htdocs/core/class/commonobject.class.php b/htdocs/core/class/commonobject.class.php
+index a38c8db46e1..76cb8c6861f 100644
+--- a/htdocs/core/class/commonobject.class.php
++++ b/htdocs/core/class/commonobject.class.php
+@@ -6645,12 +6645,18 @@ abstract class CommonObject
+ 				// If field is a computed field, value must become result of compute (regardless of whether a row exists
+ 				// in the element's extrafields table)
+ 				if (is_array($extrafields->attributes[$this->table_element]['label'])) {
++					// Ensure all extrafield keys exist before running computed formulas (formulas may reference other options_* keys; avoid "Undefined array key" in PHP 8+)
++					foreach ($extrafields->attributes[$this->table_element]['label'] as $key => $val) {
++						if (!array_key_exists('options_'.$key, $this->array_options)) {
++							$this->array_options['options_'.$key] = null;
++						}
++					}
+ 					foreach ($extrafields->attributes[$this->table_element]['label'] as $key => $val) {
+ 						if (!empty($extrafields->attributes[$this->table_element]) && !empty($extrafields->attributes[$this->table_element]['computed'][$key])) {
+ 							//var_dump($conf->disable_compute);
+ 							if (empty($conf->disable_compute)) {
+-								global $objectoffield;        // We set a global variable to $objectoffield so
+-								$objectoffield = $this;        // we can use it inside computed formula
++								global $objectoffield;        // So computed formula can use $objectoffield
++								$objectoffield = $this;
+ 								$this->array_options['options_' . $key] = dol_eval((string) $extrafields->attributes[$this->table_element]['computed'][$key], 1, 0, '2');
+ 							}
+ 						}
+@@ -6780,6 +6786,8 @@ abstract class CommonObject
+ 
+ 			if (!empty($attrfieldcomputed)) {
+ 				if (getDolGlobalString('MAIN_STORE_COMPUTED_EXTRAFIELDS')) {
++					global $objectoffield;
++					$objectoffield = $this;
+ 					$value = dol_eval((string) $attrfieldcomputed, 1, 0, '2');
+ 					dol_syslog($langs->trans("Extrafieldcomputed")." on ".$attributeLabel."(".$value.")", LOG_DEBUG);
+ 					$new_array_options[$key] = $value;
+@@ -7229,6 +7237,8 @@ abstract class CommonObject
+ 			//dol_syslog("attributeType=".$attributeType, LOG_DEBUG);
+ 			if (!empty($attrfieldcomputed)) {
+ 				if (getDolGlobalString('MAIN_STORE_COMPUTED_EXTRAFIELDS')) {
++					global $objectoffield;
++					$objectoffield = $this;
+ 					$value = dol_eval((string) $attrfieldcomputed, 1, 0, '2');
+ 					dol_syslog($langs->trans("Extrafieldcomputed")." on ".$attributeLabel."(".$value.")", LOG_DEBUG);
+ 
+@@ -8544,6 +8554,8 @@ abstract class CommonObject
+ 
+ 		// If field is a computed field, value must become result of compute
+ 		if ($computed) {
++			global $objectoffield;
++			$objectoffield = $this;
+ 			// Make the eval of compute string
+ 			//var_dump($computed);
+ 			$value = dol_eval((string) $computed, 1, 0, '2');
+diff --git a/htdocs/core/class/commonpeople.class.php b/htdocs/core/class/commonpeople.class.php
+index bb9df3b84e1..c8e40d294b5 100644
+--- a/htdocs/core/class/commonpeople.class.php
++++ b/htdocs/core/class/commonpeople.class.php
+@@ -161,7 +161,8 @@ trait CommonPeople
+ 	{
+ 		global $conf, $langs, $form, $extralanguages;
+ 
+-		$countriesusingstate = array('AU', 'US', 'IN', 'GB', 'ES', 'UK', 'TR'); // See also option MAIN_FORCE_STATE_INTO_ADDRESS
++		// Countries for which state is already included in address by dol_format_address (AU, CA, US, CN). Do not append state again.
++		$countriesusingstate = array('AU', 'CA', 'US', 'CN', 'IN', 'GB', 'ES', 'UK', 'TR'); // See also option MAIN_FORCE_STATE_INTO_ADDRESS
+ 
+ 		$contactid = 0;
+ 		$thirdpartyid = 0;
+diff --git a/htdocs/core/class/discount.class.php b/htdocs/core/class/discount.class.php
+index 3058ceb20ca..5dffe4e0bf0 100644
+--- a/htdocs/core/class/discount.class.php
++++ b/htdocs/core/class/discount.class.php
+@@ -490,6 +490,62 @@ class DiscountAbsolute extends CommonObject
+ 	}
+ 
+ 
++	/**
++	 *  Delete only this discount row (by rowid). Use when discount has same source as others and you want to remove just one.
++	 *  Does not update facture/facture_fourn statut.
++	 *
++	 *  @param	User	$user		Object of user asking to delete
++	 *  @return	int<-1,1>			Return integer <0 if KO, >0 if OK
++	 */
++	public function deleteOne($user)
++	{
++		$sql = "DELETE FROM ".$this->db->prefix()."societe_remise_except ";
++		$sql .= " WHERE rowid = ".((int) $this->id);
++		$sql .= " AND (fk_facture_line IS NULL AND fk_facture IS NULL)";
++		$sql .= " AND (fk_invoice_supplier_line IS NULL AND fk_invoice_supplier IS NULL)";
++
++		dol_syslog(get_class($this)."::deleteOne Delete one discount row", LOG_DEBUG);
++		$result = $this->db->query($sql);
++		if ($result) {
++			return 1;
++		}
++		$this->error = $this->db->lasterror();
++		return -1;
++	}
++
++
++	/**
++	 *  Add amounts from another discount to this one (in database). Used when merging two discounts.
++	 *
++	 *  @param	DiscountAbsolute	$other		Discount to add (amounts will be added to $this)
++	 *  @return	int<-1,1>						Return integer <0 if KO, >0 if OK
++	 */
++	public function addAmountsFrom($other)
++	{
++		$sql = "UPDATE ".$this->db->prefix()."societe_remise_except";
++		$sql .= " SET amount_ht = amount_ht + ".price2num($other->amount_ht);
++		$sql .= ", amount_tva = amount_tva + ".price2num($other->amount_tva);
++		$sql .= ", amount_ttc = amount_ttc + ".price2num($other->amount_ttc);
++		$sql .= ", multicurrency_amount_ht = multicurrency_amount_ht + ".price2num($other->multicurrency_amount_ht);
++		$sql .= ", multicurrency_amount_tva = multicurrency_amount_tva + ".price2num($other->multicurrency_amount_tva);
++		$sql .= ", multicurrency_amount_ttc = multicurrency_amount_ttc + ".price2num($other->multicurrency_amount_ttc);
++		$sql .= " WHERE rowid = ".((int) $this->id);
++
++		dol_syslog(get_class($this)."::addAmountsFrom Merge amounts", LOG_DEBUG);
++		$resql = $this->db->query($sql);
++		if ($resql) {
++			$this->amount_ht = (float) $this->amount_ht + (float) $other->amount_ht;
++			$this->amount_tva = (float) $this->amount_tva + (float) $other->amount_tva;
++			$this->amount_ttc = (float) $this->amount_ttc + (float) $other->amount_ttc;
++			$this->multicurrency_amount_ht = (float) $this->multicurrency_amount_ht + (float) $other->multicurrency_amount_ht;
++			$this->multicurrency_amount_tva = (float) $this->multicurrency_amount_tva + (float) $other->multicurrency_amount_tva;
++			$this->multicurrency_amount_ttc = (float) $this->multicurrency_amount_ttc + (float) $other->multicurrency_amount_ttc;
++			return 1;
++		}
++		$this->error = $this->db->lasterror();
++		return -1;
++	}
++
+ 
+ 	// phpcs:disable PEAR.NamingConventions.ValidFunctionName.ScopeNotCamelCaps
+ 	/**
+diff --git a/htdocs/core/class/html.form.class.php b/htdocs/core/class/html.form.class.php
+index cde797712e6..e261781bc59 100644
+--- a/htdocs/core/class/html.form.class.php
++++ b/htdocs/core/class/html.form.class.php
+@@ -2037,28 +2037,83 @@ class Form
+ 	 * @param	string	$filter		Optional filter critreria
+ 	 * @param	int		$socid		Id of thirdparty
+ 	 * @param	int		$maxvalue	Max value for lines that can be selected
++	 * @param	string	$morecss		Extra CSS class for Select2 (e.g. 'onrightofpage' so dropdown stays inside parent)
++	 * @param	int		$discount_type	0=customer, 1=supplier
+ 	 * @return	int					Return number of qualifed lines in list
+ 	 */
+-	public function select_remises($selected, $htmlname, $filter, $socid, $maxvalue = 0)
++	public function select_remises($selected, $htmlname, $filter, $socid, $maxvalue = 0, $morecss = '', $discount_type = 0)
+ 	{
+ 		// phpcs:enable
+ 		global $langs, $conf;
+ 
+-		// On recherche les remises
+-		$sql = "SELECT re.rowid, re.amount_ht, re.amount_tva, re.amount_ttc,";
+-		$sql .= " re.description, re.fk_facture_source";
+-		$sql .= " FROM " . $this->db->prefix() . "societe_remise_except as re";
+-		$sql .= " WHERE re.fk_soc = " . (int) $socid;
+-		$sql .= " AND re.entity = " . $conf->entity;
++		// Qualify filter columns with re. to avoid ambiguity with joined tables
++		$filterQualified = $filter;
+ 		if ($filter) {
+-			$sql .= " AND " . $filter;
++			$filterQualified = preg_replace('/\b(?!re\.)(fk_facture_source)\b/', 're.$1', $filterQualified);
++			$filterQualified = preg_replace('/\b(?!re\.)(fk_facture)\b/', 're.$1', $filterQualified);
++			$filterQualified = preg_replace('/\b(?!re\.)(fk_facture_line)\b/', 're.$1', $filterQualified);
++			$filterQualified = preg_replace('/\b(?!re\.)(fk_invoice_supplier_source)\b/', 're.$1', $filterQualified);
++			$filterQualified = preg_replace('/\b(?!re\.)(fk_invoice_supplier)\b/', 're.$1', $filterQualified);
++			$filterQualified = preg_replace('/\b(?!re\.)(fk_invoice_supplier_line)\b/', 're.$1', $filterQualified);
++			$filterQualified = preg_replace('/\b(?!re\.)(description)\b/', 're.$1', $filterQualified);
++			$filterQualified = preg_replace('/\b(?!re\.)(discount_type)\b/', 're.$1', $filterQualified);
++		}
++
++		if (!empty($discount_type)) {
++			// Supplier discounts: source is facture_fourn, order is commande_fournisseur
++			$sql = "SELECT re.rowid, re.amount_ht, re.amount_tva, re.amount_ttc,";
++			$sql .= " re.description, re.fk_invoice_supplier_source, re.multicurrency_amount_ttc, re.multicurrency_code";
++			$sql .= ", fsup.ref as ref_facture_source, fsup.total_ttc as fac_total_ttc, fsup.multicurrency_total_ttc as fac_multicurrency_total_ttc, fsup.multicurrency_code as fac_multicurrency_code";
++			$sql .= ", re.fk_facture_source";
++			$sql .= ", COALESCE(";
++			$sql .= " (SELECT cf.ref FROM " . $this->db->prefix() . "element_element ee INNER JOIN " . $this->db->prefix() . "commande_fournisseur cf ON cf.rowid = ee.fk_source";
++			$sql .= " WHERE ee.fk_target = fsup.rowid AND (ee.targettype = 'invoice_supplier' OR ee.targettype = 'facture_fourn') AND ee.sourcetype = 'order_supplier' LIMIT 1),";
++			$sql .= " (SELECT cf.ref FROM " . $this->db->prefix() . "element_element ee INNER JOIN " . $this->db->prefix() . "commande_fournisseur cf ON cf.rowid = ee.fk_target";
++			$sql .= " WHERE ee.fk_source = fsup.rowid AND (ee.sourcetype = 'invoice_supplier' OR ee.sourcetype = 'facture_fourn') AND ee.targettype = 'order_supplier' LIMIT 1)";
++			$sql .= ") as order_ref";
++			$sql .= " FROM " . $this->db->prefix() . "societe_remise_except as re";
++			$sql .= " LEFT JOIN " . $this->db->prefix() . "facture_fourn as fsup ON re.fk_invoice_supplier_source = fsup.rowid";
++			$sql .= " WHERE re.fk_soc = " . (int) $socid;
++			$sql .= " AND re.entity = " . $conf->entity;
++			if ($filterQualified) {
++				$sql .= " AND " . $filterQualified;
++			}
++			$sql .= " ORDER BY re.description ASC";
++		} else {
++			// Customer discounts: source is facture, order is commande
++			$sql = "SELECT re.rowid, re.amount_ht, re.amount_tva, re.amount_ttc,";
++			$sql .= " re.description, re.fk_facture_source, re.multicurrency_amount_ttc, re.multicurrency_code";
++			$sql .= ", f.ref as ref_facture_source, f.total_ttc as fac_total_ttc, f.multicurrency_total_ttc as fac_multicurrency_total_ttc, f.multicurrency_code as fac_multicurrency_code";
++			if (isModEnabled('order')) {
++				$sql .= ", COALESCE(";
++				$sql .= " (SELECT c.ref FROM " . $this->db->prefix() . "element_element ee INNER JOIN " . $this->db->prefix() . "commande c ON c.rowid = ee.fk_source";
++				$sql .= " WHERE ee.fk_target = f.rowid AND ee.targettype = 'facture' AND ee.sourcetype = 'commande' LIMIT 1),";
++				$sql .= " (SELECT c.ref FROM " . $this->db->prefix() . "element_element ee INNER JOIN " . $this->db->prefix() . "commande c ON c.rowid = ee.fk_target";
++				$sql .= " WHERE ee.fk_source = f.rowid AND ee.sourcetype = 'facture' AND ee.targettype = 'commande' LIMIT 1)";
++				$sql .= ") as order_ref";
++			} else {
++				$sql .= ", NULL as order_ref";
++			}
++			$sql .= " FROM " . $this->db->prefix() . "societe_remise_except as re";
++			$sql .= " LEFT JOIN " . $this->db->prefix() . "facture as f ON re.fk_facture_source = f.rowid";
++			$sql .= " WHERE re.fk_soc = " . (int) $socid;
++			$sql .= " AND re.entity = " . $conf->entity;
++			if ($filterQualified) {
++				$sql .= " AND " . $filterQualified;
++			}
++			$sql .= " ORDER BY re.description ASC";
+ 		}
+-		$sql .= " ORDER BY re.description ASC";
+ 
+ 		dol_syslog(get_class($this) . "::select_remises", LOG_DEBUG);
+ 		$resql = $this->db->query($sql);
+ 		if ($resql) {
+-			print '<select id="select_' . $htmlname . '" class="flat maxwidthonsmartphone" name="' . $htmlname . '">';
++			// Wrapper constrains width and is dropdownParent for Select2 so dropdown does not overflow or misalign
++			$wrapperClass = 'remise-dispo-select-wrapper';
++			if (preg_match('/onrightofpage/', $morecss)) {
++				$wrapperClass .= ' parentonrightofpage';
++			}
++			print '<div class="' . $wrapperClass . '" style="display: inline-block; min-width: 480px; max-width: 100%;">';
++			print '<select id="select_' . $htmlname . '" class="flat maxwidthonsmartphone" style="width: 100%; max-width: 100%;" name="' . $htmlname . '">';
+ 			$num = $this->db->num_rows($resql);
+ 
+ 			$qualifiedlines = $num;
+@@ -2082,6 +2137,29 @@ class Form
+ 						$desc = preg_replace('/\(EXCESS PAID\)/', $langs->trans("ExcessPaid"), $desc);
+ 					}
+ 
++					// Append source invoice ref (发票号) and order ref (订单号): "Deposit - 发票号 - 订单号"
++					$refPart = '';
++					if (!empty($obj->ref_facture_source)) {
++						$refPart = ' - ' . $obj->ref_facture_source;
++					} elseif (!empty($obj->fk_facture_source)) {
++						$tmpfac = new Facture($this->db);
++						if ($tmpfac->fetch($obj->fk_facture_source) > 0) {
++							$refPart = ' - ' . $tmpfac->ref;
++						}
++					} elseif (!empty($obj->fk_invoice_supplier_source)) {
++						require_once DOL_DOCUMENT_ROOT . '/fourn/class/fournisseur.facture.class.php';
++						$tmpfac = new FactureFournisseur($this->db);
++						if ($tmpfac->fetch($obj->fk_invoice_supplier_source) > 0) {
++							$refPart = ' - ' . $tmpfac->ref;
++						}
++					}
++					if (!empty($obj->order_ref)) {
++						$refPart .= ' - ' . $obj->order_ref;
++					}
++					if ($refPart !== '') {
++						$desc = $desc . $refPart;
++					}
++
+ 					$selectstring = '';
+ 					if ($selected > 0 && $selected == $obj->rowid) {
+ 						$selectstring = ' selected';
+@@ -2093,19 +2171,41 @@ class Form
+ 						$disabled = ' disabled';
+ 					}
+ 
+-					if (getDolGlobalString('MAIN_SHOW_FACNUMBER_IN_DISCOUNT_LIST') && !empty($obj->fk_facture_source)) {
+-						$tmpfac = new Facture($this->db);
+-						if ($tmpfac->fetch($obj->fk_facture_source) > 0) {
+-							$desc = $desc . ' - ' . $tmpfac->ref;
++					// Amount part (TTC): multicurrency " (原币 - 本币)" when available, else " (HT - TTC)"
++					$amountLabel = '';
++					$useMulticurrency = false;
++					$amtLocal = 0;
++					$amtOrig = 0;
++					$codeLocal = $conf->currency;
++					$codeOrig = '';
++					if (isModEnabled('multicurrency')) {
++						if (!empty($obj->multicurrency_code) && (float) $obj->multicurrency_amount_ttc != 0) {
++							$useMulticurrency = true;
++							$amtLocal = $obj->amount_ttc;
++							$amtOrig = $obj->multicurrency_amount_ttc;
++							$codeOrig = $obj->multicurrency_code;
++						} elseif (!empty($obj->fac_multicurrency_code) && (float) $obj->fac_multicurrency_total_ttc != 0 && (float) $obj->fac_total_ttc != 0) {
++							// Discount line has no multicurrency; use source invoice TTC totals for display
++							$useMulticurrency = true;
++							$amtLocal = $obj->fac_total_ttc;
++							$amtOrig = $obj->fac_multicurrency_total_ttc;
++							$codeOrig = $obj->fac_multicurrency_code;
+ 						}
+ 					}
++					if ($useMulticurrency) {
++						// (原币 - 本币) TTC
++						$amountLabel = ' (' . price($amtOrig, 0, $langs, 0, 0, -1, $codeOrig) . ' - ' . price($amtLocal, 0, $langs, 0, 0, -1, $codeLocal) . ')';
++					} else {
++						$amountLabel = ' (' . price($obj->amount_ht) . ' ' . $langs->trans("HT") . ' - ' . price($obj->amount_ttc) . ' ' . $langs->trans("TTC") . ')';
++					}
+ 
+-					print '<option value="' . $obj->rowid . '"' . $selectstring . $disabled . '>' . $desc . ' (' . price($obj->amount_ht) . ' ' . $langs->trans("HT") . ' - ' . price($obj->amount_ttc) . ' ' . $langs->trans("TTC") . ')</option>';
++					print '<option value="' . $obj->rowid . '"' . $selectstring . $disabled . '>' . $desc . $amountLabel . '</option>';
+ 					$i++;
+ 				}
+ 			}
+ 			print '</select>';
+-			print ajax_combobox('select_' . $htmlname);
++			print '</div>';
++			print ajax_combobox('select_' . $htmlname, array(), 0, 0, 'resolve', '-1', $morecss);
+ 
+ 			return $qualifiedlines;
+ 		} else {
+@@ -4849,8 +4949,8 @@ class Form
+ 
+ 		$this->load_cache_conditions_paiements();
+ 
+-		// Set default value if not already set by caller
+-		if (empty($selected) && getDolGlobalString('MAIN_DEFAULT_PAYMENT_TERM_ID')) {
++		// Set default value if not already set by caller (skip when addempty=1 so list filters can stay empty)
++		if (empty($selected) && getDolGlobalString('MAIN_DEFAULT_PAYMENT_TERM_ID') && empty($addempty)) {
+ 			dol_syslog(__METHOD__ . "Using deprecated option MAIN_DEFAULT_PAYMENT_TERM_ID", LOG_NOTICE);
+ 			$selected = getDolGlobalString('MAIN_DEFAULT_PAYMENT_TERM_ID');
+ 		}
+@@ -6917,8 +7017,8 @@ class Form
+ 				if ($filter) {
+ 					$newfilter .= ' AND (' . $filter . ')';
+ 				}
+-				// output the combo of discounts
+-				$nbqualifiedlines = $this->select_remises((string) $selected, $htmlname, $newfilter, $socid, $maxvalue);
++				// output the combo of discounts (onrightofpage so Select2 dropdown stays inside wrapper, no overlap)
++				$nbqualifiedlines = $this->select_remises((string) $selected, $htmlname, $newfilter, $socid, $maxvalue, 'onrightofpage', (int) $discount_type);
+ 				if ($nbqualifiedlines > 0) {
+ 					print ' &nbsp; <input type="submit" class="button smallpaddingimp" value="' . dol_escape_htmltag($langs->trans("UseLine")) . '"';
+ 					if (!empty($discount_type) && $filter && $filter != "fk_invoice_supplier_source IS NULL OR (description LIKE '(DEPOSIT)%' AND description NOT LIKE '(EXCESS PAID)%')") {
+@@ -7121,9 +7221,10 @@ class Form
+ 	 * @param 	bool 	$excludeConfCurrency 	false = If company current currency not in table, we add it into list. Should always be available.
+ 	 *                                  		true = we are in currency_rate update , we don't want to see conf->currency in select
+ 	 * @param 	string 	$morecss 				More css
++	 * @param 	bool 	$withFlagIcon 			true = prepend country flag emoji to each option (default true, set false to hide flag)
+ 	 * @return  string							HTML component
+ 	 */
+-	public function selectMultiCurrency($selected = '', $htmlname = 'multicurrency_code', $useempty = 0, $filter = '', $excludeConfCurrency = false, $morecss = 'maxwidth200 widthcentpercentminusx')
++	public function selectMultiCurrency($selected = '', $htmlname = 'multicurrency_code', $useempty = 0, $filter = '', $excludeConfCurrency = false, $morecss = 'maxwidth200 widthcentpercentminusx', $withFlagIcon = true)
+ 	{
+ 		global $conf, $langs;
+ 
+@@ -7160,9 +7261,11 @@ class Form
+ 					} else {
+ 						$out .= '<option value="' . $code_iso . '">';
+ 					}
+-
++					if ($withFlagIcon) {
++						$out .= $this->getCurrencyFlagEmoji($code_iso) . ' ';
++					}
+ 					$out .= $currency['label'];
+-					$out .= ' (' . $langs->getCurrencySymbol($code_iso) . ')';
++					$out .= ' (' . dol_escape_htmltag($langs->getCurrencySymbol($code_iso)) . ')';
+ 					$out .= '</option>';
+ 				}
+ 			}
+@@ -7177,6 +7280,29 @@ class Form
+ 		return $out;
+ 	}
+ 
++	/**
++	 * Return country flag emoji for a currency code (for use in dropdowns, e.g. capital currency).
++	 *
++	 * @param 	string 	$currency_code 	ISO 4217 currency code (e.g. USD, CNY)
++	 * @return  string 	Flag emoji (UTF-8) or empty string
++	 */
++	public function getCurrencyFlagEmoji($currency_code)
++	{
++		$currency_to_country = array(
++			'AED' => 'AE', 'AUD' => 'AU', 'BRL' => 'BR', 'CAD' => 'CA', 'CHF' => 'CH', 'CNY' => 'CN',
++			'EUR' => 'FR', 'GBP' => 'GB', 'HKD' => 'HK', 'INR' => 'IN', 'JPY' => 'JP', 'MXN' => 'MX',
++			'SGD' => 'SG', 'USD' => 'US', 'ZAR' => 'ZA', 'COP' => 'CO', 'PEN' => 'PE', 'CLP' => 'CL',
++			'KRW' => 'KR', 'THB' => 'TH', 'MYR' => 'MY', 'IDR' => 'ID', 'PHP' => 'PH', 'VND' => 'VN',
++		);
++		$cc = isset($currency_to_country[$currency_code]) ? $currency_to_country[$currency_code] : '';
++		if ($cc === '' || strlen($cc) !== 2 || !function_exists('mb_chr')) {
++			return '';
++		}
++		$c1 = 0x1F1E6 + ord($cc[0]) - 65;
++		$c2 = 0x1F1E6 + ord($cc[1]) - 65;
++		return mb_chr($c1, 'UTF-8') . mb_chr($c2, 'UTF-8');
++	}
++
+ 	// phpcs:disable PEAR.NamingConventions.ValidFunctionName.ScopeNotCamelCaps
+ 
+ 	/**
+@@ -10044,6 +10170,23 @@ class Form
+ 
+ 		$object->fetchObjectLinked();
+ 
++		// For supplier order card: show vendor invoices first (with total), then sales order, same format
++		if ($object->element == 'order_supplier' && !empty($object->linkedObjects)) {
++			$wantedOrder = array('invoice_supplier', 'commande');
++			$reordered = array();
++			foreach ($wantedOrder as $type) {
++				if (isset($object->linkedObjects[$type])) {
++					$reordered[$type] = $object->linkedObjects[$type];
++				}
++			}
++			foreach ($object->linkedObjects as $type => $objs) {
++				if (!isset($reordered[$type])) {
++					$reordered[$type] = $objs;
++				}
++			}
++			$object->linkedObjects = $reordered;
++		}
++
+ 		// Bypass the default method
+ 		$hookmanager->initHooks(array('commonobject'));
+ 		$parameters = array(
+@@ -10437,7 +10580,12 @@ class Form
+ 								$htmltoenteralink .= '<input type="checkbox" name="idtolinkto[' . $key . '_' . $objp->rowid . ']" id="' . $key . '_' . $objp->rowid . '" value="' . $objp->rowid . '">';
+ 							}
+ 							$htmltoenteralink .= '</td>';
+-							$htmltoenteralink .= '<td><label for="' . $key . '_' . $objp->rowid . '">' . $objp->ref . '</label></td>';
++							// Use <label for="id"> only when checkbox exists (not already linked); otherwise use <span> to avoid label without matching id
++							if ($alreadylinked) {
++								$htmltoenteralink .= '<td><span>' . $objp->ref . '</span></td>';
++							} else {
++								$htmltoenteralink .= '<td><label for="' . $key . '_' . $objp->rowid . '">' . $objp->ref . '</label></td>';
++							}
+ 							$htmltoenteralink .= '<td>' . (!empty($objp->ref_client) ? $objp->ref_client : (!empty($objp->ref_supplier) ? $objp->ref_supplier : '')) . '</td>';
+ 							$htmltoenteralink .= '<td class="right">';
+ 							if ($possiblelink['label'] == 'LinkToContract') {
+diff --git a/htdocs/core/lib/company.lib.php b/htdocs/core/lib/company.lib.php
+index 1dbe7635da6..197ba21e878 100644
+--- a/htdocs/core/lib/company.lib.php
++++ b/htdocs/core/lib/company.lib.php
+@@ -2836,9 +2836,16 @@ function htmlPrintOnlineFooter($fromcompany, $langs, $addformmessage = 0, $suffi
+ 	if ($fromcompany->forme_juridique_code) {
+ 		$line1 .= ($line1 ? " - " : "").getFormeJuridiqueLabel((string) $fromcompany->forme_juridique_code);
+ 	}
+-	// Capital
++	// Capital (currency: societe.capital_currency, or MAIN_INFO_CAPITAL_CURRENCY for main company)
+ 	if ($fromcompany->capital) {
+-		$line1 .= ($line1 ? " - " : "").$langs->transnoentities("CapitalOf", (string) $fromcompany->capital)." ".$langs->transnoentities("Currency".$conf->currency);
++		$capitalCurrency = (!empty($fromcompany->capital_currency)) ? $fromcompany->capital_currency : null;
++		if (empty($capitalCurrency) && !empty($fromcompany->id) && (int) $fromcompany->id === 1) {
++			$capitalCurrency = getDolGlobalString('MAIN_INFO_CAPITAL_CURRENCY');
++		}
++		if (empty($capitalCurrency)) {
++			$capitalCurrency = $conf->currency;
++		}
++		$line1 .= ($line1 ? " - " : "").$langs->transnoentities("CapitalOf", price($fromcompany->capital, 0, $langs, 0, 0, 0, ''))." ".$langs->transnoentities("Currency".$capitalCurrency);
+ 	}
+ 	// Prof Id 1
+ 	if ($fromcompany->idprof1 && ($fromcompany->country_code != 'FR' || !$fromcompany->idprof2)) {
 diff --git a/htdocs/core/lib/functions.lib.php b/htdocs/core/lib/functions.lib.php
-index 1a30083040d..8dde42350c2 100644
+index 1a30083040d..38a676ef51d 100644
 --- a/htdocs/core/lib/functions.lib.php
 +++ b/htdocs/core/lib/functions.lib.php
-@@ -7163,7 +7163,8 @@ function price($amount, $form = 0, $outlangs = '', $trunc = 1, $rounding = -1, $
+@@ -3543,6 +3543,17 @@ function dol_format_address($object, $withcountry = 0, $sep = "\n", $outputlangs
+ 		$town = ($extralangcode ? $object->array_languages['town'][$extralangcode] : (empty($object->town) ? '' : $object->town));
+ 		$ret .= ($town ? (($object->zip ? ' ' : '').$town) : '');
+ 		$ret .= (empty($object->state_code) ? '' : (' '.$object->state_code));
++	} elseif (isset($object->country_code) && $object->country_code == 'SG') {
++		// Singapore: address \n city space postal code (e.g. SINGAPORE 608526), no hyphen. City-state, no state field.
++		$town = ($extralangcode ? $object->array_languages['town'][$extralangcode] : (empty($object->town) ? '' : $object->town));
++		$ret .= ($ret ? $sep : '');
++		if ($town && $object->zip) {
++			$ret .= $town.' '.$object->zip;
++		} elseif ($town) {
++			$ret .= $town;
++		} elseif (!empty($object->zip)) {
++			$ret .= $object->zip;
++		}
+ 	} else {
+ 		// Other: title firstname name \n address lines \n zip town[, state] \n country
+ 		$town = (($extralangcode && !empty($object->array_languages['address'][$extralangcode])) ? $object->array_languages['town'][$extralangcode] : (empty($object->town) ? '' : $object->town));
+@@ -3558,7 +3569,12 @@ function dol_format_address($object, $withcountry = 0, $sep = "\n", $outputlangs
+ 	}
+ 	if ($withcountry) {
+ 		$langs->load("dict");
+-		$ret .= (empty($object->country_code) ? '' : ($ret ? $sep : '').$outputlangs->convToOutputCharset($outputlangs->transnoentitiesnoconv("Country".$object->country_code)));
++		if (!empty($object->country_code)) {
++			$ret = rtrim($ret);
++			$countryLabel = $outputlangs->convToOutputCharset($outputlangs->transnoentitiesnoconv("Country".$object->country_code));
++			$countryLabel = (function_exists('mb_strtoupper') ? mb_strtoupper($countryLabel, 'UTF-8') : strtoupper($countryLabel));
++			$ret .= ($ret ? $sep : '').$countryLabel;
++		}
+ 	}
+ 	if ($hookmanager) {
+ 		$parameters = array('withcountry' => $withcountry, 'sep' => $sep, 'outputlangs' => $outputlangs,'mode' => $mode, 'extralangcode' => $extralangcode);
+@@ -7163,7 +7179,8 @@ function price($amount, $form = 0, $outlangs = '', $trunc = 1, $rounding = -1, $
  
  		$listofcurrenciesbefore = array('AUD', 'CAD', 'CNY', 'COP', 'CLP', 'GBP', 'HKD', 'MXN', 'PEN', 'USD', 'CRC', 'ZAR');
  		$listoflanguagesbefore = array('nl_NL');
@@ -12,3 +766,987 @@ index 1a30083040d..8dde42350c2 100644
  			$cursymbolbefore .= $outlangs->getCurrencySymbol($currency_code);
  		} else {
  			$tmpcur = $outlangs->getCurrencySymbol($currency_code);
+@@ -9372,6 +9389,7 @@ function getCommonSubstitutionArray($outputlangs, $onlykey = 0, $exclude = null,
+ 			'__MYCOMPANY_PROFID9__' => $mysoc->idprof9,
+ 			'__MYCOMPANY_PROFID10__' => $mysoc->idprof10,
+ 			'__MYCOMPANY_CAPITAL__' => $mysoc->capital,
++			'__MYCOMPANY_CAPITAL_CURRENCY__' => (getDolGlobalString('MAIN_INFO_CAPITAL_CURRENCY') ?: $conf->currency),
+ 			'__MYCOMPANY_FULLADDRESS__' => (method_exists($mysoc, 'getFullAddress') ? $mysoc->getFullAddress(1, ', ') : ''),	// $mysoc may be stdClass
+ 			'__MYCOMPANY_ADDRESS__' => $mysoc->address,
+ 			'__MYCOMPANY_ZIP__'     => $mysoc->zip,
+@@ -14626,9 +14644,9 @@ function forgeSQLFromUniversalSearchCriteria($filter, &$errorstr = '', $noand =
+ 	if (!dolCheckFilters($filter, $errorstr, $firstandlastparenthesis)) {
+ 		if ($noerror) {
+ 			return '1 = 2';
+-		} else {
+-			return 'Filter syntax error - '.$errorstr;		// Bad balance of parenthesis, we return an error message or force a SQL not found
+ 		}
++		dol_syslog("forgeSQLFromUniversalSearchCriteria Filter syntax error - ".$errorstr, LOG_WARNING);
++		return '1 = 2';		// Bad balance of parenthesis: return safe SQL that matches no rows, error in $errorstr
+ 	}
+ 
+ 	// Test the filter syntax
+@@ -14637,14 +14655,9 @@ function forgeSQLFromUniversalSearchCriteria($filter, &$errorstr = '', $noand =
+ 	// If the string result contains something else than '()', the syntax was wrong
+ 
+ 	if (preg_match('/[^\(\)]/', $t)) {
+-		$tmperrorstr = 'Bad syntax of the search string';
+ 		$errorstr = 'Bad syntax of the search string: '.$filter;
+-		if ($noerror) {
+-			return '1 = 2';
+-		} else {
+-			dol_syslog("forgeSQLFromUniversalSearchCriteria Filter error - ".$errorstr, LOG_WARNING);
+-			return 'Filter error - '.$tmperrorstr;		// Bad syntax of the search string, we return an error message or force a SQL not found
+-		}
++		dol_syslog("forgeSQLFromUniversalSearchCriteria Filter error - ".$errorstr, LOG_WARNING);
++		return '1 = 2';		// Bad syntax: return safe SQL that matches no rows, error in $errorstr
+ 	}
+ 
+ 	$ret = ($noand ? "" : " AND ").($nopar ? "" : '(').preg_replace_callback('/'.$regexstring.'/i', 'dolForgeSQLCriteriaCallback', $filter).($nopar ? "" : ')');
+diff --git a/htdocs/core/lib/invoice.lib.php b/htdocs/core/lib/invoice.lib.php
+index 9f70e17e822..52656a09fb4 100644
+--- a/htdocs/core/lib/invoice.lib.php
++++ b/htdocs/core/lib/invoice.lib.php
+@@ -580,6 +580,9 @@ function getCustomerInvoiceDraftTable($maxCount = 500, $socid = 0)
+ 		$tmpinvoice = new Facture($db);
+ 
+ 		$sql = "SELECT f.rowid, f.ref, f.datef as date, f.total_ht, f.total_tva, f.total_ttc, f.ref_client";
++		if (isModEnabled('multicurrency')) {
++			$sql .= ", f.multicurrency_code, f.multicurrency_total_ttc";
++		}
+ 		$sql .= ", f.type, f.fk_statut as status, f.paye";
+ 		$sql .= ", s.nom as name";
+ 		$sql .= ", s.rowid as socid, s.email";
+@@ -607,6 +610,9 @@ function getCustomerInvoiceDraftTable($maxCount = 500, $socid = 0)
+ 		$sql .= $hookmanager->resPrint;
+ 
+ 		$sql .= " GROUP BY f.rowid, f.ref, f.datef, f.total_ht, f.total_tva, f.total_ttc, f.ref_client, f.type, f.fk_statut, f.paye,";
++		if (isModEnabled('multicurrency')) {
++			$sql .= " f.multicurrency_code, f.multicurrency_total_ttc,";
++		}
+ 		$sql .= " s.nom, s.rowid, s.email, s.code_client, s.code_compta, s.code_fournisseur, s.code_compta_fournisseur,";
+ 		$sql .= " cc.rowid, cc.code";
+ 		if (empty($user->socid) && !$user->hasRight('societe', 'client', 'voir')) {
+@@ -682,7 +688,9 @@ function getCustomerInvoiceDraftTable($maxCount = 500, $socid = 0)
+ 					$result .= '<td class="nowrap tdoverflowmax100">';
+ 					$result .= $companystatic->getNomUrl(1, 'customer');
+ 					$result .= '</td>';
+-					$result .= '<td class="nowrap right"><span class="amount">'.price($obj->total_ttc).'</span></td>';
++					$disp_ttc = (isModEnabled('multicurrency') && !empty($obj->multicurrency_code)) ? $obj->multicurrency_total_ttc : $obj->total_ttc;
++					$disp_currency = (isModEnabled('multicurrency') && !empty($obj->multicurrency_code)) ? $obj->multicurrency_code : $conf->currency;
++					$result .= '<td class="nowrap right"><span class="amount">'.price($disp_ttc, 0, $langs, 1, -1, -1, $disp_currency).'</span></td>';
+ 					$result .= '</tr>';
+ 					$tot_ttc += $obj->total_ttc;
+ 					$i++;
+@@ -697,7 +705,7 @@ function getCustomerInvoiceDraftTable($maxCount = 500, $socid = 0)
+ 				}
+ 
+ 				$result .= '<tr class="liste_total"><td class="left">'.$langs->trans("Total").'</td>';
+-				$result .= '<td colspan="2" class="right">'.price($tot_ttc).'</td>';
++				$result .= '<td colspan="2" class="right">'.price($tot_ttc, 0, $langs, 1, -1, -1, $conf->currency).'</td>';
+ 				$result .= '</tr>';
+ 			} else {
+ 				$result .= '<tr class="oddeven"><td colspan="3"><span class="opacitymedium">'.$langs->trans("NoInvoice").'</span></td></tr>';
+@@ -734,6 +742,9 @@ function getDraftSupplierTable($maxCount = 500, $socid = 0)
+ 		$facturesupplierstatic = new FactureFournisseur($db);
+ 
+ 		$sql = "SELECT f.ref, f.rowid, f.total_ht, f.total_tva, f.total_ttc, f.type, f.ref_supplier, f.fk_statut as status, f.paye";
++		if (isModEnabled('multicurrency')) {
++			$sql .= ", f.multicurrency_code, f.multicurrency_total_ttc";
++		}
+ 		$sql .= ", s.nom as name";
+ 		$sql .= ", s.rowid as socid, s.email";
+ 		$sql .= ", s.code_client, s.code_compta";
+@@ -820,7 +831,9 @@ function getDraftSupplierTable($maxCount = 500, $socid = 0)
+ 					$result .= '<td class="nowrap tdoverflowmax100">';
+ 					$result .= $companystatic->getNomUrl(1, 'supplier');
+ 					$result .= '</td>';
+-					$result .= '<td class="right"><span class="amount">'.price($obj->total_ttc).'</span></td>';
++					$disp_ttc_ff = (isModEnabled('multicurrency') && !empty($obj->multicurrency_code)) ? $obj->multicurrency_total_ttc : $obj->total_ttc;
++					$disp_currency_ff = (isModEnabled('multicurrency') && !empty($obj->multicurrency_code)) ? $obj->multicurrency_code : $conf->currency;
++					$result .= '<td class="right"><span class="amount">'.price($disp_ttc_ff, 0, $langs, 1, -1, -1, $disp_currency_ff).'</span></td>';
+ 					$result .= '</tr>';
+ 					$tot_ttc += $obj->total_ttc;
+ 					$i++;
+@@ -835,7 +848,7 @@ function getDraftSupplierTable($maxCount = 500, $socid = 0)
+ 				}
+ 
+ 				$result .= '<tr class="liste_total"><td class="left">'.$langs->trans("Total").'</td>';
+-				$result .= '<td colspan="2" class="right">'.price($tot_ttc).'</td>';
++				$result .= '<td colspan="2" class="right">'.price($tot_ttc, 0, $langs, 1, -1, -1, $conf->currency).'</td>';
+ 				$result .= '</tr>';
+ 			} else {
+ 				$result .= '<tr class="oddeven"><td colspan="3"><span class="opacitymedium">'.$langs->trans("NoInvoice").'</span></td></tr>';
+diff --git a/htdocs/core/lib/loan.lib.php b/htdocs/core/lib/loan.lib.php
+index f0e80201b17..a8fcf6f6056 100644
+--- a/htdocs/core/lib/loan.lib.php
++++ b/htdocs/core/lib/loan.lib.php
+@@ -153,3 +153,421 @@ function loanCalcMonthlyPayment($mens, $capital, $rate, $numactualloadterm, $nbt
+ 
+ 	return $output;
+ }
++
++/**
++ * Return number of days in the year containing the given timestamp (365 or 366 for leap year).
++ *
++ * @param int $timestamp Unix timestamp (UTC)
++ * @return int 365 or 366
++ */
++function loan_days_in_year_for_timestamp($timestamp)
++{
++	$year = (int) date('Y', $timestamp);
++	return (date('L', mktime(0, 0, 0, 1, 1, $year)) ? 366 : 365);
++}
++
++/**
++ * Effective days-in-year for an interest period (actual/actual with cross-year weighting).
++ * When the period spans two calendar years (e.g. 03/12/2023–03/01/2024), use weighted average
++ * so that 2024 leap year (366) is reflected for the days falling in 2024. Matches bank statements.
++ *
++ * @param int $periodStartTs Period start (Unix timestamp)
++ * @param int $periodEndTs   Period end (Unix timestamp)
++ * @return float Effective days in year (e.g. 365.0 or 365.1 when spanning into leap year)
++ */
++function loan_effective_days_in_year_for_period($periodStartTs, $periodEndTs)
++{
++	$days = (int) floor(($periodEndTs - $periodStartTs) / 86400);
++	if ($days <= 0) {
++		return (float) loan_days_in_year_for_timestamp($periodStartTs);
++	}
++	$dayCountInYear = array();
++	for ($d = 0; $d < $days; $d++) {
++		$ts = $periodStartTs + $d * 86400;
++		$y = (int) date('Y', $ts);
++		if (!isset($dayCountInYear[$y])) {
++			$dayCountInYear[$y] = 0;
++		}
++		$dayCountInYear[$y]++;
++	}
++	$weighted = 0;
++	foreach ($dayCountInYear as $year => $count) {
++		$daysInThatYear = loan_days_in_year_for_timestamp(mktime(0, 0, 0, 1, 1, $year));
++		$weighted += $count * $daysInThatYear;
++	}
++	return $weighted / $days;
++}
++
++/**
++ * Build a repayment schedule with a fixed monthly payment and bank-style interest.
++ * Options control rounding, days-in-year (leap year), and balance basis for interest.
++ *
++ * @param float   $fixedPayment       Fixed amount paid each term (e.g. 8874)
++ * @param float   $capital            Initial loan capital
++ * @param float   $ratePercent        Annual interest rate in % (e.g. 2.5 for 2.5%)
++ * @param int     $dateStartTimestamp Start date of loan (first period starts here)
++ * @param int     $nbterm             Number of terms
++ * @param float   $insurancePerTerm   Optional insurance per term (default 0)
++ * @param array   $options            Optional. Keys: 'rounding', 'days_in_year', 'balance_for_interest'; 'rates' => array(term_number => rate_percent) for floating rate (one rate per term)
++ * @return array<int,array{cap_rest:float,cap_rest_str:string,interet:float,interet_str:string,mens:string,datep:int}>  Term number => data
++ */
++function loanCalcScheduleWithFixedPayment($fixedPayment, $capital, $ratePercent, $dateStartTimestamp, $nbterm, $insurancePerTerm = 0, $options = array())
++{
++	global $conf;
++
++	$fixedPayment = (float) price2num($fixedPayment);
++	$capital = (float) price2num($capital);
++	$ratePercent = (float) price2num($ratePercent);
++	$nbterm = (int) $nbterm;
++	$insurancePerTerm = (float) price2num($insurancePerTerm);
++
++	$roundMode = (isset($options['rounding']) && $options['rounding'] === 'half_even') ? PHP_ROUND_HALF_EVEN : PHP_ROUND_HALF_UP;
++	$daysInYearMode = (isset($options['days_in_year']) && $options['days_in_year'] === 'period_start') ? 'period_start' : 'cross_year_weighted';
++	$balanceMode = (isset($options['balance_for_interest']) && $options['balance_for_interest'] === 'exact') ? 'exact' : 'displayed';
++
++	$output = array();
++	$balanceDisplay = round($capital, 2, $roundMode);
++	$sumPrincipal = 0.0;
++
++	$dates = array();
++	for ($k = 0; $k <= $nbterm; $k++) {
++		$dates[$k] = dol_time_plus_duree($dateStartTimestamp, $k, 'm');
++	}
++
++	for ($i = 1; $i <= $nbterm; $i++) {
++		$prev_ts = $dates[$i - 1];
++		$curr_ts = $dates[$i];
++
++		$days = (int) floor(($curr_ts - $prev_ts) / 86400);
++		if ($daysInYearMode === 'period_start') {
++			$days_in_year = (float) loan_days_in_year_for_timestamp($prev_ts);
++		} else {
++			$days_in_year = loan_effective_days_in_year_for_period($prev_ts, $curr_ts);
++		}
++
++		if ($balanceMode === 'exact') {
++			$balanceForInterest = $capital - $sumPrincipal;
++		} else {
++			$balanceForInterest = $balanceDisplay;
++		}
++
++		// Per-term rate (floating) or single loan rate (fixed)
++		$rateForTerm = (isset($options['rates']) && is_array($options['rates']) && isset($options['rates'][$i])) ? (float) price2num($options['rates'][$i]) : $ratePercent;
++
++		$interest = $balanceForInterest * ($rateForTerm / 100) * ($days / $days_in_year);
++		$interest = round($interest, 2, $roundMode);
++
++		$principal = round($fixedPayment - $interest, 2, $roundMode);
++		if ($principal > $balanceForInterest) {
++			$principal = $balanceForInterest;
++		}
++		if ($principal < 0) {
++			$principal = 0;
++		}
++
++		$sumPrincipal += $principal;
++		if ($balanceMode === 'exact') {
++			$cap_rest_display = round($capital - $sumPrincipal, 2, $roundMode);
++		} else {
++			$balanceDisplay = round($balanceForInterest - $principal, 2, $roundMode);
++			if ($balanceDisplay < 0) {
++				$balanceDisplay = 0;
++			}
++			$cap_rest_display = $balanceDisplay;
++		}
++		if ($cap_rest_display < 0) {
++			$cap_rest_display = 0;
++		}
++
++		$mens = $principal + $interest;
++
++		$output[$i] = array(
++			'cap_rest' => $cap_rest_display,
++			'cap_rest_str' => price($cap_rest_display, 0, '', 1, -1, -1, $conf->currency),
++			'interet' => $interest,
++			'interet_str' => price($interest, 0, '', 1, -1, -1, $conf->currency),
++			'mens' => price($mens),
++			'datep' => $curr_ts,
++		);
++	}
++
++	return $output;
++}
++
++/**
++ * Build a repayment schedule with equal principal per term (等额本金).
++ * Each term: principal = capital / nbterm; interest = previous balance * rate * (days/days_in_year).
++ *
++ * @param float   $capital            Initial loan capital for this segment
++ * @param float   $ratePercent        Annual interest rate in %
++ * @param int     $dateStartTimestamp Start of first period (e.g. loan start for phase 1)
++ * @param int     $nbterm             Number of terms in this segment
++ * @param float   $insurancePerTerm   Optional insurance per term (not included in return, for compatibility)
++ * @param array   $options            Optional. Same as loanCalcScheduleWithFixedPayment: rounding, days_in_year, balance_for_interest, rates (floating)
++ * @return array<int,array{cap_rest:float,cap_rest_str:string,interet:float,interet_str:string,mens:string,datep:int}>
++ */
++function loanCalcScheduleEqualPrincipal($capital, $ratePercent, $dateStartTimestamp, $nbterm, $insurancePerTerm = 0, $options = array())
++{
++	global $conf;
++
++	$capital = (float) price2num($capital);
++	$ratePercent = (float) price2num($ratePercent);
++	$nbterm = (int) $nbterm;
++	if ($nbterm <= 0) {
++		return array();
++	}
++
++	$roundMode = (isset($options['rounding']) && $options['rounding'] === 'half_even') ? PHP_ROUND_HALF_EVEN : PHP_ROUND_HALF_UP;
++	$daysInYearMode = (isset($options['days_in_year']) && $options['days_in_year'] === 'period_start') ? 'period_start' : 'cross_year_weighted';
++	$balanceMode = (isset($options['balance_for_interest']) && $options['balance_for_interest'] === 'exact') ? 'exact' : 'displayed';
++
++	$principalPerTerm = round($capital / $nbterm, 2, $roundMode);
++	$output = array();
++	$balanceDisplay = round($capital, 2, $roundMode);
++	$sumPrincipal = 0.0;
++
++	$dates = array();
++	for ($k = 0; $k <= $nbterm; $k++) {
++		$dates[$k] = dol_time_plus_duree($dateStartTimestamp, $k, 'm');
++	}
++
++	for ($i = 1; $i <= $nbterm; $i++) {
++		$prev_ts = $dates[$i - 1];
++		$curr_ts = $dates[$i];
++		$days = (int) floor(($curr_ts - $prev_ts) / 86400);
++		if ($daysInYearMode === 'period_start') {
++			$days_in_year = (float) loan_days_in_year_for_timestamp($prev_ts);
++		} else {
++			$days_in_year = loan_effective_days_in_year_for_period($prev_ts, $curr_ts);
++		}
++
++		if ($balanceMode === 'exact') {
++			$balanceForInterest = $capital - $sumPrincipal;
++		} else {
++			$balanceForInterest = $balanceDisplay;
++		}
++
++		$rateForTerm = (isset($options['rates']) && is_array($options['rates']) && isset($options['rates'][$i])) ? (float) price2num($options['rates'][$i]) : $ratePercent;
++		$interest = $balanceForInterest * ($rateForTerm / 100) * ($days / $days_in_year);
++		$interest = round($interest, 2, $roundMode);
++
++		$principal = $principalPerTerm;
++		if ($i == $nbterm) {
++			$principal = round($balanceForInterest, 2, $roundMode);
++		}
++		if ($principal > $balanceForInterest) {
++			$principal = $balanceForInterest;
++		}
++		if ($principal < 0) {
++			$principal = 0;
++		}
++
++		$sumPrincipal += $principal;
++		if ($balanceMode === 'exact') {
++			$cap_rest_display = round($capital - $sumPrincipal, 2, $roundMode);
++		} else {
++			$balanceDisplay = round($balanceForInterest - $principal, 2, $roundMode);
++			if ($balanceDisplay < 0) {
++				$balanceDisplay = 0;
++			}
++			$cap_rest_display = $balanceDisplay;
++		}
++		if ($cap_rest_display < 0) {
++			$cap_rest_display = 0;
++		}
++
++		$mens = $principal + $interest;
++
++		$output[$i] = array(
++			'cap_rest' => $cap_rest_display,
++			'cap_rest_str' => price($cap_rest_display, 0, '', 1, -1, -1, $conf->currency),
++			'interet' => $interest,
++			'interet_str' => price($interest, 0, '', 1, -1, -1, $conf->currency),
++			'mens' => price($mens),
++			'datep' => $curr_ts,
++		);
++	}
++
++	return $output;
++}
++
++/**
++ * Build one unified repayment schedule from multiple phases (no new table).
++ * Each phase: start_term, end_term (inclusive), rate_type (fixed|floating), rate_value (%), rates (optional array term=>%), repayment (equal_instalment|equal_principal|fixed_payment), fixed_payment_amount (optional).
++ * Phases must cover 1..nbterm without gaps. Capital at start of each phase = previous phase end balance (or loan capital for first).
++ *
++ * @param array   $phases             Array of phase definitions (see above)
++ * @param float   $capital            Initial loan capital
++ * @param float   $loanRatePercent    Default rate % when phase has no rate
++ * @param int     $dateStartTimestamp Loan start (first period start)
++ * @param int     $nbtermTotal        Total number of terms
++ * @param float   $insurancePerTerm   Insurance per term (not applied inside this function; caller adds to schedule lines)
++ * @param array   $defaultOptions     Options for all phases: rounding, days_in_year, balance_for_interest
++ * @return array<int,array{cap_rest:float,cap_rest_str:string,interet:float,interet_str:string,mens:string,datep:int}>  Term index 1..nbtermTotal, or empty on error
++ */
++function loanCalcScheduleFromPhases($phases, $capital, $loanRatePercent, $dateStartTimestamp, $nbtermTotal, $insurancePerTerm = 0, $defaultOptions = array())
++{
++	global $conf;
++	if (!is_array($phases) || empty($phases)) {
++		return array();
++	}
++
++	$capital = (float) price2num($capital);
++	$loanRatePercent = (float) price2num($loanRatePercent);
++	$nbtermTotal = (int) $nbtermTotal;
++	$fullSchedule = array();
++	$runningCapital = $capital;
++	$globalTermIndex = 1;
++
++	foreach ($phases as $phase) {
++		$start_term = (int) (isset($phase['start_term']) ? $phase['start_term'] : $globalTermIndex);
++		$end_term = (int) (isset($phase['end_term']) ? $phase['end_term'] : $nbtermTotal);
++		$phaseNbterm = $end_term - $start_term + 1;
++		if ($phaseNbterm <= 0 || $runningCapital <= 0) {
++			break;
++		}
++
++		$rate_type = isset($phase['rate_type']) ? $phase['rate_type'] : 'fixed';
++		$rate_value = isset($phase['rate_value']) ? (float) price2num($phase['rate_value']) : $loanRatePercent;
++		$repayment = isset($phase['repayment']) ? $phase['repayment'] : 'equal_instalment';
++		$fixed_payment_amount = isset($phase['fixed_payment_amount']) ? (float) price2num($phase['fixed_payment_amount']) : 0;
++
++		$phaseStartTs = dol_time_plus_duree($dateStartTimestamp, $start_term - 1, 'm');
++
++		$options = array_merge($defaultOptions, array());
++		if ($rate_type === 'floating' && !empty($phase['rates']) && is_array($phase['rates'])) {
++			$options['rates'] = array();
++			for ($local = 1; $local <= $phaseNbterm; $local++) {
++				$globalTerm = $start_term + $local - 1;
++				if (isset($phase['rates'][$globalTerm])) {
++					$options['rates'][$local] = $phase['rates'][$globalTerm];
++				}
++			}
++		}
++
++		$segment = array();
++		if ($repayment === 'fixed_payment' && $fixed_payment_amount > 0) {
++			$segment = loanCalcScheduleWithFixedPayment($fixed_payment_amount, $runningCapital, $rate_value, $phaseStartTs, $phaseNbterm, 0, $options);
++		} elseif ($repayment === 'equal_principal') {
++			$segment = loanCalcScheduleEqualPrincipal($runningCapital, $rate_value, $phaseStartTs, $phaseNbterm, 0, $options);
++		} else {
++			$segment = loanCalcScheduleEqualInstalment($runningCapital, $rate_value, $phaseStartTs, $phaseNbterm, 0, $options);
++		}
++
++		if (empty($segment)) {
++			return array();
++		}
++
++		foreach ($segment as $localTerm => $row) {
++			$fullSchedule[$globalTermIndex] = $row;
++			$globalTermIndex++;
++		}
++		$lastRow = end($segment);
++		$runningCapital = (float) $lastRow['cap_rest'];
++	}
++
++	return $fullSchedule;
++}
++
++/**
++ * Equal instalment (等额本息) schedule for a segment. Uses monthly rate approximation; options for rounding, days_in_year, rates.
++ *
++ * @param float   $capital            Capital for this segment
++ * @param float   $ratePercent        Annual rate %
++ * @param int     $dateStartTimestamp Period start for term 1 of segment
++ * @param int     $nbterm             Number of terms
++ * @param float   $insurancePerTerm   Unused
++ * @param array   $options            rounding, days_in_year, balance_for_interest, rates (floating)
++ * @return array<int,array{cap_rest:float,cap_rest_str:string,interet:float,interet_str:string,mens:string,datep:int}>
++ */
++function loanCalcScheduleEqualInstalment($capital, $ratePercent, $dateStartTimestamp, $nbterm, $insurancePerTerm = 0, $options = array())
++{
++	global $conf;
++
++	$capital = (float) price2num($capital);
++	$ratePercent = (float) price2num($ratePercent);
++	$nbterm = (int) $nbterm;
++	if ($nbterm <= 0) {
++		return array();
++	}
++
++	$roundMode = (isset($options['rounding']) && $options['rounding'] === 'half_even') ? PHP_ROUND_HALF_EVEN : PHP_ROUND_HALF_UP;
++	$daysInYearMode = (isset($options['days_in_year']) && $options['days_in_year'] === 'period_start') ? 'period_start' : 'cross_year_weighted';
++	$balanceMode = (isset($options['balance_for_interest']) && $options['balance_for_interest'] === 'exact') ? 'exact' : 'displayed';
++
++	$monthlyRate = $ratePercent / 100 / 12;
++	if (abs($monthlyRate) < 1e-9) {
++		$mensFixed = $capital / $nbterm;
++	} else {
++		$mensFixed = $capital * ($monthlyRate * pow(1 + $monthlyRate, $nbterm)) / (pow(1 + $monthlyRate, $nbterm) - 1);
++	}
++	$mensFixed = round($mensFixed, 2, $roundMode);
++
++	$output = array();
++	$balanceDisplay = round($capital, 2, $roundMode);
++	$sumPrincipal = 0.0;
++
++	$dates = array();
++	for ($k = 0; $k <= $nbterm; $k++) {
++		$dates[$k] = dol_time_plus_duree($dateStartTimestamp, $k, 'm');
++	}
++
++	for ($i = 1; $i <= $nbterm; $i++) {
++		$prev_ts = $dates[$i - 1];
++		$curr_ts = $dates[$i];
++		$days = (int) floor(($curr_ts - $prev_ts) / 86400);
++		if ($daysInYearMode === 'period_start') {
++			$days_in_year = (float) loan_days_in_year_for_timestamp($prev_ts);
++		} else {
++			$days_in_year = loan_effective_days_in_year_for_period($prev_ts, $curr_ts);
++		}
++
++		if ($balanceMode === 'exact') {
++			$balanceForInterest = $capital - $sumPrincipal;
++		} else {
++			$balanceForInterest = $balanceDisplay;
++		}
++
++		$rateForTerm = (isset($options['rates']) && is_array($options['rates']) && isset($options['rates'][$i])) ? (float) price2num($options['rates'][$i]) : $ratePercent;
++		$interest = $balanceForInterest * ($rateForTerm / 100) * ($days / $days_in_year);
++		$interest = round($interest, 2, $roundMode);
++
++		$principal = round($mensFixed - $interest, 2, $roundMode);
++		if ($i == $nbterm) {
++			$principal = round($balanceForInterest, 2, $roundMode);
++		}
++		if ($principal > $balanceForInterest) {
++			$principal = $balanceForInterest;
++		}
++		if ($principal < 0) {
++			$principal = 0;
++		}
++
++		$sumPrincipal += $principal;
++		if ($balanceMode === 'exact') {
++			$cap_rest_display = round($capital - $sumPrincipal, 2, $roundMode);
++		} else {
++			$balanceDisplay = round($balanceForInterest - $principal, 2, $roundMode);
++			if ($balanceDisplay < 0) {
++				$balanceDisplay = 0;
++			}
++			$cap_rest_display = $balanceDisplay;
++		}
++		if ($cap_rest_display < 0) {
++			$cap_rest_display = 0;
++		}
++
++		$mens = $principal + $interest;
++
++		$output[$i] = array(
++			'cap_rest' => $cap_rest_display,
++			'cap_rest_str' => price($cap_rest_display, 0, '', 1, -1, -1, $conf->currency),
++			'interet' => $interest,
++			'interet_str' => price($interest, 0, '', 1, -1, -1, $conf->currency),
++			'mens' => price($mens),
++			'datep' => $curr_ts,
++		);
++	}
++
++	return $output;
++}
+diff --git a/htdocs/core/lib/pdf.lib.php b/htdocs/core/lib/pdf.lib.php
+index 7acc2b0990e..46df1a26903 100644
+--- a/htdocs/core/lib/pdf.lib.php
++++ b/htdocs/core/lib/pdf.lib.php
+@@ -569,11 +569,16 @@ function pdf_build_address($outputlangs, $sourcecompany, $targetcompany = '', $t
+ 
+ 					$stringaddress .= ($stringaddress ? "\n" : '').$outputlangs->convToOutputCharset(dol_format_address($companytouseforaddress))."\n";
+ 				}
+-				// Country
++				// Country: single newline before country, country name in uppercase
++				$countryToAdd = '';
+ 				if (!empty($targetcontact->country_code) && $targetcontact->country_code != $sourcecompany->country_code) {
+-					$stringaddress .= (($stringaddress && !getDolGlobalString('MAIN_PDF_REMOVE_BREAK_BEFORE_COUNTRY')) ? "\n" : '').$outputlangs->convToOutputCharset($outputlangs->transnoentitiesnoconv("Country".$targetcontact->country_code));
++					$countryToAdd = $outputlangs->convToOutputCharset($outputlangs->transnoentitiesnoconv("Country".$targetcontact->country_code));
+ 				} elseif (empty($targetcontact->country_code) && !empty($targetcompany->country_code) && ($targetcompany->country_code != $sourcecompany->country_code)) {
+-					$stringaddress .= (($stringaddress && !getDolGlobalString('MAIN_PDF_REMOVE_BREAK_BEFORE_COUNTRY')) ? "\n" : '').$outputlangs->convToOutputCharset($outputlangs->transnoentitiesnoconv("Country".$targetcompany->country_code));
++					$countryToAdd = $outputlangs->convToOutputCharset($outputlangs->transnoentitiesnoconv("Country".$targetcompany->country_code));
++				}
++				if ($countryToAdd !== '') {
++					$stringaddress = rtrim($stringaddress);
++					$stringaddress .= (($stringaddress && !getDolGlobalString('MAIN_PDF_REMOVE_BREAK_BEFORE_COUNTRY')) ? "\n" : '').(function_exists('mb_strtoupper') ? mb_strtoupper($countryToAdd, 'UTF-8') : strtoupper($countryToAdd));
+ 				}
+ 
+ 				if (getDolGlobalString('MAIN_PDF_ADDALSOTARGETDETAILS') || preg_match('/targetwithdetails/', $mode)) {
+@@ -614,11 +619,14 @@ function pdf_build_address($outputlangs, $sourcecompany, $targetcompany = '', $t
+ 			} else {
+ 				if (is_object($targetcompany)) {
+ 					$stringaddress .= ($stringaddress ? "\n" : '').$outputlangs->convToOutputCharset(dol_format_address($targetcompany));
+-					// Country
++					// Country: single newline before country, country name in uppercase
+ 					if (!empty($targetcompany->country_code) && $targetcompany->country_code != $sourcecompany->country_code) {
+-						$stringaddress .= ($stringaddress ? "\n" : '').$outputlangs->convToOutputCharset($outputlangs->transnoentitiesnoconv("Country".$targetcompany->country_code));
++						$stringaddress = rtrim($stringaddress);
++						$countryLabel = $outputlangs->convToOutputCharset($outputlangs->transnoentitiesnoconv("Country".$targetcompany->country_code));
++						$stringaddress .= "\n".(function_exists('mb_strtoupper') ? mb_strtoupper($countryLabel, 'UTF-8') : strtoupper($countryLabel));
+ 					} else {
+-						$stringaddress .= ($stringaddress ? "\n" : '');
++						$stringaddress = rtrim($stringaddress);
++						$stringaddress .= "\n";
+ 					}
+ 
+ 					if (getDolGlobalString('MAIN_PDF_ADDALSOTARGETDETAILS') || preg_match('/targetwithdetails/', $mode)) {
+@@ -1042,9 +1050,10 @@ function pdf_bank(&$pdf, $outputlangs, $curx, $cury, $account, $onlynumber = 0,
+  *  @param	int			$hidefreetext	1=Hide free text, 0=Show free text
+  *  @param	float		$page_largeur	Page width
+  *  @param	string		$watermark		Watermark text to print on page
++ *  @param	int			$hidefooterline	1=Do not draw the horizontal line above footer
+  * 	@return	int							Return height of bottom margin including footer text
+  */
+-function pdf_pagefoot(&$pdf, $outputlangs, $paramfreetext, $fromcompany, $marge_basse, $marge_gauche, $page_hauteur, $object, $showdetails = 0, $hidefreetext = 0, $page_largeur = 0, $watermark = '')
++function pdf_pagefoot(&$pdf, $outputlangs, $paramfreetext, $fromcompany, $marge_basse, $marge_gauche, $page_hauteur, $object, $showdetails = 0, $hidefreetext = 0, $page_largeur = 0, $watermark = '', $hidefooterline = 0)
+ {
+ 	global $conf, $hookmanager;
+ 
+@@ -1082,42 +1091,73 @@ function pdf_pagefoot(&$pdf, $outputlangs, $paramfreetext, $fromcompany, $marge_
+ 	$line4 = "";
+ 
+ 	if (is_object($fromcompany) && in_array($showdetails, array(1, 3))) {
+-		// Company name
+-		if ($fromcompany->name) {
+-			$line1 .= ($line1 ? " - " : "").$outputlangs->transnoentities("RegisteredOffice").": ".$fromcompany->name;
+-		}
+-		// Address
+-		if ($fromcompany->address) {
+-			$line1 .= ($line1 ? " - " : "").str_replace("\n", ", ", $fromcompany->address);
+-		}
+-		// Zip code
+-		if ($fromcompany->zip) {
+-			$line1 .= ($line1 ? " - " : "").$fromcompany->zip;
+-		}
+-		// Town
+-		if ($fromcompany->town) {
+-			$line1 .= ($line1 ? " " : "").$fromcompany->town;
+-		}
+-		// Country
+-		if ($fromcompany->country) {
+-			$line1 .= ($line1 ? ", " : "").$fromcompany->country;
+-		}
+-		// Phone
+-		if ($fromcompany->phone) {
+-			$line2 .= ($line2 ? " - " : "").$outputlangs->transnoentities("Phone").": ".$fromcompany->phone;
+-		}
+-		// Fax
+-		if ($fromcompany->fax) {
+-			$line2 .= ($line2 ? " - " : "").$outputlangs->transnoentities("Fax").": ".$fromcompany->fax;
+-		}
+-
+-		// URL
+-		if ($fromcompany->url) {
+-			$line2 .= ($line2 ? " - " : "").$fromcompany->url;
+-		}
+-		// Email
+-		if ($fromcompany->email) {
+-			$line2 .= ($line2 ? " - " : "").$fromcompany->email;
++		if (!empty($fromcompany->country_code) && $fromcompany->country_code == 'SG') {
++			// Singapore convention: Line1 = Company (UEN: xxx), Line2 = Address, Line3 = Phone - Email (normal case)
++			if ($fromcompany->name) {
++				$uenLabel = $outputlangs->transcountrynoentities("ProfId1", "SG");
++				if (preg_match('/\((.*)\)/i', $uenLabel, $reg)) {
++					$uenLabel = $reg[1];
++				}
++				$line1 = $fromcompany->name;
++				if (!empty($fromcompany->idprof1)) {
++					$line1 .= " (".$uenLabel.": ".$outputlangs->convToOutputCharset($fromcompany->idprof1).")";
++				}
++			}
++			$addrParts = array();
++			if ($fromcompany->address) {
++				$addrParts[] = str_replace("\n", ", ", $fromcompany->address);
++			}
++			if ($fromcompany->town || $fromcompany->zip) {
++				$addrParts[] = trim(($fromcompany->town ? $fromcompany->town : '').($fromcompany->town && $fromcompany->zip ? ' ' : '').($fromcompany->zip ? $fromcompany->zip : ''));
++			}
++			if (count($addrParts) > 0) {
++				$line2 = strtoupper(implode(", ", $addrParts));
++			}
++			$contactParts = array();
++			if ($fromcompany->phone) {
++				$contactParts[] = $outputlangs->transnoentities("Phone").": ".$fromcompany->phone;
++			}
++			if ($fromcompany->email) {
++				$contactParts[] = $outputlangs->transnoentities("Email").": ".$outputlangs->convToOutputCharset($fromcompany->email);
++			}
++			if (count($contactParts) > 0) {
++				$line3 = implode(" - ", $contactParts);
++			}
++		} else {
++			// Company name
++			if ($fromcompany->name) {
++				$line1 .= ($line1 ? " - " : "").$outputlangs->transnoentities("RegisteredOffice").": ".$fromcompany->name;
++			}
++			// Address
++			if ($fromcompany->address) {
++				$line1 .= ($line1 ? " - " : "").str_replace("\n", ", ", $fromcompany->address);
++			}
++			// Zip / Town / Country
++			if ($fromcompany->zip) {
++				$line1 .= ($line1 ? " - " : "").$fromcompany->zip;
++			}
++			if ($fromcompany->town) {
++				$line1 .= ($line1 ? " " : "").$fromcompany->town;
++			}
++			if ($fromcompany->country) {
++				$line1 .= ($line1 ? ", " : "").$fromcompany->country;
++			}
++			// Phone
++			if ($fromcompany->phone) {
++				$line2 .= ($line2 ? " - " : "").$outputlangs->transnoentities("Phone").": ".$fromcompany->phone;
++			}
++			// Fax
++			if ($fromcompany->fax) {
++				$line2 .= ($line2 ? " - " : "").$outputlangs->transnoentities("Fax").": ".$fromcompany->fax;
++			}
++			// URL
++			if ($fromcompany->url) {
++				$line2 .= ($line2 ? " - " : "").$fromcompany->url;
++			}
++			// Email
++			if ($fromcompany->email) {
++				$line2 .= ($line2 ? " - " : "").$outputlangs->transnoentities("Email").": ".$outputlangs->convToOutputCharset($fromcompany->email);
++			}
+ 		}
+ 	}
+ 	if ($showdetails == 2 || $showdetails == 3 || (!empty($fromcompany->country_code) && $fromcompany->country_code == 'DE')) {
+@@ -1127,38 +1167,48 @@ function pdf_pagefoot(&$pdf, $outputlangs, $paramfreetext, $fromcompany, $marge_
+ 		}
+ 	}
+ 
+-	// Line 3 of company infos
+-	// Juridical status
+-	if (!empty($fromcompany->forme_juridique_code) && $fromcompany->forme_juridique_code) {
+-		$line3 .= ($line3 ? " - " : "").$outputlangs->convToOutputCharset(getFormeJuridiqueLabel((string) $fromcompany->forme_juridique_code));
+-	}
+-	// Capital
+-	if (!empty($fromcompany->capital)) {
+-		$tmpamounttoshow = price2num($fromcompany->capital); // This field is a free string or a float
+-		if (is_numeric($tmpamounttoshow) && $tmpamounttoshow > 0) {
+-			$line3 .= ($line3 ? " - " : "").$outputlangs->transnoentities("CapitalOf", price($tmpamounttoshow, 0, $outputlangs, 0, 0, 0, $conf->currency));
+-		} elseif (!empty($fromcompany->capital)) {
+-			$line3 .= ($line3 ? " - " : "").$outputlangs->transnoentities("CapitalOf", (string) $fromcompany->capital);
++	// Line 3 of company infos (skip for Singapore: UEN already on line1, Phone/Email already on line3)
++	if (is_object($fromcompany) && (empty($fromcompany->country_code) || $fromcompany->country_code != 'SG')) {
++		// Juridical status
++		if (!empty($fromcompany->forme_juridique_code) && $fromcompany->forme_juridique_code) {
++			$line3 .= ($line3 ? " - " : "").$outputlangs->convToOutputCharset(getFormeJuridiqueLabel((string) $fromcompany->forme_juridique_code));
+ 		}
+-	}
+-	// Prof Id 1
+-	if (!empty($fromcompany->idprof1) && $fromcompany->idprof1 && ($fromcompany->country_code != 'FR' || !$fromcompany->idprof2)) {
+-		$field = $outputlangs->transcountrynoentities("ProfId1", $fromcompany->country_code);
+-		if (preg_match('/\((.*)\)/i', $field, $reg)) {
+-			$field = $reg[1];
++		// Capital (currency: societe.capital_currency, or MAIN_INFO_CAPITAL_CURRENCY for main company)
++		if (!empty($fromcompany->capital)) {
++			$tmpamounttoshow = price2num($fromcompany->capital); // This field is a free string or a float
++			$capitalCurrency = (!empty($fromcompany->capital_currency)) ? $fromcompany->capital_currency : null;
++			if (empty($capitalCurrency) && !empty($fromcompany->id) && (int) $fromcompany->id === 1) {
++				$capitalCurrency = getDolGlobalString('MAIN_INFO_CAPITAL_CURRENCY');
++			}
++			if (empty($capitalCurrency)) {
++				$capitalCurrency = $conf->currency;
++			}
++			if (is_numeric($tmpamounttoshow) && $tmpamounttoshow > 0) {
++				$line3 .= ($line3 ? " - " : "").$outputlangs->transnoentities("CapitalOf", price($tmpamounttoshow, 0, $outputlangs, 0, 0, 0, $capitalCurrency));
++			} elseif (!empty($fromcompany->capital)) {
++				$line3 .= ($line3 ? " - " : "").$outputlangs->transnoentities("CapitalOf", (string) $fromcompany->capital);
++			}
+ 		}
+-		$line3 .= ($line3 ? " - " : "").$field.": ".$outputlangs->convToOutputCharset($fromcompany->idprof1);
+-	}
+-	// Prof Id 2
+-	if (!empty($fromcompany->idprof2) && $fromcompany->idprof2) {
+-		$field = $outputlangs->transcountrynoentities("ProfId2", $fromcompany->country_code);
+-		if (preg_match('/\((.*)\)/i', $field, $reg)) {
+-			$field = $reg[1];
++		// Prof Id 1
++		if (!empty($fromcompany->idprof1) && $fromcompany->idprof1 && ($fromcompany->country_code != 'FR' || !$fromcompany->idprof2)) {
++			$field = $outputlangs->transcountrynoentities("ProfId1", $fromcompany->country_code);
++			if (preg_match('/\((.*)\)/i', $field, $reg)) {
++				$field = $reg[1];
++			}
++			$line3 .= ($line3 ? " - " : "").$field.": ".$outputlangs->convToOutputCharset($fromcompany->idprof1);
++		}
++		// Prof Id 2
++		if (!empty($fromcompany->idprof2) && $fromcompany->idprof2) {
++			$field = $outputlangs->transcountrynoentities("ProfId2", $fromcompany->country_code);
++			if (preg_match('/\((.*)\)/i', $field, $reg)) {
++				$field = $reg[1];
++			}
++			$line3 .= ($line3 ? " - " : "").$field.": ".$outputlangs->convToOutputCharset($fromcompany->idprof2);
+ 		}
+-		$line3 .= ($line3 ? " - " : "").$field.": ".$outputlangs->convToOutputCharset($fromcompany->idprof2);
+ 	}
+ 
+-	// Line 4 of company infos
++	// Line 4 of company infos (skip for Singapore)
++	if (is_object($fromcompany) && (empty($fromcompany->country_code) || $fromcompany->country_code != 'SG')) {
+ 	// Prof Id 3
+ 	if (!empty($fromcompany->idprof3) && $fromcompany->idprof3) {
+ 		$field = $outputlangs->transcountrynoentities("ProfId3", $fromcompany->country_code);
+@@ -1227,6 +1277,7 @@ function pdf_pagefoot(&$pdf, $outputlangs, $paramfreetext, $fromcompany, $marge_
+ 	if (!empty($fromcompany->tva_intra)  && $fromcompany->tva_intra != '') {
+ 		$line4 .= ($line4 ? " - " : "").$outputlangs->transnoentities("VATIntraShort").": ".$outputlangs->convToOutputCharset($fromcompany->tva_intra);
+ 	}
++	}
+ 
+ 	$pdf->SetFont('', '', 7);
+ 	$pdf->SetDrawColor(224, 224, 224);
+@@ -1348,8 +1399,8 @@ function pdf_pagefoot(&$pdf, $outputlangs, $paramfreetext, $fromcompany, $marge_
+ 
+ 			// Option for hide all footer (page number will no hidden)
+ 			if (!getDolGlobalInt('PDF_FOOTER_HIDDEN')) {
+-				// Hide footer line if footer background color is set
+-				if (!getDolGlobalString('PDF_FOOTER_BACKGROUND_COLOR')) {
++				// Hide footer line if footer background color is set or $hidefooterline requested
++				if (empty($hidefooterline) && !getDolGlobalString('PDF_FOOTER_BACKGROUND_COLOR')) {
+ 					$pdf->line($dims['lm'], $dims['hk'] - $posy, $dims['wk'] - $dims['rm'], $dims['hk'] - $posy);
+ 				}
+ 
+diff --git a/htdocs/core/modules/payment/mod_payment_ant.php b/htdocs/core/modules/payment/mod_payment_ant.php
+index 2b5e78fc067..7fc4ec6bfab 100644
+--- a/htdocs/core/modules/payment/mod_payment_ant.php
++++ b/htdocs/core/modules/payment/mod_payment_ant.php
+@@ -148,7 +148,10 @@ class mod_payment_ant extends ModeleNumRefPayments
+ 			return 0;
+ 		}
+ 
+-		$numFinal = get_next_value($db, $mask, 'paiement', 'ref', '', $objsoc, $object->datepaye);
++		// $object 可能为 null（例如在 admin 配置页面调用 getExample 时），此时使用当前时间避免 "Attempt to read property 'datepaye' on null"
++		$datepaye = (!empty($object) && !empty($object->datepaye)) ? $object->datepaye : dol_now();
++
++		$numFinal = get_next_value($db, $mask, 'paiement', 'ref', '', $objsoc, $datepaye);
+ 
+ 		return  $numFinal;
+ 	}
+diff --git a/htdocs/core/tpl/list_print_total.tpl.php b/htdocs/core/tpl/list_print_total.tpl.php
+index 4dbfdfa2a29..b51a3137a04 100644
+--- a/htdocs/core/tpl/list_print_total.tpl.php
++++ b/htdocs/core/tpl/list_print_total.tpl.php
+@@ -72,6 +72,29 @@ if (!function_exists('printTotalValCell')) { // allow two list with total on sam
+ 	}
+ }
+ 
++if (!function_exists('printTotalValCellByCurrency')) {
++	/** Print a total cell with amounts per currency, one currency per line (e.g. "USD 10,000" then "+ EUR 5,000" on next line)
++	 *
++	 * @param array<string,float> $amountsByCurrency currency code => amount (only non-zero are shown)
++	 * @return void
++	 */
++	function printTotalValCellByCurrency($amountsByCurrency)
++	{
++		global $langs;
++		$parts = array();
++		foreach ($amountsByCurrency as $currency_code => $amount) {
++			if ($amount != 0 && $amount !== '' && $amount !== null) {
++				// Format as "USD 10,000" (same as Related Objects: code + space + price)
++				$parts[] = $currency_code . ' ' . price(price2num($amount), 0, $langs, 1, -1, -1, '');
++			}
++		}
++		// Line break: use real newline + pre-line so it works even if <br> is escaped by theme/JS
++		print '<td class="right total-by-currency-cell" style="white-space: pre-line !important;">';
++		print implode("\n+ ", $parts);
++		print '</td>';
++	}
++}
++
+ // Move fields of totalizable into the common array pos and val
+ if (!empty($totalarray['totalizable']) && is_array($totalarray['totalizable'])) {
+ 	foreach ($totalarray['totalizable'] as $keytotalizable => $valtotalizable) {
+@@ -79,15 +102,38 @@ if (!empty($totalarray['totalizable']) && is_array($totalarray['totalizable']))
+ 		$totalarray['val'][$keytotalizable] = isset($valtotalizable['total']) ? $valtotalizable['total'] : 0;
+ 	}
+ }
+-// Show total line
+-if (isset($totalarray['pos'])) {
++// Show total line (when we have totalizable columns with pos, or when we have data and column count so at least "Total" label is shown)
++$showTotalLine = isset($totalarray['pos']) && is_array($totalarray['pos'])
++	|| (isset($num) && $num > 0 && !empty($totalarray['nbfield']));
++if ($showTotalLine) {
++	if (!isset($totalarray['pos']) || !is_array($totalarray['pos'])) {
++		$totalarray['pos'] = array();
++	}
+ 	//print '<tfoot>';
+-	print '<tr class="liste_total'.(empty($trforbreaknobg) ? '' : ' trforbreaknobg').'">';
++	// liste_total_wrap + inline style: allow line break in cells (multi-currency "USD x" / "+ EUR y"); style is fallback if theme strips second class
++	print '<tr class="liste_total liste_total_wrap'.(empty($trforbreaknobg) ? '' : ' trforbreaknobg').'" style="white-space: normal;">';
++	// When list has checkbox as first column, that column does not increment nbfield in data row; output one empty cell so Total row aligns with header/data
++	if (!empty($totalarray['first_column_empty'])) {
++		print '<td></td>';
++	}
+ 	$i = 0;
+ 	while ($i < $totalarray['nbfield']) {
+ 		$i++;
+ 		if (!empty($totalarray['pos'][$i])) {
+-			printTotalValCell($totalarray['type'][$i] ?? '', empty($totalarray['val'][$totalarray['pos'][$i]]) ? '0' : (string) $totalarray['val'][$totalarray['pos'][$i]]);
++			$fieldName = $totalarray['pos'][$i];
++			$amountsByCurrency = array();
++			if (!empty($totalarray['val_by_currency']) && is_array($totalarray['val_by_currency'])) {
++				foreach ($totalarray['val_by_currency'] as $currency_code => $byField) {
++					if (isset($byField[$fieldName]) && $byField[$fieldName] != 0 && $byField[$fieldName] !== '' && $byField[$fieldName] !== null) {
++						$amountsByCurrency[$currency_code] = $byField[$fieldName];
++					}
++				}
++			}
++			if (!empty($amountsByCurrency)) {
++				printTotalValCellByCurrency($amountsByCurrency);
++			} else {
++				printTotalValCell($totalarray['type'][$i] ?? '', empty($totalarray['val'][$fieldName]) ? '0' : (string) $totalarray['val'][$fieldName]);
++			}
+ 		} else {
+ 			if ($i == 1) {
+ 				if ((!isset($limit) || $num < $limit) && empty($offset)) {
+@@ -130,6 +176,9 @@ if (isset($totalarray['pos'])) {
+ 			}
+ 			if (is_array($sumsarray) && count($sumsarray) > 0) {
+ 				print '<tr class="liste_grandtotal">';
++				if (!empty($totalarray['first_column_empty'])) {
++					print '<td></td>';
++				}
+ 				$i = 0;
+ 				while ($i < $totalarray['nbfield']) {
+ 					$i++;
+diff --git a/htdocs/core/tpl/object_discounts.tpl.php b/htdocs/core/tpl/object_discounts.tpl.php
+index 2a704394009..3e86dece64b 100644
+--- a/htdocs/core/tpl/object_discounts.tpl.php
++++ b/htdocs/core/tpl/object_discounts.tpl.php
+@@ -22,6 +22,7 @@
+  * $thirdparty				Third party of object
+  * $discount_type			0 => Customer discounts, 1 => Supplier discounts
+  * $backtopage				URL to come back to from discount modification pages
++ * $discount_form_action		Optional: form action URL for discount dropdown on create form (when no object id yet)
+  */
+ 
+  /**
+@@ -88,20 +89,26 @@ print ' '.$addrelativediscount;
+ if ($absolute_discount > 0) {
+ 	print '<!-- absolute_discount -->';
+ 	if (!empty($cannotApplyDiscount) || !$isInvoice || $isNewObject || $object->statut > $objclassname::STATUS_DRAFT || $object->type == $objclassname::TYPE_CREDIT_NOTE || $object->type == $objclassname::TYPE_DEPOSIT) {
+-		$translationKey = empty($discount_type) ? 'CompanyHasDownPaymentOrCommercialDiscount' : 'HasDownPaymentOrCommercialDiscountFromSupplier';
+-		$text = $langs->trans($translationKey, price($absolute_discount, 0, $langs, 1, -1, -1, $conf->currency));
+-
+-		if ($isInvoice && !$isNewObject && $object->statut > $objclassname::STATUS_DRAFT && $object->type != $objclassname::TYPE_CREDIT_NOTE && $object->type != $objclassname::TYPE_DEPOSIT) {
+-			$text = $form->textwithpicto($text, $langs->trans('AbsoluteDiscountUse'));
+-		}
+-		if ($isNewObject) {
+-			$text .= ' '.$addabsolutediscount;
+-		}
+-
+-		if ($isNewObject) {
+-			print '<br>'.$text;
++		// On create form with form action: show dropdown so user can select discount (will be applied after invoice is created)
++		if ($isNewObject && $isInvoice && !empty($discount_form_action)) {
++			$more = $addabsolutediscount;
++			$form->form_remise_dispo($discount_form_action, GETPOSTINT('discountid'), 'remise_id', $thirdparty->id, $absolute_discount, isset($filterabsolutediscount) ? $filterabsolutediscount : '', 0, $more, 0, $discount_type);
+ 		} else {
+-			print '<div class="inline-block clearboth">'.$text.'</div>';
++			$translationKey = empty($discount_type) ? 'CompanyHasDownPaymentOrCommercialDiscount' : 'HasDownPaymentOrCommercialDiscountFromSupplier';
++			$text = $langs->trans($translationKey, price($absolute_discount, 0, $langs, 1, -1, -1, $conf->currency));
++
++			if ($isInvoice && !$isNewObject && $object->statut > $objclassname::STATUS_DRAFT && $object->type != $objclassname::TYPE_CREDIT_NOTE && $object->type != $objclassname::TYPE_DEPOSIT) {
++				$text = $form->textwithpicto($text, $langs->trans('AbsoluteDiscountUse'));
++			}
++			if ($isNewObject) {
++				$text .= ' '.$addabsolutediscount;
++			}
++
++			if ($isNewObject) {
++				print '<br>'.$text;
++			} else {
++				print '<div class="inline-block clearboth">'.$text.'</div>';
++			}
+ 		}
+ 	} else {
+ 		// Discount available of type fixed amount (not credit note)
+@@ -115,14 +122,17 @@ if ($absolute_discount > 0) {
+ // Is there credit notes availables ?
+ if ($absolute_creditnote > 0) {
+ 	print '<!-- absolute_creditnote -->';
+-	// If validated, we show link "add credit note to payment"
+-	if (!empty($cannotApplyDiscount) || !$isInvoice || $isNewObject || $object->statut != $objclassname::STATUS_VALIDATED || $object->type == $objclassname::TYPE_CREDIT_NOTE) {
++	// Show credit note dropdown only in draft (same as deposit/commercial discount)
++	if (!empty($cannotApplyDiscount) || !$isInvoice || $isNewObject || $object->statut > $objclassname::STATUS_DRAFT || $object->type == $objclassname::TYPE_CREDIT_NOTE) {
+ 		$translationKey = empty($discount_type) ? 'CompanyHasCreditNote' : 'HasCreditNoteFromSupplier';
+ 		$text = $langs->trans($translationKey, price($absolute_creditnote, 0, $langs, 1, -1, -1, $conf->currency));
+ 
+ 		if ($isInvoice && !$isNewObject && $object->statut == $objclassname::STATUS_DRAFT && $object->type != $objclassname::TYPE_DEPOSIT) {
+ 			$text = $form->textwithpicto($text, $langs->trans('CreditNoteDepositUse'));
+ 		}
++		if ($isInvoice && !$isNewObject && $object->statut > $objclassname::STATUS_DRAFT && $object->type != $objclassname::TYPE_CREDIT_NOTE && $object->type != $objclassname::TYPE_DEPOSIT) {
++			$text = $form->textwithpicto($text, $langs->trans('AbsoluteDiscountUse'));
++		}
+ 
+ 		if ($absolute_discount <= 0 || $isNewObject) {
+ 			$text .= ' '.$addabsolutediscount;
+@@ -134,9 +144,10 @@ if ($absolute_creditnote > 0) {
+ 			print '<div class="inline-block clearboth">'.$text.'</div>';
+ 		}
+ 	} else {  // We can add a credit note on a down payment or standard invoice or situation invoice
+-		// There is credit notes discounts available
++		// There is credit notes discounts available; preselect discount from same order as current invoice when set by caller (e.g. facture card)
++		$selected_credit = isset($preselected_remise_id_for_payment) ? (int) $preselected_remise_id_for_payment : 0;
+ 		$more = $isInvoice && !$isNewObject ? ' ('.$viewabsolutediscount.')' : '';
+-		$form->form_remise_dispo($_SERVER["PHP_SELF"].'?facid='.$object->id, 0, 'remise_id_for_payment', $thirdparty->id, $absolute_creditnote, $filtercreditnote, 0, $more, 0, $discount_type); // We allow credit note even if amount is higher
++		$form->form_remise_dispo($_SERVER["PHP_SELF"].'?facid='.$object->id, $selected_credit, 'remise_id_for_payment', $thirdparty->id, $absolute_creditnote, $filtercreditnote, 0, $more, 0, $discount_type); // We allow credit note even if amount is higher
+ 	}
+ }
+ 

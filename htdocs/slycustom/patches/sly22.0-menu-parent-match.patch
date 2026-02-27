@@ -1,3 +1,5 @@
+diff --git a/htdocs/core/class/menubase.class.php b/htdocs/core/class/menubase.class.php
+index 3e95db95cbb..12b2f81d2d5 100644
 --- a/htdocs/core/class/menubase.class.php
 +++ b/htdocs/core/class/menubase.class.php
 @@ -606,11 +606,12 @@ class Menubase

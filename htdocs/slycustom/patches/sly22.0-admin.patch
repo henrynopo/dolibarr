@@ -1,3 +1,33 @@
+diff --git a/htdocs/admin/company.php b/htdocs/admin/company.php
+index 4cdafdc39e0..5e8d2a77ec0 100644
+--- a/htdocs/admin/company.php
++++ b/htdocs/admin/company.php
+@@ -217,6 +217,7 @@ if (($action == 'update' && !GETPOST("cancel", 'alpha'))
+ 	dolibarr_set_const($db, "MAIN_INFO_SOCIETE_MANAGERS", GETPOST("MAIN_INFO_SOCIETE_MANAGERS", 'alphanohtml'), 'chaine', 0, '', $conf->entity);
+ 	dolibarr_set_const($db, "MAIN_INFO_GDPR", GETPOST("MAIN_INFO_GDPR", 'alphanohtml'), 'chaine', 0, '', $conf->entity);
+ 	dolibarr_set_const($db, "MAIN_INFO_CAPITAL", GETPOST("capital", 'alphanohtml'), 'chaine', 0, '', $conf->entity);
++	dolibarr_set_const($db, "MAIN_INFO_CAPITAL_CURRENCY", GETPOST("capital_currency", 'aZ09'), 'chaine', 0, '', $conf->entity);
+ 	dolibarr_set_const($db, "MAIN_INFO_SOCIETE_FORME_JURIDIQUE", GETPOST("forme_juridique_code", 'alphanohtml'), 'chaine', 0, '', $conf->entity);
+ 	dolibarr_set_const($db, "MAIN_INFO_SIREN", GETPOST("siren", 'alphanohtml'), 'chaine', 0, '', $conf->entity);
+ 	dolibarr_set_const($db, "MAIN_INFO_SIRET", GETPOST("siret", 'alphanohtml'), 'chaine', 0, '', $conf->entity);
+@@ -592,9 +593,15 @@ print $form->textwithpicto($langs->trans("GDPRContact"), $langs->trans("GDPRCont
+ print '</td><td>';
+ print '<input name="MAIN_INFO_GDPR" id="infodirector" class="minwidth300" value="'.dolPrintHTMLForAttribute((GETPOSTISSET("MAIN_INFO_GDPR") ? GETPOST("MAIN_INFO_GDPR", 'alphanohtml') : getDolGlobalString('MAIN_INFO_GDPR'))).'"></td></tr>';
+ 
+-// Capital
++// Capital (amount + optional currency, e.g. for registered capital in a different currency)
+ print '<tr class="oddeven"><td><label for="capital">'.$langs->trans("Capital").'</label></td><td>';
+-print '<input name="capital" id="capital" class="maxwidth100" value="'.dolPrintHTMLForAttribute((GETPOSTISSET('capital') ? GETPOST('capital', 'alphanohtml') : getDolGlobalString('MAIN_INFO_CAPITAL'))).'"></td></tr>';
++print '<input name="capital" id="capital" class="maxwidth100" value="'.dolPrintHTMLForAttribute((GETPOSTISSET('capital') ? GETPOST('capital', 'alphanohtml') : getDolGlobalString('MAIN_INFO_CAPITAL'))).'"> ';
++$capitalCurrency = GETPOSTISSET('capital_currency') ? GETPOST('capital_currency', 'aZ09') : getDolGlobalString('MAIN_INFO_CAPITAL_CURRENCY');
++if (empty($capitalCurrency)) {
++	$capitalCurrency = $conf->currency;
++}
++print $form->selectMultiCurrency($capitalCurrency, 'capital_currency', 1, '', false, 'maxwidth150', true);
++print '</td></tr>';
+ 
+ // Juridical Status
+ print '<tr class="oddeven"><td><label for="forme_juridique_code">'.$langs->trans("JuridicalStatus").'</label></td><td>';
 diff --git a/htdocs/admin/debugbar.php b/htdocs/admin/debugbar.php
 index 6f77e1ef4e9..111106a9c69 100644
 --- a/htdocs/admin/debugbar.php
@@ -53,3 +83,41 @@ index c51b668cae4..024b9b9e28b 100644
  }
  if (isModEnabled('intervention')) {
  	$elementList['fichinter_send'] = img_picto('', 'intervention', 'class="pictofixedwidth"').dol_escape_htmltag($langs->trans('MailToSendIntervention'));
+diff --git a/htdocs/admin/supplier_invoice.php b/htdocs/admin/supplier_invoice.php
+index b0c05b8bbea..1010d9283e3 100644
+--- a/htdocs/admin/supplier_invoice.php
++++ b/htdocs/admin/supplier_invoice.php
+@@ -146,7 +146,8 @@ if ($action == 'specimen') {  // For invoices
+ } elseif ($action == 'del') {
+ 	$ret = delDocumentModel($value, $type);
+ 	if ($ret > 0) {
+-		if ($conf->global->INVOICE_SUPPLIER_ADDON_PDF == "$value") {
++		// 使用 getDolGlobalString 避免未定义属性告警（PHP 8.2+）
++		if (getDolGlobalString('INVOICE_SUPPLIER_ADDON_PDF') == "$value") {
+ 			dolibarr_del_const($db, 'INVOICE_SUPPLIER_ADDON_PDF', $conf->entity);
+ 		}
+ 	}
+diff --git a/htdocs/admin/supplier_order.php b/htdocs/admin/supplier_order.php
+index c10d59f2939..2294649a69f 100644
+--- a/htdocs/admin/supplier_order.php
++++ b/htdocs/admin/supplier_order.php
+@@ -137,7 +137,8 @@ if ($action == 'specimen') {  // For orders
+ } elseif ($action == 'del') {
+ 	$ret = delDocumentModel($value, $type);
+ 	if ($ret > 0) {
+-		if ($conf->global->COMMANDE_SUPPLIER_ADDON_PDF == "$value") {
++		// 使用 getDolGlobalString 避免未定义属性告警（PHP 8.2+）
++		if (getDolGlobalString('COMMANDE_SUPPLIER_ADDON_PDF') == "$value") {
+ 			dolibarr_del_const($db, 'COMMANDE_SUPPLIER_ADDON_PDF', $conf->entity);
+ 		}
+ 	}
+@@ -428,7 +429,8 @@ foreach ($dirmodels as $reldir) {
+ 
+ 					// Default
+ 					print '<td class="center">';
+-					if ($conf->global->COMMANDE_SUPPLIER_ADDON_PDF == "$name") {
++					// 使用 getDolGlobalString 避免未定义属性告警（PHP 8.2+）
++					if (getDolGlobalString('COMMANDE_SUPPLIER_ADDON_PDF') == "$name") {
+ 						print '<a class="reposition" href="'.$_SERVER["PHP_SELF"].'?action=unsetdoc&token='.newToken().'&value='.urlencode($name).'&scan_dir='.urlencode($module->scandir).'&label='.urlencode($module->name).'&type=order_supplier" alt="'.$langs->trans("Disable").'">'.img_picto($langs->trans("Enabled"), 'on').'</a>';
+ 					} else {
+ 						print '<a class="reposition" href="'.$_SERVER["PHP_SELF"].'?action=setdoc&token='.newToken().'&value='.urlencode($name).'&scan_dir='.urlencode($module->scandir).'&label='.urlencode($module->name).'&type=order_supplier" alt="'.$langs->trans("Default").'">'.img_picto($langs->trans("Disabled"), 'off').'</a>';

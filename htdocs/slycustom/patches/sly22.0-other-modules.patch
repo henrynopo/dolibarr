@@ -219,3 +219,1819 @@ index 3866feb6f51..a54a96b758b 100644
  		}
  	}
  
+diff --git a/htdocs/expedition/card.php b/htdocs/expedition/card.php
+index 233f9f86fa6..9dbe19d302f 100644
+--- a/htdocs/expedition/card.php
++++ b/htdocs/expedition/card.php
+@@ -80,6 +80,9 @@ if (isModEnabled('incoterm')) {
+ if (isModEnabled('productbatch')) {
+ 	$langs->load('productbatch');
+ }
++if (isModEnabled('slycustom')) {
++	$langs->load("slycustom@slycustom");
++}
+ 
+ $origin = GETPOST('origin', 'alpha') ? GETPOST('origin', 'alpha') : 'expedition'; // Example: commande, propal
+ $origin_id = GETPOSTINT('id') ? GETPOSTINT('id') : '';
+diff --git a/htdocs/expedition/class/expeditionstats.class.php b/htdocs/expedition/class/expeditionstats.class.php
+index 0a3046f8995..1719330029e 100644
+--- a/htdocs/expedition/class/expeditionstats.class.php
++++ b/htdocs/expedition/class/expeditionstats.class.php
+@@ -71,6 +71,11 @@ class ExpeditionStats extends Stats
+ 	 */
+ 	public $where;
+ 
++	/**
++	 * @var string Date column for SQL: either 'date_valid' (then used as c.date_valid) or 'ef.colname' for extrafield
++	 */
++	public $datefield;
++
+ 
+ 	/**
+ 	 * Constructor
+@@ -79,8 +84,9 @@ class ExpeditionStats extends Stats
+ 	 * @param 	int		$socid	   	Id third party for filter
+ 	 * @param 	string	$mode	   	Option (not used)
+ 	 * @param   int		$userid    	Id user for filter (creation user)
++	 * @param   string	$datefield  	Date column for stats: date_valid, date_creation, date_delivery, date_expedition, or ef_<name> for extrafield date
+ 	 */
+-	public function __construct($db, $socid, $mode, $userid = 0)
++	public function __construct($db, $socid, $mode, $userid = 0, $datefield = 'date_valid')
+ 	{
+ 		global $user, $conf;
+ 
+@@ -92,6 +98,18 @@ class ExpeditionStats extends Stats
+ 
+ 		$object = new Expedition($this->db);
+ 		$this->from = MAIN_DB_PREFIX.$object->table_element." as c";
++		$this->join = '';
++		$allowed = array('date_valid', 'date_creation', 'date_delivery', 'date_expedition');
++		if (in_array($datefield, $allowed)) {
++			$this->datefield = $datefield;
++		} elseif (preg_match('/^ef_([a-z0-9_]+)$/i', $datefield, $m)) {
++			$col = $this->db->escape($m[1]);
++			$this->join = " LEFT JOIN ".MAIN_DB_PREFIX.$object->table_element."_extrafields as ef ON (c.rowid = ef.fk_object)";
++			$this->datefield = "ef.".$m[1]; // use unescaped for column identifier (no user input in name)
++		} else {
++			$this->datefield = 'date_valid';
++		}
++
+ 		//$this->from.= ", ".MAIN_DB_PREFIX."societe as s";
+ 		$this->field = 'weight'; // Warning, unit of weight is NOT USED AND MUST BE
+ 		$this->where .= " c.fk_statut > 0"; // Not draft and not cancelled
+@@ -107,6 +125,16 @@ class ExpeditionStats extends Stats
+ 		}
+ 	}
+ 
++	/**
++	 * Return the date column expression for SQL (c.date_valid or ef.colname)
++	 *
++	 * @return string
++	 */
++	protected function getDateCol()
++	{
++		return (strpos($this->datefield, '.') !== false) ? $this->datefield : 'c.'.$this->datefield;
++	}
++
+ 	/**
+ 	 * Return shipment number by month for a year
+ 	 *
+@@ -118,12 +146,14 @@ class ExpeditionStats extends Stats
+ 	{
+ 		global $user;
+ 
+-		$sql = "SELECT date_format(c.date_valid,'%m') as dm, COUNT(*) as nb";
++		$datecol = $this->getDateCol();
++		$sql = "SELECT date_format(".$datecol.",'%m') as dm, COUNT(*) as nb";
+ 		$sql .= " FROM ".$this->from;
++		$sql .= $this->join;
+ 		if (!$user->hasRight('societe', 'client', 'voir')) {
+ 			$sql .= " INNER JOIN ".MAIN_DB_PREFIX."societe_commerciaux as sc ON c.fk_soc = sc.fk_soc AND sc.fk_user = ".((int) $user->id);
+ 		}
+-		$sql .= " WHERE c.date_valid BETWEEN '".$this->db->idate(dol_get_first_day($year))."' AND '".$this->db->idate(dol_get_last_day($year))."'";
++		$sql .= " WHERE ".$datecol." IS NOT NULL AND ".$datecol." BETWEEN '".$this->db->idate(dol_get_first_day($year))."' AND '".$this->db->idate(dol_get_last_day($year))."'";
+ 		$sql .= " AND ".$this->where;
+ 		$sql .= " GROUP BY dm";
+ 		$sql .= $this->db->order('dm', 'DESC');
+@@ -142,12 +172,14 @@ class ExpeditionStats extends Stats
+ 	{
+ 		global $user;
+ 
+-		$sql = "SELECT date_format(c.date_valid,'%Y') as dm, COUNT(*) as nb, SUM(c.".$this->field.")";
++		$datecol = $this->getDateCol();
++		$sql = "SELECT date_format(".$datecol.",'%Y') as dm, COUNT(*) as nb, SUM(c.".$this->field.")";
+ 		$sql .= " FROM ".$this->from;
++		$sql .= $this->join;
+ 		if (!$user->hasRight('societe', 'client', 'voir')) {
+ 			$sql .= " INNER JOIN ".MAIN_DB_PREFIX."societe_commerciaux as sc ON c.fk_soc = sc.fk_soc AND sc.fk_user = ".((int) $user->id);
+ 		}
+-		$sql .= " WHERE ".$this->where;
++		$sql .= " WHERE ".$datecol." IS NOT NULL AND ".$this->where;
+ 		$sql .= " GROUP BY dm";
+ 		$sql .= $this->db->order('dm', 'DESC');
+ 
+@@ -165,13 +197,14 @@ class ExpeditionStats extends Stats
+ 	{
+ 		global $user;
+ 
+-		$sql = "SELECT date_format(c.date_valid,'%m') as dm, SUM(c.".$this->field.")";
++		$datecol = $this->getDateCol();
++		$sql = "SELECT date_format(".$datecol.",'%m') as dm, SUM(c.".$this->field.")";
+ 		$sql .= " FROM ".$this->from;
++		$sql .= $this->join;
+ 		if (!$user->hasRight('societe', 'client', 'voir')) {
+ 			$sql .= " INNER JOIN ".MAIN_DB_PREFIX."societe_commerciaux as sc ON c.fk_soc = sc.fk_soc AND sc.fk_user = ".((int) $user->id);
+ 		}
+-		$sql .= $this->join;
+-		$sql .= " WHERE ".$this->where;
++		$sql .= " WHERE ".$datecol." IS NOT NULL AND ".$this->where;
+ 		$sql .= " GROUP BY dm";
+ 		$sql .= $this->db->order('dm', 'DESC');
+ 
+@@ -189,13 +222,14 @@ class ExpeditionStats extends Stats
+ 	{
+ 		global $user;
+ 
+-		$sql = "SELECT date_format(c.date_valid,'%m') as dm, AVG(c.".$this->field.")";
++		$datecol = $this->getDateCol();
++		$sql = "SELECT date_format(".$datecol.",'%m') as dm, AVG(c.".$this->field.")";
+ 		$sql .= " FROM ".$this->from;
++		$sql .= $this->join;
+ 		if (!$user->hasRight('societe', 'client', 'voir')) {
+ 			$sql .= " INNER JOIN ".MAIN_DB_PREFIX."societe_commerciaux as sc ON c.fk_soc = sc.fk_soc AND sc.fk_user = ".((int) $user->id);
+ 		}
+-		$sql .= $this->join;
+-		$sql .= " WHERE ".$this->where;
++		$sql .= " WHERE ".$datecol." IS NOT NULL AND ".$this->where;
+ 		$sql .= " GROUP BY dm";
+ 		$sql .= $this->db->order('dm', 'DESC');
+ 
+@@ -211,12 +245,14 @@ class ExpeditionStats extends Stats
+ 	{
+ 		global $user;
+ 
+-		$sql = "SELECT date_format(c.date_valid,'%Y') as year, COUNT(*) as nb, SUM(c.".$this->field.") as total, AVG(".$this->field.") as avg";
++		$datecol = $this->getDateCol();
++		$sql = "SELECT date_format(".$datecol.",'%Y') as year, COUNT(*) as nb, SUM(c.".$this->field.") as total, AVG(c.".$this->field.") as avg";
+ 		$sql .= " FROM ".$this->from;
++		$sql .= $this->join;
+ 		if (!$user->hasRight('societe', 'client', 'voir')) {
+ 			$sql .= " INNER JOIN ".MAIN_DB_PREFIX."societe_commerciaux as sc ON c.fk_soc = sc.fk_soc AND sc.fk_user = ".((int) $user->id);
+ 		}
+-		$sql .= " WHERE ".$this->where;
++		$sql .= " WHERE ".$datecol." IS NOT NULL AND ".$this->where;
+ 		$sql .= " GROUP BY year";
+ 		$sql .= $this->db->order('year', 'DESC');
+ 
+diff --git a/htdocs/expedition/list.php b/htdocs/expedition/list.php
+index 8a6063406c7..ee3be76388b 100644
+--- a/htdocs/expedition/list.php
++++ b/htdocs/expedition/list.php
+@@ -35,12 +35,14 @@
+ // Load Dolibarr environment
+ require '../main.inc.php';
+ require_once DOL_DOCUMENT_ROOT.'/expedition/class/expedition.class.php';
++require_once DOL_DOCUMENT_ROOT.'/core/class/extrafields.class.php';
+ require_once DOL_DOCUMENT_ROOT.'/core/class/html.formfile.class.php';
+ require_once DOL_DOCUMENT_ROOT.'/core/class/html.formother.class.php';
+ require_once DOL_DOCUMENT_ROOT.'/core/class/html.formcompany.class.php';
+ require_once DOL_DOCUMENT_ROOT.'/core/lib/date.lib.php';
+ require_once DOL_DOCUMENT_ROOT.'/core/lib/company.lib.php';
+ require_once DOL_DOCUMENT_ROOT.'/core/lib/product.lib.php';
++require_once DOL_DOCUMENT_ROOT.'/commande/class/commande.class.php';
+ require_once DOL_DOCUMENT_ROOT.'/compta/facture/class/facture.class.php';
+ 
+ /**
+@@ -53,6 +55,9 @@ require_once DOL_DOCUMENT_ROOT.'/compta/facture/class/facture.class.php';
+ 
+ // Load translation files required by the page
+ $langs->loadLangs(array("sendings", "deliveries", 'companies', 'bills', 'products', 'orders'));
++if (isModEnabled('slycustom')) {
++	$langs->load("slycustom@slycustom");
++}
+ 
+ $contextpage = GETPOST('contextpage', 'aZ') ? GETPOST('contextpage', 'aZ') : 'shipmentlist'; // To manage different context of search
+ 
+@@ -67,6 +72,7 @@ $mode = GETPOST('mode', 'alpha');
+ 
+ $search_ref_exp = GETPOST("search_ref_exp", 'alpha');
+ $search_ref_liv = GETPOST('search_ref_liv', 'alpha');
++$search_reforder = GETPOST('search_reforder', 'alpha');
+ $search_ref_customer = GETPOST('search_ref_customer', 'alpha');
+ $search_company = GETPOST("search_company", 'alpha');
+ $search_shipping_method_ids = GETPOST('search_shipping_method_ids', 'array:int');
+@@ -138,18 +144,19 @@ if (empty($user->socid)) {
+ $checkedtypetiers = '0';
+ $arrayfields = array(
+ 	'e.ref' => array('label' => $langs->trans("Ref"), 'checked' => '1', 'position' => 1),
+-	'e.ref_customer' => array('label' => $langs->trans("RefCustomer"), 'checked' => '1', 'position' => 2),
+-	's.nom' => array('label' => $langs->trans("ThirdParty"), 'checked' => '1', 'position' => 3),
+-	's.town' => array('label' => $langs->trans("Town"), 'checked' => '1', 'position' => 4),
+-	's.zip' => array('label' => $langs->trans("Zip"), 'checked' => '-1', 'position' => 5),
+-	'state.nom' => array('label' => $langs->trans("StateShort"), 'checked' => '0', 'position' => 6),
+-	'country.code_iso' => array('label' => $langs->trans("Country"), 'checked' => '0', 'position' => 7),
+-	'typent.code' => array('label' => $langs->trans("ThirdPartyType"), 'checked' => $checkedtypetiers, 'position' => 8),
+-	'e.date_delivery' => array('label' => $langs->trans("DateDeliveryPlanned"), 'checked' => '1', 'position' => 9),
+-	'e.date_expedition' => array('label' => $langs->trans("DateShipping"), 'checked' => '1', 'position' => 10),
+-	'e.fk_shipping_method' => array('label' => $langs->trans('SendingMethod'), 'checked' => '1', 'position' => 11),
+-	'e.tracking_number' => array('label' => $langs->trans("TrackingNumber"), 'checked' => '1', 'position' => 12),
+-	'e.weight' => array('label' => $langs->trans("Weight"), 'checked' => '0', 'position' => 13),
++	'c.ref' => array('label' => $langs->trans("Order"), 'checked' => '1', 'position' => 2),
++	'e.ref_customer' => array('label' => $langs->trans("RefCustomer"), 'checked' => '1', 'position' => 3),
++	's.nom' => array('label' => $langs->trans("ThirdParty"), 'checked' => '1', 'position' => 4),
++	's.town' => array('label' => $langs->trans("Town"), 'checked' => '1', 'position' => 5),
++	's.zip' => array('label' => $langs->trans("Zip"), 'checked' => '-1', 'position' => 6),
++	'state.nom' => array('label' => $langs->trans("StateShort"), 'checked' => '0', 'position' => 7),
++	'country.code_iso' => array('label' => $langs->trans("Country"), 'checked' => '0', 'position' => 8),
++	'typent.code' => array('label' => $langs->trans("ThirdPartyType"), 'checked' => $checkedtypetiers, 'position' => 9),
++	'e.date_delivery' => array('label' => $langs->trans("DateDeliveryPlanned"), 'checked' => '1', 'position' => 10),
++	'e.date_expedition' => array('label' => $langs->trans("DateShipping"), 'checked' => '1', 'position' => 11),
++	'e.fk_shipping_method' => array('label' => $langs->trans('SendingMethod'), 'checked' => '1', 'position' => 12),
++	'e.tracking_number' => array('label' => $langs->trans("TrackingNumber"), 'checked' => '1', 'position' => 13),
++	'e.weight' => array('label' => $langs->trans("Weight"), 'checked' => '0', 'position' => 14),
+ 	'e.datec' => array('label' => $langs->trans("DateCreation"), 'checked' => '0', 'position' => 500),
+ 	'e.tms' => array('label' => $langs->trans("DateModificationShort"), 'checked' => '0', 'position' => 500),
+ 	'e.fk_statut' => array('label' => $langs->trans("Status"), 'checked' => '1', 'position' => 1000),
+@@ -185,7 +192,7 @@ if (GETPOST('cancel', 'alpha')) {
+ 	$action = 'list';
+ 	$massaction = '';
+ }
+-if (!GETPOST('confirmmassaction', 'alpha') && $massaction != 'presend' && $massaction != 'confirm_presend' && $massaction != 'confirm_createbills') {
++if (!GETPOST('confirmmassaction', 'alpha') && $massaction != 'presend' && $massaction != 'confirm_presend' && $massaction != 'confirm_createbills' && $massaction != 'updateships') {
+ 	$massaction = '';
+ }
+ 
+@@ -204,6 +211,7 @@ if (GETPOST('button_removefilter_x', 'alpha') || GETPOST('button_removefilter.x'
+ 	$search_product_category = '';
+ 	$search_ref_exp = '';
+ 	$search_ref_liv = '';
++	$search_reforder = '';
+ 	$search_ref_customer = '';
+ 	$search_company = '';
+ 	$search_town = '';
+@@ -299,7 +307,53 @@ if (empty($reshook)) {
+ 
+ 				$objecttmp->array_options = $expd->array_options; // Copy extrafields
+ 
+-				$res = $objecttmp->create($user);
++				// Default invoice due date = arrival date - 10 days (SLY: priority ATA > ETA > date_delivery, else payment condition)
++				$forceduedate = 0;
++				$arrival_ts = 0;
++				if (!empty($expd->array_options['options_ata'])) {
++					$v = $expd->array_options['options_ata'];
++					if (is_numeric($v)) {
++						if ((float) $v > 0) {
++							$arrival_ts = (int) $v;
++						}
++					} else {
++						$tmp_ts = dol_stringtotime($v);
++						if ($tmp_ts > 0) {
++							$arrival_ts = $tmp_ts;
++						}
++					}
++				} elseif (!empty($expd->array_options['options_eta'])) {
++					$v = $expd->array_options['options_eta'];
++					if (is_numeric($v)) {
++						if ((float) $v > 0) {
++							$arrival_ts = (int) $v;
++						}
++					} else {
++						$tmp_ts = dol_stringtotime($v);
++						if ($tmp_ts > 0) {
++							$arrival_ts = $tmp_ts;
++						}
++					}
++				} elseif (!empty($expd->date_delivery)) {
++					if (is_numeric($expd->date_delivery)) {
++						if ((float) $expd->date_delivery > 0) {
++							$arrival_ts = (int) $expd->date_delivery;
++						}
++					} else {
++						$tmp_ts = dol_stringtotime($expd->date_delivery);
++						if ($tmp_ts > 0) {
++							$arrival_ts = $tmp_ts;
++						}
++					}
++				}
++				if ($arrival_ts > 0) {
++					$forceduedate = $arrival_ts - (10 * 86400);
++					if ($forceduedate < $datefacture) {
++						$forceduedate = $datefacture;
++					}
++				}
++
++				$res = $objecttmp->create($user, 0, $forceduedate);
+ 
+ 				if ($res > 0) {
+ 					$nb_bills_created++;
+@@ -544,6 +598,9 @@ if (empty($reshook)) {
+ 			if ($search_ref_liv) {
+ 				$param .= "&search_ref_liv=".urlencode($search_ref_liv);
+ 			}
++			if ($search_reforder) {
++				$param .= "&search_reforder=".urlencode($search_reforder);
++			}
+ 			if ($search_ref_customer) {
+ 				$param .= "&search_ref_customer=".urlencode($search_ref_customer);
+ 			}
+@@ -664,6 +721,7 @@ $formfile = new FormFile($db);
+ $companystatic = new Societe($db);
+ $formcompany = new FormCompany($db);
+ $shipment = new Expedition($db);
++$order = new Commande($db);
+ 
+ $title = $langs->trans('Shipments');
+ $help_url = 'EN:Module_Shipments|FR:Module_Exp&eacute;ditions|ES:M&oacute;dulo_Expediciones';
+@@ -682,6 +740,7 @@ $sql .= " typent.code as typent_code,";
+ $sql .= " state.code_departement as state_code, state.nom as state_name,";
+ $sql .= " e.date_creation as date_creation, e.tms as date_modification,e.note_public, e.note_private,";
+ $sql .= " u.login";
++$sql .= ", c.rowid as orderid, c.ref as reforder";
+ // Add fields from extrafields
+ if (!empty($extrafields->attributes[$object->table_element]['label'])) {
+ 	foreach ($extrafields->attributes[$object->table_element]['label'] as $key => $val) {
+@@ -712,9 +771,12 @@ if (getDolGlobalInt('MAIN_SUBMODULE_DELIVERY')) {
+ 	$sql .= " LEFT JOIN ".MAIN_DB_PREFIX."delivery as l ON l.rowid = ee.fk_target";
+ }
+ $sql .= ' LEFT JOIN '.MAIN_DB_PREFIX.'user as u ON e.fk_user_author = u.rowid';
+-if ($search_user > 0) {		// Get link to order to get the order id in eesource.fk_source
+-	$sql .= " LEFT JOIN ".MAIN_DB_PREFIX."element_element as eesource ON eesource.fk_target = e.rowid AND eesource.targettype = 'shipping' AND eesource.sourcetype = 'commande'";
+-}
++// Order link: default one-direction; hook getShipmentListOrderJoin can override (e.g. bidirectional)
++$orderJoin = " LEFT JOIN (SELECT ee.fk_target AS ship_id, ee.fk_source AS cmd_id FROM ".MAIN_DB_PREFIX."element_element ee WHERE ee.targettype = 'shipping' AND ee.sourcetype = 'commande') eecommande ON eecommande.ship_id = e.rowid";
++$orderJoin .= " LEFT JOIN ".MAIN_DB_PREFIX."commande as c ON (c.rowid = eecommande.cmd_id)";
++$parameters = array('order_join' => &$orderJoin);
++$hookmanager->executeHooks('getShipmentListOrderJoin', $parameters, $object, $action);
++$sql .= $orderJoin;
+ if ($search_user > 0) {
+ 	$sql .= ", ".MAIN_DB_PREFIX."element_contact as ec";
+ 	$sql .= ", ".MAIN_DB_PREFIX."c_type_contact as tc";
+@@ -739,6 +801,9 @@ if ($search_status != '' && $search_status >= 0) {
+ if ($search_signed_status != '' && $search_signed_status >= 0) {
+ 	$sql .= ' AND e.signed_status = '.urlencode($search_signed_status);
+ }
++if ($search_reforder != '') {
++	$sql .= natural_search('c.ref', $search_reforder, 0, 0);
++}
+ if ($search_ref_customer != '') {
+ 	$sql .= natural_search('e.ref_customer', $search_ref_customer);
+ }
+@@ -768,7 +833,7 @@ if ($search_type_thirdparty != '' && $search_type_thirdparty > 0) {
+ }
+ if ($search_user > 0) {
+ 	// The contact on a shipment is also the contact of the order.
+-	$sql .= " AND ec.fk_c_type_contact = tc.rowid AND tc.element='commande' AND tc.source='internal' AND ec.element_id = eesource.fk_source AND ec.fk_socpeople = ".((int) $search_user);
++	$sql .= " AND ec.fk_c_type_contact = tc.rowid AND tc.element='commande' AND tc.source='internal' AND ec.element_id = eecommande.cmd_id AND ec.fk_socpeople = ".((int) $search_user);
+ }
+ if ($search_company) {
+ 	$sql .= natural_search('s.nom', $search_company);
+@@ -963,6 +1028,9 @@ if ($search_ref_exp) {
+ if ($search_ref_liv) {
+ 	$param .= "&search_ref_liv=".urlencode($search_ref_liv);
+ }
++if ($search_reforder) {
++	$param .= "&search_reforder=".urlencode($search_reforder);
++}
+ if ($search_ref_customer) {
+ 	$param .= "&search_ref_customer=".urlencode($search_ref_customer);
+ }
+@@ -1042,7 +1110,10 @@ $arrayofmassactions = array(
+ if ($user->hasRight('facture', 'creer')) {
+ 	$arrayofmassactions['createbills'] = img_picto('', 'bill', 'class="pictofixedwidth"').$langs->trans("CreateInvoiceForThisCustomerFromSendings");
+ }
+-if (in_array($massaction, array('presend', 'createbills'))) {
++if (isModEnabled('slycustom')) {
++	$arrayofmassactions['updateships'] = img_picto('', 'calendar', 'class="pictofixedwidth"').$langs->trans("UpdateShips");
++}
++if (in_array($massaction, array('presend', 'createbills', 'updateships'))) {
+ 	$arrayofmassactions = array();
+ }
+ $massactionbutton = $form->selectMassAction('', $arrayofmassactions);
+@@ -1207,7 +1278,13 @@ if (getDolGlobalString('MAIN_CHECKBOX_LEFT_COLUMN')) {
+ // Ref
+ if (!empty($arrayfields['e.ref']['checked'])) {
+ 	print '<td class="liste_titre">';
+-	print '<input class="flat" size="6" type="text" name="search_ref_exp" value="'.$search_ref_exp.'">';
++	print '<input class="flat" size="6" type="text" name="search_ref_exp" value="'.dol_escape_htmltag($search_ref_exp).'">';
++	print '</td>';
++}
++// Ref Order (linked customer order)
++if (!empty($arrayfields['c.ref']['checked'])) {
++	print '<td class="liste_titre">';
++	print '<input class="flat" size="6" type="text" name="search_reforder" value="'.dol_escape_htmltag($search_reforder).'">';
+ 	print '</td>';
+ }
+ // Ref customer
+@@ -1377,6 +1454,10 @@ if (!empty($arrayfields['e.ref']['checked'])) {
+ 	print_liste_field_titre($arrayfields['e.ref']['label'], $_SERVER["PHP_SELF"], "e.ref", "", $param, '', $sortfield, $sortorder);
+ 	$totalarray['nbfield']++;
+ }
++if (!empty($arrayfields['c.ref']['checked'])) {
++	print_liste_field_titre($arrayfields['c.ref']['label'], $_SERVER["PHP_SELF"], "c.ref", "", $param, '', $sortfield, $sortorder);
++	$totalarray['nbfield']++;
++}
+ if (!empty($arrayfields['e.ref_customer']['checked'])) {
+ 	print_liste_field_titre($arrayfields['e.ref_customer']['label'], $_SERVER["PHP_SELF"], "e.ref_customer", "", $param, '', $sortfield, $sortorder);
+ 	$totalarray['nbfield']++;
+@@ -1435,15 +1516,17 @@ if (!empty($arrayfields['l.date_delivery']['checked'])) {
+ }
+ if (!empty($arrayfields['e.note_public']['checked'])) {
+ 	print_liste_field_titre($arrayfields['e.note_public']['label'], $_SERVER["PHP_SELF"], "e.note_public", "", $param, '', $sortfield, $sortorder, 'right ');
++	$totalarray['nbfield']++;
+ }
+ if (!empty($arrayfields['e.note_private']['checked'])) {
+ 	print_liste_field_titre($arrayfields['e.note_private']['label'], $_SERVER["PHP_SELF"], "e.note_private", "", $param, '', $sortfield, $sortorder, 'right ');
++	$totalarray['nbfield']++;
+ }
+ 
+ // Extra fields
+ include DOL_DOCUMENT_ROOT.'/core/tpl/extrafields_list_search_title.tpl.php';
+ // Hook fields
+-$parameters = array('arrayfields' => $arrayfields, 'param' => $param, 'sortfield' => $sortfield, 'sortorder' => $sortorder, '$totalarray' => &$totalarray);
++$parameters = array('arrayfields' => $arrayfields, 'param' => $param, 'sortfield' => $sortfield, 'sortorder' => $sortorder, 'totalarray' => &$totalarray);
+ $reshook = $hookmanager->executeHooks('printFieldListTitle', $parameters, $object, $action); // Note that $action and $object may have been modified by hook
+ print $hookmanager->resPrint;
+ if (!empty($arrayfields['e.datec']['checked'])) {
+@@ -1479,8 +1562,7 @@ $typenArray = $formcompany->typent_array(1);
+ // --------------------------------------------------------------------
+ $i = 0;
+ $savnbfield = $totalarray['nbfield'];
+-$totalarray = array();
+-$totalarray['nbfield'] = 0;
++$totalarray = array('nbfield' => 0, 'val' => array(), 'pos' => array(), 'val_by_currency' => array());
+ $imaxinloop = ($limit ? min($num, $limit) : $num);
+ while ($i < $imaxinloop) {
+ 	$obj = $db->fetch_object($resql);
+@@ -1543,6 +1625,17 @@ while ($i < $imaxinloop) {
+ 				$totalarray['nbfield']++;
+ 			}
+ 		}
++		// Order (linked customer order)
++		if (!empty($arrayfields['c.ref']['checked'])) {
++			$order->id = $obj->orderid ?? 0;
++			$order->ref = $obj->reforder ?? '';
++			print '<td class="nowraponall">';
++			print !empty($order->id) ? $order->getNomUrl(1, 'commande') : '';
++			print "</td>\n";
++			if (!$i) {
++				$totalarray['nbfield']++;
++			}
++		}
+ 
+ 		// Ref customer
+ 		if (!empty($arrayfields['e.ref_customer']['checked'])) {
+@@ -1623,7 +1716,23 @@ while ($i < $imaxinloop) {
+ 			print '</td>';
+ 			if (!$i) {
+ 				$totalarray['nbfield']++;
++				$totalarray['pos'][$totalarray['nbfield']] = 'e.weight';
++				if (!isset($totalarray['type'])) {
++					$totalarray['type'] = array();
++				}
++				$totalarray['type'][$totalarray['nbfield']] = 'stock';
++			}
++			// Sum same value as displayed: stored weight or computed from lines
++			if (!empty($object->trueWeight) && $object->trueWeight !== '' && $object->trueWeight !== null) {
++				$weightVal = (float) price2num($object->trueWeight, 'MS');
++			} else {
++				$tmparray = $object->getTotalWeightVolume();
++				$weightVal = isset($tmparray['weight']) ? (float) $tmparray['weight'] : 0;
++			}
++			if (!isset($totalarray['val']['e.weight'])) {
++				$totalarray['val']['e.weight'] = 0;
+ 			}
++			$totalarray['val']['e.weight'] += $weightVal;
+ 		}
+ 		// Date delivery planned
+ 		if (!empty($arrayfields['e.date_delivery']['checked'])) {
+@@ -1770,6 +1879,12 @@ while ($i < $imaxinloop) {
+ 	$i++;
+ }
+ 
++// Show total line (first_column_empty when checkbox is left so Total row column count matches header/data)
++if (getDolGlobalString('MAIN_CHECKBOX_LEFT_COLUMN')) {
++	$totalarray['first_column_empty'] = 1;
++}
++include DOL_DOCUMENT_ROOT.'/core/tpl/list_print_total.tpl.php';
++
+ // If no record found
+ if ($num == 0) {
+ 	$colspan = 1;
+diff --git a/htdocs/expedition/stats/index.php b/htdocs/expedition/stats/index.php
+index 4f7aad4f9d1..954dcbdfd8a 100644
+--- a/htdocs/expedition/stats/index.php
++++ b/htdocs/expedition/stats/index.php
+@@ -27,6 +27,7 @@
+ 
+ // Load Dolibarr environment
+ require '../../main.inc.php';
++require_once DOL_DOCUMENT_ROOT.'/core/class/extrafields.class.php';
+ require_once DOL_DOCUMENT_ROOT.'/expedition/class/expedition.class.php';
+ require_once DOL_DOCUMENT_ROOT.'/expedition/class/expeditionstats.class.php';
+ require_once DOL_DOCUMENT_ROOT.'/core/class/dolgraph.class.php';
+@@ -46,6 +47,24 @@ $hookmanager->initHooks(array('expeditionstats', 'globalcard'));
+ 
+ $userid = GETPOSTINT('userid');
+ $socid = GETPOSTINT('socid');
++$datefield = GETPOST('datefield', 'aZ09');
++
++// Build allowed date fields: built-in + expedition date/datetime extrafields
++$object = new Expedition($db);
++$extrafields = new ExtraFields($db);
++$extrafields->fetch_name_optionals_label($object->table_element);
++$allowed_datefields = array('date_valid', 'date_creation', 'date_delivery', 'date_expedition');
++if (!empty($extrafields->attributes[$object->table_element]['type']) && is_array($extrafields->attributes[$object->table_element]['type'])) {
++	foreach ($extrafields->attributes[$object->table_element]['type'] as $key => $type) {
++		$typebase = preg_replace('/\(.*$/', '', $type);
++		if (in_array($typebase, array('date', 'datetime', 'timestamp'))) {
++			$allowed_datefields[] = 'ef_'.$key;
++		}
++	}
++}
++if (!in_array($datefield, $allowed_datefields)) {
++	$datefield = 'date_valid';
++}
+ // Security check
+ if ($user->socid > 0) {
+ 	$action = '';
+@@ -63,6 +82,8 @@ $year = GETPOSTINT('year') > 0 ? GETPOSTINT('year') : $nowyear;
+ $startyear = $year - (!getDolGlobalInt('MAIN_STATS_GRAPHS_SHOW_N_YEARS') ? 2 : max(1, min(10, getDolGlobalInt('MAIN_STATS_GRAPHS_SHOW_N_YEARS'))));
+ $endyear = $year;
+ 
++$param = '&socid='.((int) $socid).'&userid='.((int) $userid).'&datefield='.urlencode($datefield);
++
+ // Load translation files required by the page
+ $langs->loadLangs(array('sendings', 'other', 'companies'));
+ 
+@@ -86,7 +107,7 @@ print load_fiche_titre($langs->trans("StatisticsOfSendings"), '', 'dolly');
+ $dir = (!empty($conf->expedition->multidir_temp[$conf->entity]) ? $conf->expedition->multidir_temp[$conf->entity] : $conf->service->multidir_temp[$conf->entity]);
+ dol_mkdir($dir);
+ 
+-$stats = new ExpeditionStats($db, $socid, '', ($userid > 0 ? $userid : 0));
++$stats = new ExpeditionStats($db, $socid, '', ($userid > 0 ? $userid : 0), $datefield);
+ 
+ // Build graphic number of object
+ $data = $stats->getNbByMonthWithPrevYear($endyear, $startyear);
+@@ -95,9 +116,9 @@ $data = $stats->getNbByMonthWithPrevYear($endyear, $startyear);
+ 
+ 
+ if (!$user->hasRight('societe', 'client', 'voir')) {
+-	$filenamenb = $dir.'/shipmentsnbinyear-'.$user->id.'-'.$year.'.png';
++	$filenamenb = $dir.'/shipmentsnbinyear-'.$user->id.'-'.$year.'-'.$datefield.'.png';
+ } else {
+-	$filenamenb = $dir.'/shipmentsnbinyear-'.$year.'.png';
++	$filenamenb = $dir.'/shipmentsnbinyear-'.$year.'-'.$datefield.'.png';
+ }
+ 
+ $px1 = new DolGraph();
+@@ -133,11 +154,11 @@ $data = $stats->getAmountByMonthWithPrevYear($endyear,$startyear);
+ 
+ if (empty($user->rights->societe->client->voir) || $user->socid)
+ {
+-	$filenameamount = $dir.'/shipmentsamountinyear-'.$user->id.'-'.$year.'.png';
++	$filenameamount = $dir.'/shipmentsamountinyear-'.$user->id.'-'.$year.'-'.$datefield.'.png';
+ }
+ else
+ {
+-	$filenameamount = $dir.'/shipmentsamountinyear-'.$year.'.png';
++	$filenameamount = $dir.'/shipmentsamountinyear-'.$year.'-'.$datefield.'.png';
+ }
+ 
+ $px2 = new DolGraph();
+@@ -171,11 +192,11 @@ $data = $stats->getAverageByMonthWithPrevYear($endyear, $startyear);
+ 
+ if (empty($user->rights->societe->client->voir) || $user->socid)
+ {
+-	$filename_avg = $dir.'/shipmentsaverage-'.$user->id.'-'.$year.'.png';
++	$filename_avg = $dir.'/shipmentsaverage-'.$user->id.'-'.$year.'-'.$datefield.'.png';
+ }
+ else
+ {
+-	$filename_avg = $dir.'/shipmentsaverage-'.$year.'.png';
++	$filename_avg = $dir.'/shipmentsaverage-'.$year.'-'.$datefield.'.png';
+ }
+ 
+ $px3 = new DolGraph();
+@@ -250,6 +271,26 @@ print '<tr><td class="left">'.$langs->trans("CreatedBy").'</td><td class="left">
+ print img_picto('', 'user', 'class="pictofixedwidth"');
+ print $form->select_dolusers($userid, 'userid', 1, null, 0, '', '', '0', 0, 0, '', 0, '', 'widthcentpercentminusx maxwidth300');
+ print '</td></tr>';
++// Date column for stats (Year filter applies to this date)
++$langs->load("sendings");
++$datefield_options = array(
++	'date_valid' => $langs->trans("DateValidation"),
++	'date_creation' => $langs->trans("DateCreation"),
++	'date_expedition' => $langs->trans("DateShipping"),
++	'date_delivery' => $langs->trans("DateDeliveryPlanned"),
++);
++if (!empty($extrafields->attributes[$object->table_element]['label']) && is_array($extrafields->attributes[$object->table_element]['label'])) {
++	foreach ($extrafields->attributes[$object->table_element]['label'] as $key => $label) {
++		$type = isset($extrafields->attributes[$object->table_element]['type'][$key]) ? $extrafields->attributes[$object->table_element]['type'][$key] : '';
++		$typebase = preg_replace('/\(.*$/', '', $type);
++		if (in_array($typebase, array('date', 'datetime', 'timestamp'))) {
++			$datefield_options['ef_'.$key] = $langs->trans($label);
++		}
++	}
++}
++print '<tr><td class="left">'.$langs->trans("DateForStats").'</td><td class="left">';
++print $form->selectarray('datefield', $datefield_options, $datefield, 0, 0, 0, '', 0, 0, 0, '', 'widthcentpercentminusx maxwidth300');
++print '</td></tr>';
+ // Year
+ print '<tr><td class="left">'.$langs->trans("Year").'</td><td class="left">';
+ if (!in_array($year, $arrayyears)) {
+@@ -284,7 +325,7 @@ foreach ($data as $val) {
+ 
+ 
+ 		print '<tr class="oddeven" height="24">';
+-		print '<td class="center"><a href="'.$_SERVER["PHP_SELF"].'?year='.$oldyear.'">'.$oldyear.'</a></td>';
++		print '<td class="center"><a href="'.$_SERVER["PHP_SELF"].'?year='.$oldyear.$param.'">'.$oldyear.'</a></td>';
+ 
+ 		print '<td class="right">0</td>';
+ 		/*print '<td class="right">0</td>';
+@@ -295,7 +336,7 @@ foreach ($data as $val) {
+ 	print '<tr class="oddeven" height="24">';
+ 	print '<td class="center">';
+ 	if ($year) {
+-		print '<a href="'.$_SERVER["PHP_SELF"].'?year='.$year.'">'.$year.'</a>';
++		print '<a href="'.$_SERVER["PHP_SELF"].'?year='.$year.$param.'">'.$year.'</a>';
+ 	} else {
+ 		// Technical error that should not happen
+ 		print 'Error: validation date of shipment is not defined. This looks strange because shipment is validated. Try to run /install/repair.php?standard=confirmed';
+diff --git a/htdocs/expedition/tpl/linkedobjectblock.tpl.php b/htdocs/expedition/tpl/linkedobjectblock.tpl.php
+index 0114fbb6dd1..9c63bd68bf5 100644
+--- a/htdocs/expedition/tpl/linkedobjectblock.tpl.php
++++ b/htdocs/expedition/tpl/linkedobjectblock.tpl.php
+@@ -38,6 +38,8 @@ $linkedObjectBlock = $GLOBALS['linkedObjectBlock'];
+ $langs->load("sendings");
+ 
+ $total = 0;
++$multicurrency_total = 0;
++$multicurrency_code_total = '';
+ $ilink = 0;
+ foreach ($linkedObjectBlock as $key => $objectlink) {
+ 	$ilink++;
+@@ -53,8 +55,19 @@ foreach ($linkedObjectBlock as $key => $objectlink) {
+ 		<td class="center"><?php echo dol_print_date($objectlink->date_delivery ? $objectlink->date_delivery : $objectlink->date_creation, 'day'); ?></td>
+ 		<td class="right"><?php
+ 		if ($user->hasRight('expedition', 'lire')) {
++			if (isModEnabled('multicurrency')
++				&& !empty($objectlink->multicurrency_code)
++				&& $conf->currency != $objectlink->multicurrency_code
++				&& !empty($objectlink->multicurrency_total_ht)
++			) {
++				$multicurrency_total += $objectlink->multicurrency_total_ht;
++				if ($multicurrency_code_total === '') {
++					$multicurrency_code_total = $objectlink->multicurrency_code;
++				}
++				echo $objectlink->multicurrency_code.' '.price($objectlink->multicurrency_total_ht).'<br>';
++			}
+ 			$total += $objectlink->total_ht;
+-			echo price($objectlink->total_ht);
++			echo $conf->currency.' '.price($objectlink->total_ht);
+ 		} ?></td>
+ 		<td class="right"><?php echo $objectlink->getLibStatut(3); ?></td>
+ 		<td class="right">
+@@ -72,9 +85,14 @@ if (count($linkedObjectBlock) > 1) {
+ 	<tr class="liste_total <?php echo(empty($noMoreLinkedObjectBlockAfter) ? 'liste_sub_total' : ''); ?>">
+ 		<td><?php echo $langs->trans("Total"); ?></td>
+ 		<td></td>
+-		<td class="center"></td>
+-		<td class="center"></td>
+-		<td class="right"><?php echo price($total); ?></td>
++	<td class="center"></td>
++	<td class="center"></td>
++	<td class="right"><?php
++	if (isModEnabled('multicurrency') && !empty($multicurrency_code_total) && $multicurrency_total != 0 && $conf->currency != $multicurrency_code_total) {
++		echo $multicurrency_code_total.' '.price($multicurrency_total).'<br>';
++	}
++	echo $conf->currency.' '.price($total);
++	?></td>
+ 		<td class="right"></td>
+ 		<td class="right"></td>
+ 	</tr>
+diff --git a/htdocs/install/mysql/migration/21.0.0-22.0.0.sql b/htdocs/install/mysql/migration/21.0.0-22.0.0.sql
+index ab5c0f81644..11bd8ded29a 100644
+--- a/htdocs/install/mysql/migration/21.0.0-22.0.0.sql
++++ b/htdocs/install/mysql/migration/21.0.0-22.0.0.sql
+@@ -329,3 +329,9 @@ ALTER TABLE llx_blockedlog ADD COLUMN debuginfo mediumtext;
+ ALTER TABLE llx_webhook_history ADD COLUMN trigger_code text NOT NULL;
+ ALTER TABLE llx_webhook_history ADD COLUMN error_message text;
+ ALTER TABLE llx_webhook_history MODIFY COLUMN url varchar(255);
++
++-- Loan: multi-phase schedule (rate/repayment by term range, no new table)
++ALTER TABLE llx_loan ADD COLUMN schedule_phases text;
++
++-- Third party: registered capital currency (independent of company accounting currency, e.g. CNY/USD)
++ALTER TABLE llx_societe ADD COLUMN capital_currency varchar(3) DEFAULT NULL AFTER capital;
+diff --git a/htdocs/install/mysql/tables/llx_loan-loan.sql b/htdocs/install/mysql/tables/llx_loan-loan.sql
+index 3eed9234be1..d50c716873c 100644
+--- a/htdocs/install/mysql/tables/llx_loan-loan.sql
++++ b/htdocs/install/mysql/tables/llx_loan-loan.sql
+@@ -51,5 +51,7 @@ create table llx_loan
+ 
+   fk_user_author				integer DEFAULT NULL,
+   fk_user_modif					integer DEFAULT NULL,
+-  active						tinyint DEFAULT 1  NOT NULL
++  active						tinyint DEFAULT 1  NOT NULL,
++
++  schedule_phases				text					-- JSON array of phases for multi-phase schedule (rate/repayment changes by term range)
+ )ENGINE=innodb;
+diff --git a/htdocs/install/mysql/tables/llx_societe.sql b/htdocs/install/mysql/tables/llx_societe.sql
+index 558591fb1e1..e26438d589f 100644
+--- a/htdocs/install/mysql/tables/llx_societe.sql
++++ b/htdocs/install/mysql/tables/llx_societe.sql
+@@ -77,6 +77,7 @@ create table llx_societe
+   idprof6                  varchar(128),                         		-- IDProf6: depends on country (example: nu for france, ...
+   tva_intra                varchar(20),                         		-- vat numero
+   capital                  double(24,8)   DEFAULT NULL,        			-- capital of company
++  capital_currency         varchar(3)     DEFAULT NULL,        			-- currency of capital (e.g. CNY, USD), independent of accounting currency
+   fk_stcomm                integer        DEFAULT 0 NOT NULL,      		-- commercial status
+   note_private             text,                                		--
+   note_public              text,                                        --
+diff --git a/htdocs/loan/card.php b/htdocs/loan/card.php
+index b60db0ef32f..ed760093491 100644
+--- a/htdocs/loan/card.php
++++ b/htdocs/loan/card.php
+@@ -778,9 +778,8 @@ if ($id > 0) {
+ 					print '<div class="inline-block divButAction"><a class="butAction" href="'.DOL_URL_ROOT.'/loan/card.php?id='.$object->id.'&action=edit&token='.newToken().'">'.$langs->trans("Modify").'</a></div>';
+ 				}
+ 
+-				// Emit payment
+-				// TODO check if loan schedule is created ($echeances->lines > 0)
+-				if (($object->paid == 0 || $object->paid == 2) && ((price2num($object->capital) > 0 && round($staytopay) < 0) || (price2num($object->capital) > 0 && round($staytopay) > 0)) && $user->hasRight('loan', 'write')) {
++				// Emit payment (repayment or further drawdown when capital negative)
++				if (($object->paid == 0 || $object->paid == 2) && price2num($object->capital) > 0 && $user->hasRight('loan', 'write')) {
+ 					print '<div class="inline-block divButAction"><a class="butAction" href="'.DOL_URL_ROOT.'/loan/payment/payment.php?id='.$object->id.'&action=create&token='.newToken().'">'.$langs->trans("DoPayment").'</a></div>';
+ 				}
+ 
+diff --git a/htdocs/loan/class/loan.class.php b/htdocs/loan/class/loan.class.php
+index 9d0e8b8f014..df60050da8d 100644
+--- a/htdocs/loan/class/loan.class.php
++++ b/htdocs/loan/class/loan.class.php
+@@ -152,6 +152,11 @@ class Loan extends CommonObject
+ 	 */
+ 	public $totalpaid;
+ 
++	/**
++	 * @var string JSON array of schedule phases (multi-phase: rate/repayment by term range). Null or empty = single phase (current loan rate & type).
++	 */
++	public $schedule_phases;
++
+ 	/**
+ 	 * @var int
+ 	 */
+@@ -178,6 +183,21 @@ class Loan extends CommonObject
+ 		$this->db = $db;
+ 	}
+ 
++	/**
++	 * Check if schedule_phases column exists (cache per request).
++	 *
++	 * @return bool
++	 */
++	protected function hasSchedulePhasesColumn()
++	{
++		static $has = null;
++		if ($has === null) {
++			$res = $this->db->query("SHOW COLUMNS FROM ".MAIN_DB_PREFIX."loan LIKE 'schedule_phases'");
++			$has = ($res && $this->db->num_rows($res) > 0);
++		}
++		return $has;
++	}
++
+ 	/**
+ 	 *  Load object in memory from database
+ 	 *
+@@ -188,6 +208,9 @@ class Loan extends CommonObject
+ 	{
+ 		$sql = "SELECT l.rowid, l.label, l.capital, l.datestart, l.dateend, l.nbterm, l.rate, l.note_private, l.note_public, l.insurance_amount,";
+ 		$sql .= " l.paid, l.fk_bank, l.accountancy_account_capital, l.accountancy_account_insurance, l.accountancy_account_interest, l.fk_projet as fk_project";
++		if ($this->hasSchedulePhasesColumn()) {
++			$sql .= ", l.schedule_phases";
++		}
+ 		$sql .= " FROM ".MAIN_DB_PREFIX."loan as l";
+ 		$sql .= " WHERE l.rowid = ".((int) $id);
+ 
+@@ -215,6 +238,7 @@ class Loan extends CommonObject
+ 				$this->account_insurance = $obj->accountancy_account_insurance;
+ 				$this->account_interest = $obj->accountancy_account_interest;
+ 				$this->fk_project = $obj->fk_project;
++				$this->schedule_phases = $this->hasSchedulePhasesColumn() ? $obj->schedule_phases : null;
+ 
+ 				$this->db->free($resql);
+ 				return 1;
+@@ -299,8 +323,11 @@ class Loan extends CommonObject
+ 
+ 		$sql = "INSERT INTO ".MAIN_DB_PREFIX."loan (label, fk_bank, capital, datestart, dateend, nbterm, rate, note_private, note_public,";
+ 		$sql .= " accountancy_account_capital, accountancy_account_insurance, accountancy_account_interest, entity,";
+-		$sql .= " datec, fk_projet, fk_user_author, insurance_amount)";
+-		$sql .= " VALUES ('".$this->db->escape($this->label)."',";
++		$sql .= " datec, fk_projet, fk_user_author, insurance_amount";
++		if ($this->hasSchedulePhasesColumn()) {
++			$sql .= ", schedule_phases";
++		}
++		$sql .= ") VALUES ('".$this->db->escape($this->label)."',";
+ 		$sql .= " '".$this->db->escape((string) $this->fk_bank)."',";
+ 		$sql .= " '".price2num($newcapital)."',";
+ 		$sql .= " '".$this->db->idate($this->datestart)."',";
+@@ -317,6 +344,9 @@ class Loan extends CommonObject
+ 		$sql .= " ".(empty($this->fk_project) ? 'NULL' : $this->fk_project).",";
+ 		$sql .= " ".((int) $user->id).",";
+ 		$sql .= " '".price2num($newinsuranceamount)."'";
++		if ($this->hasSchedulePhasesColumn()) {
++			$sql .= ", ".(isset($this->schedule_phases) && $this->schedule_phases !== '' ? "'".$this->db->escape($this->schedule_phases)."'" : "NULL");
++		}
+ 		$sql .= ")";
+ 
+ 		dol_syslog(get_class($this)."::create", LOG_DEBUG);
+@@ -424,6 +454,9 @@ class Loan extends CommonObject
+ 		$sql .= " fk_projet=".(empty($this->fk_project) ? 'NULL' : ((int) $this->fk_project)).",";
+ 		$sql .= " fk_user_modif = ".((int) $user->id).",";
+ 		$sql .= " insurance_amount = '".price2num($this->db->escape((string) $this->insurance_amount))."'";
++		if ($this->hasSchedulePhasesColumn()) {
++			$sql .= ", schedule_phases = ".(isset($this->schedule_phases) && $this->schedule_phases !== '' ? "'".$this->db->escape($this->schedule_phases)."'" : "NULL");
++		}
+ 		$sql .= " WHERE rowid=".((int) $this->id);
+ 
+ 		dol_syslog(get_class($this)."::update", LOG_DEBUG);
+diff --git a/htdocs/loan/class/paymentloan.class.php b/htdocs/loan/class/paymentloan.class.php
+index 38c44eaa9e3..238a84e5a25 100644
+--- a/htdocs/loan/class/paymentloan.class.php
++++ b/htdocs/loan/class/paymentloan.class.php
+@@ -238,7 +238,6 @@ class PaymentLoan extends CommonObject
+ 		}
+ 
+ 		if ($totalamount != 0 && !$error) {
+-			$this->amount_capital = $totalamount;
+ 			$this->db->commit();
+ 			return $this->id;
+ 		} else {
+@@ -522,7 +521,8 @@ class PaymentLoan extends CommonObject
+ 			$acc = new Account($this->db);
+ 			$acc->fetch($accountid);
+ 
+-			$total = $this->amount_capital;
++			// Total = capital + insurance + interest; negative = repayment (debit), positive = drawdown (credit)
++			$total = (float) $this->amount_capital + (float) $this->amount_insurance + (float) $this->amount_interest;
+ 			if ($mode == 'payment_loan') {
+ 				$total = -$total;
+ 			}
+diff --git a/htdocs/loan/payment/card.php b/htdocs/loan/payment/card.php
+index 90da60e10c9..1a577972e2d 100644
+--- a/htdocs/loan/payment/card.php
++++ b/htdocs/loan/payment/card.php
+@@ -65,6 +65,53 @@ if ($id > 0) {
+  * Actions
+  */
+ 
++// Update Capital/Insurance/Interest (total unchanged, for bank reconciliation)
++if ($action == 'update_amounts' && $id > 0 && $user->hasRight('loan', 'write')) {
++	$pay_capital = (float) price2num(GETPOST('amount_capital', 'alphanohtml'));
++	$pay_insurance = (float) price2num(GETPOST('amount_insurance', 'alphanohtml'));
++	$pay_interest = (float) price2num(GETPOST('amount_interest', 'alphanohtml'));
++
++	$total_before = (float) $payment->amount_capital + (float) $payment->amount_insurance + (float) $payment->amount_interest;
++	$total_after = $pay_capital + $pay_insurance + $pay_interest;
++
++	if ($pay_capital < 0 || $pay_insurance < 0 || $pay_interest < 0) {
++		setEventMessages(null, array($langs->trans("PaymentAmountsMustBePositive")), 'errors');
++	} elseif (abs($total_after - $total_before) > 0.02) {
++		setEventMessages(null, array($langs->trans("PaymentAmountsSumMustEqualTotal", price($total_before, 0, $langs, 1, -1, -1, $conf->currency))), 'errors');
++	} else {
++		$db->begin();
++		$payment->amount_capital = $pay_capital;
++		$payment->amount_insurance = $pay_insurance;
++		$payment->amount_interest = $pay_interest;
++		$payment->fk_user_modif = $user->id;
++		$result = $payment->update($user, 0);
++		if ($result > 0) {
++			require_once DOL_DOCUMENT_ROOT.'/loan/class/loanschedule.class.php';
++			$sql = "SELECT rowid FROM ".MAIN_DB_PREFIX."loan_schedule WHERE fk_payment_loan = ".((int) $payment->id);
++			$resql = $db->query($sql);
++			if ($resql) {
++				while ($obj = $db->fetch_object($resql)) {
++					$line = new LoanSchedule($db);
++					$line->fetch($obj->rowid);
++					$line->amount_capital = $pay_capital;
++					$line->amount_insurance = $pay_insurance;
++					$line->amount_interest = $pay_interest;
++					$line->fk_user_modif = $user->id;
++					$line->update($user, 0);
++				}
++				$db->free($resql);
++			}
++			$db->commit();
++			setEventMessages($langs->trans("PaymentAmountsUpdated"), null, 'mesgs');
++			$payment->fetch($id);
++		} else {
++			$db->rollback();
++			setEventMessages($payment->error, $payment->errors, 'errors');
++		}
++	}
++	$action = 'edit';
++}
++
+ // Delete payment
+ if ($action == 'confirm_delete' && $confirm == 'yes' && $user->hasRight('loan', 'delete')) {
+ 	$db->begin();
+@@ -122,6 +169,8 @@ dol_banner_tab($payment, 'id', $linkback, 1, 'rowid', 'ref', $morehtmlref, '', 0
+ print '<div class="fichecenter">';
+ print '<div class="underbanner clearboth"></div>';
+ 
++$payment_total = (float) $payment->amount_capital + (float) $payment->amount_insurance + (float) $payment->amount_interest;
++
+ print '<table class="border centpercent">';
+ 
+ // Date
+@@ -130,10 +179,38 @@ print '<tr><td>'.$langs->trans('Date').'</td><td>'.dol_print_date($payment->date
+ // Mode
+ print '<tr><td>'.$langs->trans('Mode').'</td><td>'.$langs->trans("PaymentType".$payment->type_code).'</td></tr>';
+ 
+-// Amount
+-print '<tr><td>'.$langs->trans('LoanCapital').'</td><td>'.price($payment->amount_capital, 0, $langs, 1, -1, -1, $conf->currency).'</td></tr>';
+-print '<tr><td>'.$langs->trans('Insurance').'</td><td>'.price($payment->amount_insurance, 0, $langs, 1, -1, -1, $conf->currency).'</td></tr>';
+-print '<tr><td>'.$langs->trans('Interest').'</td><td>'.price($payment->amount_interest, 0, $langs, 1, -1, -1, $conf->currency).'</td></tr>';
++// Amounts: editable when action=edit (keep total unchanged for bank reconciliation; Capital/Interest linked)
++if ($action == 'edit' && $user->hasRight('loan', 'write')) {
++	print '<form action="'.dol_escape_htmltag($_SERVER['PHP_SELF']).'?id='.((int) $id).'" method="post" id="form_payment_amounts">';
++	print '<input type="hidden" name="token" value="'.newToken().'">';
++	print '<input type="hidden" name="action" value="update_amounts">';
++	$fmt = function ($v) { return number_format((float) $v, 2, '.', ''); };
++	$payment_total_js = number_format((float) $payment_total, 2, '.', '');
++	print '<tr><td>'.$langs->trans('LoanCapital').'</td><td><input type="text" class="width100" name="amount_capital" id="amount_capital" value="'.dol_escape_htmltag($fmt($payment->amount_capital)).'" required></td></tr>';
++	print '<tr><td>'.$langs->trans('Insurance').'</td><td><input type="text" class="width100" name="amount_insurance" id="amount_insurance" value="'.dol_escape_htmltag($fmt($payment->amount_insurance)).'" required></td></tr>';
++	print '<tr><td>'.$langs->trans('Interest').'</td><td><input type="text" class="width100" name="amount_interest" id="amount_interest" value="'.dol_escape_htmltag($fmt($payment->amount_interest)).'" required></td></tr>';
++	print '<tr><td>'.$langs->trans('PaymentTotalUnchanged').'</td><td><strong id="payment_total_display">'.price($payment_total, 0, $langs, 1, -1, -1, $conf->currency).'</strong> <span class="opacitymedium">'.$langs->trans('PaymentTotalUnchangedHelp').'</span></td></tr>';
++	print '<script type="text/javascript">';
++	print "var paymentTotalFixed = ".$payment_total_js.";\n";
++	print "function parseNum(v){ var n = parseFloat(String(v).replace(/[^0-9.-]/g,'').replace(',','.')); return isNaN(n)?0:n; }\n";
++	print "function formatNum(n){ return Math.round(n*100)/100; }\n";
++	print "function syncAmounts(changedId){\n";
++	print "  var cap = parseNum(document.getElementById('amount_capital').value);\n";
++	print "  var ins = parseNum(document.getElementById('amount_insurance').value);\n";
++	print "  var intVal = parseNum(document.getElementById('amount_interest').value);\n";
++	print "  if (changedId === 'amount_capital') { intVal = formatNum(paymentTotalFixed - ins - cap); document.getElementById('amount_interest').value = intVal.toFixed(2); }\n";
++	print "  else if (changedId === 'amount_interest') { cap = formatNum(paymentTotalFixed - ins - intVal); document.getElementById('amount_capital').value = cap.toFixed(2); }\n";
++	print "  else if (changedId === 'amount_insurance') { intVal = formatNum(paymentTotalFixed - ins - cap); document.getElementById('amount_interest').value = intVal.toFixed(2); }\n";
++	print "}\n";
++	print "document.getElementById('amount_capital').addEventListener('input', function(){ syncAmounts('amount_capital'); });\n";
++	print "document.getElementById('amount_insurance').addEventListener('input', function(){ syncAmounts('amount_insurance'); });\n";
++	print "document.getElementById('amount_interest').addEventListener('input', function(){ syncAmounts('amount_interest'); });\n";
++	print "</script>";
++} else {
++	print '<tr><td>'.$langs->trans('LoanCapital').'</td><td>'.price($payment->amount_capital, 0, $langs, 1, -1, -1, $conf->currency).'</td></tr>';
++	print '<tr><td>'.$langs->trans('Insurance').'</td><td>'.price($payment->amount_insurance, 0, $langs, 1, -1, -1, $conf->currency).'</td></tr>';
++	print '<tr><td>'.$langs->trans('Interest').'</td><td>'.price($payment->amount_interest, 0, $langs, 1, -1, -1, $conf->currency).'</td></tr>';
++}
+ 
+ // Note Private
+ print '<tr><td>'.$langs->trans('NotePrivate').'</td><td>'.nl2br($payment->note_private).'</td></tr>';
+@@ -141,6 +218,11 @@ print '<tr><td>'.$langs->trans('NotePrivate').'</td><td>'.nl2br($payment->note_p
+ // Note Public
+ print '<tr><td>'.$langs->trans('NotePublic').'</td><td>'.nl2br($payment->note_public).'</td></tr>';
+ 
++if ($action == 'edit' && $user->hasRight('loan', 'write')) {
++	print '<tr><td></td><td><input type="submit" class="button button-save" value="'.$langs->trans('Save').'"> ';
++	print '<a href="'.dol_escape_htmltag($_SERVER['PHP_SELF']).'?id='.((int) $id).'" class="button">'.$langs->trans('Cancel').'</a></td></tr>';
++}
++
+ // Bank account
+ if (isModEnabled("bank")) {
+ 	if ($payment->bank_account) {
+@@ -157,6 +239,9 @@ if (isModEnabled("bank")) {
+ }
+ 
+ print '</table>';
++if ($action == 'edit' && $user->hasRight('loan', 'write')) {
++	print '</form>';
++}
+ 
+ print '</div>';
+ 
+@@ -233,11 +318,19 @@ print '</div>';
+ 
+ print '<div class="tabsAction">';
+ 
++if ($user->hasRight('loan', 'write')) {
++	if ($action == 'edit') {
++		print dolGetButtonAction($langs->trans("Cancel"), '', 'default', $_SERVER["PHP_SELF"].'?id='.$id, '', 1);
++	} else {
++		print dolGetButtonAction($langs->trans("EditAmounts"), '', 'edit', $_SERVER["PHP_SELF"].'?id='.$id.'&action=edit', '', 1);
++	}
++}
++
+ if (empty($action) && $user->hasRight('loan', 'delete')) {
+ 	if (!$disable_delete) {
+ 		print dolGetButtonAction($langs->trans("Delete"), '', 'delete', $_SERVER["PHP_SELF"].'?id='.$id.'&action=delete&token='.newToken(), 'delete', 1);
+ 	} else {
+-		print dolGetButtonAction($langs->trans("CantRemovePaymentWithOneInvoicePaid"), $langs->trans("Delete"), 'delete', $_SERVER["PHP_SELF"].'?id='.$object->id.'&action=delete&token='.newToken(), 'delete', 0);
++		print dolGetButtonAction($langs->trans("CantRemovePaymentWithOneInvoicePaid"), $langs->trans("Delete"), 'delete', $_SERVER["PHP_SELF"].'?id='.$id.'&action=delete&token='.newToken(), 'delete', 0);
+ 	}
+ }
+ 
+diff --git a/htdocs/loan/payment/payment.php b/htdocs/loan/payment/payment.php
+index e57ea4351ed..70ce5721dcd 100644
+--- a/htdocs/loan/payment/payment.php
++++ b/htdocs/loan/payment/payment.php
+@@ -149,8 +149,10 @@ if ($action == 'add_payment' && $permissiontoadd) {
+ 			$error++;
+ 		}
+ 
+-		if (empty($remaindertopay)) {
+-			setEventMessages('Empty sumpaid', null, 'errors');
++		// When repaying (positive capital), remainder to pay must be > 0; when drawing (negative capital) we allow it
++		$remainder_num = (float) price2num($remaindertopay);
++		if ($pay_amount_capital > 0 && $remainder_num <= 0) {
++			setEventMessages($langs->trans('NoRemainderToPay'), null, 'errors');
+ 			$error++;
+ 		}
+ 
+@@ -193,8 +195,8 @@ if ($action == 'add_payment' && $permissiontoadd) {
+ 				}
+ 			}
+ 
+-			// Update loan schedule with payment value
+-			if (!$error && !empty($line)) {
++			// Update loan schedule with payment value (only for repayments with a current term, not for further drawdowns)
++			if (!$error && !empty($line) && $pay_amount_capital >= 0) {
+ 				// If payment values are modified, recalculate schedule
+ 				if (($line->amount_capital != $pay_amount_capital) || ($line->amount_insurance != $pay_amount_insurance) || ($line->amount_interest != $pay_amount_interest)) {
+ 					$arr_term = loanCalcMonthlyPayment(($pay_amount_capital + $pay_amount_interest), $remaindertopay, ($loan->rate / 100), $echance, (int) $loan->nbterm);
+@@ -373,23 +375,12 @@ if ($action == 'create') {
+ 	print '<td class="right" valign="center">'.price($loan->capital - $sumpaid)."</td>";
+ 
+ 	print '<td class="right">';
+-	if ($sumpaid < $loan->capital) {
+-		print $langs->trans("LoanCapital").': <input type="text" size="8" name="amount_capital" value="'.(GETPOSTISSET('amount_capital') ? GETPOST('amount_capital') : $amount_capital).'">';
+-	} else {
+-		print '-';
+-	}
++	// Capital: positive = repayment, negative = further borrowing (drawdown)
++	print $langs->trans("LoanCapital").': <input type="text" size="8" name="amount_capital" value="'.(GETPOSTISSET('amount_capital') ? GETPOST('amount_capital') : $amount_capital).'">';
+ 	print '<br>';
+-	if ($sumpaid < $loan->capital) {
+-		print $langs->trans("Insurance").': <input type="text" size="8" name="amount_insurance" value="'.(GETPOSTISSET('amount_insurance') ? GETPOST('amount_insurance') : $amount_insurance).'">';
+-	} else {
+-		print '-';
+-	}
++	print $langs->trans("Insurance").': <input type="text" size="8" name="amount_insurance" value="'.(GETPOSTISSET('amount_insurance') ? GETPOST('amount_insurance') : $amount_insurance).'">';
+ 	print '<br>';
+-	if ($sumpaid < $loan->capital) {
+-		print $langs->trans("Interest").': <input type="text" size="8" name="amount_interest" value="'.(GETPOSTISSET('amount_interest') ? GETPOST('amount_interest') : $amount_interest).'" '.(!empty($line) ? 'disabled title="'.$langs->trans('CantModifyInterestIfScheduleIsUsed').'"' : '').'>';
+-	} else {
+-		print '-';
+-	}
++	print $langs->trans("Interest").': <input type="text" size="8" name="amount_interest" value="'.(GETPOSTISSET('amount_interest') ? GETPOST('amount_interest') : $amount_interest).'" '.(!empty($line) ? 'disabled title="'.$langs->trans('CantModifyInterestIfScheduleIsUsed').'"' : '').'>';
+ 	print "</td>";
+ 
+ 	print "</tr>\n";
+diff --git a/htdocs/loan/schedule.php b/htdocs/loan/schedule.php
+index e02861d8161..c1c81f40a31 100644
+--- a/htdocs/loan/schedule.php
++++ b/htdocs/loan/schedule.php
+@@ -30,6 +30,99 @@ require '../main.inc.php';
+ require_once DOL_DOCUMENT_ROOT.'/loan/class/loan.class.php';
+ require_once DOL_DOCUMENT_ROOT.'/core/lib/loan.lib.php';
+ require_once DOL_DOCUMENT_ROOT.'/core/lib/date.lib.php';
++// Fallback if core/lib/loan.lib.php does not contain fixed-payment helpers (e.g. official release not patched)
++if (!function_exists('loan_days_in_year_for_timestamp')) {
++	function loan_days_in_year_for_timestamp($timestamp)
++	{
++		$year = (int) date('Y', $timestamp);
++		return (date('L', mktime(0, 0, 0, 1, 1, $year)) ? 366 : 365);
++	}
++}
++if (!function_exists('loan_effective_days_in_year_for_period')) {
++	function loan_effective_days_in_year_for_period($periodStartTs, $periodEndTs)
++	{
++		$days = (int) floor(($periodEndTs - $periodStartTs) / 86400);
++		if ($days <= 0) {
++			return (float) loan_days_in_year_for_timestamp($periodStartTs);
++		}
++		$dayCountInYear = array();
++		for ($d = 0; $d < $days; $d++) {
++			$ts = $periodStartTs + $d * 86400;
++			$y = (int) date('Y', $ts);
++			if (!isset($dayCountInYear[$y])) {
++				$dayCountInYear[$y] = 0;
++			}
++			$dayCountInYear[$y]++;
++		}
++		$weighted = 0;
++		foreach ($dayCountInYear as $year => $count) {
++			$daysInThatYear = loan_days_in_year_for_timestamp(mktime(0, 0, 0, 1, 1, $year));
++			$weighted += $count * $daysInThatYear;
++		}
++		return $weighted / $days;
++	}
++}
++if (!function_exists('loanCalcScheduleWithFixedPayment')) {
++	function loanCalcScheduleWithFixedPayment($fixedPayment, $capital, $ratePercent, $dateStartTimestamp, $nbterm, $insurancePerTerm = 0, $options = array())
++	{
++		global $conf;
++		$fixedPayment = (float) price2num($fixedPayment);
++		$capital = (float) price2num($capital);
++		$ratePercent = (float) price2num($ratePercent);
++		$nbterm = (int) $nbterm;
++		$insurancePerTerm = (float) price2num($insurancePerTerm);
++		$roundMode = (isset($options['rounding']) && $options['rounding'] === 'half_even') ? PHP_ROUND_HALF_EVEN : PHP_ROUND_HALF_UP;
++		$daysInYearMode = (isset($options['days_in_year']) && $options['days_in_year'] === 'period_start') ? 'period_start' : 'cross_year_weighted';
++		$balanceMode = (isset($options['balance_for_interest']) && $options['balance_for_interest'] === 'exact') ? 'exact' : 'displayed';
++		$output = array();
++		$balanceDisplay = round($capital, 2, $roundMode);
++		$sumPrincipal = 0.0;
++		$dates = array();
++		for ($k = 0; $k <= $nbterm; $k++) {
++			$dates[$k] = dol_time_plus_duree($dateStartTimestamp, $k, 'm');
++		}
++		for ($i = 1; $i <= $nbterm; $i++) {
++			$prev_ts = $dates[$i - 1];
++			$curr_ts = $dates[$i];
++			$days = (int) floor(($curr_ts - $prev_ts) / 86400);
++			$days_in_year = ($daysInYearMode === 'period_start') ? (float) loan_days_in_year_for_timestamp($prev_ts) : loan_effective_days_in_year_for_period($prev_ts, $curr_ts);
++			$balanceForInterest = ($balanceMode === 'exact') ? ($capital - $sumPrincipal) : $balanceDisplay;
++			$rateForTerm = (isset($options['rates']) && is_array($options['rates']) && isset($options['rates'][$i])) ? (float) price2num($options['rates'][$i]) : $ratePercent;
++			$interest = $balanceForInterest * ($rateForTerm / 100) * ($days / $days_in_year);
++			$interest = round($interest, 2, $roundMode);
++			$principal = round($fixedPayment - $interest, 2, $roundMode);
++			if ($principal > $balanceForInterest) {
++				$principal = $balanceForInterest;
++			}
++			if ($principal < 0) {
++				$principal = 0;
++			}
++			$sumPrincipal += $principal;
++			if ($balanceMode === 'exact') {
++				$cap_rest_display = round($capital - $sumPrincipal, 2, $roundMode);
++			} else {
++				$balanceDisplay = round($balanceForInterest - $principal, 2, $roundMode);
++				if ($balanceDisplay < 0) {
++					$balanceDisplay = 0;
++				}
++				$cap_rest_display = $balanceDisplay;
++			}
++			if ($cap_rest_display < 0) {
++				$cap_rest_display = 0;
++			}
++			$mens = $principal + $interest;
++			$output[$i] = array(
++				'cap_rest' => $cap_rest_display,
++				'cap_rest_str' => price($cap_rest_display, 0, '', 1, -1, -1, $conf->currency),
++				'interet' => $interest,
++				'interet_str' => price($interest, 0, '', 1, -1, -1, $conf->currency),
++				'mens' => price($mens),
++				'datep' => $curr_ts,
++			);
++		}
++		return $output;
++	}
++}
+ require_once DOL_DOCUMENT_ROOT.'/loan/class/loanschedule.class.php';
+ require_once DOL_DOCUMENT_ROOT.'/loan/class/paymentloan.class.php';
+ require_once DOL_DOCUMENT_ROOT.'/core/class/html.formprojet.class.php';
+@@ -69,6 +162,50 @@ $object->fetch($loanid);
+ $echeances = new LoanSchedule($db);
+ $echeances->fetchAll($object->id);
+ 
++// Fixed monthly payment (preview or create): read from GET only (method 1) so Preview link param is never lost
++$fixed_monthly_payment = price2num(GETPOST('fixed_monthly_payment', 'alphanohtml', 1));
++
++// Schedule calculation options (GET for preview, POST for create; method 0 = both)
++$schedule_rounding = GETPOST('schedule_rounding', 'alphanohtml', 0);
++$schedule_days_in_year = GETPOST('schedule_days_in_year', 'alphanohtml', 0);
++$schedule_balance_for_interest = GETPOST('schedule_balance_for_interest', 'alphanohtml', 0);
++$schedule_options = array();
++if ($schedule_rounding === 'half_even') {
++	$schedule_options['rounding'] = 'half_even';
++} else {
++	$schedule_options['rounding'] = 'half_up';
++}
++if ($schedule_days_in_year === 'period_start') {
++	$schedule_options['days_in_year'] = 'period_start';
++} else {
++	$schedule_options['days_in_year'] = 'cross_year_weighted';
++}
++if ($schedule_balance_for_interest === 'exact') {
++	$schedule_options['balance_for_interest'] = 'exact';
++} else {
++	$schedule_options['balance_for_interest'] = 'displayed';
++}
++// Floating rate: per-term rates (comma or newline separated; line N = rate % for term N)
++$schedule_rate_type = GETPOST('schedule_rate_type', 'alphanohtml', 0);
++$schedule_rates_raw = GETPOST('schedule_rates', 'alphanohtml', 0);
++if ($schedule_rate_type === 'floating' && $schedule_rates_raw !== '') {
++	$normalized = preg_replace('/[\r\n]+/', ',', $schedule_rates_raw);
++	$parts = array_map('trim', explode(',', $normalized));
++	$rates_arr = array();
++	foreach ($parts as $p) {
++		if ($p === '') {
++			continue;
++		}
++		$rates_arr[] = (float) price2num($p);
++	}
++	if (!empty($rates_arr)) {
++		$schedule_options['rates'] = array();
++		foreach ($rates_arr as $idx => $r) {
++			$schedule_options['rates'][$idx + 1] = $r;
++		}
++	}
++}
++
+ if ($object->paid > 0 && count($echeances->lines) == 0) {
+ 	$pay_without_schedule = 1;
+ } else {
+@@ -84,35 +221,116 @@ $permissiontoadd = $user->hasRight('loan', 'write');
+ 
+ if ($action == 'createecheancier' && empty($pay_without_schedule) && $permissiontoadd) {
+ 	$db->begin();
+-	$i = 1;
+-	while ($i < $object->nbterm + 1) {
+-		$date = GETPOSTINT('hi_date'.$i);
+-		$mens = price2num(GETPOST('mens'.$i));
+-		$int = price2num(GETPOST('hi_interets'.$i));
+-		$insurance = price2num(GETPOST('hi_insurance'.$i));
+-
+-		$new_echeance = new LoanSchedule($db);
++	$result = 0;
++	$insurance_per_term = (float) $object->insurance_amount / $object->nbterm;
++	$insurance_per_term = price2num($insurance_per_term, 'MT');
++	$regul_insurance = price2num((float) $object->insurance_amount - ((float) $insurance_per_term * $object->nbterm));
++
++	$schedule_phases_json = GETPOST('schedule_phases', 'none', 0);
++	$use_phases = false;
++	$phases_decoded = array();
++	if ($schedule_phases_json !== '' && function_exists('loanCalcScheduleFromPhases')) {
++		$phases_decoded = json_decode($schedule_phases_json, true);
++		if (is_array($phases_decoded) && count($phases_decoded) > 0) {
++			$use_phases = true;
++		}
++	}
+ 
+-		$new_echeance->fk_loan = $object->id;
+-		$new_echeance->datec = dol_now();
+-		$new_echeance->tms = dol_now();
+-		$new_echeance->datep = $date;
+-		$new_echeance->amount_capital = (float) $mens - (float) $int;
+-		$new_echeance->amount_insurance = $insurance;
+-		$new_echeance->amount_interest = $int;
+-		$new_echeance->fk_typepayment = 3;
+-		$new_echeance->fk_bank = 0;
+-		$new_echeance->fk_user_creat = $user->id;
+-		$new_echeance->fk_user_modif = $user->id;
+-		$result = $new_echeance->create($user);
+-		if ($result < 0) {
+-			setEventMessages($new_echeance->error, $new_echeance->errors, 'errors');
++	$fixed_on_create = price2num(GETPOST('fixed_monthly_payment'));
++	if ($use_phases) {
++		$datestart_ts = is_numeric($object->datestart) ? (int) $object->datestart : dol_stringtotime($object->datestart, 0);
++		$schedule = loanCalcScheduleFromPhases($phases_decoded, $object->capital, $object->rate, $datestart_ts, (int) $object->nbterm, $insurance_per_term, $schedule_options);
++		if (!empty($schedule) && count($schedule) == (int) $object->nbterm) {
++			foreach ($schedule as $i => $row) {
++				$insu = (float) $insurance_per_term + (($i == 1) ? (float) $regul_insurance : 0);
++				$new_echeance = new LoanSchedule($db);
++				$new_echeance->fk_loan = $object->id;
++				$new_echeance->datec = dol_now();
++				$new_echeance->tms = dol_now();
++				$new_echeance->datep = $row['datep'];
++				$new_echeance->amount_capital = (float) price2num($row['mens']) - (float) $row['interet'];
++				$new_echeance->amount_insurance = $insu;
++				$new_echeance->amount_interest = (float) $row['interet'];
++				$new_echeance->fk_typepayment = 3;
++				$new_echeance->fk_bank = 0;
++				$new_echeance->fk_user_creat = $user->id;
++				$new_echeance->fk_user_modif = $user->id;
++				$result = $new_echeance->create($user);
++				if ($result < 0) {
++					setEventMessages($new_echeance->error, $new_echeance->errors, 'errors');
++					$db->rollback();
++					$echeances->lines = [];
++					break;
++				}
++				$echeances->lines[] = $new_echeance;
++			}
++			if ($result > 0) {
++				$object->schedule_phases = $schedule_phases_json;
++				$object->update($user);
++			}
++		} else {
++			setEventMessages(null, array($langs->trans("SchedulePhasesInvalidOrMismatch")), 'errors');
+ 			$db->rollback();
+-			$echeances->lines = [];
+-			break;
++			$echeances->lines = array();
++		}
++	} elseif ($fixed_on_create > 0) {
++		// Create schedule from fixed monthly payment (bank-style) with selected calculation options
++		$datestart_ts = is_numeric($object->datestart) ? (int) $object->datestart : dol_stringtotime($object->datestart, 0);
++		$schedule = loanCalcScheduleWithFixedPayment($fixed_on_create, $object->capital, $object->rate, $datestart_ts, $object->nbterm, $insurance_per_term, $schedule_options);
++		foreach ($schedule as $i => $row) {
++			$insu = (float) $insurance_per_term + (($i == 1) ? (float) $regul_insurance : 0);
++			$new_echeance = new LoanSchedule($db);
++			$new_echeance->fk_loan = $object->id;
++			$new_echeance->datec = dol_now();
++			$new_echeance->tms = dol_now();
++			$new_echeance->datep = $row['datep'];
++			$new_echeance->amount_capital = (float) price2num($row['mens']) - (float) $row['interet'];
++			$new_echeance->amount_insurance = $insu;
++			$new_echeance->amount_interest = (float) $row['interet'];
++			$new_echeance->fk_typepayment = 3;
++			$new_echeance->fk_bank = 0;
++			$new_echeance->fk_user_creat = $user->id;
++			$new_echeance->fk_user_modif = $user->id;
++			$result = $new_echeance->create($user);
++			if ($result < 0) {
++				setEventMessages($new_echeance->error, $new_echeance->errors, 'errors');
++				$db->rollback();
++				$echeances->lines = [];
++				break;
++			}
++			$echeances->lines[] = $new_echeance;
++		}
++	} else {
++		$i = 1;
++		while ($i < $object->nbterm + 1) {
++			$date = GETPOSTINT('hi_date'.$i);
++			$mens = price2num(GETPOST('mens'.$i));
++			$int = price2num(GETPOST('hi_interets'.$i));
++			$insurance = price2num(GETPOST('hi_insurance'.$i));
++
++			$new_echeance = new LoanSchedule($db);
++
++			$new_echeance->fk_loan = $object->id;
++			$new_echeance->datec = dol_now();
++			$new_echeance->tms = dol_now();
++			$new_echeance->datep = $date;
++			$new_echeance->amount_capital = (float) $mens - (float) $int;
++			$new_echeance->amount_insurance = $insurance;
++			$new_echeance->amount_interest = $int;
++			$new_echeance->fk_typepayment = 3;
++			$new_echeance->fk_bank = 0;
++			$new_echeance->fk_user_creat = $user->id;
++			$new_echeance->fk_user_modif = $user->id;
++			$result = $new_echeance->create($user);
++			if ($result < 0) {
++				setEventMessages($new_echeance->error, $new_echeance->errors, 'errors');
++				$db->rollback();
++				$echeances->lines = [];
++				break;
++			}
++			$echeances->lines[] = $new_echeance;
++			$i++;
+ 		}
+-		$echeances->lines[] = $new_echeance;
+-		$i++;
+ 	}
+ 	if ($result > 0) {
+ 		$db->commit();
+@@ -270,6 +488,76 @@ if (count($echeances->lines) > 0) {
+ 	print '<input type="hidden" name="action" value="createecheancier">';
+ }
+ 
++// Calculation options and fixed monthly payment (when no schedule lines yet)
++if (count($echeances->lines) == 0 && $object->nbterm > 0) {
++	print '<div class="fichecenter">';
++	print '<table class="noborder centpercent">';
++	print '<tr class="liste_titre"><td colspan="2">'.$langs->trans("ScheduleCalculationOptions").'</td></tr>';
++	// Schedule type: standard vs fixed monthly payment
++	print '<tr><td class="width300">'.$langs->trans("ScheduleType").'</td><td>';
++	print $langs->trans("ScheduleTypeStandard").' ('.$langs->trans("EqualInstalment").')';
++	print ' &nbsp;|&nbsp; <strong>'.$langs->trans("FixedMonthlyPayment").'</strong>: ';
++	print '<input type="number" step="0.01" min="0" name="fixed_monthly_payment" id="fixed_monthly_payment" value="'.dol_escape_htmltag($fixed_monthly_payment ? $fixed_monthly_payment : '').'" placeholder="'.$langs->trans("OptionalBankAmount").'" class="width100">';
++	print ' <span class="opacitymedium">'.$langs->trans("FixedMonthlyPaymentHelp").'</span>';
++	print '</td></tr>';
++	// Rounding
++	print '<tr><td>'.$langs->trans("ScheduleRounding").'</td><td>';
++	print '<select name="schedule_rounding" id="schedule_rounding">';
++	print '<option value="half_up"'.($schedule_rounding !== 'half_even' ? ' selected="selected"' : '').'>'.$langs->trans("RoundingHalfUp").'</option>';
++	print '<option value="half_even"'.($schedule_rounding === 'half_even' ? ' selected="selected"' : '').'>'.$langs->trans("RoundingHalfEven").'</option>';
++	print '</select>';
++	print '</td></tr>';
++	// Days in year / leap year
++	print '<tr><td>'.$langs->trans("ScheduleDaysInYear").'</td><td>';
++	print '<select name="schedule_days_in_year" id="schedule_days_in_year">';
++	print '<option value="cross_year_weighted"'.($schedule_days_in_year !== 'period_start' ? ' selected="selected"' : '').'>'.$langs->trans("DaysInYearCrossYearWeighted").'</option>';
++	print '<option value="period_start"'.($schedule_days_in_year === 'period_start' ? ' selected="selected"' : '').'>'.$langs->trans("DaysInYearPeriodStart").'</option>';
++	print '</select>';
++	print '</td></tr>';
++	// Balance for next period interest
++	print '<tr><td>'.$langs->trans("ScheduleBalanceForInterest").'</td><td>';
++	print '<select name="schedule_balance_for_interest" id="schedule_balance_for_interest">';
++	print '<option value="displayed"'.($schedule_balance_for_interest !== 'exact' ? ' selected="selected"' : '').'>'.$langs->trans("BalanceDisplayed").'</option>';
++	print '<option value="exact"'.($schedule_balance_for_interest === 'exact' ? ' selected="selected"' : '').'>'.$langs->trans("BalanceExact").'</option>';
++	print '</select>';
++	print '</td></tr>';
++	// Rate type: fixed (loan rate for all) or floating (one rate per term)
++	print '<tr><td>'.$langs->trans("ScheduleRateType").'</td><td>';
++	print '<select name="schedule_rate_type" id="schedule_rate_type">';
++	print '<option value="fixed"'.($schedule_rate_type !== 'floating' ? ' selected="selected"' : '').'>'.$langs->trans("RateTypeFixed").'</option>';
++	print '<option value="floating"'.($schedule_rate_type === 'floating' ? ' selected="selected"' : '').'>'.$langs->trans("RateTypeFloating").'</option>';
++	print '</select>';
++	print '</td></tr>';
++	print '<tr id="schedule_rates_row" style="'.($schedule_rate_type === 'floating' ? '' : 'display:none;').'"><td>'.$langs->trans("ScheduleRatesPerTerm").'</td><td>';
++	print '<textarea name="schedule_rates" id="schedule_rates" rows="4" class="flat" placeholder="'.$langs->trans("ScheduleRatesPlaceholder").'">'.dol_escape_htmltag($schedule_rates_raw).'</textarea>';
++	print ' <span class="opacitymedium">'.$langs->trans("ScheduleRatesHelp").'</span>';
++	print '</td></tr>';
++	// Multi-phase: optional JSON to split schedule into phases (different rate/repayment per range)
++	if (function_exists('loanCalcScheduleFromPhases')) {
++		$schedule_phases_value = GETPOST('schedule_phases', 'none', 0) !== '' ? GETPOST('schedule_phases', 'none', 0) : (isset($object->schedule_phases) ? $object->schedule_phases : '');
++		print '<tr><td>'.$langs->trans("SchedulePhases").'</td><td>';
++		print '<textarea name="schedule_phases" id="schedule_phases" rows="5" class="flat" placeholder="'.$langs->trans("SchedulePhasesPlaceholder").'">'.dol_escape_htmltag($schedule_phases_value).'</textarea>';
++		print ' <span class="opacitymedium">'.$langs->trans("SchedulePhasesHelp").'</span>';
++		print '</td></tr>';
++	}
++	print '<tr><td></td><td>';
++	$previewUrl = DOL_URL_ROOT.'/loan/schedule.php?loanid='.((int) $loanid).'&token='.newToken();
++	print ' <a href="'.dol_escape_htmltag($previewUrl).'" class="button" id="preview_fixed_link">'.$langs->trans("Preview").'</a>';
++	print '</td></tr>';
++	print '</table>';
++	print '</div>';
++	print '<script type="text/javascript">';
++	print "document.getElementById('preview_fixed_link').addEventListener('click', function(e) { e.preventDefault();";
++	print " var v = document.getElementById('fixed_monthly_payment').value;";
++	print " var u = this.href + '&schedule_rounding=' + encodeURIComponent(document.getElementById('schedule_rounding').value) + '&schedule_days_in_year=' + encodeURIComponent(document.getElementById('schedule_days_in_year').value) + '&schedule_balance_for_interest=' + encodeURIComponent(document.getElementById('schedule_balance_for_interest').value) + '&schedule_rate_type=' + encodeURIComponent(document.getElementById('schedule_rate_type').value);";
++	print " if (v) u += '&fixed_monthly_payment=' + encodeURIComponent(v);";
++	print " var ratesEl = document.getElementById('schedule_rates'); if (ratesEl && ratesEl.value) u += '&schedule_rates=' + encodeURIComponent(ratesEl.value);";
++	print " window.location = u; });";
++	print "document.getElementById('schedule_rate_type').addEventListener('change', function() { var row = document.getElementById('schedule_rates_row'); row.style.display = this.value === 'floating' ? '' : 'none'; });";
++	print '</script>';
++	print '<br>';
++}
++
+ //print_fiche_titre($langs->trans("FinancialCommitment"));
+ print '<br>';
+ 
+@@ -296,28 +584,68 @@ if (count($echeances->lines) > 0) {
+ }
+ print '</tr>'."\n";
+ 
+-if ($object->nbterm > 0 && count($echeances->lines) == 0) {
+-	$i = 1;
+-	$capital = $object->capital;
++if (empty($object->id) || $object->nbterm <= 0) {
++	if (empty($object->id)) {
++		print '<tr><td colspan="'.($colspan).'" class="opacitymedium">'.$langs->trans("SelectLoanFirst").'</td></tr>';
++	} else {
++		print '<tr><td colspan="'.($colspan).'" class="opacitymedium">'.$langs->trans("SetNbTermsOnLoanCard").'</td></tr>';
++	}
++} elseif ($object->nbterm > 0 && count($echeances->lines) == 0) {
++	// Single date conversion for both standard and fixed-payment display (same as standard branch)
++	$datestart_ts_std = is_numeric($object->datestart) ? (int) $object->datestart : dol_stringtotime($object->datestart, 0);
++	if (empty($datestart_ts_std) || $datestart_ts_std <= 0) {
++		$datestart_ts_std = dol_now();
++	}
+ 	$insurance = (float) $object->insurance_amount / $object->nbterm;
+ 	$insurance = price2num($insurance, 'MT');
+ 	$regulInsurance = price2num((float) $object->insurance_amount - ((float) $insurance * $object->nbterm));
+-	while ($i < $object->nbterm + 1) {
+-		$mens = price2num($echeances->calcMonthlyPayments($capital, $object->rate / 100, $object->nbterm - $i + 1), 'MT');
+-		$int = ($capital * ($object->rate / 12)) / 100;
+-		$int = price2num($int, 'MT');
+-		$insu = ((float) $insurance + (($i == 1) ? (float) $regulInsurance : 0));
+-		$cap_rest = price2num((float) $capital - ((float) $mens - (float) $int), 'MT');
+-		print '<tr>';
+-		print '<td class="center" id="n'.$i.'">'.$i.'</td>';
+-		print '<td class="center" id ="date'.$i.'"><input type="hidden" name="hi_date'.$i.'" id ="hi_date'.$i.'" value="'.dol_time_plus_duree($object->datestart, $i - 1, 'm').'">'.dol_print_date(dol_time_plus_duree($object->datestart, $i - 1, 'm'), 'day').'</td>';
+-		print '<td class="center amount" id="insurance'.$i.'">'.price($insu, 0, '', 1, -1, -1, $conf->currency).'</td><input type="hidden" name="hi_insurance'.$i.'" id ="hi_insurance'.$i.'" value="'.$insu.'">';
+-		print '<td class="center amount" id="interets'.$i.'">'.price($int, 0, '', 1, -1, -1, $conf->currency).'</td><input type="hidden" name="hi_interets'.$i.'" id ="hi_interets'.$i.'" value="'.$int.'">';
+-		print '<td class="center"><input class="width75 right" name="mens'.$i.'" id="mens'.$i.'" value="'.price($mens).'" ech="'.$i.'"></td>';
+-		print '<td class="center amount" id="capital'.$i.'">'.price($cap_rest).'</td><input type="hidden" name="hi_capital'.$i.'" id ="hi_capital'.$i.'" value="'.$cap_rest.'">';
+-		print '</tr>'."\n";
+-		$i++;
+-		$capital = $cap_rest;
++
++	if ($fixed_monthly_payment > 0) {
++		// Bank-style schedule: fixed payment + actual days interest (actual/actual, rounding)
++		$schedule = loanCalcScheduleWithFixedPayment($fixed_monthly_payment, $object->capital, $object->rate, $datestart_ts_std, $object->nbterm, $insurance, $schedule_options);
++		if (!is_array($schedule) || count($schedule) == 0) {
++			print '<tr><td colspan="'.($colspan).'" class="warning">'.$langs->trans("NoScheduleComputed").'</td></tr>';
++		} else {
++			$i = 1;
++			foreach ($schedule as $term => $row) {
++				$insu = ((float) $insurance + (($i == 1) ? (float) $regulInsurance : 0));
++				$datep = $row['datep'];
++				$int = $row['interet'];
++				$mens = (float) price2num($row['mens']);
++				$cap_rest = $row['cap_rest'];
++				print '<tr>';
++				print '<td class="center" id="n'.$i.'">'.$i.'</td>';
++				print '<td class="center" id ="date'.$i.'"><input type="hidden" name="hi_date'.$i.'" id ="hi_date'.$i.'" value="'.$datep.'">'.dol_print_date($datep, 'day').'</td>';
++				print '<td class="center amount" id="insurance'.$i.'">'.price($insu, 0, '', 1, -1, -1, $conf->currency).'</td><input type="hidden" name="hi_insurance'.$i.'" id ="hi_insurance'.$i.'" value="'.$insu.'">';
++				print '<td class="center amount" id="interets'.$i.'">'.price($int, 0, '', 1, -1, -1, $conf->currency).'</td><input type="hidden" name="hi_interets'.$i.'" id ="hi_interets'.$i.'" value="'.$int.'">';
++				print '<td class="center"><input class="width75 right" name="mens'.$i.'" id="mens'.$i.'" value="'.price($mens).'" ech="'.$i.'"></td>';
++				print '<td class="center amount" id="capital'.$i.'">'.price($cap_rest).'</td><input type="hidden" name="hi_capital'.$i.'" id ="hi_capital'.$i.'" value="'.$cap_rest.'">';
++				print '</tr>'."\n";
++				$i++;
++			}
++		}
++	} else {
++		$i = 1;
++		$capital = $object->capital;
++		while ($i < $object->nbterm + 1) {
++			$mens = price2num($echeances->calcMonthlyPayments($capital, $object->rate / 100, $object->nbterm - $i + 1), 'MT');
++			$int = ($capital * ($object->rate / 12)) / 100;
++			$int = price2num($int, 'MT');
++			$insu = ((float) $insurance + (($i == 1) ? (float) $regulInsurance : 0));
++			$cap_rest = price2num((float) $capital - ((float) $mens - (float) $int), 'MT');
++			$term_date_ts = dol_time_plus_duree($datestart_ts_std, $i, 'm');
++			print '<tr>';
++			print '<td class="center" id="n'.$i.'">'.$i.'</td>';
++			// Term i due date = loan start + i months (e.g. start 6/3 → Term 1 = 7/3, Term 2 = 8/3)
++			print '<td class="center" id ="date'.$i.'"><input type="hidden" name="hi_date'.$i.'" id ="hi_date'.$i.'" value="'.$term_date_ts.'">'.dol_print_date($term_date_ts, 'day').'</td>';
++			print '<td class="center amount" id="insurance'.$i.'">'.price($insu, 0, '', 1, -1, -1, $conf->currency).'</td><input type="hidden" name="hi_insurance'.$i.'" id ="hi_insurance'.$i.'" value="'.$insu.'">';
++			print '<td class="center amount" id="interets'.$i.'">'.price($int, 0, '', 1, -1, -1, $conf->currency).'</td><input type="hidden" name="hi_interets'.$i.'" id ="hi_interets'.$i.'" value="'.$int.'">';
++			print '<td class="center"><input class="width75 right" name="mens'.$i.'" id="mens'.$i.'" value="'.price($mens).'" ech="'.$i.'"></td>';
++			print '<td class="center amount" id="capital'.$i.'">'.price($cap_rest).'</td><input type="hidden" name="hi_capital'.$i.'" id ="hi_capital'.$i.'" value="'.$cap_rest.'">';
++			print '</tr>'."\n";
++			$i++;
++			$capital = $cap_rest;
++		}
+ 	}
+ } elseif (count($echeances->lines) > 0) {
+ 	$i = 1;
+diff --git a/htdocs/salaries/list.php b/htdocs/salaries/list.php
+index 0ef9a297c70..8b54e9e6a97 100644
+--- a/htdocs/salaries/list.php
++++ b/htdocs/salaries/list.php
+@@ -992,6 +992,11 @@ while ($i < $imaxinloop) {
+ 	$i++;
+ }
+ 
++// Ensure pos exists when there are rows; keep nbfield from data loop so Total row has same column count as data rows
++if ($num > 0 && (!isset($totalarray['pos']) || !is_array($totalarray['pos']))) {
++	$totalarray['pos'] = array();
++}
++
+ // Show total line
+ include DOL_DOCUMENT_ROOT.'/core/tpl/list_print_total.tpl.php';
+ 
+diff --git a/htdocs/salaries/payments.php b/htdocs/salaries/payments.php
+index 0bfe5aec46c..cfaa0ad36f8 100644
+--- a/htdocs/salaries/payments.php
++++ b/htdocs/salaries/payments.php
+@@ -796,6 +796,11 @@ while ($i < $imaxinloop) {
+ 	$i++;
+ }
+ 
++// Ensure pos exists when there are rows; keep nbfield from data loop so Total row has same column count as data rows
++if ($num > 0 && (!isset($totalarray['pos']) || !is_array($totalarray['pos']))) {
++	$totalarray['pos'] = array();
++}
++
+ // Show total line
+ include DOL_DOCUMENT_ROOT.'/core/tpl/list_print_total.tpl.php';
+ 
+diff --git a/htdocs/societe/card.php b/htdocs/societe/card.php
+index 25ae8bc434a..9248a22b151 100644
+--- a/htdocs/societe/card.php
++++ b/htdocs/societe/card.php
+@@ -374,6 +374,7 @@ if (empty($reshook)) {
+ 			$object->code_client			= GETPOSTISSET('customer_code') ? GETPOST('customer_code', 'alpha') : GETPOST('code_client', 'alpha');
+ 			$object->code_fournisseur		= GETPOSTISSET('supplier_code') ? GETPOST('supplier_code', 'alpha') : GETPOST('code_fournisseur', 'alpha');
+ 			$object->capital				= GETPOSTFLOAT('capital');
++			$object->capital_currency		= GETPOST('capital_currency', 'aZ09') ?: null;
+ 			$object->barcode				= GETPOST('barcode', 'alphanohtml');
+ 
+ 			$object->tva_intra				= GETPOST('tva_intra', 'alphanohtml');
+@@ -1087,6 +1088,7 @@ if (is_object($objcanvas) && $objcanvas->displayCanvasExists($canvasdisplayactio
+ 		$object->email				= GETPOST('email', 'email');
+ 		$object->url				= GETPOST('url', 'url');
+ 		$object->capital			= GETPOSTFLOAT('capital');
++		$object->capital_currency	= GETPOST('capital_currency', 'aZ09') ?: null;
+ 		$paymentTermId = GETPOSTINT('cond_reglement_id'); // can be set by default values on create page and not already in get or post variables
+ 		if (empty($paymentTermId) && !GETPOSTISSET('cond_reglement_id')) {
+ 			$paymentTermId = getDolGlobalString('MAIN_DEFAULT_PAYMENT_TERM_ID');
+@@ -1851,20 +1853,12 @@ if (is_object($objcanvas) && $objcanvas->displayCanvasExists($canvasdisplayactio
+ 			}
+ 			print '</td></tr>';
+ 
+-			// Capital
++			// Capital (amount + currency dropdown, independent of company accounting currency)
+ 			print '<tr><td>'.$form->editfieldkey('Capital', 'capital', '', $object, 0).'</td>';
+ 			print '<td colspan="3"><input type="text" name="capital" id="capital" class="maxwidth100" value="'.$object->capital.'"> ';
+-			if (isModEnabled("multicurrency")) {
+-				print '<span class="hideonsmartphone">';
+-				//print $langs->trans("Currency".$object->multicurrency_code);
+-				print $langs->getCurrencySymbol($object->multicurrency_code);
+-				print '</span></td></tr>';
+-			} else {
+-				print '<span class="hideonsmartphone">';
+-				print $langs->getCurrencySymbol($conf->currency);
+-				//print $langs->trans("Currency".$conf->currency);
+-				print '</span></td></tr>';
+-			}
++			$capitalCurrencySelected = (GETPOSTISSET('capital_currency') ? GETPOST('capital_currency', 'aZ09') : ($object->capital_currency ? $object->capital_currency : $conf->currency));
++			print $form->selectMultiCurrency($capitalCurrencySelected, 'capital_currency', 1, '', false, 'maxwidth150 widthcentpercentminusx', true);
++			print '</td></tr>';
+ 			if (getDolGlobalInt('MAIN_MULTILANGS')) {
+ 				print '<tr><td>'.$form->editfieldkey('DefaultLang', 'default_lang', '', $object, 0).'</td><td colspan="3" class="maxwidthonsmartphone">'."\n";
+ 				print img_picto('', 'language', 'class="pictofixedwidth"').$formadmin->select_language(GETPOST('default_lang', 'alpha') ? GETPOST('default_lang', 'alpha') : ($object->default_lang ? $object->default_lang : ''), 'default_lang', 0, array(), 1, 0, 0, 'maxwidth200onsmartphone');
+@@ -2086,6 +2080,7 @@ if (is_object($objcanvas) && $objcanvas->displayCanvasExists($canvasdisplayactio
+ 				$object->no_email				= GETPOSTINT("no_email");
+ 				$object->url					= GETPOST('url', 'url');
+ 				$object->capital				= GETPOSTFLOAT('capital');
++				$object->capital_currency		= GETPOST('capital_currency', 'aZ09') ?: null;
+ 				$object->idprof1				= GETPOST('idprof1', 'alphanohtml');
+ 				$object->idprof2				= GETPOST('idprof2', 'alphanohtml');
+ 				$object->idprof3				= GETPOST('idprof3', 'alphanohtml');
+@@ -2694,15 +2689,12 @@ if (is_object($objcanvas) && $objcanvas->displayCanvasExists($canvasdisplayactio
+ 				print $formcompany->select_juridicalstatus($object->forme_juridique_code, $object->country_code, '', 'forme_juridique_code');
+ 				print '</td></tr>';
+ 
+-				// Capital
++				// Capital (amount + currency dropdown)
+ 				print '<tr><td>'.$form->editfieldkey('Capital', 'capital', '', $object, 0).'</td>';
+-				print '<td colspan="3"><input type="text" name="capital" id="capital" size="10" value="';
+-				print $object->capital != '' && $object->capital != 0 ? dol_escape_htmltag(price($object->capital)) : '';
+-				if (isModEnabled("multicurrency")) {
+-					print '"> <span class="hideonsmartphone">'.$langs->trans("Currency".$object->multicurrency_code).'</span></td></tr>';
+-				} else {
+-					print '"> <span class="hideonsmartphone">'.$langs->trans("Currency".$conf->currency).'</span></td></tr>';
+-				}
++				print '<td colspan="3"><input type="text" name="capital" id="capital" size="10" value="'.dol_escape_htmltag($object->capital != '' && $object->capital != 0 ? $object->capital : '').'"> ';
++				$capitalCurrencySelected = (GETPOSTISSET('capital_currency') ? GETPOST('capital_currency', 'aZ09') : ($object->capital_currency ? $object->capital_currency : $conf->currency));
++				print $form->selectMultiCurrency($capitalCurrencySelected, 'capital_currency', 1, '', false, 'maxwidth150 widthcentpercentminusx', true);
++				print '</td></tr>';
+ 
+ 				// Default language
+ 				if (getDolGlobalInt('MAIN_MULTILANGS')) {
+@@ -3210,14 +3202,17 @@ if (is_object($objcanvas) && $objcanvas->displayCanvasExists($canvasdisplayactio
+ 			// Legal
+ 			print '<tr><td>'.$langs->trans('JuridicalStatus').'</td><td>'.dolPrintHTML($object->forme_juridique).'</td></tr>';
+ 
+-			// Capital
++			// Capital (currency from capital_currency column, else multicurrency or default)
+ 			print '<tr><td>'.$langs->trans('Capital').'</td><td>';
+ 			if ($object->capital) {
+-				if (isModEnabled("multicurrency") && !empty($object->multicurrency_code)) {
+-					print price($object->capital, 0, $langs, 0, -1, -1, $object->multicurrency_code);
+-				} else {
+-					print price($object->capital, 0, $langs, 0, -1, -1, $conf->currency);
++				$capitalCurrency = (!empty($object->capital_currency)) ? $object->capital_currency : null;
++				if (!$capitalCurrency && isModEnabled("multicurrency") && !empty($object->multicurrency_code)) {
++					$capitalCurrency = $object->multicurrency_code;
++				}
++				if (!$capitalCurrency) {
++					$capitalCurrency = $conf->currency;
+ 				}
++				print price($object->capital, 0, $langs, 0, 0, 0, $capitalCurrency);
+ 			} else {
+ 				print '&nbsp;';
+ 			}
+diff --git a/htdocs/societe/class/societe.class.php b/htdocs/societe/class/societe.class.php
+index 2e74f4314d1..7d3ead751b4 100644
+--- a/htdocs/societe/class/societe.class.php
++++ b/htdocs/societe/class/societe.class.php
+@@ -539,6 +539,11 @@ class Societe extends CommonObject
+ 	 */
+ 	public $capital;
+ 
++	/**
++	 * @var string Currency code for capital (e.g. CNY, USD), independent of company accounting currency
++	 */
++	public $capital_currency;
++
+ 	/**
+ 	 * @var int Type thirdparty
+ 	 */
+@@ -1682,6 +1687,7 @@ class Societe extends CommonObject
+ 			}
+ 
+ 			$sql .= ",capital = ".($this->capital === null ? "null" : $this->capital);
++			$sql .= ",capital_currency = ".(!empty($this->capital_currency) ? "'".$this->db->escape($this->capital_currency)."'" : "null");
+ 
+ 			$sql .= ",prefix_comm = ".(!empty($this->prefix_comm) ? "'".$this->db->escape($this->prefix_comm)."'" : "null");
+ 
+@@ -1926,7 +1932,7 @@ class Societe extends CommonObject
+ 		$sql .= ', s.socialnetworks';
+ 		$sql .= ', s.url, s.zip, s.town, s.note_private, s.note_public, s.client, s.fournisseur';
+ 		$sql .= ', s.siren as idprof1, s.siret as idprof2, s.ape as idprof3, s.idprof4, s.idprof5, s.idprof6';
+-		$sql .= ', s.capital, s.tva_intra';
++		$sql .= ', s.capital, s.capital_currency, s.tva_intra';
+ 		$sql .= ', s.fk_typent as typent_id';
+ 		$sql .= ', s.fk_effectif as effectif_id';
+ 		$sql .= ', s.fk_forme_juridique as forme_juridique_code';
+@@ -2092,6 +2098,7 @@ class Societe extends CommonObject
+ 				$this->idprof6		= $obj->idprof6;
+ 
+ 				$this->capital = $obj->capital;
++				$this->capital_currency = $obj->capital_currency;
+ 
+ 				$this->code_client = $obj->code_client;
+ 				$this->code_fournisseur = $obj->code_fournisseur;
+diff --git a/htdocs/supplier_proposal/list.php b/htdocs/supplier_proposal/list.php
+index 1c047253239..bb532e951ad 100644
+--- a/htdocs/supplier_proposal/list.php
++++ b/htdocs/supplier_proposal/list.php
+@@ -1046,7 +1046,7 @@ if ($resql) {
+ 	$projectstatic = new Project($db);
+ 
+ 	$savnbfield = $totalarray['nbfield'];
+-	$totalarray = array('nbfield' => 0, 'val' => array(), 'pos' => array());
++	$totalarray = array('nbfield' => 0, 'val' => array(), 'pos' => array(), 'val_by_currency' => array());
+ 	$totalarray['val']['sp.total_ht'] = 0;
+ 	$totalarray['val']['sp.total_tva'] = 0;
+ 	$totalarray['val']['sp.total_ttc'] = 0;
+@@ -1055,6 +1055,8 @@ if ($resql) {
+ 	while ($i < $imaxinloop) {
+ 		$obj = $db->fetch_object($resql);
+ 
++		$row_currency = !empty($obj->multicurrency_code) ? $obj->multicurrency_code : $conf->currency;
++
+ 		$objectstatic->id = $obj->rowid;
+ 		$objectstatic->ref = $obj->ref;
+ 		$objectstatic->note_public = $obj->note_public;
+@@ -1280,26 +1282,44 @@ if ($resql) {
+ 					$totalarray['nbfield']++;
+ 				}
+ 			}
+-			// Amount HT
++			// Amount HT (foreign currency)
+ 			if (!empty($arrayfields['sp.multicurrency_total_ht']['checked'])) {
+ 				print '<td class="right nowrap"><span class="amount">'.price($obj->multicurrency_total_ht)."</span></td>\n";
+ 				if (!$i) {
+ 					$totalarray['nbfield']++;
++					$totalarray['pos'][$totalarray['nbfield']] = 'sp.multicurrency_total_ht';
++				}
++				$amt_mht = !empty($obj->multicurrency_code) ? $obj->multicurrency_total_ht : 0;
++				if (!isset($totalarray['val_by_currency'][$row_currency])) {
++					$totalarray['val_by_currency'][$row_currency] = array();
+ 				}
++				$totalarray['val_by_currency'][$row_currency]['sp.multicurrency_total_ht'] = ($totalarray['val_by_currency'][$row_currency]['sp.multicurrency_total_ht'] ?? 0) + $amt_mht;
+ 			}
+-			// Amount VAT
++			// Amount VAT (foreign currency)
+ 			if (!empty($arrayfields['sp.multicurrency_total_vat']['checked'])) {
+ 				print '<td class="right nowrap"><span class="amount">'.price($obj->multicurrency_total_vat)."</span></td>\n";
+ 				if (!$i) {
+ 					$totalarray['nbfield']++;
++					$totalarray['pos'][$totalarray['nbfield']] = 'sp.multicurrency_total_vat';
++				}
++				$amt_mvat = !empty($obj->multicurrency_code) ? $obj->multicurrency_total_vat : 0;
++				if (!isset($totalarray['val_by_currency'][$row_currency])) {
++					$totalarray['val_by_currency'][$row_currency] = array();
+ 				}
++				$totalarray['val_by_currency'][$row_currency]['sp.multicurrency_total_vat'] = ($totalarray['val_by_currency'][$row_currency]['sp.multicurrency_total_vat'] ?? 0) + $amt_mvat;
+ 			}
+-			// Amount TTC
++			// Amount TTC (foreign currency)
+ 			if (!empty($arrayfields['sp.multicurrency_total_ttc']['checked'])) {
+ 				print '<td class="right nowrap"><span class="amount">'.price($obj->multicurrency_total_ttc)."</span></td>\n";
+ 				if (!$i) {
+ 					$totalarray['nbfield']++;
++					$totalarray['pos'][$totalarray['nbfield']] = 'sp.multicurrency_total_ttc';
++				}
++				$amt_mttc = !empty($obj->multicurrency_code) ? $obj->multicurrency_total_ttc : 0;
++				if (!isset($totalarray['val_by_currency'][$row_currency])) {
++					$totalarray['val_by_currency'][$row_currency] = array();
+ 				}
++				$totalarray['val_by_currency'][$row_currency]['sp.multicurrency_total_ttc'] = ($totalarray['val_by_currency'][$row_currency]['sp.multicurrency_total_ttc'] ?? 0) + $amt_mttc;
+ 			}
+ 
+ 			$userstatic->id = $obj->fk_user_author;
+@@ -1381,7 +1401,10 @@ if ($resql) {
+ 		$i++;
+ 	}
+ 
+-	// Show total line
++	// Show total line (first_column_empty when checkbox is left so Total row column count matches header/data)
++	if (getDolGlobalString('MAIN_CHECKBOX_LEFT_COLUMN')) {
++		$totalarray['first_column_empty'] = 1;
++	}
+ 	include DOL_DOCUMENT_ROOT.'/core/tpl/list_print_total.tpl.php';
+ 
+ 	// If no record found
+diff --git a/htdocs/theme/eldy/global.inc.php b/htdocs/theme/eldy/global.inc.php
+index a1bca8c8962..c9f062af99a 100644
+--- a/htdocs/theme/eldy/global.inc.php
++++ b/htdocs/theme/eldy/global.inc.php
+@@ -4992,6 +4992,10 @@ input.liste_titre {
+ .noborder tr.liste_total td, tr.liste_total td, form.liste_total div {
+ 	white-space: nowrap;
+ }
++/* Allow line break for multi-currency total (e.g. USD x + EUR y on separate lines) */
++tr.liste_total td.total-by-currency-cell {
++	white-space: normal;
++}
+ .noborder tr.liste_total_wrap td, tr.liste_total_wrap td, form.liste_total_wrap div {
+ 	white-space: normal;
+ }
+diff --git a/htdocs/theme/md/style.css.php b/htdocs/theme/md/style.css.php
+index 0b09f85c95f..ad4ecaf62e7 100644
+--- a/htdocs/theme/md/style.css.php
++++ b/htdocs/theme/md/style.css.php
+@@ -4943,14 +4943,13 @@ tr.pair:last-of-type td, tr.impair:last-of-type td {
+ tr.pair td .nobordernopadding tr td, tr.impair td .nobordernopadding tr td {
+ 	border-bottom: 0px !important;
+ }
+-/*
+ table.nobottomiftotal tr.liste_total td {
+ 	background-color: var(--inputbackgroundcolor);
++	min-height: 1.5em;
+ 	<?php if (!$userborderontable) { ?>
+ 	border-bottom: 0px !important;
+ 	<?php } ?>
+ }
+-*/
+ div.liste_titre .tagtd {
+ 	vertical-align: middle;
+ }

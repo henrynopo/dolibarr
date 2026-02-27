@@ -1,22 +1,1687 @@
 diff --git a/htdocs/comm/remx.php b/htdocs/comm/remx.php
-index 1da9f4f1566..f1a55828d60 100644
+index 1da9f4f1566..0558ffd5bbf 100644
 --- a/htdocs/comm/remx.php
 +++ b/htdocs/comm/remx.php
-@@ -68,7 +68,7 @@ $result = restrictedArea($user, 'societe', $id, '&societe', '', 'fk_soc', 'rowid
+@@ -68,7 +68,29 @@ $result = restrictedArea($user, 'societe', $id, '&societe', '', 'fk_soc', 'rowid
  
  $permissiontocreate = ($user->hasRight('societe', 'creer') || $user->hasRight('facture', 'creer'));
  
--
 +$hookmanager->initHooks(array('remx'));
+ 
++/**
++ * Return foreign currency code for display (same logic as Remx list columns).
++ * Uses discount multicurrency_code, then source invoice multicurrency_code, then local currency if amount set.
++ *
++ * @param string $multicurrency_code Discount multicurrency_code
++ * @param string $fac_multicurrency_code Source invoice multicurrency_code (facture or facture_fourn)
++ * @param float  $multicurrency_amount_ttc Foreign amount TTC
++ * @param string $conf_currency Local currency code
++ * @return string Currency code to use for price() when displaying foreign amount
++ */
++function remx_get_foreign_currency_code($multicurrency_code, $fac_multicurrency_code, $multicurrency_amount_ttc, $conf_currency)
++{
++	$cur = isset($multicurrency_code) ? trim((string) $multicurrency_code) : '';
++	if (empty($cur) && !empty($fac_multicurrency_code)) {
++		$cur = trim((string) $fac_multicurrency_code);
++	}
++	if (empty($cur) && (float) $multicurrency_amount_ttc != 0) {
++		$cur = $conf_currency;
++	}
++	return $cur;
++}
  
  /*
   * Actions
-@@ -162,6 +162,8 @@ if ($action == 'confirm_split' && GETPOST("confirm", "alpha") == 'yes' && $permi
- 		$newid2 = $newdiscount2->create($user);
- 		if ($res > 0 && $newid1 > 0 && $newid2 > 0) {
+@@ -80,92 +102,187 @@ if (GETPOST('cancel', 'alpha') && !empty($backtopage)) {
+ }
+ 
+ if ($action == 'confirm_split' && GETPOST("confirm", "alpha") == 'yes' && $permissiontocreate) {
+-	$amount_ttc_1 = GETPOST('amount_ttc_1', 'alpha');
+-	$amount_ttc_1 = price2num($amount_ttc_1);
+-	$amount_ttc_2 = GETPOST('amount_ttc_2', 'alpha');
+-	$amount_ttc_2 = price2num($amount_ttc_2);
++	$split_currency = GETPOST('split_currency', 'aZ09') ?: 'local';
++	$split_type = GETPOST('split_type', 'aZ09') ?: 'ttc';
++	$split_count = (int) GETPOST('split_count', 'int');
++	if ($split_count < 2 || $split_count > 4) {
++		$split_count = 2;
++	}
++	$amount_1 = price2num(GETPOST('split_amount_1', 'alpha'));
++	$amount_2 = price2num(GETPOST('split_amount_2', 'alpha'));
++	$amount_3 = price2num(GETPOST('split_amount_3', 'alpha'));
+ 
+ 	$error = 0;
+-	$remid = (GETPOSTINT("remid") ? GETPOSTINT("remid") : 0);
++	$remid = GETPOSTINT("remid") ?: 0;
+ 	$discount = new DiscountAbsolute($db);
+ 	$res = $discount->fetch($remid);
+ 	if (!($res > 0)) {
+ 		$error++;
+ 		setEventMessages($langs->trans("ErrorFailedToLoadDiscount"), null, 'errors');
+ 	}
+-	if (!$error && price2num((float) $amount_ttc_1 + (float) $amount_ttc_2) != $discount->amount_ttc) {
+-		$error++;
+-		setEventMessages($langs->trans("TotalOfTwoDiscountMustEqualsOriginal"), null, 'errors');
+-	}
+ 	if (!$error && $discount->fk_facture_line) {
+ 		$error++;
+ 		setEventMessages($langs->trans("ErrorCantSplitAUsedDiscount"), null, 'errors');
+ 	}
++
+ 	if (!$error) {
+-		$newdiscount1 = new DiscountAbsolute($db);
+-		$newdiscount2 = new DiscountAbsolute($db);
+-		$newdiscount1->fk_facture_source = $discount->fk_facture_source;
+-		$newdiscount2->fk_facture_source = $discount->fk_facture_source;
+-		$newdiscount1->fk_facture = $discount->fk_facture;
+-		$newdiscount2->fk_facture = $discount->fk_facture;
+-		$newdiscount1->fk_facture_line = $discount->fk_facture_line;
+-		$newdiscount2->fk_facture_line = $discount->fk_facture_line;
+-		$newdiscount1->fk_invoice_supplier_source = $discount->fk_invoice_supplier_source;
+-		$newdiscount2->fk_invoice_supplier_source = $discount->fk_invoice_supplier_source;
+-		$newdiscount1->fk_invoice_supplier = $discount->fk_invoice_supplier;
+-		$newdiscount2->fk_invoice_supplier = $discount->fk_invoice_supplier;
+-		$newdiscount1->fk_invoice_supplier_line = $discount->fk_invoice_supplier_line;
+-		$newdiscount2->fk_invoice_supplier_line = $discount->fk_invoice_supplier_line;
+-		if ($discount->description == '(CREDIT_NOTE)' || $discount->description == '(DEPOSIT)') {
+-			$newdiscount1->description = $discount->description;
+-			$newdiscount2->description = $discount->description;
++		$total_local_ttc = (float) $discount->amount_ttc;
++		$total_local_ht = (float) $discount->amount_ht;
++		$total_mc_ttc = (float) $discount->multicurrency_amount_ttc;
++		$total_mc_ht = (float) $discount->multicurrency_amount_ht;
++		$tva_tx = (float) $discount->tva_tx;
++
++		if ($split_currency === 'foreign') {
++			$total = $split_type === 'ht' ? $total_mc_ht : $total_mc_ttc;
++			if ($total <= 0) {
++				$error++;
++				setEventMessages($langs->trans("ErrorSplitByForeignButNoMulticurrency"), null, 'errors');
++			}
+ 		} else {
+-			$newdiscount1->description = $discount->description.' (1)';
+-			$newdiscount2->description = $discount->description.' (2)';
++			$total = $split_type === 'ht' ? $total_local_ht : $total_local_ttc;
+ 		}
+ 
+-		$newdiscount1->fk_user = $discount->fk_user;
+-		$newdiscount2->fk_user = $discount->fk_user;
+-		$newdiscount1->fk_soc = $discount->fk_soc;
+-		$newdiscount1->socid = $discount->socid;
+-		$newdiscount2->fk_soc = $discount->fk_soc;
+-		$newdiscount2->socid = $discount->socid;
+-		$newdiscount1->discount_type = $discount->discount_type;
+-		$newdiscount2->discount_type = $discount->discount_type;
+-		$newdiscount1->datec = $discount->datec;
+-		$newdiscount2->datec = $discount->datec;
+-		$newdiscount1->tva_tx = $discount->tva_tx;
+-		$newdiscount2->tva_tx = $discount->tva_tx;
+-		$newdiscount1->vat_src_code = $discount->vat_src_code;
+-		$newdiscount2->vat_src_code = $discount->vat_src_code;
+-		$newdiscount1->amount_ttc = $amount_ttc_1;
+-		$newdiscount2->amount_ttc = price2num($discount->amount_ttc - $newdiscount1->amount_ttc);
+-		$newdiscount1->amount_ht = price2num($newdiscount1->amount_ttc / (1 + $newdiscount1->tva_tx / 100), 'MT');
+-		$newdiscount2->amount_ht = price2num($newdiscount2->amount_ttc / (1 + $newdiscount2->tva_tx / 100), 'MT');
+-		$newdiscount1->amount_tva = price2num($newdiscount1->amount_ttc - $newdiscount1->amount_ht);
+-		$newdiscount2->amount_tva = price2num($newdiscount2->amount_ttc - $newdiscount2->amount_ht);
+-
+-		$newdiscount1->multicurrency_amount_ttc = (float) $amount_ttc_1 * ($discount->multicurrency_amount_ttc / $discount->amount_ttc);
+-		$newdiscount2->multicurrency_amount_ttc = price2num($discount->multicurrency_amount_ttc - $newdiscount1->multicurrency_amount_ttc);
+-		$newdiscount1->multicurrency_amount_ht = price2num($newdiscount1->multicurrency_amount_ttc / (1 + $newdiscount1->tva_tx / 100), 'MT');
+-		$newdiscount2->multicurrency_amount_ht = price2num($newdiscount2->multicurrency_amount_ttc / (1 + $newdiscount2->tva_tx / 100), 'MT');
+-		$newdiscount1->multicurrency_amount_tva = price2num($newdiscount1->multicurrency_amount_ttc - $newdiscount1->multicurrency_amount_ht);
+-		$newdiscount2->multicurrency_amount_tva = price2num($newdiscount2->multicurrency_amount_ttc - $newdiscount2->multicurrency_amount_ht);
++		// Build amounts array: first 1..(n-1) from form, last = total - sum
++		$amounts = array();
++		if ($split_count == 2) {
++			$amounts[] = $amount_1;
++			$amounts[] = price2num($total - $amount_1);
++		} elseif ($split_count == 3) {
++			$amounts[] = $amount_1;
++			$amounts[] = $amount_2;
++			$amounts[] = price2num($total - $amount_1 - $amount_2);
++		} else {
++			$amounts[] = $amount_1;
++			$amounts[] = $amount_2;
++			$amounts[] = $amount_3;
++			$amounts[] = price2num($total - $amount_1 - $amount_2 - $amount_3);
++		}
++		$sum = array_sum($amounts);
++		if (!$error && abs($sum - $total) > 0.01) {
++			$error++;
++			setEventMessages($langs->trans("TotalOfSplitDiscountMustEqualsOriginal"), null, 'errors');
++		}
++	}
+ 
+-		$db->begin();
++	if (!$error) {
++		$newdiscounts = array();
++		$ratio_mc = ($total_local_ttc != 0 && (float) $discount->multicurrency_amount_ttc != 0)
++			? ((float) $discount->multicurrency_amount_ttc / $total_local_ttc) : 0;
++		$ratio_local = ($total_mc_ttc != 0 && $total_local_ttc != 0)
++			? ($total_local_ttc / $total_mc_ttc) : 0;
++
++		for ($i = 0; $i < $split_count; $i++) {
++			$part = $amounts[$i];
++			$newdisc = new DiscountAbsolute($db);
++			$newdisc->fk_facture_source = $discount->fk_facture_source;
++			$newdisc->fk_facture = $discount->fk_facture;
++			$newdisc->fk_facture_line = $discount->fk_facture_line;
++			$newdisc->fk_invoice_supplier_source = $discount->fk_invoice_supplier_source;
++			$newdisc->fk_invoice_supplier = $discount->fk_invoice_supplier;
++			$newdisc->fk_invoice_supplier_line = $discount->fk_invoice_supplier_line;
++			if ($discount->description == '(CREDIT_NOTE)' || $discount->description == '(DEPOSIT)') {
++				$newdisc->description = $discount->description;
++			} else {
++				$newdisc->description = $discount->description.' ('.($i + 1).')';
++			}
++			$newdisc->fk_user = $discount->fk_user;
++			$newdisc->fk_soc = $discount->fk_soc;
++			$newdisc->socid = $discount->socid;
++			$newdisc->discount_type = $discount->discount_type;
++			$newdisc->datec = $discount->datec;
++			$newdisc->tva_tx = $discount->tva_tx;
++			$newdisc->vat_src_code = $discount->vat_src_code;
++			if (!empty($discount->multicurrency_code)) {
++				$newdisc->multicurrency_code = $discount->multicurrency_code;
++			}
++			if (isset($discount->multicurrency_tx)) {
++				$newdisc->multicurrency_tx = $discount->multicurrency_tx;
++			}
+ 
+-		$discount->fk_facture_source = 0; // This is to delete only the require record (that we will recreate with two records) and not all family with same fk_facture_source
+-		// This is to delete only the require record (that we will recreate with two records) and not all family with same fk_invoice_supplier_source
++			if ($split_currency === 'foreign') {
++				if ($split_type === 'ht') {
++					$newdisc->multicurrency_amount_ht = $part;
++					$newdisc->multicurrency_amount_ttc = price2num($part * (1 + $tva_tx / 100), 'MT');
++					$newdisc->multicurrency_amount_tva = price2num($newdisc->multicurrency_amount_ttc - $newdisc->multicurrency_amount_ht);
++					$newdisc->amount_ttc = $ratio_local > 0 ? price2num($newdisc->multicurrency_amount_ttc * $ratio_local, 'MT') : price2num($part * (1 + $tva_tx / 100) * ($total_local_ttc / max(0.0001, $total)), 'MT');
++				} else {
++					$newdisc->multicurrency_amount_ttc = $part;
++					$newdisc->multicurrency_amount_ht = price2num($part / (1 + $tva_tx / 100), 'MT');
++					$newdisc->multicurrency_amount_tva = price2num($part - $newdisc->multicurrency_amount_ht);
++					$newdisc->amount_ttc = $ratio_local > 0 ? price2num($part * $ratio_local, 'MT') : price2num($part * ($total_local_ttc / max(0.0001, $total_mc_ttc)), 'MT');
++				}
++				$newdisc->amount_ht = price2num($newdisc->amount_ttc / (1 + $tva_tx / 100), 'MT');
++				$newdisc->amount_tva = price2num($newdisc->amount_ttc - $newdisc->amount_ht);
++			} else {
++				if ($split_type === 'ht') {
++					$newdisc->amount_ht = $part;
++					$newdisc->amount_ttc = price2num($part * (1 + $tva_tx / 100), 'MT');
++					$newdisc->amount_tva = price2num($newdisc->amount_ttc - $newdisc->amount_ht);
++					$newdisc->multicurrency_amount_ttc = $ratio_mc > 0 ? price2num($newdisc->amount_ttc * $ratio_mc, 'MT') : 0;
++					$newdisc->multicurrency_amount_ht = price2num($newdisc->multicurrency_amount_ttc / (1 + $tva_tx / 100), 'MT');
++					$newdisc->multicurrency_amount_tva = price2num($newdisc->multicurrency_amount_ttc - $newdisc->multicurrency_amount_ht);
++				} else {
++					$newdisc->amount_ttc = $part;
++					$newdisc->amount_ht = price2num($part / (1 + $tva_tx / 100), 'MT');
++					$newdisc->amount_tva = price2num($part - $newdisc->amount_ht);
++					$newdisc->multicurrency_amount_ttc = $ratio_mc > 0 ? price2num($part * $ratio_mc, 'MT') : 0;
++					$newdisc->multicurrency_amount_ht = price2num($newdisc->multicurrency_amount_ttc / (1 + $tva_tx / 100), 'MT');
++					$newdisc->multicurrency_amount_tva = price2num($newdisc->multicurrency_amount_ttc - $newdisc->multicurrency_amount_ht);
++				}
++			}
++			$newdiscounts[] = $newdisc;
++		}
++
++		// Last discount: set amounts to remainder so totals match exactly (avoids rounding drift)
++		if (count($newdiscounts) > 1) {
++			$last = end($newdiscounts);
++			$sum_local_ttc = $sum_local_ht = $sum_local_tva = 0;
++			$sum_mc_ttc = $sum_mc_ht = $sum_mc_tva = 0;
++			$n = count($newdiscounts);
++			for ($i = 0; $i < $n - 1; $i++) {
++				$sum_local_ttc += (float) $newdiscounts[$i]->amount_ttc;
++				$sum_local_ht += (float) $newdiscounts[$i]->amount_ht;
++				$sum_local_tva += (float) $newdiscounts[$i]->amount_tva;
++				$sum_mc_ttc += (float) $newdiscounts[$i]->multicurrency_amount_ttc;
++				$sum_mc_ht += (float) $newdiscounts[$i]->multicurrency_amount_ht;
++				$sum_mc_tva += (float) $newdiscounts[$i]->multicurrency_amount_tva;
++			}
++			$last->amount_ttc = price2num($total_local_ttc - $sum_local_ttc, 'MT');
++			$last->amount_ht = price2num($total_local_ht - $sum_local_ht, 'MT');
++			$last->amount_tva = price2num(($total_local_ttc - $total_local_ht) - ($sum_local_ttc - $sum_local_ht), 'MT');
++			$last->multicurrency_amount_ttc = price2num($total_mc_ttc - $sum_mc_ttc, 'MT');
++			$last->multicurrency_amount_ht = price2num($total_mc_ht - $sum_mc_ht, 'MT');
++			$last->multicurrency_amount_tva = price2num(($total_mc_ttc - $total_mc_ht) - ($sum_mc_ttc - $sum_mc_ht), 'MT');
++		}
++
++		$db->begin();
++		$discount->fk_facture_source = 0;
+ 		$discount->fk_invoice_supplier_source = 0;
+ 		$res = $discount->delete($user);
+-		$newid1 = $newdiscount1->create($user);
+-		$newid2 = $newdiscount2->create($user);
+-		if ($res > 0 && $newid1 > 0 && $newid2 > 0) {
++		$allok = ($res > 0);
++		$newids = array();
++		foreach ($newdiscounts as $newdisc) {
++			$newid = $newdisc->create($user);
++			if ($newid > 0) {
++				$newids[] = $newid;
++			} else {
++				$allok = false;
++				break;
++			}
++		}
++		if ($allok && count($newids) == $split_count) {
  			$db->commit();
-+			$parameters = array('remid' => $remid, 'newid1' => $newid1, 'newid2' => $newid2, 'socid' => $id);
+-			header("Location: ".$_SERVER["PHP_SELF"].'?id='.$id.($backtopage ? '&backtopage='.urlencode($backtopage) : '')); // To avoid pb with back
++			$parameters = array('remid' => $remid, 'newids' => $newids, 'socid' => $id);
 +			$hookmanager->executeHooks('afterSplitDiscount', $parameters, $discount, $action);
- 			header("Location: ".$_SERVER["PHP_SELF"].'?id='.$id.($backtopage ? '&backtopage='.urlencode($backtopage) : '')); // To avoid pb with back
++			header("Location: ".$_SERVER["PHP_SELF"].'?id='.$id.($backtopage ? '&backtopage='.urlencode($backtopage) : ''));
  			exit;
  		} else {
+ 			$db->rollback();
++			if (empty($discount->error)) {
++				setEventMessages($langs->trans("ErrorFailedToCreateSplitDiscounts"), null, 'errors');
++			} else {
++				setEventMessages($discount->error, $discount->errors, 'errors');
++			}
+ 		}
+ 	}
+ }
+@@ -223,6 +340,112 @@ if (GETPOST('action', 'aZ09') == 'confirm_remove' && GETPOST("confirm") == 'yes'
+ 	}
+ }
+ 
++// Remove/merge choice: delete_one, merge_into, merge_all, delete_all
++if (GETPOST('action', 'aZ09') == 'confirm_remove_choice' && GETPOST("confirm") == 'yes' && $permissiontocreate) {
++	$remid = GETPOSTINT("remid");
++	$remove_choice = GETPOST('remove_choice', 'aZ09');
++	$target_remid = GETPOSTINT('target_remid');
++
++	$discount = new DiscountAbsolute($db);
++	$res = $discount->fetch($remid);
++	if ($res <= 0) {
++		setEventMessages($langs->trans("ErrorFailedToLoadDiscount"), null, 'errors');
++	} else {
++		$db->begin();
++		$ok = false;
++		if ($remove_choice === 'delete_one') {
++			$result = $discount->deleteOne($user);
++			$ok = ($result > 0);
++			if (!$ok) {
++				setEventMessages($discount->error, $discount->errors, 'errors');
++			}
++		} elseif ($remove_choice === 'merge_into' && $target_remid > 0 && $target_remid != $remid) {
++			$target = new DiscountAbsolute($db);
++			if ($target->fetch($target_remid) > 0) {
++				$addOk = $target->addAmountsFrom($discount);
++				if ($addOk > 0) {
++					$result = $discount->deleteOne($user);
++					$ok = ($result > 0);
++				}
++				if (!$ok) {
++					setEventMessages($discount->error ?: $target->error, $discount->errors ?: $target->errors, 'errors');
++				}
++			} else {
++				setEventMessages($langs->trans("ErrorFailedToLoadDiscount"), null, 'errors');
++			}
++		} elseif ($remove_choice === 'merge_all') {
++			$sourceFk = $discount->fk_facture_source ?: 0;
++			$sourceSup = $discount->fk_invoice_supplier_source ?: 0;
++			$sql = "SELECT rowid FROM ".$db->prefix()."societe_remise_except";
++			$sql .= " WHERE entity IN (".getEntity('invoice').")";
++			$sql .= " AND fk_soc = ".((int) $discount->fk_soc)." AND discount_type = ".(int) $discount->discount_type;
++			$sql .= " AND (fk_facture_line IS NULL AND fk_facture IS NULL) AND (fk_invoice_supplier_line IS NULL AND fk_invoice_supplier IS NULL)";
++			if ($sourceFk) {
++				$sql .= " AND fk_facture_source = ".((int) $sourceFk);
++			} else {
++				$sql .= " AND fk_invoice_supplier_source = ".((int) $sourceSup);
++			}
++			$resql = $db->query($sql);
++			$rows = array();
++			if ($resql) {
++				while ($obj = $db->fetch_object($resql)) {
++					$rows[] = (int) $obj->rowid;
++				}
++			}
++			if (count($rows) < 2) {
++				setEventMessages($langs->trans("ErrorNoSameSourceDiscountsToMerge"), null, 'errors');
++			} else {
++				$first = new DiscountAbsolute($db);
++				$first->fetch($rows[0]);
++				$sum_ht = (float) $first->amount_ht;
++				$sum_tva = (float) $first->amount_tva;
++				$sum_ttc = (float) $first->amount_ttc;
++				$sum_mc_ht = (float) $first->multicurrency_amount_ht;
++				$sum_mc_tva = (float) $first->multicurrency_amount_tva;
++				$sum_mc_ttc = (float) $first->multicurrency_amount_ttc;
++				for ($i = 1; $i < count($rows); $i++) {
++					$oth = new DiscountAbsolute($db);
++					$oth->fetch($rows[$i]);
++					$sum_ht += (float) $oth->amount_ht;
++					$sum_tva += (float) $oth->amount_tva;
++					$sum_ttc += (float) $oth->amount_ttc;
++					$sum_mc_ht += (float) $oth->multicurrency_amount_ht;
++					$sum_mc_tva += (float) $oth->multicurrency_amount_tva;
++					$sum_mc_ttc += (float) $oth->multicurrency_amount_ttc;
++				}
++				$sql = "UPDATE ".$db->prefix()."societe_remise_except";
++				$sql .= " SET amount_ht = ".price2num($sum_ht).", amount_tva = ".price2num($sum_tva).", amount_ttc = ".price2num($sum_ttc);
++				$sql .= ", multicurrency_amount_ht = ".price2num($sum_mc_ht).", multicurrency_amount_tva = ".price2num($sum_mc_tva).", multicurrency_amount_ttc = ".price2num($sum_mc_ttc);
++				$sql .= " WHERE rowid = ".((int) $rows[0]);
++				if ($db->query($sql)) {
++					for ($i = 1; $i < count($rows); $i++) {
++						$del = new DiscountAbsolute($db);
++						$del->fetch($rows[$i]);
++						$del->deleteOne($user);
++					}
++					$ok = true;
++				} else {
++					setEventMessages($db->lasterror(), null, 'errors');
++				}
++			}
++		} elseif ($remove_choice === 'delete_all') {
++			$result = $discount->delete($user);
++			$ok = ($result > 0);
++			if (!$ok) {
++				setEventMessages($discount->error, $discount->errors, 'errors');
++			}
++		} else {
++			setEventMessages($langs->trans("ErrorInvalidRemoveChoice"), null, 'errors');
++		}
++		if ($ok) {
++			$db->commit();
++			header("Location: ".$_SERVER["PHP_SELF"].'?id='.$id);
++			exit;
++		}
++		$db->rollback();
++	}
++}
++
+ 
+ /*
+  * View
+@@ -419,9 +642,114 @@ if ($socid > 0) {
+ 	print '<br>';
+ 
+ 	if ($action == 'remove') {
+-		print $form->formconfirm($_SERVER["PHP_SELF"].'?id='.$object->id.'&remid='.GETPOST('remid'), $langs->trans('RemoveDiscount'), $langs->trans('ConfirmRemoveDiscount'), 'confirm_remove', '', 0, 1);
++		$remid_remove = GETPOSTINT('remid');
++		$discount_remove = new DiscountAbsolute($db);
++		$same_source_list = array();
++		$has_same_source = false;
++		if ($remid_remove > 0 && $discount_remove->fetch($remid_remove) > 0) {
++			$sql = "SELECT sr.rowid, sr.amount_ht, sr.amount_ttc, sr.multicurrency_amount_ht, sr.multicurrency_amount_ttc, sr.multicurrency_code";
++			$sql .= ", COALESCE(fa.multicurrency_code, fsup.multicurrency_code) as fac_multicurrency_code";
++			$sql .= " FROM ".$db->prefix()."societe_remise_except as sr";
++			$sql .= " LEFT JOIN ".$db->prefix()."facture as fa ON sr.fk_facture_source = fa.rowid";
++			$sql .= " LEFT JOIN ".$db->prefix()."facture_fourn as fsup ON sr.fk_invoice_supplier_source = fsup.rowid";
++			$sql .= " WHERE sr.entity IN (".getEntity('invoice').")";
++			$sql .= " AND sr.fk_soc = ".((int) $discount_remove->fk_soc)." AND sr.discount_type = ".(int) $discount_remove->discount_type;
++			$sql .= " AND (sr.fk_facture_line IS NULL AND sr.fk_facture IS NULL) AND (sr.fk_invoice_supplier_line IS NULL AND sr.fk_invoice_supplier IS NULL)";
++			if (!empty($discount_remove->fk_facture_source)) {
++				$sql .= " AND sr.fk_facture_source = ".((int) $discount_remove->fk_facture_source);
++			} elseif (!empty($discount_remove->fk_invoice_supplier_source)) {
++				$sql .= " AND sr.fk_invoice_supplier_source = ".((int) $discount_remove->fk_invoice_supplier_source);
++			} else {
++				$sql .= " AND sr.fk_facture_source IS NULL AND sr.fk_invoice_supplier_source IS NULL";
++			}
++			$resql_src = $db->query($sql);
++			if ($resql_src) {
++				while ($o = $db->fetch_object($resql_src)) {
++					$same_source_list[] = $o;
++				}
++				$has_same_source = (count($same_source_list) > 1);
++			}
++		}
++		if ($has_same_source) {
++			$same_source_count = count($same_source_list);
++			$target_options = array();
++			foreach ($same_source_list as $o) {
++				if ((int) $o->rowid == $remid_remove) {
++					continue;
++				}
++				// Same logic as Remx list: remx_get_foreign_currency_code + 外币(带符号) - 本币(带符号)
++				$remx_cur = remx_get_foreign_currency_code(
++					isset($o->multicurrency_code) ? $o->multicurrency_code : '',
++					isset($o->fac_multicurrency_code) ? $o->fac_multicurrency_code : '',
++					(float) (isset($o->multicurrency_amount_ttc) ? $o->multicurrency_amount_ttc : 0),
++					$conf->currency
++				);
++				if ($remx_cur !== '' && (float) (isset($o->multicurrency_amount_ttc) ? $o->multicurrency_amount_ttc : 0) != 0) {
++					$label = $langs->trans('AmountTTC').' '.price($o->multicurrency_amount_ttc, 0, $langs, 0, -1, -1, $remx_cur).' / '.price($o->amount_ttc, 0, $langs, 0, -1, -1, $conf->currency);
++				} else {
++					$label = $langs->trans('AmountTTC').' '.price($o->amount_ttc, 0, $langs, 0, -1, -1, $conf->currency);
++				}
++				$label .= ' (ID'.$o->rowid.')';
++				$target_options[$o->rowid] = $label;
++			}
++			// 合并到某笔：同源多于2笔(>=3)；全部合并/删除全部：同源多于1笔(>=2)
++			$radio_values = array();
++			if ($same_source_count >= 3) {
++				$radio_values['merge_into'] = $langs->trans('MergeIntoSameSourceDiscount');
++			}
++			if ($same_source_count >= 2) {
++				$radio_values['merge_all'] = $langs->trans('MergeAllSameSourceIntoOne');
++				$radio_values['delete_all'] = $langs->trans('DeleteAllSameSourceDiscounts');
++			}
++			$default_choice = ($same_source_count >= 3) ? 'merge_into' : 'merge_all';
++			$formquestion = array(
++				'text' => '<p class="paddingtopbottom">'.$langs->trans('RemoveDiscountChooseOption').'</p><p class="opacitymedium">'.$langs->trans('RemoveDiscountSameSourceMustMergeOrDeleteAll').'</p>',
++				0 => array('type' => 'radio', 'name' => 'remove_choice', 'label' => $langs->trans('RemoveOrMergeDiscount'), 'values' => $radio_values, 'default' => $default_choice),
++			);
++			if ($same_source_count >= 3 && count($target_options) > 0) {
++				$formquestion[1] = array('type' => 'select', 'name' => 'target_remid', 'label' => $langs->trans('MergeIntoWhichDiscount'), 'values' => $target_options, 'default' => key($target_options));
++			}
++			print $form->formconfirm(
++				$_SERVER["PHP_SELF"].'?id='.$object->id.'&remid='.$remid_remove.($backtopage ? '&backtopage='.urlencode($backtopage) : ''),
++				$langs->trans('RemoveDiscount'),
++				'',
++				'confirm_remove_choice',
++				$formquestion,
++				'',
++				'remove', // useajax: string => id=dialog-confirm-remove (unique), autoOpen=false
++				380,     // height (was wrongly 1 before, so dialog content was invisible)
++				520      // width
++			);
++			// Open our dialog on load (formconfirm with useajax=string does not auto-open)
++			print '<script nonce="'.getNonce().'" type="text/javascript">jQuery(function($){ setTimeout(function(){ var $d = $("#dialog-confirm-remove"); if ($d.length && typeof $d.dialog === "function") $d.dialog("open"); }, 100); });</script>';
++		} else {
++			print $form->formconfirm($_SERVER["PHP_SELF"].'?id='.$object->id.'&remid='.$remid_remove.($backtopage ? '&backtopage='.urlencode($backtopage) : ''), $langs->trans('RemoveDiscount'), $langs->trans('ConfirmRemoveDiscount'), 'confirm_remove', '', 0, 1);
++		}
+ 	}
+ 
++	// List column options for "available" and "consumed" discount tables
++	$contextpage = $_SERVER["PHP_SELF"].'?id='.$object->id;
++	$arrayfields = array(
++		'date' => array('label' => 'Date', 'checked' => 1, 'position' => 10),
++		'reason' => array('label' => 'ReasonDiscount', 'checked' => 1, 'position' => 20),
++		'consumed_by' => array('label' => 'ConsumedBy', 'checked' => 1, 'position' => 30),
++		'amount_ht' => array('label' => 'AmountHT', 'checked' => 1, 'position' => 50),
++		'vat_rate' => array('label' => 'VATRate', 'checked' => 1, 'position' => 51),
++		'amount_ttc' => array('label' => 'AmountTTC', 'checked' => 1, 'position' => 52),
++		'author' => array('label' => 'DiscountOfferedBy', 'checked' => 1, 'position' => 70),
++		'actions' => array('label' => 'Actions', 'checked' => 1, 'position' => 80),
++	);
++	// 多币种：顺序为 Currency → 外币列 → 本币列
++	if (isModEnabled('multicurrency') || isModEnabled('multicompany')) {
++		$arrayfields['multicurrency_code'] = array('label' => 'Currency', 'checked' => 1, 'position' => 40);
++		$arrayfields['multicurrency_amount_ht'] = array('label' => 'MulticurrencyAmountHT', 'checked' => 1, 'position' => 41);
++		$arrayfields['multicurrency_amount_tva'] = array('label' => 'MulticurrencyAmountVAT', 'checked' => 1, 'position' => 42);
++		$arrayfields['multicurrency_amount_ttc'] = array('label' => 'MulticurrencyAmountTTC', 'checked' => 1, 'position' => 43);
++		$arrayfields = dol_sort_array($arrayfields, 'position');
++	}
++	include DOL_DOCUMENT_ROOT.'/core/actions_changeselectedfields.inc.php';
++	$varpage = $contextpage;
++	$selectedfields = $form->multiSelectArrayWithCheckbox('selectedfields', $arrayfields, $varpage);
+ 
+ 	/*
+ 	 * List not consumed available credits (= linked to no invoice and no invoice line)
+@@ -435,22 +763,27 @@ if ($socid > 0) {
+ 		$newcardbutton = '';
+ 	}
+ 
+-	print load_fiche_titre($langs->trans("DiscountStillRemaining"), $newcardbutton);
++	print '<form method="POST" action="'.$_SERVER["PHP_SELF"].'?id='.$object->id.($backtopage ? '&backtopage='.urlencode($backtopage) : '').'">';
++	print '<style>.remx-reason-cell{white-space:normal;word-break:break-word;max-width:22em;}</style>';
++	print '<input type="hidden" name="token" value="'.newToken().'">';
++	print '<input type="hidden" name="formfilteraction" id="formfilteraction" value="">';
++	// 列选择需点击「应用」后提交表单才会保存；仅勾选/取消勾选不会自动保存
++	$applycolbutton = ' <button type="submit" class="button small" id="remx_apply_columns" onclick="var f=document.getElementById(\'formfilteraction\'); if(f) f.value=\'listafterchangingselectedfields\'; return true;">'.$langs->trans("Apply").'</button>';
++	print load_fiche_titre($langs->trans("DiscountStillRemaining"), $newcardbutton.' '.$selectedfields.$applycolbutton);
+ 
+ 	if ($isCustomer) {
+ 		$newcardbutton = dolGetButtonTitle($langs->trans("NewClientGlobalDiscount"), '', 'fa fa-plus-circle', $_SERVER['PHP_SELF'].'?action=create_remise&id='.$id.'&discount_type=0&backtopage='.urlencode($_SERVER["PHP_SELF"].'?id='.$id).'&token='.newToken());
+ 		if ($isSupplier) {
+ 			print '<div class="fichecenter">';
+-			print '<div class="fichehalfleft fichehalfleft-lg">';
+-			print load_fiche_titre($langs->trans("CustomerDiscounts"), $newcardbutton, '');
+ 		}
++		print load_fiche_titre($langs->trans("CustomerDiscounts"), $newcardbutton, '');
+ 
+ 		$sql = "SELECT rc.rowid, rc.amount_ht, rc.amount_tva, rc.amount_ttc, rc.tva_tx, rc.vat_src_code,";
+-		$sql .= " rc.multicurrency_amount_ht, rc.multicurrency_amount_tva, rc.multicurrency_amount_ttc,";
++		$sql .= " rc.multicurrency_code, rc.multicurrency_amount_ht, rc.multicurrency_amount_tva, rc.multicurrency_amount_ttc,";
+ 		$sql .= " rc.datec as dc, rc.description,";
+ 		$sql .= " rc.fk_facture_source,";
+ 		$sql .= " u.login, u.rowid as user_id, u.statut as status, u.firstname, u.lastname, u.photo,";
+-		$sql .= " fa.ref as ref, fa.type as type";
++		$sql .= " fa.ref as ref, fa.type as type, fa.multicurrency_code as fac_multicurrency_code";
+ 		$sql .= " FROM  ".MAIN_DB_PREFIX."user as u, ".MAIN_DB_PREFIX."societe_remise_except as rc";
+ 		$sql .= " LEFT JOIN ".MAIN_DB_PREFIX."facture as fa ON rc.fk_facture_source = fa.rowid";
+ 		$sql .= " WHERE rc.fk_soc = ".((int) $object->id);
+@@ -465,20 +798,42 @@ if ($socid > 0) {
+ 			print '<div class="div-table-responsive-no-min">';
+ 			print '<table class="noborder centpercent">';
+ 			print '<tr class="liste_titre">';
+-			print '<td class="widthdate">'.$langs->trans("Date").'</td>'; // Need 120+ for format with AM/PM
+-			print '<td>'.$langs->trans("ReasonDiscount").'</td>';
+-			print '<td class="nowrap">'.$langs->trans("ConsumedBy").'</td>';
+-			print '<td class="right">'.$langs->trans("AmountHT").'</td>';
+-			if (isModEnabled('multicompany')) {
++			if (!empty($arrayfields['date']['checked'])) {
++				print '<td class="widthdate">'.$langs->trans("Date").'</td>';
++			}
++			if (!empty($arrayfields['reason']['checked'])) {
++				print '<td>'.$langs->trans("ReasonDiscount").'</td>';
++			}
++			if (!empty($arrayfields['consumed_by']['checked'])) {
++				print '<td class="nowrap">'.$langs->trans("ConsumedBy").'</td>';
++			}
++			if (!empty($arrayfields['multicurrency_code']['checked'])) {
++				print '<td class="center">'.$langs->trans("Currency").'</td>';
++			}
++			if (!empty($arrayfields['multicurrency_amount_ht']['checked'])) {
+ 				print '<td class="right tdoverflowmax125" title="'.dol_escape_htmltag($langs->trans("MulticurrencyAmountHT")).'">'.$langs->trans("MulticurrencyAmountHT").'</td>';
+ 			}
+-			print '<td class="right">'.$langs->trans("VATRate").'</td>';
+-			print '<td class="right">'.$langs->trans("AmountTTC").'</td>';
+-			if (isModEnabled('multicompany')) {
++			if (!empty($arrayfields['multicurrency_amount_tva']['checked'])) {
++				print '<td class="right tdoverflowmax125" title="'.dol_escape_htmltag($langs->trans("MulticurrencyAmountVAT")).'">'.$langs->trans("MulticurrencyAmountVAT").'</td>';
++			}
++			if (!empty($arrayfields['multicurrency_amount_ttc']['checked'])) {
+ 				print '<td class="right tdoverflowmax125" title="'.dol_escape_htmltag($langs->trans("MulticurrencyAmountTTC")).'">'.$langs->trans("MulticurrencyAmountTTC").'</td>';
+ 			}
+-			print '<td width="100" class="center">'.$langs->trans("DiscountOfferedBy").'</td>';
+-			print '<td width="50">&nbsp;</td>';
++			if (!empty($arrayfields['amount_ht']['checked'])) {
++				print '<td class="right">'.$langs->trans("AmountHT").'</td>';
++			}
++			if (!empty($arrayfields['vat_rate']['checked'])) {
++				print '<td class="right">'.$langs->trans("VATRate").'</td>';
++			}
++			if (!empty($arrayfields['amount_ttc']['checked'])) {
++				print '<td class="right">'.$langs->trans("AmountTTC").'</td>';
++			}
++			if (!empty($arrayfields['author']['checked'])) {
++				print '<td width="100" class="center">'.$langs->trans("DiscountOfferedBy").'</td>';
++			}
++			if (!empty($arrayfields['actions']['checked'])) {
++				print '<td width="50">&nbsp;</td>';
++			}
+ 			print '</tr>';
+ 
+ 			$showconfirminfo = array();
+@@ -497,90 +852,206 @@ if ($socid > 0) {
+ 					$tmpuser->status = $obj->status;
+ 
+ 					print '<tr class="oddeven">';
+-
+-					print '<td>'.dol_print_date($db->jdate($obj->dc), 'dayhour', 'tzuserrel').'</td>';
+-
+-					if (preg_match('/\(CREDIT_NOTE\)/', $obj->description)) {
+-						print '<td class="tdoverflowmax100">';
+-						$facturestatic->id = $obj->fk_facture_source;
+-						$facturestatic->ref = $obj->ref;
+-						$facturestatic->type = $obj->type;
+-						print preg_replace('/\(CREDIT_NOTE\)/', $langs->trans("CreditNote"), $obj->description).' '.$facturestatic->getNomURl(1);
+-						print '</td>';
+-					} elseif (preg_match('/\(DEPOSIT\)/', $obj->description)) {
+-						print '<td class="tdoverflowmax100">';
+-						$facturestatic->id = $obj->fk_facture_source;
+-						$facturestatic->ref = $obj->ref;
+-						$facturestatic->type = $obj->type;
+-						print preg_replace('/\(DEPOSIT\)/', $langs->trans("InvoiceDeposit"), $obj->description).' '.$facturestatic->getNomURl(1);
+-						print '</td>';
+-					} elseif (preg_match('/\(EXCESS RECEIVED\)/', $obj->description)) {
+-						print '<td class="tdoverflowmax100">';
+-						$facturestatic->id = $obj->fk_facture_source;
+-						$facturestatic->ref = $obj->ref;
+-						$facturestatic->type = $obj->type;
+-						print preg_replace('/\(EXCESS RECEIVED\)/', $langs->trans("ExcessReceived"), $obj->description).' '.$facturestatic->getNomURl(1);
+-						print '</td>';
+-					} else {
+-						print '<td class="tdoverflowmax100" title="'.dol_escape_htmltag($obj->description).'">';
+-						print dol_escape_htmltag($obj->description);
+-						print '</td>';
++					if (!empty($arrayfields['date']['checked'])) {
++						print '<td>'.dol_print_date($db->jdate($obj->dc), 'dayhour', 'tzuserrel').'</td>';
+ 					}
+-
+-					print '<td class="nowrap"><span class="opacitymedium">'.$langs->trans("NotConsumed").'</span></td>';
+-
+-					print '<td class="right nowraponall amount">'.price($obj->amount_ht).'</td>';
+-
+-					if (isModEnabled('multicompany')) {
+-						print '<td class="right nowraponall amount">'.price($obj->multicurrency_amount_ht).'</td>';
++					if (!empty($arrayfields['reason']['checked'])) {
++						if (preg_match('/\(CREDIT_NOTE\)/', $obj->description)) {
++							print '<td class="remx-reason-cell">';
++							$facturestatic->id = $obj->fk_facture_source;
++							$facturestatic->ref = $obj->ref;
++							$facturestatic->type = $obj->type;
++							print preg_replace('/\(CREDIT_NOTE\)/', $langs->trans("CreditNote"), $obj->description).' '.$facturestatic->getNomURl(1);
++							print '</td>';
++						} elseif (preg_match('/\(DEPOSIT\)/', $obj->description)) {
++							print '<td class="remx-reason-cell">';
++							$facturestatic->id = $obj->fk_facture_source;
++							$facturestatic->ref = $obj->ref;
++							$facturestatic->type = $obj->type;
++							print preg_replace('/\(DEPOSIT\)/', $langs->trans("InvoiceDeposit"), $obj->description).' '.$facturestatic->getNomURl(1);
++							print '</td>';
++						} elseif (preg_match('/\(EXCESS RECEIVED\)/', $obj->description)) {
++							print '<td class="remx-reason-cell">';
++							$facturestatic->id = $obj->fk_facture_source;
++							$facturestatic->ref = $obj->ref;
++							$facturestatic->type = $obj->type;
++							print preg_replace('/\(EXCESS RECEIVED\)/', $langs->trans("ExcessReceived"), $obj->description).' '.$facturestatic->getNomURl(1);
++							print '</td>';
++						} else {
++							print '<td class="remx-reason-cell" title="'.dol_escape_htmltag($obj->description).'">';
++							print dol_escape_htmltag($obj->description);
++							print '</td>';
++						}
++					}
++					if (!empty($arrayfields['consumed_by']['checked'])) {
++						print '<td class="nowrap"><span class="opacitymedium">'.$langs->trans("NotConsumed").'</span></td>';
++					}
++					$remx_cur = remx_get_foreign_currency_code(
++						isset($obj->multicurrency_code) ? $obj->multicurrency_code : '',
++						isset($obj->fac_multicurrency_code) ? $obj->fac_multicurrency_code : '',
++						(float) (isset($obj->multicurrency_amount_ttc) ? $obj->multicurrency_amount_ttc : 0),
++						$conf->currency
++					);
++					if (!empty($arrayfields['multicurrency_code']['checked'])) {
++						print '<td class="center">'.dol_escape_htmltag($remx_cur).'</td>';
++					}
++					if (!empty($arrayfields['multicurrency_amount_ht']['checked'])) {
++						print '<td class="right nowraponall amount">'.price($obj->multicurrency_amount_ht, 0, $langs, 0, -1, -1, $remx_cur ? $remx_cur : $conf->currency).'</td>';
++					}
++					if (!empty($arrayfields['multicurrency_amount_tva']['checked'])) {
++						print '<td class="right nowraponall amount">'.price($obj->multicurrency_amount_tva, 0, $langs, 0, -1, -1, $remx_cur ? $remx_cur : $conf->currency).'</td>';
++					}
++					if (!empty($arrayfields['multicurrency_amount_ttc']['checked'])) {
++						print '<td class="right nowraponall amount">'.price($obj->multicurrency_amount_ttc, 0, $langs, 0, -1, -1, $remx_cur ? $remx_cur : $conf->currency).'</td>';
++					}
++					if (!empty($arrayfields['amount_ht']['checked'])) {
++						print '<td class="right nowraponall amount">'.price($obj->amount_ht, 0, $langs, 0, -1, -1, $conf->currency).'</td>';
++					}
++					if (!empty($arrayfields['vat_rate']['checked'])) {
++						print '<td class="right nowraponall">'.vatrate($obj->tva_tx.($obj->vat_src_code ? ' ('.$obj->vat_src_code.')' : ''), true).'</td>';
+ 					}
+-					print '<td class="right nowraponall">'.vatrate($obj->tva_tx.($obj->vat_src_code ? ' ('.$obj->vat_src_code.')' : ''), true).'</td>';
+-					print '<td class="right nowraponall amount">'.price($obj->amount_ttc).'</td>';
+-					if (isModEnabled('multicompany')) {
+-						print '<td class="right nowraponall amount">'.price($obj->multicurrency_amount_ttc).'</td>';
++					if (!empty($arrayfields['amount_ttc']['checked'])) {
++						print '<td class="right nowraponall amount">'.price($obj->amount_ttc, 0, $langs, 0, -1, -1, $conf->currency).'</td>';
+ 					}
+-					print '<td class="tdoverflowmax100">';
+-					//print '<a href="'.DOL_URL_ROOT.'/user/card.php?id='.$obj->user_id.'">'.img_object($langs->trans("ShowUser"), 'user').' '.$obj->login.'</a>';
+-					print $tmpuser->getNomUrl(-1);
+-					print '</td>';
+-
+-					if ($user->hasRight('societe', 'creer') || $user->hasRight('facture', 'creer')) {
+-						print '<td class="center nowraponall">';
+-						print '<a class="reposition" href="'.$_SERVER["PHP_SELF"].'?id='.$object->id.'&action=split&token='.newToken().'&remid='.$obj->rowid.($backtopage ? '&backtopage='.urlencode($backtopage) : '').'">'.img_split($langs->trans("SplitDiscount")).'</a>';
+-						print '<a class="reposition marginleftonly" href="'.$_SERVER["PHP_SELF"].'?id='.$object->id.'&action=remove&token='.newToken().'&remid='.$obj->rowid.($backtopage ? '&backtopage='.urlencode($backtopage) : '').'">'.img_delete($langs->trans("RemoveDiscount")).'</a>';
++					if (!empty($arrayfields['author']['checked'])) {
++						print '<td class="tdoverflowmax100">';
++						print $tmpuser->getNomUrl(-1);
+ 						print '</td>';
+-					} else {
+-						print '<td>&nbsp;</td>';
++					}
++					if (!empty($arrayfields['actions']['checked'])) {
++						if ($user->hasRight('societe', 'creer') || $user->hasRight('facture', 'creer')) {
++							print '<td class="center nowraponall">';
++							print '<a class="reposition" href="'.$_SERVER["PHP_SELF"].'?id='.$object->id.'&action=split&token='.newToken().'&remid='.$obj->rowid.($backtopage ? '&backtopage='.urlencode($backtopage) : '').'">'.img_split($langs->trans("SplitDiscount")).'</a>';
++							print '<a class="reposition marginleftonly" href="'.$_SERVER["PHP_SELF"].'?id='.$object->id.'&action=remove&token='.newToken().'&remid='.$obj->rowid.($backtopage ? '&backtopage='.urlencode($backtopage) : '').'">'.img_delete($langs->trans("RemoveDiscount")).'</a>';
++							print '</td>';
++						} else {
++							print '<td>&nbsp;</td>';
++						}
+ 					}
+ 					print '</tr>';
+ 
+ 					if ($action == 'split' && GETPOST('remid') == $obj->rowid) {
+ 						$showconfirminfo['rowid'] = $obj->rowid;
+ 						$showconfirminfo['amount_ttc'] = $obj->amount_ttc;
++						$showconfirminfo['amount_ht'] = $obj->amount_ht;
++						$showconfirminfo['multicurrency_amount_ttc'] = isset($obj->multicurrency_amount_ttc) ? $obj->multicurrency_amount_ttc : 0;
++						$showconfirminfo['multicurrency_amount_ht'] = isset($obj->multicurrency_amount_ht) ? $obj->multicurrency_amount_ht : 0;
++						$showconfirminfo['tva_tx'] = isset($obj->tva_tx) ? $obj->tva_tx : 0;
++						$showconfirminfo['local_currency_label'] = $langs->transnoentities("Currency".$conf->currency);
++						$showconfirminfo['foreign_currency_label'] = $remx_cur ? $langs->transnoentities("Currency".$remx_cur) : $langs->transnoentities("Currency".$conf->currency);
+ 					}
+ 					$i++;
+ 				}
+ 			} else {
+-				$colspan = 8;
+-				if (isModEnabled('multicompany')) {
+-					$colspan += 2;
++				$remx_colspan = 0;
++				foreach ($arrayfields as $k => $v) {
++					if (!empty($v['checked'])) {
++						$remx_colspan++;
++					}
+ 				}
+-				print '<tr><td colspan="'.$colspan.'"><span class="opacitymedium">'.$langs->trans("None").'</span></td></tr>';
++				print '<tr><td colspan="'.max(1, $remx_colspan).'"><span class="opacitymedium">'.$langs->trans("None").'</span></td></tr>';
+ 			}
+ 			$db->free($resql);
+ 			print "</table>";
+ 			print '</div>';
+ 
+ 			if (count($showconfirminfo)) {
+-				$amount1 = price2num($showconfirminfo['amount_ttc'] / 2, 'MT');
+-				$amount2 = ($showconfirminfo['amount_ttc'] - (float) $amount1);
++				$langs->load("dict");
++				$tLocalTtc = (float) $showconfirminfo['amount_ttc'];
++				$tLocalHt = (float) ($showconfirminfo['amount_ht'] ?? 0);
++				$tMcTtc = (float) ($showconfirminfo['multicurrency_amount_ttc'] ?? 0);
++				$tMcHt = (float) ($showconfirminfo['multicurrency_amount_ht'] ?? 0);
++				$defaultSplitCurrency = ((float) $tMcTtc != 0) ? 'foreign' : 'local';
++				$st = (float) ($defaultSplitCurrency === 'foreign' ? $tMcTtc : $tLocalTtc);
++				$def1 = price2num($st / 2, 'MT');
++				$def2 = price2num($st - $def1, 'MT');
++				$def3 = price2num($st / 4, 'MT');
++				$localCurrencyLabel = isset($showconfirminfo['local_currency_label']) ? $showconfirminfo['local_currency_label'] : $langs->transnoentities("Currency".$conf->currency);
++				$foreignCurrencyLabel = isset($showconfirminfo['foreign_currency_label']) ? $showconfirminfo['foreign_currency_label'] : $langs->transnoentities("Currency".$conf->currency);
+ 				$formquestion = array(
+-					'text' => $langs->trans('TypeAmountOfEachNewDiscount'),
+-					0 => array('type' => 'text', 'name' => 'amount_ttc_1', 'label' => $langs->trans("AmountTTC").' 1', 'value' => $amount1, 'size' => '5'),
+-					1 => array('type' => 'text', 'name' => 'amount_ttc_2', 'label' => $langs->trans("AmountTTC").' 2', 'value' => $amount2, 'size' => '5')
++					'text' => $langs->trans('SplitDiscountOptionsAndAmounts'),
++					0 => array('type' => 'other', 'value' => '<style type="text/css">#dialog-confirm .confirmquestions .tagtable .tagtr>.tagtd:first-child{width:26%!important;max-width:130px!important}#dialog-confirm .confirmquestions .tagtable .tagtr>.tagtd:last-child{width:74%!important;min-width:260px!important}</style><div class="remx_split_totals" data-local-ttc="'.dol_escape_htmltag($tLocalTtc).'" data-local-ht="'.dol_escape_htmltag($tLocalHt).'" data-mc-ttc="'.dol_escape_htmltag($tMcTtc).'" data-mc-ht="'.dol_escape_htmltag($tMcHt).'" data-local-currency-label="'.dol_escape_htmltag($localCurrencyLabel).'" data-mc-currency-label="'.dol_escape_htmltag($foreignCurrencyLabel).'" style="display:none;"></div>'),
++					1 => array('type' => 'radio', 'name' => 'split_currency', 'label' => $langs->trans("Currency"), 'values' => array('local' => $langs->trans("RemxSplitLocalCurrency"), 'foreign' => $langs->trans("RemxSplitOriginalCurrency")), 'default' => $defaultSplitCurrency),
++					2 => array('type' => 'radio', 'name' => 'split_type', 'label' => $langs->trans("Amount").' ', 'values' => array('ttc' => $langs->trans("AmountTTC"), 'ht' => $langs->trans("AmountHT")), 'default' => 'ttc'),
++					3 => array('type' => 'select', 'name' => 'split_count', 'label' => $langs->trans("SplitInto"), 'values' => array(2 => '2', 3 => '3', 4 => '4'), 'default' => 2),
++					4 => array('type' => 'onecolumn', 'value' => '<span class="opacitymedium">'.$langs->trans("LastPartCalculatedAutomatically").'</span>'),
++					5 => array('type' => 'text', 'name' => 'split_amount_1', 'label' => $langs->trans("Amount").' 1', 'value' => $def1, 'size' => '12'),
++					6 => array('type' => 'text', 'name' => 'split_amount_2', 'label' => $langs->trans("Amount").' 2', 'value' => $def2, 'size' => '12'),
++					7 => array('type' => 'text', 'name' => 'split_amount_3', 'label' => $langs->trans("Amount").' 3', 'value' => $def3, 'size' => '12'),
++					8 => array('type' => 'other', 'label' => $langs->trans("Amount").' 4', 'value' => '<span class="remx_split_last_val">0</span>'),
++					9 => array('type' => 'onecolumn', 'value' => '<script nonce="'.getNonce().'" type="text/javascript">
++jQuery(function($){
++	function runForContainer($box) {
++		var totalsEl = $box.find(".remx_split_totals")[0];
++		if (!totalsEl) return;
++		var $dialog = $box.closest("[id^=dialog-confirm]");
++		function getTotal() {
++			var cur = $box.find("input[name=split_currency]:checked").val() || "local";
++			var typ = $box.find("input[name=split_type]:checked").val() || "ttc";
++			var t = cur === "foreign" ? (typ === "ht" ? parseFloat(totalsEl.getAttribute("data-mc-ht")) : parseFloat(totalsEl.getAttribute("data-mc-ttc"))) : (typ === "ht" ? parseFloat(totalsEl.getAttribute("data-local-ht")) : parseFloat(totalsEl.getAttribute("data-local-ttc")));
++			return isNaN(t) ? 0 : t;
++		}
++		function round2(v) { return Math.round(v * 100) / 100; }
++		function formatAmount(v) { var n = Math.round(v * 100) / 100; return n.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2}); }
++		function updateConfirmMessage() {
++			var total = getTotal();
++			var cur = $box.find("input[name=split_currency]:checked").val() || "local";
++			var label = cur === "foreign" ? (totalsEl.getAttribute("data-mc-currency-label") || "") : (totalsEl.getAttribute("data-local-currency-label") || "");
++			var count = parseInt($box.find("[name=split_count]").val(), 10) || 2;
++			$dialog.find("#remx_confirm_amount_display").text(formatAmount(total));
++			$dialog.find("#remx_confirm_currency_display").text(label);
++			$dialog.find("#remx_confirm_count_display").text(count);
++		}
++		function updateLastPart() {
++			var total = getTotal();
++			var count = parseInt($box.find("[name=split_count]").val(), 10) || 2;
++			var a1 = parseFloat($box.find("[name=split_amount_1]").val()) || 0;
++			var a2 = parseFloat($box.find("[name=split_amount_2]").val()) || 0;
++			var a3 = parseFloat($box.find("[name=split_amount_3]").val()) || 0;
++			if (count === 2) $box.find("[name=split_amount_2]").val(round2(total - a1));
++			else if (count === 3) $box.find("[name=split_amount_3]").val(round2(total - a1 - a2));
++			else $box.find(".remx_split_last_val").text(round2(total - a1 - a2 - a3));
++		}
++		function updateSplitForm() {
++			var total = getTotal();
++			var count = parseInt($box.find("[name=split_count]").val(), 10) || 2;
++			$box.find("[name=split_amount_1]").closest(".tagtr").show();
++			var $r2 = $box.find("[name=split_amount_2]").closest(".tagtr");
++			var $r3 = $box.find("[name=split_amount_3]").closest(".tagtr");
++			var $r4 = $box.find(".remx_split_last_val").closest(".tagtr");
++			$r2.show();
++			$box.find("[name=split_amount_2]").prop("readOnly", count === 2);
++			$r3.toggle(count >= 3);
++			$box.find("[name=split_amount_3]").prop("readOnly", count === 3);
++			$r4.toggle(count >= 4);
++			if (count === 2) {
++				$box.find("[name=split_amount_1]").val(round2(total/2));
++				$box.find("[name=split_amount_2]").val(round2(total - total/2));
++			} else if (count === 3) {
++				$box.find("[name=split_amount_1]").val(round2(total/3));
++				$box.find("[name=split_amount_2]").val(round2(total/3));
++				$box.find("[name=split_amount_3]").val(round2(total - total/3 - total/3));
++			} else {
++				$box.find("[name=split_amount_1]").val(round2(total/4));
++				$box.find("[name=split_amount_2]").val(round2(total/4));
++				$box.find("[name=split_amount_3]").val(round2(total/4));
++				$box.find(".remx_split_last_val").text(round2(total - total/4*3));
++			}
++			updateLastPart();
++			updateConfirmMessage();
++		}
++		$box.off("change.remx").on("change.remx", "[name=split_count]", updateSplitForm);
++		$box.on("change.remx", "input[name=split_currency], input[name=split_type]", updateSplitForm);
++		$box.off("input.remx").on("input.remx", "[name=split_amount_1], [name=split_amount_2], [name=split_amount_3]", updateLastPart);
++		setTimeout(updateSplitForm, 120);
++		$("#dialog-confirm").off("dialogopen.remx").on("dialogopen.remx", updateSplitForm);
++	}
++	$(".remx_split_totals").each(function(){ runForContainer($(this).closest(".confirmquestions")); });
++});
++</script>'),
+ 				);
+-				$langs->load("dict");
+-				print $form->formconfirm($_SERVER["PHP_SELF"].'?id='.$object->id.'&remid='.$showconfirminfo['rowid'].($backtopage ? '&backtopage='.urlencode($backtopage) : ''), $langs->trans('SplitDiscount'), $langs->trans('ConfirmSplitDiscount', price($showconfirminfo['amount_ttc']), $langs->transnoentities("Currency".$conf->currency)), 'confirm_split', $formquestion, '', 0);
++				$confirmMsg = $langs->trans('ConfirmSplitDiscount', price($showconfirminfo['amount_ttc']), $langs->transnoentities("Currency".$conf->currency), '2');
++				print $form->formconfirm($_SERVER["PHP_SELF"].'?id='.$object->id.'&remid='.$showconfirminfo['rowid'].($backtopage ? '&backtopage='.urlencode($backtopage) : ''), $langs->trans('SplitDiscount'), $confirmMsg, 'confirm_split', $formquestion, '', 1, 420, 520);
+ 			}
+ 		} else {
+ 			dol_print_error($db);
+@@ -589,21 +1060,21 @@ if ($socid > 0) {
+ 
+ 	if ($isSupplier) {
+ 		if ($isCustomer) {
+-			$newcardbutton = dolGetButtonTitle($langs->trans("NewSupplierGlobalDiscount"), '', 'fa fa-plus-circle', $_SERVER['PHP_SELF'].'?action=create_remise&id='.$id.'&discount_type=1&backtopage='.$_SERVER["PHP_SELF"].'?id='.$id.'&token='.newToken());
+-			print '</div>'; // class="fichehalfleft"
+-			print '<div class="fichehalfright fichehalfright-lg">';
+-			print load_fiche_titre($langs->trans("SupplierDiscounts"), $newcardbutton, '');
++			print '</div>';
++			print '<div class="fichecenter">';
+ 		}
++		$newcardbutton = $isCustomer ? dolGetButtonTitle($langs->trans("NewSupplierGlobalDiscount"), '', 'fa fa-plus-circle', $_SERVER['PHP_SELF'].'?action=create_remise&id='.$id.'&discount_type=1&backtopage='.urlencode($_SERVER["PHP_SELF"].'?id='.$id).'&token='.newToken()) : '';
++		print load_fiche_titre($langs->trans("SupplierDiscounts"), $newcardbutton, '');
+ 
+ 		/*
+ 		 * Liste remises fixes fournisseur restant en cours (= liees a aucune facture ni ligne de facture)
+ 		 */
+ 		$sql = "SELECT rc.rowid, rc.amount_ht, rc.amount_tva, rc.amount_ttc, rc.tva_tx, rc.vat_src_code,";
+-		$sql .= " rc.multicurrency_amount_ht, rc.multicurrency_amount_tva, rc.multicurrency_amount_ttc,";
++		$sql .= " rc.multicurrency_code, rc.multicurrency_amount_ht, rc.multicurrency_amount_tva, rc.multicurrency_amount_ttc,";
+ 		$sql .= " rc.datec as dc, rc.description,";
+ 		$sql .= " rc.fk_invoice_supplier_source,";
+ 		$sql .= " u.login, u.rowid as user_id, u.statut as status, u.firstname, u.lastname, u.photo,";
+-		$sql .= " fa.ref, fa.type as type";
++		$sql .= " fa.ref, fa.type as type, fa.multicurrency_code as fac_multicurrency_code";
+ 		$sql .= " FROM  ".MAIN_DB_PREFIX."user as u, ".MAIN_DB_PREFIX."societe_remise_except as rc";
+ 		$sql .= " LEFT JOIN ".MAIN_DB_PREFIX."facture_fourn as fa ON rc.fk_invoice_supplier_source = fa.rowid";
+ 		$sql .= " WHERE rc.fk_soc = ".((int) $object->id);
+@@ -618,20 +1089,42 @@ if ($socid > 0) {
+ 			print '<div class="div-table-responsive-no-min">';
+ 			print '<table class="noborder centpercent">';
+ 			print '<tr class="liste_titre">';
+-			print '<td class="widthdate">'.$langs->trans("Date").'</td>'; // Need 120+ for format with AM/PM
+-			print '<td>'.$langs->trans("ReasonDiscount").'</td>';
+-			print '<td class="nowrap">'.$langs->trans("ConsumedBy").'</td>';
+-			print '<td class="right">'.$langs->trans("AmountHT").'</td>';
+-			if (isModEnabled('multicompany')) {
++			if (!empty($arrayfields['date']['checked'])) {
++				print '<td class="widthdate">'.$langs->trans("Date").'</td>';
++			}
++			if (!empty($arrayfields['reason']['checked'])) {
++				print '<td>'.$langs->trans("ReasonDiscount").'</td>';
++			}
++			if (!empty($arrayfields['consumed_by']['checked'])) {
++				print '<td class="nowrap">'.$langs->trans("ConsumedBy").'</td>';
++			}
++			if (!empty($arrayfields['multicurrency_code']['checked'])) {
++				print '<td class="center">'.$langs->trans("Currency").'</td>';
++			}
++			if (!empty($arrayfields['multicurrency_amount_ht']['checked'])) {
+ 				print '<td class="right tdoverflowmax125" title="'.dol_escape_htmltag($langs->trans("MulticurrencyAmountHT")).'">'.$langs->trans("MulticurrencyAmountHT").'</td>';
+ 			}
+-			print '<td class="right">'.$langs->trans("VATRate").'</td>';
+-			print '<td class="right">'.$langs->trans("AmountTTC").'</td>';
+-			if (isModEnabled('multicompany')) {
++			if (!empty($arrayfields['multicurrency_amount_tva']['checked'])) {
++				print '<td class="right tdoverflowmax125" title="'.dol_escape_htmltag($langs->trans("MulticurrencyAmountVAT")).'">'.$langs->trans("MulticurrencyAmountVAT").'</td>';
++			}
++			if (!empty($arrayfields['multicurrency_amount_ttc']['checked'])) {
+ 				print '<td class="right tdoverflowmax125" title="'.dol_escape_htmltag($langs->trans("MulticurrencyAmountTTC")).'">'.$langs->trans("MulticurrencyAmountTTC").'</td>';
+ 			}
+-			print '<td width="100" class="center">'.$langs->trans("DiscountOfferedBy").'</td>';
+-			print '<td width="50">&nbsp;</td>';
++			if (!empty($arrayfields['amount_ht']['checked'])) {
++				print '<td class="right">'.$langs->trans("AmountHT").'</td>';
++			}
++			if (!empty($arrayfields['vat_rate']['checked'])) {
++				print '<td class="right">'.$langs->trans("VATRate").'</td>';
++			}
++			if (!empty($arrayfields['amount_ttc']['checked'])) {
++				print '<td class="right">'.$langs->trans("AmountTTC").'</td>';
++			}
++			if (!empty($arrayfields['author']['checked'])) {
++				print '<td width="100" class="center">'.$langs->trans("DiscountOfferedBy").'</td>';
++			}
++			if (!empty($arrayfields['actions']['checked'])) {
++				print '<td width="50">&nbsp;</td>';
++			}
+ 			print '</tr>';
+ 
+ 			$showconfirminfo = array();
+@@ -650,92 +1143,212 @@ if ($socid > 0) {
+ 					$tmpuser->status = $obj->status;
+ 
+ 					print '<tr class="oddeven">';
+-					print '<td>'.dol_print_date($db->jdate($obj->dc), 'dayhour', 'tzuserrel').'</td>';
+-					if (preg_match('/\(CREDIT_NOTE\)/', $obj->description)) {
+-						print '<td class="tdoverflowmax100">';
+-						$facturefournstatic->id = $obj->fk_invoice_supplier_source;
+-						$facturefournstatic->ref = $obj->ref;
+-						$facturefournstatic->type = $obj->type;
+-						print preg_replace('/\(CREDIT_NOTE\)/', $langs->trans("CreditNote"), $obj->description).' '.$facturefournstatic->getNomURl(1);
+-						print '</td>';
+-					} elseif (preg_match('/\(DEPOSIT\)/', $obj->description)) {
+-						print '<td class="tdoverflowmax100">';
+-						$facturefournstatic->id = $obj->fk_invoice_supplier_source;
+-						$facturefournstatic->ref = $obj->ref;
+-						$facturefournstatic->type = $obj->type;
+-						print preg_replace('/\(DEPOSIT\)/', $langs->trans("InvoiceDeposit"), $obj->description).' '.$facturefournstatic->getNomURl(1);
+-						print '</td>';
+-					} elseif (preg_match('/\(EXCESS PAID\)/', $obj->description)) {
+-						print '<td class="tdoverflowmax100">';
+-						$facturefournstatic->id = $obj->fk_invoice_supplier_source;
+-						$facturefournstatic->ref = $obj->ref;
+-						$facturefournstatic->type = $obj->type;
+-						print preg_replace('/\(EXCESS PAID\)/', $langs->trans("ExcessPaid"), $obj->description).' '.$facturefournstatic->getNomURl(1);
+-						print '</td>';
+-					} else {
+-						print '<td class="tdoverflowmax100" title="'.dol_escape_htmltag($obj->description).'">';
+-						print dol_escape_htmltag($obj->description);
+-						print '</td>';
++					if (!empty($arrayfields['date']['checked'])) {
++						print '<td>'.dol_print_date($db->jdate($obj->dc), 'dayhour', 'tzuserrel').'</td>';
++					}
++					if (!empty($arrayfields['reason']['checked'])) {
++						if (preg_match('/\(CREDIT_NOTE\)/', $obj->description)) {
++							print '<td class="remx-reason-cell">';
++							$facturefournstatic->id = $obj->fk_invoice_supplier_source;
++							$facturefournstatic->ref = $obj->ref;
++							$facturefournstatic->type = $obj->type;
++							print preg_replace('/\(CREDIT_NOTE\)/', $langs->trans("CreditNote"), $obj->description).' '.$facturefournstatic->getNomURl(1);
++							print '</td>';
++						} elseif (preg_match('/\(DEPOSIT\)/', $obj->description)) {
++							print '<td class="remx-reason-cell">';
++							$facturefournstatic->id = $obj->fk_invoice_supplier_source;
++							$facturefournstatic->ref = $obj->ref;
++							$facturefournstatic->type = $obj->type;
++							print preg_replace('/\(DEPOSIT\)/', $langs->trans("InvoiceDeposit"), $obj->description).' '.$facturefournstatic->getNomURl(1);
++							print '</td>';
++						} elseif (preg_match('/\(EXCESS PAID\)/', $obj->description)) {
++							print '<td class="remx-reason-cell">';
++							$facturefournstatic->id = $obj->fk_invoice_supplier_source;
++							$facturefournstatic->ref = $obj->ref;
++							$facturefournstatic->type = $obj->type;
++							print preg_replace('/\(EXCESS PAID\)/', $langs->trans("ExcessPaid"), $obj->description).' '.$facturefournstatic->getNomURl(1);
++							print '</td>';
++						} else {
++							print '<td class="remx-reason-cell" title="'.dol_escape_htmltag($obj->description).'">';
++							print dol_escape_htmltag($obj->description);
++							print '</td>';
++						}
++					}
++					if (!empty($arrayfields['consumed_by']['checked'])) {
++						print '<td class="nowrap"><span class="opacitymedium">'.$langs->trans("NotConsumed").'</span></td>';
++					}
++					$remx_cur = remx_get_foreign_currency_code(
++						isset($obj->multicurrency_code) ? $obj->multicurrency_code : '',
++						isset($obj->fac_multicurrency_code) ? $obj->fac_multicurrency_code : '',
++						(float) (isset($obj->multicurrency_amount_ttc) ? $obj->multicurrency_amount_ttc : 0),
++						$conf->currency
++					);
++					if (!empty($arrayfields['multicurrency_code']['checked'])) {
++						print '<td class="center">'.dol_escape_htmltag($remx_cur).'</td>';
++					}
++					if (!empty($arrayfields['multicurrency_amount_ht']['checked'])) {
++						print '<td class="right nowraponall amount">'.price($obj->multicurrency_amount_ht, 0, $langs, 0, -1, -1, $remx_cur ? $remx_cur : $conf->currency).'</td>';
++					}
++					if (!empty($arrayfields['multicurrency_amount_tva']['checked'])) {
++						print '<td class="right nowraponall amount">'.price($obj->multicurrency_amount_tva, 0, $langs, 0, -1, -1, $remx_cur ? $remx_cur : $conf->currency).'</td>';
++					}
++					if (!empty($arrayfields['multicurrency_amount_ttc']['checked'])) {
++						print '<td class="right nowraponall amount">'.price($obj->multicurrency_amount_ttc, 0, $langs, 0, -1, -1, $remx_cur ? $remx_cur : $conf->currency).'</td>';
+ 					}
+-					print '<td class="nowrap"><span class="opacitymedium">'.$langs->trans("NotConsumed").'</span></td>';
+-					print '<td class="right nowraponall amount">'.price($obj->amount_ht).'</td>';
+-					if (isModEnabled('multicompany')) {
+-						print '<td class="right nowraponall amount">'.price($obj->multicurrency_amount_ht).'</td>';
++					if (!empty($arrayfields['amount_ht']['checked'])) {
++						print '<td class="right nowraponall amount">'.price($obj->amount_ht, 0, $langs, 0, -1, -1, $conf->currency).'</td>';
+ 					}
+-					print '<td class="right">'.vatrate($obj->tva_tx.($obj->vat_src_code ? ' ('.$obj->vat_src_code.')' : ''), true).'</td>';
+-					print '<td class="right nowraponall amount">'.price($obj->amount_ttc).'</td>';
+-					if (isModEnabled('multicompany')) {
+-						print '<td class="right nowraponall amount">'.price($obj->multicurrency_amount_ttc).'</td>';
++					if (!empty($arrayfields['vat_rate']['checked'])) {
++						print '<td class="right nowraponall">'.vatrate($obj->tva_tx.($obj->vat_src_code ? ' ('.$obj->vat_src_code.')' : ''), true).'</td>';
+ 					}
+-					print '<td class="tdoverflowmax100">';
+-					print $tmpuser->getNomUrl(-1);
+-					print '</td>';
+-
+-					if ($user->hasRight('societe', 'creer') || $user->hasRight('facture', 'creer')) {
+-						print '<td class="center nowraponall">';
+-						print '<a class="reposition" href="'.$_SERVER["PHP_SELF"].'?id='.$object->id.'&action=split&token='.newToken().'&remid='.$obj->rowid.($backtopage ? '&backtopage='.urlencode($backtopage) : '').'">'.img_split($langs->trans("SplitDiscount")).'</a>';
+-						print '<a class="reposition marginleftonly" href="'.$_SERVER["PHP_SELF"].'?id='.$object->id.'&action=remove&token='.newToken().'&remid='.$obj->rowid.($backtopage ? '&backtopage='.urlencode($backtopage) : '').'">'.img_delete($langs->trans("RemoveDiscount")).'</a>';
++					if (!empty($arrayfields['amount_ttc']['checked'])) {
++						print '<td class="right nowraponall amount">'.price($obj->amount_ttc, 0, $langs, 0, -1, -1, $conf->currency).'</td>';
++					}
++					if (!empty($arrayfields['author']['checked'])) {
++						print '<td class="tdoverflowmax100">';
++						print $tmpuser->getNomUrl(-1);
+ 						print '</td>';
+-					} else {
+-						print '<td>&nbsp;</td>';
++					}
++					if (!empty($arrayfields['actions']['checked'])) {
++						if ($user->hasRight('societe', 'creer') || $user->hasRight('facture', 'creer')) {
++							print '<td class="center nowraponall">';
++							print '<a class="reposition" href="'.$_SERVER["PHP_SELF"].'?id='.$object->id.'&action=split&token='.newToken().'&remid='.$obj->rowid.($backtopage ? '&backtopage='.urlencode($backtopage) : '').'">'.img_split($langs->trans("SplitDiscount")).'</a>';
++							print '<a class="reposition marginleftonly" href="'.$_SERVER["PHP_SELF"].'?id='.$object->id.'&action=remove&token='.newToken().'&remid='.$obj->rowid.($backtopage ? '&backtopage='.urlencode($backtopage) : '').'">'.img_delete($langs->trans("RemoveDiscount")).'</a>';
++							print '</td>';
++						} else {
++							print '<td>&nbsp;</td>';
++						}
+ 					}
+ 					print '</tr>';
+ 
+ 					if ($action == 'split' && GETPOST('remid') == $obj->rowid) {
+ 						$showconfirminfo['rowid'] = $obj->rowid;
+ 						$showconfirminfo['amount_ttc'] = $obj->amount_ttc;
++						$showconfirminfo['amount_ht'] = $obj->amount_ht;
++						$showconfirminfo['multicurrency_amount_ttc'] = isset($obj->multicurrency_amount_ttc) ? $obj->multicurrency_amount_ttc : 0;
++						$showconfirminfo['multicurrency_amount_ht'] = isset($obj->multicurrency_amount_ht) ? $obj->multicurrency_amount_ht : 0;
++						$showconfirminfo['tva_tx'] = isset($obj->tva_tx) ? $obj->tva_tx : 0;
++						$showconfirminfo['local_currency_label'] = $langs->transnoentities("Currency".$conf->currency);
++						$showconfirminfo['foreign_currency_label'] = $remx_cur ? $langs->transnoentities("Currency".$remx_cur) : $langs->transnoentities("Currency".$conf->currency);
+ 					}
+ 					$i++;
+ 				}
+ 			} else {
+-				$colspan = 8;
+-				if (isModEnabled('multicompany')) {
+-					$colspan += 2;
++				$remx_colspan = 0;
++				foreach ($arrayfields as $k => $v) {
++					if (!empty($v['checked'])) {
++						$remx_colspan++;
++					}
+ 				}
+-				print '<tr><td colspan="'.$colspan.'"><span class="opacitymedium">'.$langs->trans("None").'</span></td></tr>';
++				print '<tr><td colspan="'.max(1, $remx_colspan).'"><span class="opacitymedium">'.$langs->trans("None").'</span></td></tr>';
+ 			}
+ 			$db->free($resql);
+ 			print "</table>";
+ 			print '</div>';
+ 
+ 			if (count($showconfirminfo)) {
+-				$amount1 = price2num($showconfirminfo['amount_ttc'] / 2, 'MT');
+-				$amount2 = ($showconfirminfo['amount_ttc'] - (float) $amount1);
++				$langs->load("dict");
++				$tLocalTtc = (float) $showconfirminfo['amount_ttc'];
++				$tLocalHt = (float) ($showconfirminfo['amount_ht'] ?? 0);
++				$tMcTtc = (float) ($showconfirminfo['multicurrency_amount_ttc'] ?? 0);
++				$tMcHt = (float) ($showconfirminfo['multicurrency_amount_ht'] ?? 0);
++				$defaultSplitCurrency = ((float) $tMcTtc != 0) ? 'foreign' : 'local';
++				$st = (float) ($defaultSplitCurrency === 'foreign' ? $tMcTtc : $tLocalTtc);
++				$def1 = price2num($st / 2, 'MT');
++				$def2 = price2num($st - $def1, 'MT');
++				$def3 = price2num($st / 4, 'MT');
++				$localCurrencyLabel = isset($showconfirminfo['local_currency_label']) ? $showconfirminfo['local_currency_label'] : $langs->transnoentities("Currency".$conf->currency);
++				$foreignCurrencyLabel = isset($showconfirminfo['foreign_currency_label']) ? $showconfirminfo['foreign_currency_label'] : $langs->transnoentities("Currency".$conf->currency);
+ 				$formquestion = array(
+-					'text' => $langs->trans('TypeAmountOfEachNewDiscount'),
+-					0 => array('type' => 'text', 'name' => 'amount_ttc_1', 'label' => $langs->trans("AmountTTC").' 1', 'value' => $amount1, 'size' => '5'),
+-					1 => array('type' => 'text', 'name' => 'amount_ttc_2', 'label' => $langs->trans("AmountTTC").' 2', 'value' => $amount2, 'size' => '5')
++					'text' => $langs->trans('SplitDiscountOptionsAndAmounts'),
++					0 => array('type' => 'other', 'value' => '<style type="text/css">#dialog-confirm .confirmquestions .tagtable .tagtr>.tagtd:first-child{width:26%!important;max-width:130px!important}#dialog-confirm .confirmquestions .tagtable .tagtr>.tagtd:last-child{width:74%!important;min-width:260px!important}</style><div class="remx_split_totals" data-local-ttc="'.dol_escape_htmltag($tLocalTtc).'" data-local-ht="'.dol_escape_htmltag($tLocalHt).'" data-mc-ttc="'.dol_escape_htmltag($tMcTtc).'" data-mc-ht="'.dol_escape_htmltag($tMcHt).'" data-local-currency-label="'.dol_escape_htmltag($localCurrencyLabel).'" data-mc-currency-label="'.dol_escape_htmltag($foreignCurrencyLabel).'" style="display:none;"></div>'),
++					1 => array('type' => 'radio', 'name' => 'split_currency', 'label' => $langs->trans("Currency"), 'values' => array('local' => $langs->trans("RemxSplitLocalCurrency"), 'foreign' => $langs->trans("RemxSplitOriginalCurrency")), 'default' => $defaultSplitCurrency),
++					2 => array('type' => 'radio', 'name' => 'split_type', 'label' => $langs->trans("Amount").' ', 'values' => array('ttc' => $langs->trans("AmountTTC"), 'ht' => $langs->trans("AmountHT")), 'default' => 'ttc'),
++					3 => array('type' => 'select', 'name' => 'split_count', 'label' => $langs->trans("SplitInto"), 'values' => array(2 => '2', 3 => '3', 4 => '4'), 'default' => 2),
++					4 => array('type' => 'onecolumn', 'value' => '<span class="opacitymedium">'.$langs->trans("LastPartCalculatedAutomatically").'</span>'),
++					5 => array('type' => 'text', 'name' => 'split_amount_1', 'label' => $langs->trans("Amount").' 1', 'value' => $def1, 'size' => '12'),
++					6 => array('type' => 'text', 'name' => 'split_amount_2', 'label' => $langs->trans("Amount").' 2', 'value' => $def2, 'size' => '12'),
++					7 => array('type' => 'text', 'name' => 'split_amount_3', 'label' => $langs->trans("Amount").' 3', 'value' => $def3, 'size' => '12'),
++					8 => array('type' => 'other', 'label' => $langs->trans("Amount").' 4', 'value' => '<span class="remx_split_last_val">0</span>'),
++					9 => array('type' => 'onecolumn', 'value' => '<script nonce="'.getNonce().'" type="text/javascript">
++jQuery(function($){
++	function runForContainer($box) {
++		var totalsEl = $box.find(".remx_split_totals")[0];
++		if (!totalsEl) return;
++		var $dialog = $box.closest("[id^=dialog-confirm]");
++		function getTotal() {
++			var cur = $box.find("input[name=split_currency]:checked").val() || "local";
++			var typ = $box.find("input[name=split_type]:checked").val() || "ttc";
++			var t = cur === "foreign" ? (typ === "ht" ? parseFloat(totalsEl.getAttribute("data-mc-ht")) : parseFloat(totalsEl.getAttribute("data-mc-ttc"))) : (typ === "ht" ? parseFloat(totalsEl.getAttribute("data-local-ht")) : parseFloat(totalsEl.getAttribute("data-local-ttc")));
++			return isNaN(t) ? 0 : t;
++		}
++		function round2(v) { return Math.round(v * 100) / 100; }
++		function formatAmount(v) { var n = Math.round(v * 100) / 100; return n.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2}); }
++		function updateConfirmMessage() {
++			var total = getTotal();
++			var cur = $box.find("input[name=split_currency]:checked").val() || "local";
++			var label = cur === "foreign" ? (totalsEl.getAttribute("data-mc-currency-label") || "") : (totalsEl.getAttribute("data-local-currency-label") || "");
++			var count = parseInt($box.find("[name=split_count]").val(), 10) || 2;
++			$dialog.find("#remx_confirm_amount_display").text(formatAmount(total));
++			$dialog.find("#remx_confirm_currency_display").text(label);
++			$dialog.find("#remx_confirm_count_display").text(count);
++		}
++		function updateLastPart() {
++			var total = getTotal();
++			var count = parseInt($box.find("[name=split_count]").val(), 10) || 2;
++			var a1 = parseFloat($box.find("[name=split_amount_1]").val()) || 0;
++			var a2 = parseFloat($box.find("[name=split_amount_2]").val()) || 0;
++			var a3 = parseFloat($box.find("[name=split_amount_3]").val()) || 0;
++			if (count === 2) $box.find("[name=split_amount_2]").val(round2(total - a1));
++			else if (count === 3) $box.find("[name=split_amount_3]").val(round2(total - a1 - a2));
++			else $box.find(".remx_split_last_val").text(round2(total - a1 - a2 - a3));
++		}
++		function updateSplitForm() {
++			var total = getTotal();
++			var count = parseInt($box.find("[name=split_count]").val(), 10) || 2;
++			$box.find("[name=split_amount_1]").closest(".tagtr").show();
++			var $r2 = $box.find("[name=split_amount_2]").closest(".tagtr");
++			var $r3 = $box.find("[name=split_amount_3]").closest(".tagtr");
++			var $r4 = $box.find(".remx_split_last_val").closest(".tagtr");
++			$r2.show();
++			$box.find("[name=split_amount_2]").prop("readOnly", count === 2);
++			$r3.toggle(count >= 3);
++			$box.find("[name=split_amount_3]").prop("readOnly", count === 3);
++			$r4.toggle(count >= 4);
++			if (count === 2) {
++				$box.find("[name=split_amount_1]").val(round2(total/2));
++				$box.find("[name=split_amount_2]").val(round2(total - total/2));
++			} else if (count === 3) {
++				$box.find("[name=split_amount_1]").val(round2(total/3));
++				$box.find("[name=split_amount_2]").val(round2(total/3));
++				$box.find("[name=split_amount_3]").val(round2(total - total/3 - total/3));
++			} else {
++				$box.find("[name=split_amount_1]").val(round2(total/4));
++				$box.find("[name=split_amount_2]").val(round2(total/4));
++				$box.find("[name=split_amount_3]").val(round2(total/4));
++				$box.find(".remx_split_last_val").text(round2(total - total/4*3));
++			}
++			updateLastPart();
++			updateConfirmMessage();
++		}
++		$box.off("change.remx").on("change.remx", "[name=split_count]", updateSplitForm);
++		$box.on("change.remx", "input[name=split_currency], input[name=split_type]", updateSplitForm);
++		$box.off("input.remx").on("input.remx", "[name=split_amount_1], [name=split_amount_2], [name=split_amount_3]", updateLastPart);
++		setTimeout(updateSplitForm, 120);
++		$("#dialog-confirm").off("dialogopen.remx").on("dialogopen.remx", updateSplitForm);
++	}
++	$(".remx_split_totals").each(function(){ runForContainer($(this).closest(".confirmquestions")); });
++});
++</script>'),
+ 				);
+-				$langs->load("dict");
+-				print $form->formconfirm($_SERVER["PHP_SELF"].'?id='.$object->id.'&remid='.$showconfirminfo['rowid'].($backtopage ? '&backtopage='.urlencode($backtopage) : ''), $langs->trans('SplitDiscount'), $langs->trans('ConfirmSplitDiscount', price($showconfirminfo['amount_ttc']), $langs->transnoentities("Currency".$conf->currency)), 'confirm_split', $formquestion, 0, 0);
++				$confirmMsg = $langs->trans('ConfirmSplitDiscount', price($showconfirminfo['amount_ttc']), $langs->transnoentities("Currency".$conf->currency), '2');
++				print $form->formconfirm($_SERVER["PHP_SELF"].'?id='.$object->id.'&remid='.$showconfirminfo['rowid'].($backtopage ? '&backtopage='.urlencode($backtopage) : ''), $langs->trans('SplitDiscount'), $confirmMsg, 'confirm_split', $formquestion, 0, 1, 420, 520);
+ 			}
+ 		} else {
+ 			dol_print_error($db);
+ 		}
+-
+ 		if ($isCustomer) {
+-			print '</div>'; // class="fichehalfright"
+-			print '</div>'; // class="fichecenter"
++			print '</div>';
+ 		}
+ 	}
+ 
+@@ -750,17 +1363,16 @@ if ($socid > 0) {
+ 	if ($isCustomer) {
+ 		if ($isSupplier) {
+ 			print '<div class="fichecenter">';
+-			print '<div class="fichehalfleft fichehalfleft-lg">';
+-			print load_fiche_titre($langs->trans("CustomerDiscounts"), '', '');
+ 		}
++		print load_fiche_titre($langs->trans("CustomerDiscounts"), '', '');
+ 
+ 		// Discount linked to invoice lines
+ 		$sql = "SELECT rc.rowid, rc.amount_ht, rc.amount_tva, rc.amount_ttc, rc.tva_tx, rc.vat_src_code,";
+-		$sql .= " rc.multicurrency_amount_ht, rc.multicurrency_amount_tva, rc.multicurrency_amount_ttc,";
++		$sql .= " rc.multicurrency_code, rc.multicurrency_amount_ht, rc.multicurrency_amount_tva, rc.multicurrency_amount_ttc,";
+ 		$sql .= " rc.datec as dc, rc.description, rc.fk_facture_line, rc.fk_facture_source,";
+ 		$sql .= " u.login, u.rowid as user_id, u.statut as status, u.firstname, u.lastname, u.photo,";
+ 		$sql .= " f.rowid as invoiceid, f.ref,";
+-		$sql .= " fa.ref as invoice_source_ref, fa.type as type";
++		$sql .= " fa.ref as invoice_source_ref, fa.type as type, fa.multicurrency_code as fac_multicurrency_code";
+ 		$sql .= " FROM ".MAIN_DB_PREFIX."facture as f";
+ 		$sql .= " , ".MAIN_DB_PREFIX."user as u";
+ 		$sql .= " , ".MAIN_DB_PREFIX."facturedet as fc";
+@@ -775,11 +1387,11 @@ if ($socid > 0) {
+ 		//$sql.= " UNION ";
+ 		// Discount linked to invoices
+ 		$sql2 = "SELECT rc.rowid, rc.amount_ht, rc.amount_tva, rc.amount_ttc, rc.tva_tx, rc.vat_src_code,";
+-		$sql2 .= " rc.multicurrency_amount_ht, rc.multicurrency_amount_tva, rc.multicurrency_amount_ttc,";
++		$sql2 .= " rc.multicurrency_code, rc.multicurrency_amount_ht, rc.multicurrency_amount_tva, rc.multicurrency_amount_ttc,";
+ 		$sql2 .= " rc.datec as dc, rc.description, rc.fk_facture, rc.fk_facture_source,";
+ 		$sql2 .= " u.login, u.rowid as user_id, u.statut as status, u.firstname, u.lastname, u.photo,";
+ 		$sql2 .= " f.rowid as invoiceid, f.ref,";
+-		$sql2 .= " fa.ref as invoice_source_ref, fa.type as type";
++		$sql2 .= " fa.ref as invoice_source_ref, fa.type as type, fa.multicurrency_code as fac_multicurrency_code";
+ 		$sql2 .= " FROM ".MAIN_DB_PREFIX."facture as f";
+ 		$sql2 .= " , ".MAIN_DB_PREFIX."user as u";
+ 		$sql2 .= " , ".MAIN_DB_PREFIX."societe_remise_except as rc";
+@@ -799,20 +1411,42 @@ if ($socid > 0) {
+ 			print '<div class="div-table-responsive-no-min">';
+ 			print '<table class="noborder centpercent">';
+ 			print '<tr class="liste_titre">';
+-			print '<td class="widthdate">'.$langs->trans("Date").'</td>'; // Need 120+ for format with AM/PM
+-			print '<td>'.$langs->trans("ReasonDiscount").'</td>';
+-			print '<td class="nowrap">'.$langs->trans("ConsumedBy").'</td>';
+-			print '<td class="right">'.$langs->trans("AmountHT").'</td>';
+-			if (isModEnabled('multicompany')) {
++			if (!empty($arrayfields['date']['checked'])) {
++				print '<td class="widthdate">'.$langs->trans("Date").'</td>';
++			}
++			if (!empty($arrayfields['reason']['checked'])) {
++				print '<td>'.$langs->trans("ReasonDiscount").'</td>';
++			}
++			if (!empty($arrayfields['consumed_by']['checked'])) {
++				print '<td class="nowrap">'.$langs->trans("ConsumedBy").'</td>';
++			}
++			if (!empty($arrayfields['multicurrency_code']['checked'])) {
++				print '<td class="center">'.$langs->trans("Currency").'</td>';
++			}
++			if (!empty($arrayfields['multicurrency_amount_ht']['checked'])) {
+ 				print '<td class="right tdoverflowmax125" title="'.dol_escape_htmltag($langs->trans("MulticurrencyAmountHT")).'">'.$langs->trans("MulticurrencyAmountHT").'</td>';
+ 			}
+-			print '<td class="right">'.$langs->trans("VATRate").'</td>';
+-			print '<td class="right">'.$langs->trans("AmountTTC").'</td>';
+-			if (isModEnabled('multicompany')) {
++			if (!empty($arrayfields['multicurrency_amount_tva']['checked'])) {
++				print '<td class="right tdoverflowmax125" title="'.dol_escape_htmltag($langs->trans("MulticurrencyAmountVAT")).'">'.$langs->trans("MulticurrencyAmountVAT").'</td>';
++			}
++			if (!empty($arrayfields['multicurrency_amount_ttc']['checked'])) {
+ 				print '<td class="right tdoverflowmax125" title="'.dol_escape_htmltag($langs->trans("MulticurrencyAmountTTC")).'">'.$langs->trans("MulticurrencyAmountTTC").'</td>';
+ 			}
+-			print '<td width="100" class="center">'.$langs->trans("Author").'</td>';
+-			print '<td width="50">&nbsp;</td>';
++			if (!empty($arrayfields['amount_ht']['checked'])) {
++				print '<td class="right">'.$langs->trans("AmountHT").'</td>';
++			}
++			if (!empty($arrayfields['vat_rate']['checked'])) {
++				print '<td class="right">'.$langs->trans("VATRate").'</td>';
++			}
++			if (!empty($arrayfields['amount_ttc']['checked'])) {
++				print '<td class="right">'.$langs->trans("AmountTTC").'</td>';
++			}
++			if (!empty($arrayfields['author']['checked'])) {
++				print '<td width="100" class="center">'.$langs->trans("Author").'</td>';
++			}
++			if (!empty($arrayfields['actions']['checked'])) {
++				print '<td width="50">&nbsp;</td>';
++			}
+ 			print '</tr>';
+ 
+ 			$tab_sqlobj = array();
+@@ -851,61 +1485,90 @@ if ($socid > 0) {
+ 					$tmpuser->status = $obj->status;
+ 
+ 					print '<tr class="oddeven">';
+-					print '<td>'.dol_print_date($db->jdate($obj->dc), 'dayhour').'</td>';
+-					if (preg_match('/\(CREDIT_NOTE\)/', $obj->description)) {
+-						print '<td class="tdoverflowmax100">';
+-						$facturestatic->id = $obj->fk_facture_source;
+-						$facturestatic->ref = $obj->invoice_source_ref;
+-						$facturestatic->type = $obj->type;
+-						print preg_replace('/\(CREDIT_NOTE\)/', $langs->trans("CreditNote"), $obj->description).' '.$facturestatic->getNomURl(1);
+-						print '</td>';
+-					} elseif (preg_match('/\(DEPOSIT\)/', $obj->description)) {
+-						print '<td class="tdoverflowmax100">';
+-						$facturestatic->id = $obj->fk_facture_source;
+-						$facturestatic->ref = $obj->invoice_source_ref;
+-						$facturestatic->type = $obj->type;
+-						print preg_replace('/\(DEPOSIT\)/', $langs->trans("InvoiceDeposit"), $obj->description).' '.$facturestatic->getNomURl(1);
+-						print '</td>';
+-					} elseif (preg_match('/\(EXCESS RECEIVED\)/', $obj->description)) {
+-						print '<td class="tdoverflowmax100">';
+-						$facturestatic->id = $obj->fk_facture_source;
+-						$facturestatic->ref = $obj->invoice_source_ref;
+-						$facturestatic->type = $obj->type;
+-						print preg_replace('/\(EXCESS RECEIVED\)/', $langs->trans("Invoice"), $obj->description).' '.$facturestatic->getNomURl(1);
+-						print '</td>';
+-					} else {
+-						print '<td class="tdoverflowmax100" title="'.dol_escape_htmltag($obj->description).'">';
+-						print dol_escape_htmltag($obj->description);
++					if (!empty($arrayfields['date']['checked'])) {
++						print '<td>'.dol_print_date($db->jdate($obj->dc), 'dayhour').'</td>';
++					}
++					if (!empty($arrayfields['reason']['checked'])) {
++						if (preg_match('/\(CREDIT_NOTE\)/', $obj->description)) {
++							print '<td class="remx-reason-cell">';
++							$facturestatic->id = $obj->fk_facture_source;
++							$facturestatic->ref = $obj->invoice_source_ref;
++							$facturestatic->type = $obj->type;
++							print preg_replace('/\(CREDIT_NOTE\)/', $langs->trans("CreditNote"), $obj->description).' '.$facturestatic->getNomURl(1);
++							print '</td>';
++						} elseif (preg_match('/\(DEPOSIT\)/', $obj->description)) {
++							print '<td class="remx-reason-cell">';
++							$facturestatic->id = $obj->fk_facture_source;
++							$facturestatic->ref = $obj->invoice_source_ref;
++							$facturestatic->type = $obj->type;
++							print preg_replace('/\(DEPOSIT\)/', $langs->trans("InvoiceDeposit"), $obj->description).' '.$facturestatic->getNomURl(1);
++							print '</td>';
++						} elseif (preg_match('/\(EXCESS RECEIVED\)/', $obj->description)) {
++							print '<td class="remx-reason-cell">';
++							$facturestatic->id = $obj->fk_facture_source;
++							$facturestatic->ref = $obj->invoice_source_ref;
++							$facturestatic->type = $obj->type;
++							print preg_replace('/\(EXCESS RECEIVED\)/', $langs->trans("Invoice"), $obj->description).' '.$facturestatic->getNomURl(1);
++							print '</td>';
++						} else {
++							print '<td class="remx-reason-cell" title="'.dol_escape_htmltag($obj->description).'">';
++							print dol_escape_htmltag($obj->description);
++							print '</td>';
++						}
++					}
++					if (!empty($arrayfields['consumed_by']['checked'])) {
++						print '<td class="left nowrap">';
++						if ($obj->invoiceid) {
++							print '<a href="'.DOL_URL_ROOT.'/compta/facture/card.php?facid='.$obj->invoiceid.'">'.img_object($langs->trans("ShowBill"), 'bill').' '.$obj->ref.'</a>';
++						}
+ 						print '</td>';
+ 					}
+-					print '<td class="left nowrap">';
+-					if ($obj->invoiceid) {
+-						print '<a href="'.DOL_URL_ROOT.'/compta/facture/card.php?facid='.$obj->invoiceid.'">'.img_object($langs->trans("ShowBill"), 'bill').' '.$obj->ref.'</a>';
++					$remx_cur = remx_get_foreign_currency_code(
++						isset($obj->multicurrency_code) ? $obj->multicurrency_code : '',
++						isset($obj->fac_multicurrency_code) ? $obj->fac_multicurrency_code : '',
++						(float) (isset($obj->multicurrency_amount_ttc) ? $obj->multicurrency_amount_ttc : 0),
++						$conf->currency
++					);
++					if (!empty($arrayfields['multicurrency_code']['checked'])) {
++						print '<td class="center">'.dol_escape_htmltag($remx_cur).'</td>';
+ 					}
+-					print '</td>';
+-					print '<td class="right nowraponall amount">'.price($obj->amount_ht).'</td>';
+-					if (isModEnabled('multicompany')) {
+-						print '<td class="right nowraponall amount">'.price($obj->multicurrency_amount_ht).'</td>';
++					if (!empty($arrayfields['multicurrency_amount_ht']['checked'])) {
++						print '<td class="right nowraponall amount">'.price($obj->multicurrency_amount_ht, 0, $langs, 0, -1, -1, $remx_cur ? $remx_cur : $conf->currency).'</td>';
+ 					}
+-					print '<td class="right nowraponall">'.vatrate($obj->tva_tx.($obj->vat_src_code ? ' ('.$obj->vat_src_code.')' : ''), true).'</td>';
+-					print '<td class="right nowraponall amount">'.price($obj->amount_ttc).'</td>';
+-					if (isModEnabled('multicompany')) {
+-						print '<td class="right">'.price($obj->multicurrency_amount_ttc).'</td>';
++					if (!empty($arrayfields['multicurrency_amount_tva']['checked'])) {
++						print '<td class="right nowraponall amount">'.price($obj->multicurrency_amount_tva, 0, $langs, 0, -1, -1, $remx_cur ? $remx_cur : $conf->currency).'</td>';
++					}
++					if (!empty($arrayfields['multicurrency_amount_ttc']['checked'])) {
++						print '<td class="right nowraponall amount">'.price($obj->multicurrency_amount_ttc, 0, $langs, 0, -1, -1, $remx_cur ? $remx_cur : $conf->currency).'</td>';
++					}
++					if (!empty($arrayfields['amount_ht']['checked'])) {
++						print '<td class="right nowraponall amount">'.price($obj->amount_ht, 0, $langs, 0, -1, -1, $conf->currency).'</td>';
++					}
++					if (!empty($arrayfields['vat_rate']['checked'])) {
++						print '<td class="right nowraponall">'.vatrate($obj->tva_tx.($obj->vat_src_code ? ' ('.$obj->vat_src_code.')' : ''), true).'</td>';
++					}
++					if (!empty($arrayfields['amount_ttc']['checked'])) {
++						print '<td class="right nowraponall amount">'.price($obj->amount_ttc, 0, $langs, 0, -1, -1, $conf->currency).'</td>';
++					}
++					if (!empty($arrayfields['author']['checked'])) {
++						print '<td class="tdoverflowmax100">';
++						print $tmpuser->getNomUrl(-1);
++						print '</td>';
++					}
++					if (!empty($arrayfields['actions']['checked'])) {
++						print '<td>&nbsp;</td>';
+ 					}
+-					print '<td class="tdoverflowmax100">';
+-					print $tmpuser->getNomUrl(-1);
+-					print '</td>';
+-
+-					print '<td>&nbsp;</td>';
+ 					print '</tr>';
+ 					$i++;
+ 				}
+ 			} else {
+-				$colspan = 8;
+-				if (isModEnabled('multicompany')) {
+-					$colspan += 2;
++				$remx_colspan = 0;
++				foreach ($arrayfields as $k => $v) {
++					if (!empty($v['checked'])) {
++						$remx_colspan++;
++					}
+ 				}
+-				print '<tr><td colspan="'.$colspan.'"><span class="opacitymedium">'.$langs->trans("None").'</span></td></tr>';
++				print '<tr><td colspan="'.max(1, $remx_colspan).'"><span class="opacitymedium">'.$langs->trans("None").'</span></td></tr>';
+ 			}
+ 
+ 			print "</table>";
+@@ -917,19 +1580,19 @@ if ($socid > 0) {
+ 
+ 	if ($isSupplier) {
+ 		if ($isCustomer) {
+-			print '</div>'; // class="fichehalfleft"
+-			print '<div class="fichehalfright fichehalfright-lg">';
+-			print load_fiche_titre($langs->trans("SupplierDiscounts"), '', '');
++			print '</div>';
++			print '<div class="fichecenter">';
+ 		}
++		print load_fiche_titre($langs->trans("SupplierDiscounts"), '', '');
+ 
+ 		// Discount linked to invoice lines
+ 		$sql = "SELECT rc.rowid, rc.amount_ht, rc.amount_tva, rc.amount_ttc, rc.tva_tx, rc.vat_src_code,";
+-		$sql .= " rc.multicurrency_amount_ht, rc.multicurrency_amount_tva, rc.multicurrency_amount_ttc,";
++		$sql .= " rc.multicurrency_code, rc.multicurrency_amount_ht, rc.multicurrency_amount_tva, rc.multicurrency_amount_ttc,";
+ 		$sql .= " rc.datec as dc, rc.description, rc.fk_invoice_supplier_line,";
+ 		$sql .= " rc.fk_invoice_supplier_source,";
+ 		$sql .= " u.login, u.rowid as user_id, u.statut as user_status, u.firstname, u.lastname, u.photo,";
+ 		$sql .= " f.rowid as invoiceid, f.ref as ref,";
+-		$sql .= " fa.ref as invoice_source_ref, fa.type as type";
++		$sql .= " fa.ref as invoice_source_ref, fa.type as type, fa.multicurrency_code as fac_multicurrency_code";
+ 		$sql .= " FROM ".MAIN_DB_PREFIX."facture_fourn as f";
+ 		$sql .= " , ".MAIN_DB_PREFIX."user as u";
+ 		$sql .= " , ".MAIN_DB_PREFIX."facture_fourn_det as fc";
+@@ -944,12 +1607,12 @@ if ($socid > 0) {
+ 		//$sql.= " UNION ";
+ 		// Discount linked to invoices
+ 		$sql2 = "SELECT rc.rowid, rc.amount_ht, rc.amount_tva, rc.amount_ttc, rc.tva_tx, rc.vat_src_code,";
+-		$sql2 .= " rc.multicurrency_amount_ht, rc.multicurrency_amount_tva, rc.multicurrency_amount_ttc,";
++		$sql2 .= " rc.multicurrency_code, rc.multicurrency_amount_ht, rc.multicurrency_amount_tva, rc.multicurrency_amount_ttc,";
+ 		$sql2 .= " rc.datec as dc, rc.description, rc.fk_invoice_supplier,";
+ 		$sql2 .= " rc.fk_invoice_supplier_source,";
+ 		$sql2 .= " u.login, u.rowid as user_id, u.statut as user_status, u.firstname, u.lastname, u.photo,";
+ 		$sql2 .= " f.rowid as invoiceid, f.ref as ref,";
+-		$sql2 .= " fa.ref as invoice_source_ref, fa.type as type";
++		$sql2 .= " fa.ref as invoice_source_ref, fa.type as type, fa.multicurrency_code as fac_multicurrency_code";
+ 		$sql2 .= " FROM ".MAIN_DB_PREFIX."facture_fourn as f";
+ 		$sql2 .= " , ".MAIN_DB_PREFIX."user as u";
+ 		$sql2 .= " , ".MAIN_DB_PREFIX."societe_remise_except as rc";
+@@ -969,20 +1632,42 @@ if ($socid > 0) {
+ 			print '<div class="div-table-responsive-no-min">';
+ 			print '<table class="noborder centpercent">';
+ 			print '<tr class="liste_titre">';
+-			print '<td class="widthdate">'.$langs->trans("Date").'</td>'; // Need 120+ for format with AM/PM
+-			print '<td>'.$langs->trans("ReasonDiscount").'</td>';
+-			print '<td class="nowrap">'.$langs->trans("ConsumedBy").'</td>';
+-			print '<td class="right">'.$langs->trans("AmountHT").'</td>';
+-			if (isModEnabled('multicompany')) {
++			if (!empty($arrayfields['date']['checked'])) {
++				print '<td class="widthdate">'.$langs->trans("Date").'</td>';
++			}
++			if (!empty($arrayfields['reason']['checked'])) {
++				print '<td>'.$langs->trans("ReasonDiscount").'</td>';
++			}
++			if (!empty($arrayfields['consumed_by']['checked'])) {
++				print '<td class="nowrap">'.$langs->trans("ConsumedBy").'</td>';
++			}
++			if (!empty($arrayfields['multicurrency_code']['checked'])) {
++				print '<td class="center">'.$langs->trans("Currency").'</td>';
++			}
++			if (!empty($arrayfields['multicurrency_amount_ht']['checked'])) {
+ 				print '<td class="right tdoverflowmax125" title="'.dol_escape_htmltag($langs->trans("MulticurrencyAmountHT")).'">'.$langs->trans("MulticurrencyAmountHT").'</td>';
+ 			}
+-			print '<td class="right">'.$langs->trans("VATRate").'</td>';
+-			print '<td class="right">'.$langs->trans("AmountTTC").'</td>';
+-			if (isModEnabled('multicompany')) {
++			if (!empty($arrayfields['multicurrency_amount_tva']['checked'])) {
++				print '<td class="right tdoverflowmax125" title="'.dol_escape_htmltag($langs->trans("MulticurrencyAmountVAT")).'">'.$langs->trans("MulticurrencyAmountVAT").'</td>';
++			}
++			if (!empty($arrayfields['multicurrency_amount_ttc']['checked'])) {
+ 				print '<td class="right tdoverflowmax125" title="'.dol_escape_htmltag($langs->trans("MulticurrencyAmountTTC")).'">'.$langs->trans("MulticurrencyAmountTTC").'</td>';
+ 			}
+-			print '<td width="100" class="center">'.$langs->trans("Author").'</td>';
+-			print '<td width="50">&nbsp;</td>';
++			if (!empty($arrayfields['amount_ht']['checked'])) {
++				print '<td class="right">'.$langs->trans("AmountHT").'</td>';
++			}
++			if (!empty($arrayfields['vat_rate']['checked'])) {
++				print '<td class="right">'.$langs->trans("VATRate").'</td>';
++			}
++			if (!empty($arrayfields['amount_ttc']['checked'])) {
++				print '<td class="right">'.$langs->trans("AmountTTC").'</td>';
++			}
++			if (!empty($arrayfields['author']['checked'])) {
++				print '<td width="100" class="center">'.$langs->trans("Author").'</td>';
++			}
++			if (!empty($arrayfields['actions']['checked'])) {
++				print '<td width="50">&nbsp;</td>';
++			}
+ 			print '</tr>';
+ 
+ 			$tab_sqlobj = array();
+@@ -1018,65 +1703,93 @@ if ($socid > 0) {
+ 					$tmpuser->firstname = $obj->firstname;
+ 					$tmpuser->lastname = $obj->lastname;
+ 					$tmpuser->photo = $obj->photo;
+-					$tmpuser->status = $obj->status;
++					$tmpuser->status = isset($obj->status) ? $obj->status : $obj->user_status;
+ 
+ 					print '<tr class="oddeven">';
+-					print '<td>'.dol_print_date($db->jdate($obj->dc), 'dayhour').'</td>';
+-					if (preg_match('/\(CREDIT_NOTE\)/', $obj->description)) {
+-						print '<td class="tdoverflowmax100">';
+-						$facturefournstatic->id = $obj->fk_invoice_supplier_source;
+-						$facturefournstatic->ref = $obj->invoice_source_ref;
+-						$facturefournstatic->type = $obj->type;
+-						print preg_replace('/\(CREDIT_NOTE\)/', $langs->trans("CreditNote"), $obj->description).' '.$facturefournstatic->getNomURl(1);
+-						print '</td>';
+-					} elseif (preg_match('/\(DEPOSIT\)/', $obj->description)) {
+-						print '<td class="tdoverflowmax100">';
+-						$facturefournstatic->id = $obj->fk_invoice_supplier_source;
+-						$facturefournstatic->ref = $obj->invoice_source_ref;
+-						$facturefournstatic->type = $obj->type;
+-						print preg_replace('/\(DEPOSIT\)/', $langs->trans("InvoiceDeposit"), $obj->description).' '.$facturefournstatic->getNomURl(1);
+-						print '</td>';
+-					} elseif (preg_match('/\(EXCESS PAID\)/', $obj->description)) {
+-						print '<td class="tdoverflowmax100">';
+-						$facturefournstatic->id = $obj->fk_invoice_supplier_source;
+-						$facturefournstatic->ref = $obj->invoice_source_ref;
+-						$facturefournstatic->type = $obj->type;
+-						print preg_replace('/\(EXCESS PAID\)/', $langs->trans("Invoice"), $obj->description).' '.$facturefournstatic->getNomURl(1);
+-						print '</td>';
+-					} else {
+-						print '<td class="tdoverflowmax100" title="'.dol_escape_htmltag($obj->description).'">';
+-						print dol_escape_htmltag($obj->description);
++					if (!empty($arrayfields['date']['checked'])) {
++						print '<td>'.dol_print_date($db->jdate($obj->dc), 'dayhour').'</td>';
++					}
++					if (!empty($arrayfields['reason']['checked'])) {
++						if (preg_match('/\(CREDIT_NOTE\)/', $obj->description)) {
++							print '<td class="remx-reason-cell">';
++							$facturefournstatic->id = $obj->fk_invoice_supplier_source;
++							$facturefournstatic->ref = $obj->invoice_source_ref;
++							$facturefournstatic->type = $obj->type;
++							print preg_replace('/\(CREDIT_NOTE\)/', $langs->trans("CreditNote"), $obj->description).' '.$facturefournstatic->getNomURl(1);
++							print '</td>';
++						} elseif (preg_match('/\(DEPOSIT\)/', $obj->description)) {
++							print '<td class="remx-reason-cell">';
++							$facturefournstatic->id = $obj->fk_invoice_supplier_source;
++							$facturefournstatic->ref = $obj->invoice_source_ref;
++							$facturefournstatic->type = $obj->type;
++							print preg_replace('/\(DEPOSIT\)/', $langs->trans("InvoiceDeposit"), $obj->description).' '.$facturefournstatic->getNomURl(1);
++							print '</td>';
++						} elseif (preg_match('/\(EXCESS PAID\)/', $obj->description)) {
++							print '<td class="remx-reason-cell">';
++							$facturefournstatic->id = $obj->fk_invoice_supplier_source;
++							$facturefournstatic->ref = $obj->invoice_source_ref;
++							$facturefournstatic->type = $obj->type;
++							print preg_replace('/\(EXCESS PAID\)/', $langs->trans("Invoice"), $obj->description).' '.$facturefournstatic->getNomURl(1);
++							print '</td>';
++						} else {
++							print '<td class="remx-reason-cell" title="'.dol_escape_htmltag($obj->description).'">';
++							print dol_escape_htmltag($obj->description);
++							print '</td>';
++						}
++					}
++					if (!empty($arrayfields['consumed_by']['checked'])) {
++						print '<td class="left nowrap">';
++						if ($obj->invoiceid) {
++							print '<a href="'.DOL_URL_ROOT.'/fourn/facture/card.php?facid='.$obj->invoiceid.'">'.img_object($langs->trans("ShowBill"), 'bill').' '.$obj->ref.'</a>';
++						}
+ 						print '</td>';
+ 					}
+-					print '<td class="left nowrap">';
+-					if ($obj->invoiceid) {
+-						print '<a href="'.DOL_URL_ROOT.'/fourn/facture/card.php?facid='.$obj->invoiceid.'">'.img_object($langs->trans("ShowBill"), 'bill').' '.$obj->ref.'</a>';
++					$remx_cur = remx_get_foreign_currency_code(
++						isset($obj->multicurrency_code) ? $obj->multicurrency_code : '',
++						isset($obj->fac_multicurrency_code) ? $obj->fac_multicurrency_code : '',
++						(float) (isset($obj->multicurrency_amount_ttc) ? $obj->multicurrency_amount_ttc : 0),
++						$conf->currency
++					);
++					if (!empty($arrayfields['multicurrency_code']['checked'])) {
++						print '<td class="center">'.dol_escape_htmltag($remx_cur).'</td>';
+ 					}
+-					print '</td>';
+-					print '<td class="right nowraponall amount">'.price($obj->amount_ht).'</td>';
+-					if (isModEnabled('multicompany')) {
+-						print '<td class="right nowraponall amount">'.price($obj->multicurrency_amount_ht).'</td>';
++					if (!empty($arrayfields['multicurrency_amount_ht']['checked'])) {
++						print '<td class="right nowraponall amount">'.price($obj->multicurrency_amount_ht, 0, $langs, 0, -1, -1, $remx_cur ? $remx_cur : $conf->currency).'</td>';
+ 					}
+-					print '<td class="right">'.vatrate($obj->tva_tx.($obj->vat_src_code ? ' ('.$obj->vat_src_code.')' : ''), true).'</td>';
+-					print '<td class="right nowraponall amount">'.price($obj->amount_ttc).'</td>';
+-					if (isModEnabled('multicompany')) {
+-						print '<td class="right nowraponall amount">'.price($obj->multicurrency_amount_ttc).'</td>';
++					if (!empty($arrayfields['multicurrency_amount_tva']['checked'])) {
++						print '<td class="right nowraponall amount">'.price($obj->multicurrency_amount_tva, 0, $langs, 0, -1, -1, $remx_cur ? $remx_cur : $conf->currency).'</td>';
++					}
++					if (!empty($arrayfields['multicurrency_amount_ttc']['checked'])) {
++						print '<td class="right nowraponall amount">'.price($obj->multicurrency_amount_ttc, 0, $langs, 0, -1, -1, $remx_cur ? $remx_cur : $conf->currency).'</td>';
++					}
++					if (!empty($arrayfields['amount_ht']['checked'])) {
++						print '<td class="right nowraponall amount">'.price($obj->amount_ht, 0, $langs, 0, -1, -1, $conf->currency).'</td>';
++					}
++					if (!empty($arrayfields['vat_rate']['checked'])) {
++						print '<td class="right nowraponall">'.vatrate($obj->tva_tx.($obj->vat_src_code ? ' ('.$obj->vat_src_code.')' : ''), true).'</td>';
++					}
++					if (!empty($arrayfields['amount_ttc']['checked'])) {
++						print '<td class="right nowraponall amount">'.price($obj->amount_ttc, 0, $langs, 0, -1, -1, $conf->currency).'</td>';
++					}
++					if (!empty($arrayfields['author']['checked'])) {
++						print '<td class="tdoverflowmax100">';
++						print $tmpuser->getNomUrl(-1);
++						print '</td>';
++					}
++					if (!empty($arrayfields['actions']['checked'])) {
++						print '<td>&nbsp;</td>';
+ 					}
+-					print '<td class="tdoverflowmax100">';
+-					print $tmpuser->getNomUrl(-1);
+-					print '</td>';
+-
+-					print '<td>&nbsp;</td>';
+-
+ 					print '</tr>';
+ 					$i++;
+ 				}
+ 			} else {
+-				$colspan = 8;
+-				if (isModEnabled('multicompany')) {
+-					$colspan += 2;
++				$remx_colspan = 0;
++				foreach ($arrayfields as $k => $v) {
++					if (!empty($v['checked'])) {
++						$remx_colspan++;
++					}
+ 				}
+-				print '<tr><td colspan="'.$colspan.'"><span class="opacitymedium">'.$langs->trans("None").'</span></td></tr>';
++				print '<tr><td colspan="'.max(1, $remx_colspan).'"><span class="opacitymedium">'.$langs->trans("None").'</span></td></tr>';
+ 			}
+ 
+ 			print "</table>";
+@@ -1086,8 +1799,7 @@ if ($socid > 0) {
+ 		}
+ 
+ 		if ($isCustomer) {
+-			print '</div>'; // class="fichehalfright"
+-			print '</div>'; // class="fichecenter"
++			print '</div>';
+ 		}
+ 	}
+ }

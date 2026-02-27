@@ -1,3 +1,10 @@
+diff --git a/htdocs/conf/.htaccess b/htdocs/conf/.htaccess
+index 3c281cca474..4ae364cc6e5 100644
+--- a/htdocs/conf/.htaccess
++++ b/htdocs/conf/.htaccess
+@@ -1 +1 @@
+-Require host localhost
++Require host localhost 127.0.0.1
 diff --git a/htdocs/cron/class/cronjob.class.php b/htdocs/cron/class/cronjob.class.php
 index 84cd76766e9..2e8be0d2a2d 100644
 --- a/htdocs/cron/class/cronjob.class.php
