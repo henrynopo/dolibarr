@@ -71,6 +71,11 @@ class ExpeditionStats extends Stats
 	 */
 	public $where;
 
+	/**
+	 * @var string Date column for SQL: either 'date_valid' (then used as c.date_valid) or 'ef.colname' for extrafield
+	 */
+	public $datefield;
+
 
 	/**
 	 * Constructor
@@ -79,8 +84,9 @@ class ExpeditionStats extends Stats
 	 * @param 	int		$socid	   	Id third party for filter
 	 * @param 	string	$mode	   	Option (not used)
 	 * @param   int		$userid    	Id user for filter (creation user)
+	 * @param   string	$datefield  	Date column for stats: date_valid, date_creation, date_delivery, date_expedition, or ef_<name> for extrafield date
 	 */
-	public function __construct($db, $socid, $mode, $userid = 0)
+	public function __construct($db, $socid, $mode, $userid = 0, $datefield = 'date_valid')
 	{
 		global $user, $conf;
 
@@ -92,6 +98,18 @@ class ExpeditionStats extends Stats
 
 		$object = new Expedition($this->db);
 		$this->from = MAIN_DB_PREFIX.$object->table_element." as c";
+		$this->join = '';
+		$allowed = array('date_valid', 'date_creation', 'date_delivery', 'date_expedition');
+		if (in_array($datefield, $allowed)) {
+			$this->datefield = $datefield;
+		} elseif (preg_match('/^ef_([a-z0-9_]+)$/i', $datefield, $m)) {
+			$col = $this->db->escape($m[1]);
+			$this->join = " LEFT JOIN ".MAIN_DB_PREFIX.$object->table_element."_extrafields as ef ON (c.rowid = ef.fk_object)";
+			$this->datefield = "ef.".$m[1]; // use unescaped for column identifier (no user input in name)
+		} else {
+			$this->datefield = 'date_valid';
+		}
+
 		//$this->from.= ", ".MAIN_DB_PREFIX."societe as s";
 		$this->field = 'weight'; // Warning, unit of weight is NOT USED AND MUST BE
 		$this->where .= " c.fk_statut > 0"; // Not draft and not cancelled
@@ -108,6 +126,16 @@ class ExpeditionStats extends Stats
 	}
 
 	/**
+	 * Return the date column expression for SQL (c.date_valid or ef.colname)
+	 *
+	 * @return string
+	 */
+	protected function getDateCol()
+	{
+		return (strpos($this->datefield, '.') !== false) ? $this->datefield : 'c.'.$this->datefield;
+	}
+
+	/**
 	 * Return shipment number by month for a year
 	 *
 	 * @param	int		$year		Year to scan
@@ -118,12 +146,14 @@ class ExpeditionStats extends Stats
 	{
 		global $user;
 
-		$sql = "SELECT date_format(c.date_valid,'%m') as dm, COUNT(*) as nb";
+		$datecol = $this->getDateCol();
+		$sql = "SELECT date_format(".$datecol.",'%m') as dm, COUNT(*) as nb";
 		$sql .= " FROM ".$this->from;
+		$sql .= $this->join;
 		if (!$user->hasRight('societe', 'client', 'voir')) {
 			$sql .= " INNER JOIN ".MAIN_DB_PREFIX."societe_commerciaux as sc ON c.fk_soc = sc.fk_soc AND sc.fk_user = ".((int) $user->id);
 		}
-		$sql .= " WHERE c.date_valid BETWEEN '".$this->db->idate(dol_get_first_day($year))."' AND '".$this->db->idate(dol_get_last_day($year))."'";
+		$sql .= " WHERE ".$datecol." IS NOT NULL AND ".$datecol." BETWEEN '".$this->db->idate(dol_get_first_day($year))."' AND '".$this->db->idate(dol_get_last_day($year))."'";
 		$sql .= " AND ".$this->where;
 		$sql .= " GROUP BY dm";
 		$sql .= $this->db->order('dm', 'DESC');
@@ -142,12 +172,14 @@ class ExpeditionStats extends Stats
 	{
 		global $user;
 
-		$sql = "SELECT date_format(c.date_valid,'%Y') as dm, COUNT(*) as nb, SUM(c.".$this->field.")";
+		$datecol = $this->getDateCol();
+		$sql = "SELECT date_format(".$datecol.",'%Y') as dm, COUNT(*) as nb, SUM(c.".$this->field.")";
 		$sql .= " FROM ".$this->from;
+		$sql .= $this->join;
 		if (!$user->hasRight('societe', 'client', 'voir')) {
 			$sql .= " INNER JOIN ".MAIN_DB_PREFIX."societe_commerciaux as sc ON c.fk_soc = sc.fk_soc AND sc.fk_user = ".((int) $user->id);
 		}
-		$sql .= " WHERE ".$this->where;
+		$sql .= " WHERE ".$datecol." IS NOT NULL AND ".$this->where;
 		$sql .= " GROUP BY dm";
 		$sql .= $this->db->order('dm', 'DESC');
 
@@ -165,13 +197,14 @@ class ExpeditionStats extends Stats
 	{
 		global $user;
 
-		$sql = "SELECT date_format(c.date_valid,'%m') as dm, SUM(c.".$this->field.")";
+		$datecol = $this->getDateCol();
+		$sql = "SELECT date_format(".$datecol.",'%m') as dm, SUM(c.".$this->field.")";
 		$sql .= " FROM ".$this->from;
+		$sql .= $this->join;
 		if (!$user->hasRight('societe', 'client', 'voir')) {
 			$sql .= " INNER JOIN ".MAIN_DB_PREFIX."societe_commerciaux as sc ON c.fk_soc = sc.fk_soc AND sc.fk_user = ".((int) $user->id);
 		}
-		$sql .= $this->join;
-		$sql .= " WHERE ".$this->where;
+		$sql .= " WHERE ".$datecol." IS NOT NULL AND ".$this->where;
 		$sql .= " GROUP BY dm";
 		$sql .= $this->db->order('dm', 'DESC');
 
@@ -189,13 +222,14 @@ class ExpeditionStats extends Stats
 	{
 		global $user;
 
-		$sql = "SELECT date_format(c.date_valid,'%m') as dm, AVG(c.".$this->field.")";
+		$datecol = $this->getDateCol();
+		$sql = "SELECT date_format(".$datecol.",'%m') as dm, AVG(c.".$this->field.")";
 		$sql .= " FROM ".$this->from;
+		$sql .= $this->join;
 		if (!$user->hasRight('societe', 'client', 'voir')) {
 			$sql .= " INNER JOIN ".MAIN_DB_PREFIX."societe_commerciaux as sc ON c.fk_soc = sc.fk_soc AND sc.fk_user = ".((int) $user->id);
 		}
-		$sql .= $this->join;
-		$sql .= " WHERE ".$this->where;
+		$sql .= " WHERE ".$datecol." IS NOT NULL AND ".$this->where;
 		$sql .= " GROUP BY dm";
 		$sql .= $this->db->order('dm', 'DESC');
 
@@ -211,12 +245,14 @@ class ExpeditionStats extends Stats
 	{
 		global $user;
 
-		$sql = "SELECT date_format(c.date_valid,'%Y') as year, COUNT(*) as nb, SUM(c.".$this->field.") as total, AVG(".$this->field.") as avg";
+		$datecol = $this->getDateCol();
+		$sql = "SELECT date_format(".$datecol.",'%Y') as year, COUNT(*) as nb, SUM(c.".$this->field.") as total, AVG(c.".$this->field.") as avg";
 		$sql .= " FROM ".$this->from;
+		$sql .= $this->join;
 		if (!$user->hasRight('societe', 'client', 'voir')) {
 			$sql .= " INNER JOIN ".MAIN_DB_PREFIX."societe_commerciaux as sc ON c.fk_soc = sc.fk_soc AND sc.fk_user = ".((int) $user->id);
 		}
-		$sql .= " WHERE ".$this->where;
+		$sql .= " WHERE ".$datecol." IS NOT NULL AND ".$this->where;
 		$sql .= " GROUP BY year";
 		$sql .= $this->db->order('year', 'DESC');
 

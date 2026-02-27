@@ -30,8 +30,10 @@
 
 // Load Dolibarr environment
 require '../../main.inc.php';
+require_once DOL_DOCUMENT_ROOT.'/core/class/extrafields.class.php';
 require_once DOL_DOCUMENT_ROOT.'/commande/class/commande.class.php';
 require_once DOL_DOCUMENT_ROOT.'/commande/class/commandestats.class.php';
+require_once DOL_DOCUMENT_ROOT.'/fourn/class/fournisseur.commande.class.php';
 require_once DOL_DOCUMENT_ROOT.'/categories/class/categorie.class.php';
 require_once DOL_DOCUMENT_ROOT.'/core/class/html.formorder.class.php';
 require_once DOL_DOCUMENT_ROOT.'/core/class/html.formcompany.class.php';
@@ -79,6 +81,31 @@ $categ_id = GETPOSTINT('categ_id');
 
 $userid = GETPOSTINT('userid');
 $socid = GETPOSTINT('socid');
+$datefield = GETPOST('datefield', 'aZ09');
+
+// Build allowed date fields: built-in + order extrafields (date/datetime type)
+$extrafields = new ExtraFields($db);
+if ($mode == 'customer') {
+	$objectForExtra = new Commande($db);
+} else {
+	$objectForExtra = new CommandeFournisseur($db);
+}
+$extrafields->fetch_name_optionals_label($objectForExtra->table_element);
+$allowed_datefields = ($mode == 'customer')
+	? array('date_commande', 'date_creation', 'date_valid', 'date_cloture', 'date_livraison')
+	: array('date_commande', 'date_creation', 'date_valid', 'date_approve', 'date_approve2', 'date_livraison');
+if (!empty($extrafields->attributes[$objectForExtra->table_element]['type']) && is_array($extrafields->attributes[$objectForExtra->table_element]['type'])) {
+	foreach ($extrafields->attributes[$objectForExtra->table_element]['type'] as $key => $type) {
+		$typebase = preg_replace('/\(.*$/', '', $type);
+		if (in_array($typebase, array('date', 'datetime', 'timestamp'))) {
+			$allowed_datefields[] = 'ef_'.$key;
+		}
+	}
+}
+if (!in_array($datefield, $allowed_datefields)) {
+	$datefield = 'date_commande';
+}
+
 // Security check
 if ($user->socid > 0) {
 	$action = '';
@@ -95,6 +122,19 @@ $nowyear = (int) dol_print_date(dol_now('gmt'), "%Y", 'gmt');
 $year = GETPOSTINT('year') > 0 ? GETPOSTINT('year') : $nowyear;
 $startyear = $year - (!getDolGlobalInt('MAIN_STATS_GRAPHS_SHOW_N_YEARS') ? 2 : max(1, min(10, getDolGlobalInt('MAIN_STATS_GRAPHS_SHOW_N_YEARS'))));
 $endyear = $year;
+
+$param = '&mode='.urlencode($mode).'&socid='.((int) $socid).'&userid='.((int) $userid).'&datefield='.urlencode($datefield);
+if (!empty($typent_id)) {
+	$param .= '&typent_id='.((int) $typent_id);
+}
+if (!empty($categ_id)) {
+	$param .= '&categ_id='.((int) $categ_id);
+}
+if ($mode == 'supplier' && $object_status != '') {
+	$param .= '&object_status='.urlencode($object_status);
+} elseif ($mode == 'customer' && $object_status != '' && $object_status >= -1) {
+	$param .= '&object_status='.urlencode($object_status);
+}
 
 // Load translation files required by the page
 $langs->loadLangs(array('orders', 'companies', 'other', 'suppliers'));
@@ -125,7 +165,7 @@ print load_fiche_titre($title, '', $picto);
 
 dol_mkdir($dir);
 
-$stats = new CommandeStats($db, $socid, $mode, ($userid > 0 ? $userid : 0), ($typent_id > 0 ? $typent_id : 0), ($categ_id > 0 ? $categ_id : 0));
+$stats = new CommandeStats($db, $socid, $mode, ($userid > 0 ? $userid : 0), ($typent_id > 0 ? $typent_id : 0), ($categ_id > 0 ? $categ_id : 0), $datefield);
 if ($mode == 'customer') {
 	if ($object_status != '' && $object_status >= -1) {
 		$stats->where .= ' AND c.fk_statut IN ('.$db->sanitize($object_status).')';
@@ -146,21 +186,22 @@ $data = $stats->getNbByMonthWithPrevYear($endyear, $startyear);
 
 
 $fileurlnb = '';
+$file_suffix = $year.'-'.(strlen($datefield) ? $datefield : 'date_commande').'.png';
 if (!$user->hasRight('societe', 'client', 'voir')) {
-	$filenamenb = $dir.'/ordersnbinyear-'.$user->id.'-'.$year.'.png';
+	$filenamenb = $dir.'/ordersnbinyear-'.$user->id.'-'.$file_suffix;
 	if ($mode == 'customer') {
-		$fileurlnb = DOL_URL_ROOT.'/viewimage.php?modulepart=orderstats&file=ordersnbinyear-'.$user->id.'-'.$year.'.png';
+		$fileurlnb = DOL_URL_ROOT.'/viewimage.php?modulepart=orderstats&file=ordersnbinyear-'.$user->id.'-'.$file_suffix;
 	}
 	if ($mode == 'supplier') {
-		$fileurlnb = DOL_URL_ROOT.'/viewimage.php?modulepart=orderstatssupplier&file=ordersnbinyear-'.$user->id.'-'.$year.'.png';
+		$fileurlnb = DOL_URL_ROOT.'/viewimage.php?modulepart=orderstatssupplier&file=ordersnbinyear-'.$user->id.'-'.$file_suffix;
 	}
 } else {
-	$filenamenb = $dir.'/ordersnbinyear-'.$year.'.png';
+	$filenamenb = $dir.'/ordersnbinyear-'.$file_suffix;
 	if ($mode == 'customer') {
-		$fileurlnb = DOL_URL_ROOT.'/viewimage.php?modulepart=orderstats&file=ordersnbinyear-'.$year.'.png';
+		$fileurlnb = DOL_URL_ROOT.'/viewimage.php?modulepart=orderstats&file=ordersnbinyear-'.$file_suffix;
 	}
 	if ($mode == 'supplier') {
-		$fileurlnb = DOL_URL_ROOT.'/viewimage.php?modulepart=orderstatssupplier&file=ordersnbinyear-'.$year.'.png';
+		$fileurlnb = DOL_URL_ROOT.'/viewimage.php?modulepart=orderstatssupplier&file=ordersnbinyear-'.$file_suffix;
 	}
 }
 
@@ -195,20 +236,20 @@ $data = $stats->getAmountByMonthWithPrevYear($endyear, $startyear);
 
 $fileurlamount = '';
 if (!$user->hasRight('societe', 'client', 'voir')) {
-	$filenameamount = $dir.'/ordersamountinyear-'.$user->id.'-'.$year.'.png';
+	$filenameamount = $dir.'/ordersamountinyear-'.$user->id.'-'.$file_suffix;
 	if ($mode == 'customer') {
-		$fileurlamount = DOL_URL_ROOT.'/viewimage.php?modulepart=orderstats&file=ordersamountinyear-'.$user->id.'-'.$year.'.png';
+		$fileurlamount = DOL_URL_ROOT.'/viewimage.php?modulepart=orderstats&file=ordersamountinyear-'.$user->id.'-'.$file_suffix;
 	}
 	if ($mode == 'supplier') {
-		$fileurlamount = DOL_URL_ROOT.'/viewimage.php?modulepart=orderstatssupplier&file=ordersamountinyear-'.$user->id.'-'.$year.'.png';
+		$fileurlamount = DOL_URL_ROOT.'/viewimage.php?modulepart=orderstatssupplier&file=ordersamountinyear-'.$user->id.'-'.$file_suffix;
 	}
 } else {
-	$filenameamount = $dir.'/ordersamountinyear-'.$year.'.png';
+	$filenameamount = $dir.'/ordersamountinyear-'.$file_suffix;
 	if ($mode == 'customer') {
-		$fileurlamount = DOL_URL_ROOT.'/viewimage.php?modulepart=orderstats&file=ordersamountinyear-'.$year.'.png';
+		$fileurlamount = DOL_URL_ROOT.'/viewimage.php?modulepart=orderstats&file=ordersamountinyear-'.$file_suffix;
 	}
 	if ($mode == 'supplier') {
-		$fileurlamount = DOL_URL_ROOT.'/viewimage.php?modulepart=orderstatssupplier&file=ordersamountinyear-'.$year.'.png';
+		$fileurlamount = DOL_URL_ROOT.'/viewimage.php?modulepart=orderstatssupplier&file=ordersamountinyear-'.$file_suffix;
 	}
 }
 
@@ -242,20 +283,20 @@ $data = $stats->getAverageByMonthWithPrevYear($endyear, $startyear);
 
 $fileurl_avg = '';
 if (!$user->hasRight('societe', 'client', 'voir')) {
-	$filename_avg = $dir.'/ordersaverage-'.$user->id.'-'.$year.'.png';
+	$filename_avg = $dir.'/ordersaverage-'.$user->id.'-'.$file_suffix;
 	if ($mode == 'customer') {
-		$fileurl_avg = DOL_URL_ROOT.'/viewimage.php?modulepart=orderstats&file=ordersaverage-'.$user->id.'-'.$year.'.png';
+		$fileurl_avg = DOL_URL_ROOT.'/viewimage.php?modulepart=orderstats&file=ordersaverage-'.$user->id.'-'.$file_suffix;
 	}
 	if ($mode == 'supplier') {
-		$fileurl_avg = DOL_URL_ROOT.'/viewimage.php?modulepart=orderstatssupplier&file=ordersaverage-'.$user->id.'-'.$year.'.png';
+		$fileurl_avg = DOL_URL_ROOT.'/viewimage.php?modulepart=orderstatssupplier&file=ordersaverage-'.$user->id.'-'.$file_suffix;
 	}
 } else {
-	$filename_avg = $dir.'/ordersaverage-'.$year.'.png';
+	$filename_avg = $dir.'/ordersaverage-'.$file_suffix;
 	if ($mode == 'customer') {
-		$fileurl_avg = DOL_URL_ROOT.'/viewimage.php?modulepart=orderstats&file=ordersaverage-'.$year.'.png';
+		$fileurl_avg = DOL_URL_ROOT.'/viewimage.php?modulepart=orderstats&file=ordersaverage-'.$file_suffix;
 	}
 	if ($mode == 'supplier') {
-		$fileurl_avg = DOL_URL_ROOT.'/viewimage.php?modulepart=orderstatssupplier&file=ordersaverage-'.$year.'.png';
+		$fileurl_avg = DOL_URL_ROOT.'/viewimage.php?modulepart=orderstatssupplier&file=ordersaverage-'.$file_suffix;
 	}
 }
 
@@ -380,6 +421,35 @@ if ($mode == 'supplier') {
 	$formorder->selectSupplierOrderStatus((strstr($object_status, ',') ? -1 : $object_status), 0, 'object_status');
 }
 print '</td></tr>';
+// Date column for stats (Year filter applies to this date)
+$langs->load("sendings");
+$datefield_options = array();
+if ($mode == 'customer') {
+	$datefield_options['date_commande'] = $langs->trans("OrderDate");
+	$datefield_options['date_creation'] = $langs->trans("DateCreation");
+	$datefield_options['date_valid'] = $langs->trans("DateValidation");
+	$datefield_options['date_cloture'] = $langs->trans("DateClosing");
+	$datefield_options['date_livraison'] = $langs->trans("DateDeliveryPlanned");
+} else {
+	$datefield_options['date_commande'] = $langs->trans("OrderDateShort");
+	$datefield_options['date_creation'] = $langs->trans("DateCreation");
+	$datefield_options['date_valid'] = $langs->trans("DateValidation");
+	$datefield_options['date_approve'] = $langs->trans("DateApprove");
+	$datefield_options['date_approve2'] = $langs->trans("DateApprove2");
+	$datefield_options['date_livraison'] = $langs->trans("DateDeliveryPlanned");
+}
+if (!empty($extrafields->attributes[$objectForExtra->table_element]['label']) && is_array($extrafields->attributes[$objectForExtra->table_element]['label'])) {
+	foreach ($extrafields->attributes[$objectForExtra->table_element]['label'] as $key => $label) {
+		$type = isset($extrafields->attributes[$objectForExtra->table_element]['type'][$key]) ? $extrafields->attributes[$objectForExtra->table_element]['type'][$key] : '';
+		$typebase = preg_replace('/\(.*$/', '', $type);
+		if (in_array($typebase, array('date', 'datetime', 'timestamp'))) {
+			$datefield_options['ef_'.$key] = $langs->trans($label);
+		}
+	}
+}
+print '<tr><td class="left">'.$langs->trans("DateForStats").'</td><td class="left">';
+print $form->selectarray('datefield', $datefield_options, $datefield, 0, 0, 0, '', 0, 0, 0, '', 'widthcentpercentminusx maxwidth300');
+print '</td></tr>';
 // Year
 print '<tr><td class="left">'.$langs->trans("Year").'</td><td class="left">';
 if (!in_array($year, $arrayyears)) {
@@ -416,7 +486,7 @@ foreach ($data as $val) {
 		$oldyear--;
 
 		print '<tr class="oddeven" height="24">';
-		print '<td align="center"><a href="'.$_SERVER["PHP_SELF"].'?year='.$oldyear.'&amp;mode='.$mode.($socid > 0 ? '&socid='.$socid : '').($userid > 0 ? '&userid='.$userid : '').'">'.$oldyear.'</a></td>';
+		print '<td align="center"><a href="'.$_SERVER["PHP_SELF"].'?year='.$oldyear.$param.'">'.$oldyear.'</a></td>';
 		print '<td class="right">0</td>';
 		print '<td class="right"></td>';
 		print '<td class="right">0</td>';
@@ -428,7 +498,7 @@ foreach ($data as $val) {
 
 
 	print '<tr class="oddeven" height="24">';
-	print '<td align="center"><a href="'.$_SERVER["PHP_SELF"].'?year='.$year.'&amp;mode='.$mode.($socid > 0 ? '&socid='.$socid : '').($userid > 0 ? '&userid='.$userid : '').'">'.$year.'</a></td>';
+	print '<td align="center"><a href="'.$_SERVER["PHP_SELF"].'?year='.$year.$param.'">'.$year.'</a></td>';
 	print '<td class="right">'.$val['nb'].'</td>';
 	print '<td class="right opacitylow" style="'.((!isset($val['nb_diff']) || $val['nb_diff'] >= 0) ? 'color: green;' : 'color: red;').'">'.(isset($val['nb_diff']) ? round($val['nb_diff']) : "0").'%</td>';
 	print '<td class="right">'.price(price2num($val['total'], 'MT'), 1).'</td>';

@@ -48,6 +48,7 @@ require_once DOL_DOCUMENT_ROOT.'/core/class/html.formorder.class.php';
 require_once DOL_DOCUMENT_ROOT.'/core/class/html.formmargin.class.php';
 require_once DOL_DOCUMENT_ROOT.'/core/modules/commande/modules_commande.php';
 require_once DOL_DOCUMENT_ROOT.'/core/lib/functions2.lib.php';
+require_once DOL_DOCUMENT_ROOT.'/core/lib/files.lib.php';
 require_once DOL_DOCUMENT_ROOT.'/core/lib/order.lib.php';
 
 require_once DOL_DOCUMENT_ROOT.'/comm/action/class/actioncomm.class.php';
@@ -2300,7 +2301,8 @@ if ($action == 'create' && $usercancreate) {
 			print '</td>';
 		} else {
 			print '<td class="valuefieldcreate">';
-			$filter = '((s.client:IN:1,2,3) AND (s.status:=:1))';
+			// SLY: allow inactive thirdparties in draft so user can change customer (草稿改客户)
+			$filter = '(s.client:IN:1,2,3)';
 			print img_picto('', 'company', 'class="pictofixedwidth"').$form->select_company('', 'socid', $filter, 'SelectThirdParty', 1, 0, array(), 0, 'minwidth175 maxwidth500 widthcentpercentminusxx');
 			// reload page to retrieve customer information
 			if (!getDolGlobalString('RELOAD_PAGE_ON_CUSTOMER_CHANGE_DISABLED')) {
@@ -3640,7 +3642,6 @@ if ($action == 'create' && $usercancreate) {
 			$genallowed = $usercanread;
 			$delallowed = $usercancreate;
 			print $formfile->showdocuments('commande', $objref, $filedir, $urlsource, $genallowed, (int) $delallowed, $object->model_pdf, 1, 0, 0, 28, 0, '', '', '', $soc->default_lang, '', $object);
-
 
 			// Show links to link elements
 			$tmparray = $form->showLinkToObjectBlock($object, array(), array('order'), 1);

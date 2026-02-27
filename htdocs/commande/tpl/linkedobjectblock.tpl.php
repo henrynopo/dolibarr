@@ -40,6 +40,9 @@ $linkedObjectBlock = dol_sort_array($linkedObjectBlock, 'date', 'desc', 0, 0, 1)
 '@phan-var-force CommonObject[] $linkedObjectBlock';  // Repeat because type lost after dol_sort_array)
 
 $total = 0;
+if (isModEnabled('multicurrency')) {
+	$multicurrency_total = 0;
+}
 $ilink = 0;
 foreach ($linkedObjectBlock as $key => $objectlink) {
 	$ilink++;
@@ -59,8 +62,12 @@ foreach ($linkedObjectBlock as $key => $objectlink) {
 	echo '<td class="linkedcol-date center">'.dol_print_date($objectlink->date, 'day').'</td>';
 	echo '<td class="linkedcol-amount right">';
 	if ($user->hasRight('commande', 'lire')) {
+		if (isModEnabled('multicurrency') && !empty($objectlink->multicurrency_code) && $conf->currency != $objectlink->multicurrency_code) {
+			$multicurrency_total += $objectlink->multicurrency_total_ht;
+			echo $objectlink->multicurrency_code.' '.price($objectlink->multicurrency_total_ht).'<br>';
+		}
 		$total += $objectlink->total_ht;
-		echo price($objectlink->total_ht);
+		echo $conf->currency.' '.price($objectlink->total_ht);
 	}
 	echo '</td>';
 	echo '<td class="linkedcol-statut right">'.$objectlink->getLibStatut(3).'</td>';
@@ -78,7 +85,7 @@ if (count($linkedObjectBlock) > 1) {
 	echo '<td></td>';
 	echo '<td class="center"></td>';
 	echo '<td class="center"></td>';
-	echo '<td class="right">'.price($total).'</td>';
+	echo '<td class="right">'.$conf->currency.' '.price($total).'</td>';
 	echo '<td class="right"></td>';
 	echo '<td class="right"></td>';
 	echo "</tr>\n";

@@ -38,6 +38,8 @@ $linkedObjectBlock = $GLOBALS['linkedObjectBlock'];
 $langs->load("sendings");
 
 $total = 0;
+$multicurrency_total = 0;
+$multicurrency_code_total = '';
 $ilink = 0;
 foreach ($linkedObjectBlock as $key => $objectlink) {
 	$ilink++;
@@ -53,8 +55,19 @@ foreach ($linkedObjectBlock as $key => $objectlink) {
 		<td class="center"><?php echo dol_print_date($objectlink->date_delivery ? $objectlink->date_delivery : $objectlink->date_creation, 'day'); ?></td>
 		<td class="right"><?php
 		if ($user->hasRight('expedition', 'lire')) {
+			if (isModEnabled('multicurrency')
+				&& !empty($objectlink->multicurrency_code)
+				&& $conf->currency != $objectlink->multicurrency_code
+				&& !empty($objectlink->multicurrency_total_ht)
+			) {
+				$multicurrency_total += $objectlink->multicurrency_total_ht;
+				if ($multicurrency_code_total === '') {
+					$multicurrency_code_total = $objectlink->multicurrency_code;
+				}
+				echo $objectlink->multicurrency_code.' '.price($objectlink->multicurrency_total_ht).'<br>';
+			}
 			$total += $objectlink->total_ht;
-			echo price($objectlink->total_ht);
+			echo $conf->currency.' '.price($objectlink->total_ht);
 		} ?></td>
 		<td class="right"><?php echo $objectlink->getLibStatut(3); ?></td>
 		<td class="right">
@@ -72,9 +85,14 @@ if (count($linkedObjectBlock) > 1) {
 	<tr class="liste_total <?php echo(empty($noMoreLinkedObjectBlockAfter) ? 'liste_sub_total' : ''); ?>">
 		<td><?php echo $langs->trans("Total"); ?></td>
 		<td></td>
-		<td class="center"></td>
-		<td class="center"></td>
-		<td class="right"><?php echo price($total); ?></td>
+	<td class="center"></td>
+	<td class="center"></td>
+	<td class="right"><?php
+	if (isModEnabled('multicurrency') && !empty($multicurrency_code_total) && $multicurrency_total != 0 && $conf->currency != $multicurrency_code_total) {
+		echo $multicurrency_code_total.' '.price($multicurrency_total).'<br>';
+	}
+	echo $conf->currency.' '.price($total);
+	?></td>
 		<td class="right"></td>
 		<td class="right"></td>
 	</tr>

@@ -80,6 +80,9 @@ if (isModEnabled('incoterm')) {
 if (isModEnabled('productbatch')) {
 	$langs->load('productbatch');
 }
+if (isModEnabled('slycustom')) {
+	$langs->load("slycustom@slycustom");
+}
 
 $origin = GETPOST('origin', 'alpha') ? GETPOST('origin', 'alpha') : 'expedition'; // Example: commande, propal
 $origin_id = GETPOSTINT('id') ? GETPOSTINT('id') : '';

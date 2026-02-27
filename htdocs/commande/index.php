@@ -251,10 +251,15 @@ if ($resql) {
  * Orders to process
  */
 if (isModEnabled('order')) {
-	$sql = "SELECT c.rowid, c.entity, c.ref, c.fk_statut as status, c.facture, c.date_commande as date, s.nom as name, s.rowid as socid";
+	$sql = "SELECT c.rowid, c.entity, c.ref, c.fk_statut as status, c.facture, c.date_commande as date, c.total_ht";
+	$sql .= ", s.nom as name, s.rowid as socid";
 	$sql .= ", s.client";
 	$sql .= ", s.code_client";
 	$sql .= ", s.canvas";
+	if (isModEnabled('multicurrency')) {
+		$sql .= ", c.multicurrency_total_ht";
+		$sql .= ", c.multicurrency_code";
+	}
 	$sql .= " FROM ".MAIN_DB_PREFIX."commande as c";
 	$sql .= ", ".MAIN_DB_PREFIX."societe as s";
 	if (empty($user->socid) && !$user->hasRight('societe', 'client', 'voir')) {
@@ -278,14 +283,17 @@ if (isModEnabled('order')) {
 		print '<div class="div-table-responsive-no-min">';
 		print '<table class="noborder centpercent">';
 		print '<tr class="liste_titre">';
-		print '<th colspan="4">'.$langs->trans("OrdersToProcess").' <a href="'.DOL_URL_ROOT.'/commande/list.php?search_status='.Commande::STATUS_VALIDATED.'"><span class="badge">'.$num.'</span></a></th></tr>';
+		print '<th colspan="5">'.$langs->trans("OrdersToProcess").' <a href="'.DOL_URL_ROOT.'/commande/list.php?search_status='.Commande::STATUS_VALIDATED.'"><span class="badge">'.$num.'</span></a></th></tr>';
 
 		if ($num) {
 			$i = 0;
 			while ($i < $num && $i < $max) {
 				$obj = $db->fetch_object($resql);
+				$currencyDisplay = (isModEnabled('multicurrency') && !empty($obj->multicurrency_code)) ? $obj->multicurrency_code : (!empty($conf->currency) ? $conf->currency : 'auto');
+				$amountToShow = (isModEnabled('multicurrency') && !empty($obj->multicurrency_code)) ? $obj->multicurrency_total_ht : $obj->total_ht;
+				$amountText = price($amountToShow, 1, $langs, 0, -1, -1, $currencyDisplay);
 				print '<tr class="oddeven">';
-				print '<td class="nowrap" width="20%">';
+				print '<td class="nowraponall" width="20%">';
 
 				$commandestatic->id = $obj->rowid;
 				$commandestatic->ref = $obj->ref;
@@ -297,7 +305,7 @@ if (isModEnabled('order')) {
 				$companystatic->canvas = $obj->canvas;
 
 				print '<table class="nobordernopadding"><tr class="nocellnopadd">';
-				print '<td width="96" class="nobordernopadding nowrap">';
+				print '<td width="96" class="nobordernopadding nowraponall">';
 				print $commandestatic->getNomUrl(1);
 				print '</td>';
 
@@ -314,19 +322,21 @@ if (isModEnabled('order')) {
 
 				print '</td>';
 
-				print '<td class="nowrap">';
+				print '<td class="tdoverflowmax150 maxwidth150onsmartphone">';
 				print $companystatic->getNomUrl(1, 'company', 24);
 				print '</td>';
 
-				print '<td class="right">'.dol_print_date($db->jdate($obj->date), 'day').'</td>'."\n";
+				print '<td class="nowraponall right amount"><span class="amount">'.$amountText.'</span></td>';
 
-				print '<td class="right">'.$commandestatic->LibStatut($obj->status, $obj->facture, 3).'</td>';
+				print '<td class="center nowraponall" title="'.dol_escape_htmltag($langs->trans("OrderDate")).': '.dol_print_date($db->jdate($obj->date), 'day', 'tzuserrel').'">'.dol_print_date($db->jdate($obj->date), 'day', 'tzuserrel').'</td>'."\n";
+
+				print '<td class="right" width="18">'.$commandestatic->LibStatut($obj->status, $obj->facture, 3).'</td>';
 
 				print '</tr>';
 				$i++;
 			}
 			if ($i < $num) {
-				print '<tr><td><span class="opacitymedium">'.$langs->trans("More").'...</span></td><td></td><td></td><td></td></tr>';
+				print '<tr><td><span class="opacitymedium">'.$langs->trans("More").'...</span></td><td></td><td></td><td></td><td></td></tr>';
 			}
 		}
 
@@ -340,10 +350,15 @@ if (isModEnabled('order')) {
  * Orders that are in process
  */
 if (isModEnabled('order')) {
-	$sql = "SELECT c.rowid, c.entity, c.ref, c.fk_statut as status, c.facture, c.date_commande as date, s.nom as name, s.rowid as socid";
+	$sql = "SELECT c.rowid, c.entity, c.ref, c.fk_statut as status, c.facture, c.date_commande as date, c.total_ht";
+	$sql .= ", s.nom as name, s.rowid as socid";
 	$sql .= ", s.client";
 	$sql .= ", s.code_client";
 	$sql .= ", s.canvas";
+	if (isModEnabled('multicurrency')) {
+		$sql .= ", c.multicurrency_total_ht";
+		$sql .= ", c.multicurrency_code";
+	}
 	$sql .= " FROM ".MAIN_DB_PREFIX."commande as c";
 	$sql .= ", ".MAIN_DB_PREFIX."societe as s";
 	if (empty($user->socid) && !$user->hasRight('societe', 'client', 'voir')) {
@@ -367,14 +382,17 @@ if (isModEnabled('order')) {
 		print '<div class="div-table-responsive-no-min">';
 		print '<table class="noborder centpercent">';
 		print '<tr class="liste_titre">';
-		print '<th colspan="4">'.$langs->trans("OnProcessOrders").' <a href="'.DOL_URL_ROOT.'/commande/list.php?search_status='.Commande::STATUS_SHIPMENTONPROCESS.'"><span class="badge">'.$num.'</span></a></th></tr>';
+		print '<th colspan="5">'.$langs->trans("OnProcessOrders").' <a href="'.DOL_URL_ROOT.'/commande/list.php?search_status='.Commande::STATUS_SHIPMENTONPROCESS.'"><span class="badge">'.$num.'</span></a></th></tr>';
 
 		if ($num) {
 			$i = 0;
 			while ($i < $num && $i < $max) {
 				$obj = $db->fetch_object($resql);
+				$currencyDisplay = (isModEnabled('multicurrency') && !empty($obj->multicurrency_code)) ? $obj->multicurrency_code : (!empty($conf->currency) ? $conf->currency : 'auto');
+				$amountToShow = (isModEnabled('multicurrency') && !empty($obj->multicurrency_code)) ? $obj->multicurrency_total_ht : $obj->total_ht;
+				$amountText = price($amountToShow, 1, $langs, 0, -1, -1, $currencyDisplay);
 				print '<tr class="oddeven">';
-				print '<td width="20%" class="nowrap">';
+				print '<td class="nowraponall" width="20%">';
 
 				$commandestatic->id = $obj->rowid;
 				$commandestatic->ref = $obj->ref;
@@ -386,7 +404,7 @@ if (isModEnabled('order')) {
 				$companystatic->canvas = $obj->canvas;
 
 				print '<table class="nobordernopadding"><tr class="nocellnopadd">';
-				print '<td width="96" class="nobordernopadding nowrap">';
+				print '<td width="96" class="nobordernopadding nowraponall">';
 				print $commandestatic->getNomUrl(1);
 				print '</td>';
 
@@ -403,19 +421,21 @@ if (isModEnabled('order')) {
 
 				print '</td>';
 
-				print '<td>';
+				print '<td class="tdoverflowmax150 maxwidth150onsmartphone">';
 				print $companystatic->getNomUrl(1, 'company');
 				print '</td>';
 
-				print '<td class="right">'.dol_print_date($db->jdate($obj->date), 'day').'</td>'."\n";
+				print '<td class="nowraponall right amount"><span class="amount">'.$amountText.'</span></td>';
 
-				print '<td class="right">'.$commandestatic->LibStatut($obj->status, $obj->facture, 3).'</td>';
+				print '<td class="center nowraponall" title="'.dol_escape_htmltag($langs->trans("OrderDate")).': '.dol_print_date($db->jdate($obj->date), 'day', 'tzuserrel').'">'.dol_print_date($db->jdate($obj->date), 'day', 'tzuserrel').'</td>'."\n";
+
+				print '<td class="right" width="18">'.$commandestatic->LibStatut($obj->status, $obj->facture, 3).'</td>';
 
 				print '</tr>';
 				$i++;
 			}
 			if ($i < $num) {
-				print '<tr><td><span class="opacitymedium">'.$langs->trans("More").'...</span></td><td></td><td></td><td></td></tr>';
+				print '<tr><td><span class="opacitymedium">'.$langs->trans("More").'...</span></td><td></td><td></td><td></td><td></td></tr>';
 			}
 		}
 		print "</table></div><br>";

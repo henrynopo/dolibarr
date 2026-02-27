@@ -35,12 +35,14 @@
 // Load Dolibarr environment
 require '../main.inc.php';
 require_once DOL_DOCUMENT_ROOT.'/expedition/class/expedition.class.php';
+require_once DOL_DOCUMENT_ROOT.'/core/class/extrafields.class.php';
 require_once DOL_DOCUMENT_ROOT.'/core/class/html.formfile.class.php';
 require_once DOL_DOCUMENT_ROOT.'/core/class/html.formother.class.php';
 require_once DOL_DOCUMENT_ROOT.'/core/class/html.formcompany.class.php';
 require_once DOL_DOCUMENT_ROOT.'/core/lib/date.lib.php';
 require_once DOL_DOCUMENT_ROOT.'/core/lib/company.lib.php';
 require_once DOL_DOCUMENT_ROOT.'/core/lib/product.lib.php';
+require_once DOL_DOCUMENT_ROOT.'/commande/class/commande.class.php';
 require_once DOL_DOCUMENT_ROOT.'/compta/facture/class/facture.class.php';
 
 /**
@@ -53,6 +55,9 @@ require_once DOL_DOCUMENT_ROOT.'/compta/facture/class/facture.class.php';
 
 // Load translation files required by the page
 $langs->loadLangs(array("sendings", "deliveries", 'companies', 'bills', 'products', 'orders'));
+if (isModEnabled('slycustom')) {
+	$langs->load("slycustom@slycustom");
+}
 
 $contextpage = GETPOST('contextpage', 'aZ') ? GETPOST('contextpage', 'aZ') : 'shipmentlist'; // To manage different context of search
 
@@ -67,6 +72,7 @@ $mode = GETPOST('mode', 'alpha');
 
 $search_ref_exp = GETPOST("search_ref_exp", 'alpha');
 $search_ref_liv = GETPOST('search_ref_liv', 'alpha');
+$search_reforder = GETPOST('search_reforder', 'alpha');
 $search_ref_customer = GETPOST('search_ref_customer', 'alpha');
 $search_company = GETPOST("search_company", 'alpha');
 $search_shipping_method_ids = GETPOST('search_shipping_method_ids', 'array:int');
@@ -138,18 +144,19 @@ if (empty($user->socid)) {
 $checkedtypetiers = '0';
 $arrayfields = array(
 	'e.ref' => array('label' => $langs->trans("Ref"), 'checked' => '1', 'position' => 1),
-	'e.ref_customer' => array('label' => $langs->trans("RefCustomer"), 'checked' => '1', 'position' => 2),
-	's.nom' => array('label' => $langs->trans("ThirdParty"), 'checked' => '1', 'position' => 3),
-	's.town' => array('label' => $langs->trans("Town"), 'checked' => '1', 'position' => 4),
-	's.zip' => array('label' => $langs->trans("Zip"), 'checked' => '-1', 'position' => 5),
-	'state.nom' => array('label' => $langs->trans("StateShort"), 'checked' => '0', 'position' => 6),
-	'country.code_iso' => array('label' => $langs->trans("Country"), 'checked' => '0', 'position' => 7),
-	'typent.code' => array('label' => $langs->trans("ThirdPartyType"), 'checked' => $checkedtypetiers, 'position' => 8),
-	'e.date_delivery' => array('label' => $langs->trans("DateDeliveryPlanned"), 'checked' => '1', 'position' => 9),
-	'e.date_expedition' => array('label' => $langs->trans("DateShipping"), 'checked' => '1', 'position' => 10),
-	'e.fk_shipping_method' => array('label' => $langs->trans('SendingMethod'), 'checked' => '1', 'position' => 11),
-	'e.tracking_number' => array('label' => $langs->trans("TrackingNumber"), 'checked' => '1', 'position' => 12),
-	'e.weight' => array('label' => $langs->trans("Weight"), 'checked' => '0', 'position' => 13),
+	'c.ref' => array('label' => $langs->trans("Order"), 'checked' => '1', 'position' => 2),
+	'e.ref_customer' => array('label' => $langs->trans("RefCustomer"), 'checked' => '1', 'position' => 3),
+	's.nom' => array('label' => $langs->trans("ThirdParty"), 'checked' => '1', 'position' => 4),
+	's.town' => array('label' => $langs->trans("Town"), 'checked' => '1', 'position' => 5),
+	's.zip' => array('label' => $langs->trans("Zip"), 'checked' => '-1', 'position' => 6),
+	'state.nom' => array('label' => $langs->trans("StateShort"), 'checked' => '0', 'position' => 7),
+	'country.code_iso' => array('label' => $langs->trans("Country"), 'checked' => '0', 'position' => 8),
+	'typent.code' => array('label' => $langs->trans("ThirdPartyType"), 'checked' => $checkedtypetiers, 'position' => 9),
+	'e.date_delivery' => array('label' => $langs->trans("DateDeliveryPlanned"), 'checked' => '1', 'position' => 10),
+	'e.date_expedition' => array('label' => $langs->trans("DateShipping"), 'checked' => '1', 'position' => 11),
+	'e.fk_shipping_method' => array('label' => $langs->trans('SendingMethod'), 'checked' => '1', 'position' => 12),
+	'e.tracking_number' => array('label' => $langs->trans("TrackingNumber"), 'checked' => '1', 'position' => 13),
+	'e.weight' => array('label' => $langs->trans("Weight"), 'checked' => '0', 'position' => 14),
 	'e.datec' => array('label' => $langs->trans("DateCreation"), 'checked' => '0', 'position' => 500),
 	'e.tms' => array('label' => $langs->trans("DateModificationShort"), 'checked' => '0', 'position' => 500),
 	'e.fk_statut' => array('label' => $langs->trans("Status"), 'checked' => '1', 'position' => 1000),
@@ -185,7 +192,7 @@ if (GETPOST('cancel', 'alpha')) {
 	$action = 'list';
 	$massaction = '';
 }
-if (!GETPOST('confirmmassaction', 'alpha') && $massaction != 'presend' && $massaction != 'confirm_presend' && $massaction != 'confirm_createbills') {
+if (!GETPOST('confirmmassaction', 'alpha') && $massaction != 'presend' && $massaction != 'confirm_presend' && $massaction != 'confirm_createbills' && $massaction != 'updateships') {
 	$massaction = '';
 }
 
@@ -204,6 +211,7 @@ if (GETPOST('button_removefilter_x', 'alpha') || GETPOST('button_removefilter.x'
 	$search_product_category = '';
 	$search_ref_exp = '';
 	$search_ref_liv = '';
+	$search_reforder = '';
 	$search_ref_customer = '';
 	$search_company = '';
 	$search_town = '';
@@ -299,7 +307,53 @@ if (empty($reshook)) {
 
 				$objecttmp->array_options = $expd->array_options; // Copy extrafields
 
-				$res = $objecttmp->create($user);
+				// Default invoice due date = arrival date - 10 days (SLY: priority ATA > ETA > date_delivery, else payment condition)
+				$forceduedate = 0;
+				$arrival_ts = 0;
+				if (!empty($expd->array_options['options_ata'])) {
+					$v = $expd->array_options['options_ata'];
+					if (is_numeric($v)) {
+						if ((float) $v > 0) {
+							$arrival_ts = (int) $v;
+						}
+					} else {
+						$tmp_ts = dol_stringtotime($v);
+						if ($tmp_ts > 0) {
+							$arrival_ts = $tmp_ts;
+						}
+					}
+				} elseif (!empty($expd->array_options['options_eta'])) {
+					$v = $expd->array_options['options_eta'];
+					if (is_numeric($v)) {
+						if ((float) $v > 0) {
+							$arrival_ts = (int) $v;
+						}
+					} else {
+						$tmp_ts = dol_stringtotime($v);
+						if ($tmp_ts > 0) {
+							$arrival_ts = $tmp_ts;
+						}
+					}
+				} elseif (!empty($expd->date_delivery)) {
+					if (is_numeric($expd->date_delivery)) {
+						if ((float) $expd->date_delivery > 0) {
+							$arrival_ts = (int) $expd->date_delivery;
+						}
+					} else {
+						$tmp_ts = dol_stringtotime($expd->date_delivery);
+						if ($tmp_ts > 0) {
+							$arrival_ts = $tmp_ts;
+						}
+					}
+				}
+				if ($arrival_ts > 0) {
+					$forceduedate = $arrival_ts - (10 * 86400);
+					if ($forceduedate < $datefacture) {
+						$forceduedate = $datefacture;
+					}
+				}
+
+				$res = $objecttmp->create($user, 0, $forceduedate);
 
 				if ($res > 0) {
 					$nb_bills_created++;
@@ -544,6 +598,9 @@ if (empty($reshook)) {
 			if ($search_ref_liv) {
 				$param .= "&search_ref_liv=".urlencode($search_ref_liv);
 			}
+			if ($search_reforder) {
+				$param .= "&search_reforder=".urlencode($search_reforder);
+			}
 			if ($search_ref_customer) {
 				$param .= "&search_ref_customer=".urlencode($search_ref_customer);
 			}
@@ -664,6 +721,7 @@ $formfile = new FormFile($db);
 $companystatic = new Societe($db);
 $formcompany = new FormCompany($db);
 $shipment = new Expedition($db);
+$order = new Commande($db);
 
 $title = $langs->trans('Shipments');
 $help_url = 'EN:Module_Shipments|FR:Module_Exp&eacute;ditions|ES:M&oacute;dulo_Expediciones';
@@ -682,6 +740,7 @@ $sql .= " typent.code as typent_code,";
 $sql .= " state.code_departement as state_code, state.nom as state_name,";
 $sql .= " e.date_creation as date_creation, e.tms as date_modification,e.note_public, e.note_private,";
 $sql .= " u.login";
+$sql .= ", c.rowid as orderid, c.ref as reforder";
 // Add fields from extrafields
 if (!empty($extrafields->attributes[$object->table_element]['label'])) {
 	foreach ($extrafields->attributes[$object->table_element]['label'] as $key => $val) {
@@ -712,9 +771,12 @@ if (getDolGlobalInt('MAIN_SUBMODULE_DELIVERY')) {
 	$sql .= " LEFT JOIN ".MAIN_DB_PREFIX."delivery as l ON l.rowid = ee.fk_target";
 }
 $sql .= ' LEFT JOIN '.MAIN_DB_PREFIX.'user as u ON e.fk_user_author = u.rowid';
-if ($search_user > 0) {		// Get link to order to get the order id in eesource.fk_source
-	$sql .= " LEFT JOIN ".MAIN_DB_PREFIX."element_element as eesource ON eesource.fk_target = e.rowid AND eesource.targettype = 'shipping' AND eesource.sourcetype = 'commande'";
-}
+// Order link: default one-direction; hook getShipmentListOrderJoin can override (e.g. bidirectional)
+$orderJoin = " LEFT JOIN (SELECT ee.fk_target AS ship_id, ee.fk_source AS cmd_id FROM ".MAIN_DB_PREFIX."element_element ee WHERE ee.targettype = 'shipping' AND ee.sourcetype = 'commande') eecommande ON eecommande.ship_id = e.rowid";
+$orderJoin .= " LEFT JOIN ".MAIN_DB_PREFIX."commande as c ON (c.rowid = eecommande.cmd_id)";
+$parameters = array('order_join' => &$orderJoin);
+$hookmanager->executeHooks('getShipmentListOrderJoin', $parameters, $object, $action);
+$sql .= $orderJoin;
 if ($search_user > 0) {
 	$sql .= ", ".MAIN_DB_PREFIX."element_contact as ec";
 	$sql .= ", ".MAIN_DB_PREFIX."c_type_contact as tc";
@@ -738,6 +800,9 @@ if ($search_status != '' && $search_status >= 0) {
 }
 if ($search_signed_status != '' && $search_signed_status >= 0) {
 	$sql .= ' AND e.signed_status = '.urlencode($search_signed_status);
+}
+if ($search_reforder != '') {
+	$sql .= natural_search('c.ref', $search_reforder, 0, 0);
 }
 if ($search_ref_customer != '') {
 	$sql .= natural_search('e.ref_customer', $search_ref_customer);
@@ -768,7 +833,7 @@ if ($search_type_thirdparty != '' && $search_type_thirdparty > 0) {
 }
 if ($search_user > 0) {
 	// The contact on a shipment is also the contact of the order.
-	$sql .= " AND ec.fk_c_type_contact = tc.rowid AND tc.element='commande' AND tc.source='internal' AND ec.element_id = eesource.fk_source AND ec.fk_socpeople = ".((int) $search_user);
+	$sql .= " AND ec.fk_c_type_contact = tc.rowid AND tc.element='commande' AND tc.source='internal' AND ec.element_id = eecommande.cmd_id AND ec.fk_socpeople = ".((int) $search_user);
 }
 if ($search_company) {
 	$sql .= natural_search('s.nom', $search_company);
@@ -963,6 +1028,9 @@ if ($search_ref_exp) {
 if ($search_ref_liv) {
 	$param .= "&search_ref_liv=".urlencode($search_ref_liv);
 }
+if ($search_reforder) {
+	$param .= "&search_reforder=".urlencode($search_reforder);
+}
 if ($search_ref_customer) {
 	$param .= "&search_ref_customer=".urlencode($search_ref_customer);
 }
@@ -1042,7 +1110,10 @@ $arrayofmassactions = array(
 if ($user->hasRight('facture', 'creer')) {
 	$arrayofmassactions['createbills'] = img_picto('', 'bill', 'class="pictofixedwidth"').$langs->trans("CreateInvoiceForThisCustomerFromSendings");
 }
-if (in_array($massaction, array('presend', 'createbills'))) {
+if (isModEnabled('slycustom')) {
+	$arrayofmassactions['updateships'] = img_picto('', 'calendar', 'class="pictofixedwidth"').$langs->trans("UpdateShips");
+}
+if (in_array($massaction, array('presend', 'createbills', 'updateships'))) {
 	$arrayofmassactions = array();
 }
 $massactionbutton = $form->selectMassAction('', $arrayofmassactions);
@@ -1207,7 +1278,13 @@ if (getDolGlobalString('MAIN_CHECKBOX_LEFT_COLUMN')) {
 // Ref
 if (!empty($arrayfields['e.ref']['checked'])) {
 	print '<td class="liste_titre">';
-	print '<input class="flat" size="6" type="text" name="search_ref_exp" value="'.$search_ref_exp.'">';
+	print '<input class="flat" size="6" type="text" name="search_ref_exp" value="'.dol_escape_htmltag($search_ref_exp).'">';
+	print '</td>';
+}
+// Ref Order (linked customer order)
+if (!empty($arrayfields['c.ref']['checked'])) {
+	print '<td class="liste_titre">';
+	print '<input class="flat" size="6" type="text" name="search_reforder" value="'.dol_escape_htmltag($search_reforder).'">';
 	print '</td>';
 }
 // Ref customer
@@ -1377,6 +1454,10 @@ if (!empty($arrayfields['e.ref']['checked'])) {
 	print_liste_field_titre($arrayfields['e.ref']['label'], $_SERVER["PHP_SELF"], "e.ref", "", $param, '', $sortfield, $sortorder);
 	$totalarray['nbfield']++;
 }
+if (!empty($arrayfields['c.ref']['checked'])) {
+	print_liste_field_titre($arrayfields['c.ref']['label'], $_SERVER["PHP_SELF"], "c.ref", "", $param, '', $sortfield, $sortorder);
+	$totalarray['nbfield']++;
+}
 if (!empty($arrayfields['e.ref_customer']['checked'])) {
 	print_liste_field_titre($arrayfields['e.ref_customer']['label'], $_SERVER["PHP_SELF"], "e.ref_customer", "", $param, '', $sortfield, $sortorder);
 	$totalarray['nbfield']++;
@@ -1435,15 +1516,17 @@ if (!empty($arrayfields['l.date_delivery']['checked'])) {
 }
 if (!empty($arrayfields['e.note_public']['checked'])) {
 	print_liste_field_titre($arrayfields['e.note_public']['label'], $_SERVER["PHP_SELF"], "e.note_public", "", $param, '', $sortfield, $sortorder, 'right ');
+	$totalarray['nbfield']++;
 }
 if (!empty($arrayfields['e.note_private']['checked'])) {
 	print_liste_field_titre($arrayfields['e.note_private']['label'], $_SERVER["PHP_SELF"], "e.note_private", "", $param, '', $sortfield, $sortorder, 'right ');
+	$totalarray['nbfield']++;
 }
 
 // Extra fields
 include DOL_DOCUMENT_ROOT.'/core/tpl/extrafields_list_search_title.tpl.php';
 // Hook fields
-$parameters = array('arrayfields' => $arrayfields, 'param' => $param, 'sortfield' => $sortfield, 'sortorder' => $sortorder, '$totalarray' => &$totalarray);
+$parameters = array('arrayfields' => $arrayfields, 'param' => $param, 'sortfield' => $sortfield, 'sortorder' => $sortorder, 'totalarray' => &$totalarray);
 $reshook = $hookmanager->executeHooks('printFieldListTitle', $parameters, $object, $action); // Note that $action and $object may have been modified by hook
 print $hookmanager->resPrint;
 if (!empty($arrayfields['e.datec']['checked'])) {
@@ -1479,8 +1562,7 @@ $typenArray = $formcompany->typent_array(1);
 // --------------------------------------------------------------------
 $i = 0;
 $savnbfield = $totalarray['nbfield'];
-$totalarray = array();
-$totalarray['nbfield'] = 0;
+$totalarray = array('nbfield' => 0, 'val' => array(), 'pos' => array(), 'val_by_currency' => array());
 $imaxinloop = ($limit ? min($num, $limit) : $num);
 while ($i < $imaxinloop) {
 	$obj = $db->fetch_object($resql);
@@ -1538,6 +1620,17 @@ while ($i < $imaxinloop) {
 			$filedir = ($conf->expedition->multidir_output[$object->entity] ? $conf->expedition->multidir_output[$object->entity] : $conf->expedition->dir_output).'/sending/'.get_exdir(0, 0, 0, 1, $object, '');
 			$filename = dol_sanitizeFileName($object->ref);
 			print $formfile->getDocumentsLink('expedition', $filename, $filedir);
+			print "</td>\n";
+			if (!$i) {
+				$totalarray['nbfield']++;
+			}
+		}
+		// Order (linked customer order)
+		if (!empty($arrayfields['c.ref']['checked'])) {
+			$order->id = $obj->orderid ?? 0;
+			$order->ref = $obj->reforder ?? '';
+			print '<td class="nowraponall">';
+			print !empty($order->id) ? $order->getNomUrl(1, 'commande') : '';
 			print "</td>\n";
 			if (!$i) {
 				$totalarray['nbfield']++;
@@ -1623,7 +1716,23 @@ while ($i < $imaxinloop) {
 			print '</td>';
 			if (!$i) {
 				$totalarray['nbfield']++;
+				$totalarray['pos'][$totalarray['nbfield']] = 'e.weight';
+				if (!isset($totalarray['type'])) {
+					$totalarray['type'] = array();
+				}
+				$totalarray['type'][$totalarray['nbfield']] = 'stock';
 			}
+			// Sum same value as displayed: stored weight or computed from lines
+			if (!empty($object->trueWeight) && $object->trueWeight !== '' && $object->trueWeight !== null) {
+				$weightVal = (float) price2num($object->trueWeight, 'MS');
+			} else {
+				$tmparray = $object->getTotalWeightVolume();
+				$weightVal = isset($tmparray['weight']) ? (float) $tmparray['weight'] : 0;
+			}
+			if (!isset($totalarray['val']['e.weight'])) {
+				$totalarray['val']['e.weight'] = 0;
+			}
+			$totalarray['val']['e.weight'] += $weightVal;
 		}
 		// Date delivery planned
 		if (!empty($arrayfields['e.date_delivery']['checked'])) {
@@ -1769,6 +1878,12 @@ while ($i < $imaxinloop) {
 	}
 	$i++;
 }
+
+// Show total line (first_column_empty when checkbox is left so Total row column count matches header/data)
+if (getDolGlobalString('MAIN_CHECKBOX_LEFT_COLUMN')) {
+	$totalarray['first_column_empty'] = 1;
+}
+include DOL_DOCUMENT_ROOT.'/core/tpl/list_print_total.tpl.php';
 
 // If no record found
 if ($num == 0) {

@@ -87,6 +87,10 @@ class CommandeStats extends Stats
 	 */
 	public $join;
 
+	/**
+	 * @var string Date column for SQL: either 'date_commande' (then used as c.date_commande) or 'ef.colname' for extrafield
+	 */
+	public $datefield;
 
 	/**
 	 * Constructor
@@ -97,8 +101,9 @@ class CommandeStats extends Stats
 	 * @param   int		$userid     Id user for filter (creation user)
 	 * @param	int		$typentid   Id typent of thirdpary for filter
 	 * @param	int		$categid    Id category of thirdpary for filter
+	 * @param	string	$datefield  Date column for stats: date_commande, date_creation, date_valid, date_cloture, date_livraison (customer); or date_commande, date_creation, date_valid, date_approve, date_approve2, date_livraison (supplier); or ef_<name> for extrafield
 	 */
-	public function __construct($db, $socid, $mode, $userid = 0, $typentid = 0, $categid = 0)
+	public function __construct($db, $socid, $mode, $userid = 0, $typentid = 0, $categid = 0, $datefield = 'date_commande')
 	{
 		$this->db = $db;
 
@@ -109,22 +114,36 @@ class CommandeStats extends Stats
 
 		if ($mode == 'customer') {
 			$object = new Commande($this->db);
+			$this->table_element = $object->table_element;
 			$this->from = MAIN_DB_PREFIX.$object->table_element." as c";
 			$this->from_line = MAIN_DB_PREFIX.$object->table_element_line." as tl";
 			$this->field = 'total_ht';
 			$this->field_line = 'total_ht';
-			//$this->where .= " c.fk_statut > 0"; // Not draft and not cancelled
 			$this->categ_link = MAIN_DB_PREFIX.'categorie_societe';
+			$allowed_dates = array('date_commande', 'date_creation', 'date_valid', 'date_cloture', 'date_livraison');
 		} elseif ($mode == 'supplier') {
 			$object = new CommandeFournisseur($this->db);
+			$this->table_element = $object->table_element;
 			$this->from = MAIN_DB_PREFIX.$object->table_element." as c";
 			$this->from_line = MAIN_DB_PREFIX.$object->table_element_line." as tl";
 			$this->field = 'total_ht';
 			$this->field_line = 'total_ht';
-			//$this->where .= " c.fk_statut > 2"; // Only approved & ordered
 			$this->categ_link = MAIN_DB_PREFIX.'categorie_fournisseur';
+			$allowed_dates = array('date_commande', 'date_creation', 'date_valid', 'date_approve', 'date_approve2', 'date_livraison');
+		} else {
+			$this->table_element = '';
+			$allowed_dates = array('date_commande');
 		}
-		//$this->where.= " AND c.fk_soc = s.rowid AND c.entity = ".$conf->entity;
+
+		if (isset($allowed_dates) && in_array($datefield, $allowed_dates)) {
+			$this->datefield = $datefield;
+		} elseif (isset($this->table_element) && $this->table_element && preg_match('/^ef_([a-z0-9_]+)$/i', $datefield, $m)) {
+			$this->join .= " LEFT JOIN ".MAIN_DB_PREFIX.$this->table_element."_extrafields as ef ON (c.rowid = ef.fk_object)";
+			$this->datefield = "ef.".$m[1];
+		} else {
+			$this->datefield = 'date_commande';
+		}
+
 		$this->where .= ($this->where ? ' AND ' : '').'c.entity IN ('.getEntity('commande').')';
 
 		if ($this->socid) {
@@ -145,6 +164,16 @@ class CommandeStats extends Stats
 	}
 
 	/**
+	 * Return the date column expression for SQL (c.date_commande or ef.colname)
+	 *
+	 * @return string
+	 */
+	protected function getDateCol()
+	{
+		return (strpos($this->datefield, '.') !== false) ? $this->datefield : 'c.'.$this->datefield;
+	}
+
+	/**
 	 * Return orders number by month for a year
 	 *
 	 * @param	int		$year		Year to scan
@@ -155,13 +184,14 @@ class CommandeStats extends Stats
 	{
 		global $user;
 
-		$sql = "SELECT date_format(c.date_commande,'%m') as dm, COUNT(*) as nb";
+		$datecol = $this->getDateCol();
+		$sql = "SELECT date_format(".$datecol.",'%m') as dm, COUNT(*) as nb";
 		$sql .= " FROM ".$this->from;
 		if (empty($user->socid) && !$user->hasRight('societe', 'client', 'voir')) {
 			$sql .= "  INNER JOIN ".MAIN_DB_PREFIX."societe_commerciaux as sc ON c.fk_soc = sc.fk_soc AND sc.fk_user = ".((int) $user->id);
 		}
 		$sql .= $this->join;
-		$sql .= " WHERE c.date_commande BETWEEN '".$this->db->idate(dol_get_first_day($year))."' AND '".$this->db->idate(dol_get_last_day($year))."'";
+		$sql .= " WHERE ".$datecol." IS NOT NULL AND ".$datecol." BETWEEN '".$this->db->idate(dol_get_first_day($year))."' AND '".$this->db->idate(dol_get_last_day($year))."'";
 		$sql .= " AND ".$this->where;
 		$sql .= " GROUP BY dm";
 		$sql .= $this->db->order('dm', 'DESC');
@@ -180,13 +210,14 @@ class CommandeStats extends Stats
 	{
 		global $user;
 
-		$sql = "SELECT date_format(c.date_commande,'%Y') as dm, COUNT(*) as nb, SUM(c.".$this->field.")";
+		$datecol = $this->getDateCol();
+		$sql = "SELECT date_format(".$datecol.",'%Y') as dm, COUNT(*) as nb, SUM(c.".$this->field.")";
 		$sql .= " FROM ".$this->from;
 		if (empty($user->socid) && !$user->hasRight('societe', 'client', 'voir')) {
 			$sql .= "  INNER JOIN ".MAIN_DB_PREFIX."societe_commerciaux as sc ON c.fk_soc = sc.fk_soc AND sc.fk_user = ".((int) $user->id);
 		}
 		$sql .= $this->join;
-		$sql .= " WHERE ".$this->where;
+		$sql .= " WHERE ".$datecol." IS NOT NULL AND ".$this->where;
 		$sql .= " GROUP BY dm";
 		$sql .= $this->db->order('dm', 'DESC');
 
@@ -204,13 +235,14 @@ class CommandeStats extends Stats
 	{
 		global $user;
 
-		$sql = "SELECT date_format(c.date_commande,'%m') as dm, SUM(c.".$this->field.")";
+		$datecol = $this->getDateCol();
+		$sql = "SELECT date_format(".$datecol.",'%m') as dm, SUM(c.".$this->field.")";
 		$sql .= " FROM ".$this->from;
 		if (empty($user->socid) && !$user->hasRight('societe', 'client', 'voir')) {
 			$sql .= "  INNER JOIN ".MAIN_DB_PREFIX."societe_commerciaux as sc ON c.fk_soc = sc.fk_soc AND sc.fk_user = ".((int) $user->id);
 		}
 		$sql .= $this->join;
-		$sql .= " WHERE c.date_commande BETWEEN '".$this->db->idate(dol_get_first_day($year))."' AND '".$this->db->idate(dol_get_last_day($year))."'";
+		$sql .= " WHERE ".$datecol." IS NOT NULL AND ".$datecol." BETWEEN '".$this->db->idate(dol_get_first_day($year))."' AND '".$this->db->idate(dol_get_last_day($year))."'";
 		$sql .= " AND ".$this->where;
 		$sql .= " GROUP BY dm";
 		$sql .= $this->db->order('dm', 'DESC');
@@ -229,13 +261,14 @@ class CommandeStats extends Stats
 	{
 		global $user;
 
-		$sql = "SELECT date_format(c.date_commande,'%m') as dm, AVG(c.".$this->field.")";
+		$datecol = $this->getDateCol();
+		$sql = "SELECT date_format(".$datecol.",'%m') as dm, AVG(c.".$this->field.")";
 		$sql .= " FROM ".$this->from;
 		if (empty($user->socid) && !$user->hasRight('societe', 'client', 'voir')) {
 			$sql .= "  INNER JOIN ".MAIN_DB_PREFIX."societe_commerciaux as sc ON c.fk_soc = sc.fk_soc AND sc.fk_user = ".((int) $user->id);
 		}
 		$sql .= $this->join;
-		$sql .= " WHERE c.date_commande BETWEEN '".$this->db->idate(dol_get_first_day($year))."' AND '".$this->db->idate(dol_get_last_day($year))."'";
+		$sql .= " WHERE ".$datecol." IS NOT NULL AND ".$datecol." BETWEEN '".$this->db->idate(dol_get_first_day($year))."' AND '".$this->db->idate(dol_get_last_day($year))."'";
 		$sql .= " AND ".$this->where;
 		$sql .= " GROUP BY dm";
 		$sql .= $this->db->order('dm', 'DESC');
@@ -252,13 +285,14 @@ class CommandeStats extends Stats
 	{
 		global $user;
 
-		$sql = "SELECT date_format(c.date_commande,'%Y') as year, COUNT(*) as nb, SUM(c.".$this->field.") as total, AVG(".$this->field.") as avg";
+		$datecol = $this->getDateCol();
+		$sql = "SELECT date_format(".$datecol.",'%Y') as year, COUNT(*) as nb, SUM(c.".$this->field.") as total, AVG(c.".$this->field.") as avg";
 		$sql .= " FROM ".$this->from;
 		if (empty($user->socid) && !$user->hasRight('societe', 'client', 'voir')) {
 			$sql .= "  INNER JOIN ".MAIN_DB_PREFIX."societe_commerciaux as sc ON c.fk_soc = sc.fk_soc AND sc.fk_user = ".((int) $user->id);
 		}
 		$sql .= $this->join;
-		$sql .= " WHERE ".$this->where;
+		$sql .= " WHERE ".$datecol." IS NOT NULL AND ".$this->where;
 		$sql .= " GROUP BY year";
 		$sql .= $this->db->order('year', 'DESC');
 
@@ -276,6 +310,7 @@ class CommandeStats extends Stats
 	{
 		global $user;
 
+		$datecol = $this->getDateCol();
 		$sql = "SELECT product.ref, COUNT(product.ref) as nb, SUM(tl.".$this->field_line.") as total, AVG(tl.".$this->field_line.") as avg";
 		$sql .= " FROM ".$this->from;
 		$sql .= " INNER JOIN ".$this->from_line." ON c.rowid = tl.fk_commande";
@@ -285,7 +320,7 @@ class CommandeStats extends Stats
 		}
 		$sql .= $this->join;
 		$sql .= " WHERE ".$this->where;
-		$sql .= " AND c.date_commande BETWEEN '".$this->db->idate(dol_get_first_day($year, 1, false))."' AND '".$this->db->idate(dol_get_last_day($year, 12, false))."'";
+		$sql .= " AND ".$datecol." IS NOT NULL AND ".$datecol." BETWEEN '".$this->db->idate(dol_get_first_day($year, 1, false))."' AND '".$this->db->idate(dol_get_last_day($year, 12, false))."'";
 		$sql .= " GROUP BY product.ref";
 		$sql .= $this->db->order('nb', 'DESC');
 		//$sql.= $this->db->plimit(20);
