@@ -249,6 +249,42 @@ CountryBL=Saint Barthelemy
 CountryMF=Saint Martin
 CountryXK=Kosovo
 
+##### China provinces and regions #####
+StateANHUI=Anhui
+StateBEIJING=Beijing
+StateCHONGQING=Chongqing
+StateFUJIAN=Fujian
+StateGUANGDONG=Guangdong
+StateGANSU=Gansu
+StateGUANGXI=Guangxi Zhuang Autonomous Region
+StateGUIZHOU=Guizhou
+StateHENAN=Henan
+StateHUBEI=Hubei
+StateHEBEI=Hebei
+StateHAINAN=Hainan
+StateHONG KONG=Hong Kong Special Administrative Region
+StateHEILONGJIANG=Heilongjiang
+StateHUNAN=Hunan
+StateJILIN=Jilin
+StateJIANGSU=Jiangsu
+StateJIANGXI=Jiangxi
+StateLIAONING=Liaoning
+StateMACAU=Macao Special Administrative Region
+StateINNER MONGOLIA=Inner Mongolia Autonomous Region
+StateNINGXIA=Ningxia Hui Autonomous Region
+StateQINGHAI=Qinghai
+StateSICHUAN=Sichuan
+StateSHANDONG=Shandong
+StateSHANGHAI=Shanghai
+StateSHAANXI=Shaanxi
+StateSHANXI=Shanxi
+StateTIANJIN=Tianjin
+StateTAIWAN=Taiwan
+StateXINJIANG=Xinjiang Uygur Autonomous Region
+StateTIBET=Tibet Autonomous Region
+StateYUNNAN=Yunnan
+StateZHEJIANG=Zhejiang
+
 ##### Civilities #####
 CivilityMME=Mrs.
 CivilityMR=Mr.
