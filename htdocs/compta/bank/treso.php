@@ -220,10 +220,11 @@ if (GETPOST("account") || GETPOST("ref")) {
 
 
 	$solde = $object->solde(0);
+	$account_currency = $object->currency_code ? $object->currency_code : $conf->currency;
 	if (getDolGlobalInt('MULTICOMPANY_INVOICE_SHARING_ENABLED')) {
-		$colspan = 6;
+		$colspan = 7;
 	} else {
-		$colspan = 5;
+		$colspan = 6;
 	}
 
 	// Show next coming entries
@@ -238,6 +239,7 @@ if (GETPOST("account") || GETPOST("ref")) {
 		print '<td>'.$langs->trans("Entity").'</td>';
 	}
 	print '<td>'.$langs->trans("ThirdParty").'</td>';
+	print '<td class="center">'.$langs->trans("Currency").'</td>';
 	print '<td class="right">'.$langs->trans("Debit").'</td>';
 	print '<td class="right">'.$langs->trans("Credit").'</td>';
 	print '<td class="right" width="80">'.$langs->trans("BankBalance").'</td>';
@@ -245,7 +247,12 @@ if (GETPOST("account") || GETPOST("ref")) {
 
 	// Current balance
 	print '<tr class="liste_total">';
-	print '<td class="left" colspan="5">'.$langs->trans("CurrentBalance").'</td>';
+	print '<td class="left" colspan="'.(getDolGlobalInt('MULTICOMPANY_INVOICE_SHARING_ENABLED') ? 4 : 3).'">'.$langs->trans("CurrentBalance").'</td>';
+	if (getDolGlobalInt('MULTICOMPANY_INVOICE_SHARING_ENABLED')) {
+		print '<td>&nbsp;</td>';
+	}
+	print '<td class="center">'.$account_currency.'</td>';
+	print '<td>&nbsp;</td><td>&nbsp;</td>';
 	print '<td class="nowrap right">'.price($solde).'</td>';
 	print '</tr>';
 
@@ -359,6 +366,7 @@ if (GETPOST("account") || GETPOST("ref")) {
 					}
 				}
 				print "<td>".$refcomp."</td>";
+				print '<td class="center">'.$account_currency.'</td>';
 				if ($tmpobj->total_ttc < 0) {
 					print '<td class="nowrap right">'.price(abs($total_ttc))."</td><td>&nbsp;</td>";
 				}
@@ -383,10 +391,15 @@ if (GETPOST("account") || GETPOST("ref")) {
 		$solde = isset($hookmanager->resArray['solde']) ? $hookmanager->resArray['solde'] : $solde;
 	}
 
-	// solde
+	// solde (same column structure as Current balance so Balance aligns)
 	print '<tr class="liste_total">';
-	print '<td class="left" colspan="'.$colspan.'">'.$langs->trans("FutureBalance").' ('.$object->currency_code.')</td>';
-	print '<td class="nowrap right">'.price($solde, 0, $langs, 0, 0, -1, $object->currency_code).'</td>';
+	print '<td class="left" colspan="'.(getDolGlobalInt('MULTICOMPANY_INVOICE_SHARING_ENABLED') ? 4 : 3).'">'.$langs->trans("FutureBalance").' ('.$account_currency.')</td>';
+	if (getDolGlobalInt('MULTICOMPANY_INVOICE_SHARING_ENABLED')) {
+		print '<td>&nbsp;</td>';
+	}
+	print '<td>&nbsp;</td>';
+	print '<td>&nbsp;</td><td>&nbsp;</td>';
+	print '<td class="nowraponall right">'.price($solde).'</td>';
 	print '</tr>';
 
 	print "</table>";

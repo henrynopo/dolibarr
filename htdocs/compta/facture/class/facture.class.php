@@ -2377,7 +2377,13 @@ class Facture extends CommonInvoice
 						}
 					}
 
-					// Champs "computed"
+					// Init all extrafield keys so formulas referencing any extrafield (computed or not) do not trigger "Undefined array key"
+					$labels = $extrafields->attributes[$this->table_element]['label'] ?? array();
+					foreach (array_keys($labels) as $key) {
+						if (!array_key_exists('options_' . $key, $this->array_options)) {
+							$this->array_options['options_' . $key] = null;
+						}
+					}
 					foreach ($extrafields->attributes[$this->table_element]['label'] as $key => $val) {
 						if (!empty($extrafields->attributes[$this->table_element]['computed'][$key])) {
 							if (empty($conf->disable_compute)) {
@@ -2598,7 +2604,13 @@ class Facture extends CommonInvoice
 						}
 					}
 
-					// Champs "computed"
+					// Champs "computed" – init all computed keys so formulas do not trigger "Undefined array key"
+					$computedLine = $extrafields->attributes[$this->table_element_line]['computed'] ?? array();
+					foreach (array_keys($computedLine) as $key) {
+						if (!array_key_exists('options_' . $key, $line->array_options)) {
+							$line->array_options['options_' . $key] = null;
+						}
+					}
 					foreach ($extrafields->attributes[$this->table_element_line]['label'] as $key => $val) {
 						if (!empty($extrafields->attributes[$this->table_element_line]['computed'][$key])) {
 							if (empty($conf->disable_compute)) {
@@ -5734,6 +5746,11 @@ class Facture extends CommonInvoice
 			} elseif (getDolGlobalString('FACTURE_ADDON_PDF')) {
 				$modele = getDolGlobalString('FACTURE_ADDON_PDF');
 			}
+		}
+
+		// SLY: fallback removed template (pdf_sponge_SLY_consignee) to current default
+		if (in_array($modele, array('sponge_SLY_consignee', 'sponge SLY consignee'), true)) {
+			$modele = getDolGlobalString('FACTURE_ADDON_PDF') ?: 'sly_invoice';
 		}
 
 		$modelpath = "core/modules/facture/doc/";

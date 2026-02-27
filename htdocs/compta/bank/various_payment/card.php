@@ -677,7 +677,15 @@ if ($id) {
 	}
 	print '<tr><td>'.$langs->trans("Sens").'</td><td>'.$sens.'</td></tr>';
 
-	print '<tr><td>'.$langs->trans("Amount").'</td><td><span class="amount">'.price($object->amount, 0, $langs, 1, -1, -1, $conf->currency).'</span></td></tr>';
+	// Amount: use bank account currency when payment is linked to a bank line
+	$amountcurrency = $conf->currency;
+	if (!empty($object->fk_account)) {
+		$bankaccount = new Account($db);
+		if ($bankaccount->fetch($object->fk_account) > 0 && !empty($bankaccount->currency_code)) {
+			$amountcurrency = $bankaccount->currency_code;
+		}
+	}
+	print '<tr><td>'.$langs->trans("Amount").'</td><td><span class="amount">'.price($object->amount, 0, $langs, 1, -1, -1, $amountcurrency).'</span></td></tr>';
 
 	// Account of Chart of account
 	$editvalue = '';

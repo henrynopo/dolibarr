@@ -487,6 +487,18 @@ class Paiement extends CommonObject
 							$deposits = $invoice->getSumDepositsUsed();
 							$alreadypayed = price2num($paiement + $creditnotes + $deposits, 'MT');
 							$remaintopay = price2num($invoice->total_ttc - $paiement - $creditnotes - $deposits, 'MT');
+							// When invoice is in another currency, use multicurrency remainder for auto-close decision (SLY)
+							if (isModEnabled('multicurrency') && !empty($invoice->multicurrency_code) && $invoice->multicurrency_code != $conf->currency) {
+								$mc_paid = $invoice->getSommePaiement(1);
+								$mc_creditnotes = $invoice->getSumCreditNotesUsed(1);
+								$mc_deposits = $invoice->getSumDepositsUsed(1);
+								$mc_remaintopay = price2num($invoice->multicurrency_total_ttc - $mc_paid - $mc_creditnotes - $mc_deposits, 'MT');
+								$mc_remaintopay_float = (float) $mc_remaintopay;
+								// Consider paid when multicurrency remainder is 0, overpaid (<=0), or negligible rounding (SLY)
+								if ($mc_remaintopay_float <= 0 || abs($mc_remaintopay_float) < 0.01) {
+									$remaintopay = 0;
+								}
+							}
 
 							//var_dump($invoice->total_ttc.' - '.$paiement.' -'.$creditnotes.' - '.$deposits.' - '.$remaintopay);exit;
 
@@ -758,6 +770,29 @@ class Paiement extends CommonObject
 			}
 
 			$this->db->commit();
+			
+			// SLY: Regenerate PDF for all invoices linked to this payment after deletion
+			if (!getDolGlobalString('MAIN_DISABLE_PDF_AUTOUPDATE')) {
+				require_once DOL_DOCUMENT_ROOT.'/compta/facture/class/facture.class.php';
+				$outputlangs = $langs; // Use default langs for PDF generation
+				$hidedetails = getDolGlobalString('MAIN_GENERATE_DOCUMENTS_HIDE_DETAILS') ? 1 : 0;
+				$hidedesc = getDolGlobalString('MAIN_GENERATE_DOCUMENTS_HIDE_DESC') ? 1 : 0;
+				$hideref = getDolGlobalString('MAIN_GENERATE_DOCUMENTS_HIDE_REF') ? 1 : 0;
+
+				$invoiceids = $this->getBillsArray(); // Get all invoice IDs linked to this payment
+
+				if (is_array($invoiceids) && count($invoiceids) > 0) {
+					foreach ($invoiceids as $facid) {
+						$invoice = new Facture($this->db);
+						if ($invoice->fetch($facid) > 0) {
+							if ($invoice->generateDocument($invoice->model_pdf, $outputlangs, $hidedetails, $hidedesc, $hideref) < 0) {
+								dol_syslog("Error regenerating PDF for invoice ".$facid.": ".$invoice->error, LOG_ERR);
+							}
+						}
+					}
+				}
+			}
+
 			return 1;
 		} else {
 			$this->error = $this->db->error;

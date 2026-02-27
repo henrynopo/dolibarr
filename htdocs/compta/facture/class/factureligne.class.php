@@ -362,6 +362,13 @@ class FactureLigne extends CommonInvoiceLine
 					}
 				}
 
+				// Init any missing extrafield keys so formulas referencing any extrafield do not trigger "Undefined array key"
+				foreach (array_keys($extrafields->attributes[$this->table_element]['label']) as $key) {
+					if (!array_key_exists('options_' . $key, $this->array_options)) {
+						$this->array_options['options_' . $key] = null;
+					}
+				}
+
 				// Champs "computed"
 				foreach ($extrafields->attributes[$this->table_element]['label'] as $key => $val) {
 					if (!empty($extrafields->attributes[$this->table_element]['computed'][$key])) {

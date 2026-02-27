@@ -147,6 +147,9 @@ if (isModEnabled('invoice') && $user->hasRight('facture', 'lire')) {
 	$tmpinvoice = new Facture($db);
 
 	$sql = "SELECT f.rowid, f.ref, f.fk_statut as status, f.type, f.total_ht, f.total_tva, f.total_ttc, f.paye, f.tms";
+	if (isModEnabled('multicurrency')) {
+		$sql .= ", f.multicurrency_code, f.multicurrency_total_ht, f.multicurrency_total_ttc";
+	}
 	$sql .= ", f.date_lim_reglement as datelimite";
 	$sql .= ", s.nom as name";
 	$sql .= ", s.rowid as socid";
@@ -256,10 +259,13 @@ if (isModEnabled('invoice') && $user->hasRight('facture', 'lire')) {
 				print '<td class="tdoverflowmax150">';
 				print $thirdpartystatic->getNomUrl(1, 'customer', 44);
 				print '</td>';
+				$disp_ht = (isModEnabled('multicurrency') && !empty($obj->multicurrency_code)) ? $obj->multicurrency_total_ht : $obj->total_ht;
+				$disp_ttc = (isModEnabled('multicurrency') && !empty($obj->multicurrency_code)) ? $obj->multicurrency_total_ttc : $obj->total_ttc;
+				$disp_currency = (isModEnabled('multicurrency') && !empty($obj->multicurrency_code)) ? $obj->multicurrency_code : $conf->currency;
 				if (getDolGlobalString('MAIN_SHOW_HT_ON_SUMMARY')) {
-					print '<td class="nowrap right"><span class="amount">'.price($obj->total_ht).'</span></td>';
+					print '<td class="nowrap right"><span class="amount">'.price($disp_ht, 0, $langs, 1, -1, -1, $disp_currency).'</span></td>';
 				}
-				print '<td class="nowrap right"><span class="amount">'.price($obj->total_ttc).'</span></td>';
+				print '<td class="nowrap right"><span class="amount">'.price($disp_ttc, 0, $langs, 1, -1, -1, $disp_currency).'</span></td>';
 
 				print '<td class="right" title="'.dol_escape_htmltag($langs->trans("DateModificationShort").' : '.dol_print_date($db->jdate($obj->tms), 'dayhour', 'tzuserrel')).'">'.dol_print_date($db->jdate($obj->tms), 'day', 'tzuserrel').'</td>';
 
@@ -302,6 +308,9 @@ if ((isModEnabled('fournisseur') && !getDolGlobalString('MAIN_USE_NEW_SUPPLIERMO
 	$facstatic = new FactureFournisseur($db);
 
 	$sql = "SELECT ff.rowid, ff.ref, ff.fk_statut as status, ff.type, ff.libelle, ff.total_ht, ff.total_tva, ff.total_ttc, ff.tms, ff.paye, ff.ref_supplier";
+	if (isModEnabled('multicurrency')) {
+		$sql .= ", ff.multicurrency_code, ff.multicurrency_total_ht, ff.multicurrency_total_ttc";
+	}
 	$sql .= ", s.nom as name";
 	$sql .= ", s.rowid as socid";
 	$sql .= ", s.code_fournisseur, s.code_compta_fournisseur, s.email";
@@ -386,10 +395,13 @@ if ((isModEnabled('fournisseur') && !getDolGlobalString('MAIN_USE_NEW_SUPPLIERMO
 				print '<td class="nowrap tdoverflowmax100">';
 				print $thirdpartystatic->getNomUrl(1, 'supplier');
 				print '</td>';
+				$disp_ht_ff = (isModEnabled('multicurrency') && !empty($obj->multicurrency_code)) ? $obj->multicurrency_total_ht : $obj->total_ht;
+				$disp_ttc_ff = (isModEnabled('multicurrency') && !empty($obj->multicurrency_code)) ? $obj->multicurrency_total_ttc : $obj->total_ttc;
+				$disp_currency_ff = (isModEnabled('multicurrency') && !empty($obj->multicurrency_code)) ? $obj->multicurrency_code : $conf->currency;
 				if (getDolGlobalString('MAIN_SHOW_HT_ON_SUMMARY')) {
-					print '<td class="right"><span class="amount">'.price($obj->total_ht).'</span></td>';
+					print '<td class="right"><span class="amount">'.price($disp_ht_ff, 0, $langs, 1, -1, -1, $disp_currency_ff).'</span></td>';
 				}
-				print '<td class="nowrap right"><span class="amount">'.price($obj->total_ttc).'</span></td>';
+				print '<td class="nowrap right"><span class="amount">'.price($disp_ttc_ff, 0, $langs, 1, -1, -1, $disp_currency_ff).'</span></td>';
 				print '<td class="right" title="'.dol_escape_htmltag($langs->trans("DateModificationShort").' : '.dol_print_date($db->jdate($obj->tms), 'dayhour', 'tzuserrel')).'">'.dol_print_date($db->jdate($obj->tms), 'day', 'tzuserrel').'</td>';
 
 				$alreadypaid = $facstatic->getSommePaiement();
@@ -586,8 +598,8 @@ if (isModEnabled('tax') && $user->hasRight('tax', 'charges', 'lire')) {
 					print '<tr class="oddeven">';
 					print '<td class="nowraponall">'.$chargestatic->getNomUrl(1).'</td>';
 					print '<td class="center">'.dol_print_date($db->jdate($obj->date_ech), 'day').'</td>';
-					print '<td class="nowrap right"><span class="amount">'.price($obj->amount).'</span></td>';
-					print '<td class="nowrap right"><span class="amount">'.price($obj->sumpaid).'</span></td>';
+					print '<td class="nowrap right"><span class="amount">'.price($obj->amount, 0, $langs, 1, -1, -1, $conf->currency).'</span></td>';
+					print '<td class="nowrap right"><span class="amount">'.price($obj->sumpaid, 0, $langs, 1, -1, -1, $conf->currency).'</span></td>';
 					print '<td class="center">'.$chargestatic->getLibStatut(3).'</td>';
 					print '</tr>';
 
@@ -604,8 +616,8 @@ if (isModEnabled('tax') && $user->hasRight('tax', 'charges', 'lire')) {
 				}
 
 				print '<tr class="liste_total"><td class="left" colspan="2">'.$langs->trans("Total").'</td>';
-				print '<td class="nowrap right">'.price($tot_ttc).'</td>';
-				print '<td class="nowrap right">'.price($tot_paid).'</td>';
+				print '<td class="nowrap right">'.price($tot_ttc, 0, $langs, 1, -1, -1, $conf->currency).'</td>';
+				print '<td class="nowrap right">'.price($tot_paid, 0, $langs, 1, -1, -1, $conf->currency).'</td>';
 				print '<td class="right">&nbsp;</td>';
 				print '</tr>';
 			} else {
@@ -627,6 +639,9 @@ if (isModEnabled('invoice') && isModEnabled('order') && $user->hasRight("command
 	$langs->load("orders");
 
 	$sql = "SELECT sum(f.total_ht) as tot_fht, sum(f.total_ttc) as tot_fttc";
+	if (isModEnabled('multicurrency')) {
+		$sql .= ", c.multicurrency_code, c.multicurrency_total_ht, c.multicurrency_total_ttc";
+	}
 	$sql .= ", s.nom as name, s.email";
 	$sql .= ", s.rowid as socid";
 	$sql .= ", s.code_client, s.code_compta as code_compta_client";
@@ -654,6 +669,9 @@ if (isModEnabled('invoice') && isModEnabled('order') && $user->hasRight("command
 	$sql .= $hookmanager->resPrint;
 
 	$sql .= " GROUP BY s.nom, s.email, s.rowid, s.code_client, s.code_compta, c.rowid, c.ref, c.facture, c.fk_statut, c.total_ht, c.total_tva, c.total_ttc, cc.rowid, cc.code";
+	if (isModEnabled('multicurrency')) {
+		$sql .= ", c.multicurrency_code, c.multicurrency_total_ht, c.multicurrency_total_ttc";
+	}
 
 	$resql = $db->query($sql);
 	if ($resql) {
@@ -734,11 +752,14 @@ if (isModEnabled('invoice') && isModEnabled('order') && $user->hasRight("command
 				print '<td class="nowrap tdoverflowmax100">';
 				print $societestatic->getNomUrl(1, 'customer');
 				print '</td>';
+				$ord_disp_ht = (isModEnabled('multicurrency') && !empty($obj->multicurrency_code)) ? $obj->multicurrency_total_ht : $obj->total_ht;
+				$ord_disp_ttc = (isModEnabled('multicurrency') && !empty($obj->multicurrency_code)) ? $obj->multicurrency_total_ttc : $obj->total_ttc;
+				$ord_currency = (isModEnabled('multicurrency') && !empty($obj->multicurrency_code)) ? $obj->multicurrency_code : $conf->currency;
 				if (getDolGlobalString('MAIN_SHOW_HT_ON_SUMMARY')) {
-					print '<td class="right"><span class="amount">'.price($obj->total_ht).'</span></td>';
+					print '<td class="right"><span class="amount">'.price($ord_disp_ht, 0, $langs, 1, -1, -1, $ord_currency).'</span></td>';
 				}
-				print '<td class="nowrap right"><span class="amount">'.price($obj->total_ttc).'</span></td>';
-				print '<td class="nowrap right"><span class="amount">'.price($obj->total_ttc - $obj->tot_fttc).'</span></td>';
+				print '<td class="nowrap right"><span class="amount">'.price($ord_disp_ttc, 0, $langs, 1, -1, -1, $ord_currency).'</span></td>';
+				print '<td class="nowrap right"><span class="amount">'.price($obj->total_ttc - $obj->tot_fttc, 0, $langs, 1, -1, -1, $conf->currency).'</span></td>';
 				print '<td>'.$commandestatic->getLibStatut(3).'</td>';
 				print '</tr>';
 				$tot_ht += $obj->total_ht;
@@ -756,12 +777,12 @@ if (isModEnabled('invoice') && isModEnabled('order') && $user->hasRight("command
 				print "</tr>\n";
 			}
 
-			print '<tr class="liste_total"><td colspan="2">'.$langs->trans("Total").' &nbsp; <span style="font-weight: normal">('.$langs->trans("RemainderToBill").': '.price($tot_tobill).')</span> </td>';
+			print '<tr class="liste_total"><td colspan="2">'.$langs->trans("Total").' &nbsp; <span style="font-weight: normal">('.$langs->trans("RemainderToBill").': '.price($tot_tobill, 0, $langs, 1, -1, -1, $conf->currency).')</span> </td>';
 			if (getDolGlobalString('MAIN_SHOW_HT_ON_SUMMARY')) {
-				print '<td class="right">'.price($tot_ht).'</td>';
+				print '<td class="right">'.price($tot_ht, 0, $langs, 1, -1, -1, $conf->currency).'</td>';
 			}
-			print '<td class="nowrap right">'.price($tot_ttc).'</td>';
-			print '<td class="nowrap right">'.price($tot_tobill).'</td>';
+			print '<td class="nowrap right">'.price($tot_ttc, 0, $langs, 1, -1, -1, $conf->currency).'</td>';
+			print '<td class="nowrap right">'.price($tot_tobill, 0, $langs, 1, -1, -1, $conf->currency).'</td>';
 			print '<td>&nbsp;</td>';
 			print '</tr>';
 			print '</table></div><br>';

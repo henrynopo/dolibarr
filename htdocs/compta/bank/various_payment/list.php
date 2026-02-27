@@ -177,6 +177,7 @@ $arrayfields = array(
 	'project'		=> array('label' => "Project", 'checked' => '-1', 'position' => 200, "enabled" => (string) (int) isModEnabled('project')),
 	'bank'			=> array('label' => "BankAccount", 'checked' => '1', 'position' => 300, "enabled" => (string) (int) isModEnabled("bank")),
 	'entry'			=> array('label' => "BankTransactionLine", 'checked' => '1', 'position' => 310, "enabled" => (string) (int) isModEnabled("bank")),
+	'currency'		=> array('label' => "Currency", 'checked' => '1', 'position' => 315, "enabled" => '1'),
 	'account'		=> array('label' => "AccountAccountingShort", 'checked' => '1', 'position' => 400, "enabled" => (string) (int) isModEnabled('accounting')),
 	'subledger'		=> array('label' => "SubledgerAccount", 'checked' => '1', 'position' => 410, "enabled" => (string) (int) isModEnabled('accounting')),
 	'debit'			=> array('label' => "Debit", 'checked' => '1', 'position' => 500),
@@ -267,7 +268,7 @@ $help_url = '';
 // Build and execute select
 // --------------------------------------------------------------------
 $sql = "SELECT v.rowid, v.sens, v.amount, v.label, v.datep as datep, v.datev as datev, v.fk_typepayment as type, v.num_payment, v.fk_bank, v.accountancy_code, v.subledger_account, v.fk_projet as fk_project,";
-$sql .= " ba.rowid as bid, ba.ref as bref, ba.number as bnumber, ba.account_number as bank_account_number, ba.fk_accountancy_journal as accountancy_journal, ba.label as blabel,";
+$sql .= " ba.rowid as bid, ba.ref as bref, ba.number as bnumber, ba.account_number as bank_account_number, ba.fk_accountancy_journal as accountancy_journal, ba.label as blabel, ba.currency_code as bank_currency_code,";
 $sql .= " pst.code as payment_code";
 
 $sqlfields = $sql; // $sql fields to remove for count total
@@ -570,6 +571,12 @@ if ($arrayfields['entry']['checked']) {
 	print '</td>';
 }
 
+// Currency (bank account currency)
+if (!empty($arrayfields['currency']['checked'])) {
+	print '<td class="liste_titre center">';
+	print '</td>';
+}
+
 // Accounting account
 if (!empty($arrayfields['account']['checked'])) {
 	/** @var FormAccounting $formaccounting */
@@ -667,6 +674,10 @@ if ($arrayfields['entry']['checked']) {
 	print_liste_field_titre($arrayfields['entry']['label'], $_SERVER["PHP_SELF"], 'ba.label', '', $param, '', $sortfield, $sortorder);
 	$totalarray['nbfield']++;
 }
+if (!empty($arrayfields['currency']['checked'])) {
+	print_liste_field_titre($arrayfields['currency']['label'], $_SERVER["PHP_SELF"], 'ba.currency_code', '', $param, '', $sortfield, $sortorder, 'center ');
+	$totalarray['nbfield']++;
+}
 if (!empty($arrayfields['account']['checked'])) {
 	// False positive @phan-suppress-next-line PhanTypeInvalidDimOffset
 	print_liste_field_titre($arrayfields['account']['label'], $_SERVER["PHP_SELF"], 'v.accountancy_code', '', $param, '', $sortfield, $sortorder, 'left ');
@@ -706,6 +717,7 @@ $totalarray = array();
 $totalarray['nbfield'] = 0;
 $totalarray['val']['total_cred'] = 0;
 $totalarray['val']['total_deb'] = 0;
+$totalarray['val_by_currency'] = array(); // currency => field => sum (for Total row per-currency like invoice list)
 $imaxinloop = ($limit ? min($num, $limit) : $num);
 while ($i < $imaxinloop) {
 	$obj = $db->fetch_object($resql);
@@ -751,9 +763,12 @@ while ($i < $imaxinloop) {
 			}
 		}
 
-		// No
+		// No (line number)
 		if (getDolGlobalString('MAIN_VIEW_LINE_NUMBER_IN_LIST')) {
 			print '<td>'.(($offset * $limit) + $i).'</td>';
+			if (!$i) {
+				$totalarray['nbfield']++;
+			}
 		}
 
 		// Ref
@@ -849,6 +864,15 @@ while ($i < $imaxinloop) {
 			}
 		}
 
+		// Currency (bank account currency)
+		if (!empty($arrayfields['currency']['checked'])) {
+			$row_currency = !empty($obj->bank_currency_code) ? $obj->bank_currency_code : $conf->currency;
+			print '<td class="center">'.dol_escape_htmltag($row_currency).'</td>';
+			if (!$i) {
+				$totalarray['nbfield']++;
+			}
+		}
+
 		// Accounting account
 		if (!empty($arrayfields['account']['checked'])) {
 			require_once DOL_DOCUMENT_ROOT.'/core/lib/accounting.lib.php';
@@ -871,33 +895,39 @@ while ($i < $imaxinloop) {
 			}
 		}
 
-		// Debit
+		// Debit (amount in bank account currency)
 		if ($arrayfields['debit']['checked']) {
+			$row_currency = !empty($obj->bank_currency_code) ? $obj->bank_currency_code : $conf->currency;
 			print '<td class="nowrap right">';
 			if ($obj->sens == 0) {
-				print '<span class="amount">'.price($obj->amount).'</span>';
+				print '<span class="amount">'.price($obj->amount, 0, $langs, 1, -1, -1, $row_currency).'</span>';
 				$totalarray['val']['total_deb'] += $obj->amount;
+				if (!isset($totalarray['val_by_currency'][$row_currency])) {
+					$totalarray['val_by_currency'][$row_currency] = array();
+				}
+				$totalarray['val_by_currency'][$row_currency]['total_deb'] = ($totalarray['val_by_currency'][$row_currency]['total_deb'] ?? 0) + $obj->amount;
 			}
 			if (!$i) {
 				$totalarray['nbfield']++;
-			}
-			if (!$i) {
 				$totalarray['pos'][$totalarray['nbfield']] = 'total_deb';
 			}
 			print '</td>';
 		}
 
-		// Credit
+		// Credit (amount in bank account currency)
 		if ($arrayfields['credit']['checked']) {
+			$row_currency = !empty($obj->bank_currency_code) ? $obj->bank_currency_code : $conf->currency;
 			print '<td class="nowrap right">';
 			if ($obj->sens == 1) {
-				print '<span class="amount">'.price($obj->amount).'</span>';
+				print '<span class="amount">'.price($obj->amount, 0, $langs, 1, -1, -1, $row_currency).'</span>';
 				$totalarray['val']['total_cred'] += $obj->amount;
+				if (!isset($totalarray['val_by_currency'][$row_currency])) {
+					$totalarray['val_by_currency'][$row_currency] = array();
+				}
+				$totalarray['val_by_currency'][$row_currency]['total_cred'] = ($totalarray['val_by_currency'][$row_currency]['total_cred'] ?? 0) + $obj->amount;
 			}
 			if (!$i) {
 				$totalarray['nbfield']++;
-			}
-			if (!$i) {
 				$totalarray['pos'][$totalarray['nbfield']] = 'total_cred';
 			}
 			print '</td>';
@@ -913,6 +943,11 @@ while ($i < $imaxinloop) {
 		print '</tr>'."\n";
 	}
 	$i++;
+}
+
+// Ensure pos exists when there are rows so Total row has same column count as data rows
+if ($num > 0 && (!isset($totalarray['pos']) || !is_array($totalarray['pos']))) {
+	$totalarray['pos'] = array();
 }
 
 // Show total line

@@ -439,6 +439,8 @@ if ($result >= 0) {
             				json["amountPayment"] = $("#amountpayment").attr("value");
 							json["amounts"] = _elemToJson(form.find("input.amount"));
 							json["remains"] = _elemToJson(form.find("input.remain"));
+							json["multicurrency_amounts"] = _elemToJson(form.find("input.multicurrency_amount"));
+							json["multicurrency_remains"] = _elemToJson(form.find("input.multicurrency_remain"));
 							json["token"] = "'.currentToken().'";
 							if (imgId != null) {
 								json["imgClicked"] = imgId;
@@ -452,7 +454,15 @@ if ($result >= 0) {
 
 								for (var key in json)
 								{
-									if (key == "result")	{
+									if (key == "multicurrency_result") {
+										if (json["multicurrency_makeRed"]) {
+											$("#"+key).addClass("error");
+										} else {
+											$("#"+key).removeClass("error");
+										}
+										json[key]=json["multicurrency_label"]+" "+json[key];
+										$("#"+key).text(json[key]);
+									} else if (key == "result") {
 										if (json["makeRed"]) {
 											$("#"+key).addClass("error");
 										} else {
@@ -472,6 +482,12 @@ if ($result >= 0) {
 							callForResult();
 						});
 						$("#payment_form").find("input.amount").keyup(function() {
+							callForResult();
+						});
+						$("#payment_form").find("input.multicurrency_amount").change(function() {
+							callForResult();
+						});
+						$("#payment_form").find("input.multicurrency_amount").keyup(function() {
 							callForResult();
 						});
 			';
@@ -666,6 +682,16 @@ if ($result >= 0) {
 
 			print '<tr class="liste_titre">';
 			print '<td>'.$arraytitle.'</td>';
+			// Source order column (invoice -> commande link, same as 14.0)
+			$langs->load('orders');
+			if (isModEnabled('slycustom')) {
+				$langs->load('slycustom@slycustom');
+			}
+			$sourceorderlabel = $langs->trans('SourceOrder');
+			if ($sourceorderlabel === 'SourceOrder') {
+				$sourceorderlabel = $langs->trans('Order');
+			}
+			print '<td>'.$sourceorderlabel.'</td>';
 			if ($displayAllInvoices) {
 				print '<td>' . $langs->trans('Type') . '</td>';
 			}
@@ -682,9 +708,9 @@ if ($result >= 0) {
 			print '<td class="right">'.$alreadypayedlabel.'</td>';
 			print '<td class="right">'.$remaindertopay.'</td>';
 			print '<td class="right">'.$langs->trans('PaymentAmount').'</td>';
-
-			$parameters = array();
-			$reshook = $hookmanager->executeHooks('printFieldListTitle', $parameters, $facture, $action); // Note that $action and $object may have been modified by hook
+			$parameters = array('context' => 'payment_unpaid_invoices');
+			$reshook = $hookmanager->executeHooks('printFieldListTitle', $parameters, $facture, $action);
+			print $hookmanager->resPrint;
 
 			print '<td align="right">&nbsp;</td>';
 			print "</tr>\n";
@@ -693,6 +719,10 @@ if ($result >= 0) {
 			$totalrecu = 0;
 			$totalrecucreditnote = 0;
 			$totalrecudeposits = 0;
+			$multicurrency_total_ttc = 0;
+			$multicurrency_totalrecu = 0;
+			$multicurrency_totalrecucreditnote = 0;
+			$multicurrency_totalrecudeposits = 0;
 			$sign = 1;
 
 			print '<tbody>';
@@ -713,7 +743,7 @@ if ($result >= 0) {
 				$creditnotes = $invoice->getSumCreditNotesUsed();
 				$deposits = $invoice->getSumDepositsUsed();
 				$alreadypayed = price2num($paiement + $creditnotes + $deposits, 'MT');
-				$remaintopay = price2num($invoice->total_ttc - $paiement - $creditnotes - $deposits, 'MT');
+				$remaintopay = $invoice->getRemainToPay();
 
 				// Multicurrency Price
 				$tooltiponmulticurrencyfullamount = '';
@@ -726,7 +756,7 @@ if ($result >= 0) {
 					$multicurrency_creditnotes = $invoice->getSumCreditNotesUsed(1);
 					$multicurrency_deposits = $invoice->getSumDepositsUsed(1);
 					$multicurrency_alreadypayed = price2num($multicurrency_payment + $multicurrency_creditnotes + $multicurrency_deposits, 'MT');
-					$multicurrency_remaintopay = price2num($invoice->multicurrency_total_ttc - $multicurrency_payment - $multicurrency_creditnotes - $multicurrency_deposits, 'MT');
+					$multicurrency_remaintopay = $invoice->getRemainToPay(1);
 					// Multicurrency full amount tooltip
 					$tooltiponmulticurrencyfullamount = $langs->trans('AmountHT') . ": " . price($objp->multicurrency_total_ht, 0, $langs, 0, -1, -1, $objp->multicurrency_code) . "<br>";
 					$tooltiponmulticurrencyfullamount .= $langs->trans('AmountVAT') . ": " . price($objp->multicurrency_total_tva, 0, $langs, 0, -1, -1, $objp->multicurrency_code) . "<br>";
@@ -746,6 +776,25 @@ if ($result >= 0) {
 					print ' - '.$soc->getNomUrl(1).' ';
 				}
 				print "</td>\n";
+
+				// Source order cell (invoice -> commande via element_element, same as 14.0)
+				$p = MAIN_DB_PREFIX;
+				$sqlco = "SELECT c.ref, c.rowid AS id FROM ".$p."element_element ee";
+				$sqlco .= " INNER JOIN ".$p."commande c ON (c.rowid = ee.fk_source AND ee.sourcetype = 'commande' AND ee.targettype = 'facture' AND ee.fk_target = ".(int) $objp->facid.")";
+				$sqlco .= " UNION ALL SELECT c2.ref, c2.rowid AS id FROM ".$p."element_element ee2";
+				$sqlco .= " INNER JOIN ".$p."commande c2 ON (c2.rowid = ee2.fk_target AND ee2.targettype = 'commande' AND ee2.sourcetype = 'facture' AND ee2.fk_source = ".(int) $objp->facid.")";
+				$sqlco .= " LIMIT 1";
+				$resqlco = $db->query($sqlco);
+				if ($resqlco && $db->num_rows($resqlco) > 0) {
+					$objco = $db->fetch_object($resqlco);
+					$db->free($resqlco);
+					print '<td class="tdoverflowmax150"><a href="'.DOL_URL_ROOT.'/commande/card.php?id='.((int) $objco->id).'">'.dol_escape_htmltag($objco->ref).'</a></td>';
+				} else {
+					if ($resqlco) {
+						$db->free($resqlco);
+					}
+					print '<td class="tdoverflowmax150">&nbsp;</td>';
+				}
 
 				// type
 				if ($displayAllInvoices) {
@@ -907,8 +956,9 @@ if ($result >= 0) {
 				}
 				print "</td>";
 
-				$parameters = array();
-				$reshook = $hookmanager->executeHooks('printFieldListValue', $parameters, $objp, $action); // Note that $action and $object may have been modified by hook
+				$parameters = array('context' => 'payment_unpaid_invoices', 'facid' => (int) $objp->facid);
+				$reshook = $hookmanager->executeHooks('printFieldListValue', $parameters, $facture, $action);
+				print $hookmanager->resPrint;
 
 				// Warning
 				print '<td align="center" width="16">';
@@ -925,12 +975,18 @@ if ($result >= 0) {
 				$totalrecu += $paiement;
 				$totalrecucreditnote += $creditnotes;
 				$totalrecudeposits += $deposits;
+				if (isModEnabled('multicurrency')) {
+					$multicurrency_total_ttc += $objp->multicurrency_total_ttc;
+					$multicurrency_totalrecu += $multicurrency_payment;
+					$multicurrency_totalrecucreditnote += $multicurrency_creditnotes;
+					$multicurrency_totalrecudeposits += $multicurrency_deposits;
+				}
 				$i++;
 			}
 			print '</tbody>';
 
-			if ($i > 1) {
-				$colspan = 3;
+				if ($i > 1) {
+				$colspan = 4;
 
 				// type
 				if ($displayAllInvoices) {
@@ -943,10 +999,17 @@ if ($result >= 0) {
 				print '<tr class="liste_total">';
 				print '<td colspan="'.$colspan.'" class="left">'.$langs->trans('TotalTTC').'</td>';
 				if (isModEnabled('multicurrency')) {
-					print '<td></td>';
-					print '<td></td>';
-					print '<td></td>';
-					print '<td></td>';
+					print '<td>&nbsp;</td>';
+					print '<td class="right"><b>'.price($sign * $multicurrency_total_ttc).'</b></td>';
+					print '<td class="right"><b>'.price($sign * $multicurrency_totalrecu);
+					if ($multicurrency_totalrecucreditnote) {
+						print '+'.price($multicurrency_totalrecucreditnote);
+					}
+					if ($multicurrency_totalrecudeposits) {
+						print '+'.price($multicurrency_totalrecudeposits);
+					}
+					print '</b></td>';
+					print '<td class="right"><b>'.price($sign * price2num($multicurrency_total_ttc - $multicurrency_totalrecu - $multicurrency_totalrecucreditnote - $multicurrency_totalrecudeposits, 'MT')).'</b></td>';
 					print '<td class="right" id="multicurrency_result" style="font-weight: bold;"></td>';
 				}
 				print '<td class="right"><b>'.price($sign * $total_ttc).'</b></td>';
