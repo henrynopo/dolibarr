@@ -1,1 +1,1 @@
-Require host localhost
+Require host localhost 127.0.0.1

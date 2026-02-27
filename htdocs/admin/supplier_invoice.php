@@ -146,7 +146,8 @@ if ($action == 'specimen') {  // For invoices
 } elseif ($action == 'del') {
 	$ret = delDocumentModel($value, $type);
 	if ($ret > 0) {
-		if ($conf->global->INVOICE_SUPPLIER_ADDON_PDF == "$value") {
+		// 使用 getDolGlobalString 避免未定义属性告警（PHP 8.2+）
+		if (getDolGlobalString('INVOICE_SUPPLIER_ADDON_PDF') == "$value") {
 			dolibarr_del_const($db, 'INVOICE_SUPPLIER_ADDON_PDF', $conf->entity);
 		}
 	}

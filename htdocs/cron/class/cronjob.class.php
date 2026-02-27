@@ -1242,7 +1242,7 @@ class Cronjob extends CommonObject
 		$this->datelastresult = null;
 		$this->lastoutput = '';
 		$this->lastresult = '';
-		$this->processing = 1; // To know job was started
+		$this->processing = 0; // To know job was started (SLY: 0 to avoid numerous errors with updateshipment)
 		$this->pid = function_exists('getmypid') ? getmypid() : null; // Avoid dol_getmypid to get null if the function is not available
 		$this->nbrun += 1;
 		$result = $this->update($user); // This include begin/commit
