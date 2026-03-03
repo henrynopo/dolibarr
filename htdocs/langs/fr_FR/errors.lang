@@ -359,6 +359,7 @@ ErrorThisContactXIsAlreadyDefinedAsThisType=%s est déjà défini comme contact 
 ErrorThisGroupIsAlreadyDefinedAsThisType=Les contacts avec ce groupe sont déjà définis comme contact pour ce type.
 ErrorIsNotInError=%s n'est pas en erreur
 ErrorFilenameExtensionNotAllowed=Le fichier %s a une extension interdite
+ErrorCreateSupplierInvoiceFailed=Échec de la création de la facture fournisseur. Veuillez consulter le journal des erreurs pour plus de détails.
 ErrorNoValueForSelectListType=Erreur, une valeur pour ce type de champ est obligatoire
 
 # Warnings

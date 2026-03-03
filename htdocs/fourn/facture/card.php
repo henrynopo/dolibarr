@@ -1191,6 +1191,13 @@ if (empty($reshook)) {
 
 					$id = $object->create($user);
 
+					if ($id <= 0) {
+						$error++;
+						if (!empty($object->error)) {
+							setEventMessages($object->error, $object->errors, 'errors');
+						}
+					}
+
 					// Add lines
 					if ($id > 0) {
 						dol_include_once('/'.$element.'/class/'.$subelement.'.class.php');
@@ -1434,7 +1441,9 @@ if (empty($reshook)) {
 							// Now reload line
 							$object->fetch_lines();
 						} else {
+							// fetch of source object (PO) failed
 							$error++;
+							setEventMessages($srcobject->error, $srcobject->errors, 'errors');
 						}
 
 						if (!$error) {
@@ -1463,30 +1472,47 @@ if (empty($reshook)) {
 			$langs->load("errors");
 			$db->rollback();
 
-			setEventMessages($object->error, $object->errors, 'errors');
+			// Show invoice object error first; if empty, check source object (PO) error
+			if (!empty($object->error) || !empty($object->errors)) {
+				setEventMessages($object->error, $object->errors, 'errors');
+			} elseif (isset($srcobject) && (!empty($srcobject->error) || !empty($srcobject->errors))) {
+				setEventMessages($srcobject->error, $srcobject->errors, 'errors');
+			} else {
+				setEventMessages($langs->trans("ErrorCreateSupplierInvoiceFailed"), null, 'errors');
+			}
 			$action = 'create';
 			//$_GET['socid'] = $_POST['socid'];
 		} else {
 			$db->commit();
 
-			// Apply discount selected on create form (stored in session when user clicked "Use line" before creating)
-			if (!empty($_SESSION['pending_supplier_invoice_discount_remise_id']) && $id > 0) {
-				$object->fetch($id);
-				$object->insert_discount((int) $_SESSION['pending_supplier_invoice_discount_remise_id']);
-				unset($_SESSION['pending_supplier_invoice_discount_remise_id']);
-			}
-
-			if (!getDolGlobalString('MAIN_DISABLE_PDF_AUTOUPDATE')) {
-				$outputlangs = $langs;
-				$result = $object->generateDocument($object->model_pdf, $outputlangs, $hidedetails, $hidedesc, $hideref);
-				if ($result < 0) {
-					dol_print_error($db, $object->error, $object->errors);
-					exit;
+			// Only redirect when we have a valid new invoice id (avoid blank page when create failed but error not set)
+			if (empty($id) || $id <= 0) {
+				$action = 'create';
+				if (!empty($object->error)) {
+					setEventMessages($object->error, $object->errors, 'errors');
+				} else {
+					setEventMessages($langs->trans("ErrorBadParameters"), null, 'errors');
 				}
-			}
+			} else {
+				// Apply discount selected on create form (stored in session when user clicked "Use line" before creating)
+				if (!empty($_SESSION['pending_supplier_invoice_discount_remise_id']) && $id > 0) {
+					$object->fetch($id);
+					$object->insert_discount((int) $_SESSION['pending_supplier_invoice_discount_remise_id']);
+					unset($_SESSION['pending_supplier_invoice_discount_remise_id']);
+				}
 
-			header("Location: ".$_SERVER['PHP_SELF']."?id=".$id);
-			exit;
+				if (!getDolGlobalString('MAIN_DISABLE_PDF_AUTOUPDATE')) {
+					$outputlangs = $langs;
+					$result = $object->generateDocument($object->model_pdf, $outputlangs, $hidedetails, $hidedesc, $hideref);
+					if ($result < 0) {
+						dol_print_error($db, $object->error, $object->errors);
+						exit;
+					}
+				}
+
+				header("Location: ".$_SERVER['PHP_SELF']."?id=".$id);
+				exit;
+			}
 		}
 	} elseif ($action == 'updateline' && $usercancreate) {
 		// Edit line

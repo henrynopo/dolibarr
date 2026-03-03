@@ -438,3 +438,4 @@ ErrorThisGroupIsAlreadyDefinedAsThisType=The contacts with this group are alread
 EmptyMessageNotAllowedError=Empty message is not allowed
 ErrorIsNotInError=%s is not in error
 ErrorFilenameExtensionNotAllowed=File %s has a forbidden file extension
+ErrorCreateSupplierInvoiceFailed=创建供应商发票失败，请检查错误日志获取详细信息。
