@@ -1102,7 +1102,7 @@ if (empty($reshook)) {
 			//print $sql;
 			$resql = $db->query($sql);
 			if (!$resql) {
-				dol_print_error($db);
+				setEventMessages($db->error(), null, 'errors');
 			}
 		}
 

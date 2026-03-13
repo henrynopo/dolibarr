@@ -637,6 +637,11 @@ class Documents extends DolibarrApi
 			throw new RestException(500, 'Modulepart '.$modulepart.' not implemented yet.');
 		}
 
+		$objectType = $modulepart;
+		if (! empty($object->id) && ! empty($object->table_element)) {
+			$objectType = $object->table_element;
+		}
+
 		$filearray = dol_dir_list($upload_dir, $type, $recursive, '', '(\.meta|_preview.*\.png)$', $sortfield, (strtolower($sortorder) == 'desc' ? SORT_DESC : SORT_ASC), 1);
 		$countarray = count($filearray);
 		$filearray = array_slice($filearray, $limit * $page, $limit);
@@ -646,11 +651,26 @@ class Documents extends DolibarrApi
 			if (($object->id) > 0 && !empty($modulepart)) {
 				require_once DOL_DOCUMENT_ROOT.'/ecm/class/ecmfiles.class.php';
 				$ecmfile = new EcmFiles($this->db);
-				$result = $ecmfile->fetchAll('', '', 0, 0, array('t.src_object_type' => $modulepart, 't.src_object_id' => $object->id));
+				$result = $ecmfile->fetchAll('', '', 0, 0, array('t.src_object_type' => $objectType, 't.src_object_id' => $object->id));
 				if ($result < 0) {
 					throw new RestException(503, 'Error when retrieve ecm list : '.$this->db->lasterror());
 				} elseif (is_array($ecmfile->lines) && count($ecmfile->lines) > 0) {
-					$filearray['ecmfiles_infos'] = $ecmfile->lines;
+					$count = count($filearray);
+					for ($i = 0 ; $i < $count ; $i++) {
+						foreach ($ecmfile->lines as $line) {
+							unset($line->db);
+							if ($filearray[$i]['name'] == $line->filename) {
+								// Next line converts EcmFilesLine properties to array
+								$filearray[$i] = array_merge($filearray[$i], (array) $line);
+							}
+						}
+						if (isset($line->filename)) $filearray[$i]['content-type'] = dol_mimetype($line->filename);
+						$arraycontenttype = explode(",", $content_type);
+						if (!empty($content_type) && isset($line->filename) && !in_array(dol_mimetype($line->filename), $arraycontenttype)) {
+							unset($filearray[$i]);
+							$countarray -= 1;
+						}
+					}
 				}
 			}
 		}
@@ -940,15 +960,75 @@ class Documents extends DolibarrApi
 			throw new RestException(500, "Failed to open file '".$destfiletmp."' for write");
 		}
 
-		$result = dol_move($destfiletmp, $destfile, '0', $overwriteifexists, 0);
+		$disablevirusscan = 0;
+		$src_file = $destfiletmp;
+		$dest_file = $destfile;
+
+		// Security:
+		// If we need to make a virus scan
+		if (empty($disablevirusscan) && file_exists($src_file)) {
+			$checkvirusarray = dolCheckVirus($src_file, $dest_file);
+			if (count($checkvirusarray)) {
+				dol_syslog('Files.lib::dol_move_uploaded_file File "'.$src_file.'" (target name "'.$dest_file.'") KO with antivirus: errors='.implode(',', $checkvirusarray), LOG_WARNING);
+				throw new RestException(500, 'ErrorFileIsInfectedWithAVirus: '.implode(',', $checkvirusarray));
+			}
+		}
+
+		// Security:
+		// Disallow file with some extensions. We rename them.
+		// Because if we put the documents directory into a directory inside web root (very bad), this allows to execute on demand arbitrary code.
+		if (isAFileWithExecutableContent($dest_file) && !getDolGlobalString('MAIN_DOCUMENT_IS_OUTSIDE_WEBROOT_SO_NOEXE_NOT_REQUIRED')) {
+			// $upload_dir ends with a slash, so be must be sure the medias dir to compare to ends with slash too.
+			$publicmediasdirwithslash = $conf->medias->multidir_output[$conf->entity];
+			if (!preg_match('/\/$/', $publicmediasdirwithslash)) {
+				$publicmediasdirwithslash .= '/';
+			}
+
+			if (strpos($upload_dir, $publicmediasdirwithslash) !== 0 || !getDolGlobalInt("MAIN_DOCUMENT_DISABLE_NOEXE_IN_MEDIAS_DIR")) {	// We never add .noexe on files into media directory
+				$dest_file .= '.noexe';
+			}
+		}
+
+		// Security:
+		// We refuse cache files/dirs, upload using .. and pipes into filenames.
+		if (preg_match('/^\./', basename($src_file)) || preg_match('/\.\./', $src_file) || preg_match('/[<>|]/', $src_file)) {
+			dol_syslog("Refused to deliver file ".$src_file, LOG_WARNING);
+			throw new RestException(500, "Refused to deliver file ".$src_file);
+		}
+
+		// Security:
+		// We refuse cache files/dirs, upload using .. and pipes into filenames.
+		if (preg_match('/^\./', basename($dest_file)) || preg_match('/\.\./', $dest_file) || preg_match('/[<>|]/', $dest_file)) {
+			dol_syslog("Refused to deliver file ".$dest_file, LOG_WARNING);
+			throw new RestException(500, "Refused to deliver file ".$dest_file);
+		}
+
+		$moreinfo = array('note_private' => 'File uploaded using API /documents from IP '.getUserRemoteIP());
+		if (!empty($object) && is_object($object) && $object->id > 0) {
+			$moreinfo['src_object_type'] = $object->table_element;
+			$moreinfo['src_object_id'] = $object->id;
+		}
+		if (!empty($array_options)) {
+			$moreinfo = array_merge($moreinfo, ["array_options" => $array_options]);
+		}
+		if (!empty($position)) {
+			$moreinfo = array_merge($moreinfo, ["position" => $position]);
+		}
+		if (!empty($cover)) {
+			$moreinfo = array_merge($moreinfo, ["cover" => $cover]);
+		}
+		$moreinfo['gen_or_uploaded'] = 'api';
+
+		// Move the temporary file at its final emplacement
+		$result = dol_move($destfiletmp, $dest_file, '0', $overwriteifexists, 1, 1, $moreinfo);
 		if (!$result) {
-			throw new RestException(500, "Failed to move file into '".$destfile."'");
+			throw new RestException(500, "Failed to move file into '".$dest_file."'");
 		}
 
 		if (is_object($object) && $generateThumbs) {
 			require_once DOL_DOCUMENT_ROOT.'/core/lib/files.lib.php';
-			if (image_format_supported($destfile)) {
-				$object->addThumbs($destfile);
+			if (image_format_supported($dest_file)) {
+				$object->addThumbs($dest_file);
 			}
 		}
 

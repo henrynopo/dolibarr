@@ -1,0 +1,38 @@
+# Dolibarr language file - Source file is en_US - loan (en_SG overrides for SLY extension)
+# Schedule calculation options (loan/schedule.php)
+SchedulePhasesInvalidOrMismatch=Schedule phases invalid or term count mismatch
+ScheduleCalculationOptions=Schedule calculation options
+ScheduleType=Schedule type
+ScheduleTypeStandard=Standard
+EqualInstalment=Equal instalment
+FixedMonthlyPayment=Fixed monthly payment
+OptionalBankAmount=Optional amount
+FixedMonthlyPaymentHelp=Leave empty for standard equal instalment; set a fixed amount per period if required by the bank.
+ScheduleRounding=Rounding
+RoundingHalfUp=Half up
+RoundingHalfEven=Half even (banker's rounding)
+ScheduleDaysInYear=Days in year
+DaysInYearCrossYearWeighted=Cross-year weighted
+DaysInYearPeriodStart=Period start
+ScheduleBalanceForInterest=Balance used for interest
+BalanceDisplayed=Displayed balance
+BalanceExact=Exact balance
+ScheduleRateType=Rate type
+RateTypeFixed=Fixed
+RateTypeFloating=Floating
+ScheduleRatesPerTerm=Rates per term
+ScheduleRatesPlaceholder=e.g. 0.02 or 2% per line
+ScheduleRatesHelp=One rate per term (decimal or percentage), one per line.
+SchedulePhases=Schedule phases
+SchedulePhasesPlaceholder=Optional JSON: phases with different rates/repayment
+SchedulePhasesHelp=Multi-phase schedule: define ranges with different rates or repayment amounts.
+SelectLoanFirst=Select a loan first
+SetNbTermsOnLoanCard=Set number of terms on the loan card first
+NoScheduleComputed=No schedule computed yet
+# Payment card editable amounts (loan/payment/card.php)
+PaymentAmountsMustBePositive=Payment amounts must be positive
+PaymentAmountsSumMustEqualTotal=Sum of capital, insurance and interest must equal total (%s)
+PaymentAmountsUpdated=Payment amounts updated
+PaymentTotalUnchanged=Total unchanged
+PaymentTotalUnchangedHelp=Editing amounts does not change the payment total; adjust to match your bank statement.
+EditAmounts=Edit amounts

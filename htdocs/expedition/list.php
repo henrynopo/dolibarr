@@ -192,7 +192,7 @@ if (GETPOST('cancel', 'alpha')) {
 	$action = 'list';
 	$massaction = '';
 }
-if (!GETPOST('confirmmassaction', 'alpha') && $massaction != 'presend' && $massaction != 'confirm_presend' && $massaction != 'confirm_createbills' && $massaction != 'updateships') {
+if (!GETPOST('confirmmassaction', 'alpha') && $massaction != 'presend' && $massaction != 'confirm_presend' && $massaction != 'confirm_createbills') {
 	$massaction = '';
 }
 
@@ -1110,10 +1110,7 @@ $arrayofmassactions = array(
 if ($user->hasRight('facture', 'creer')) {
 	$arrayofmassactions['createbills'] = img_picto('', 'bill', 'class="pictofixedwidth"').$langs->trans("CreateInvoiceForThisCustomerFromSendings");
 }
-if (isModEnabled('slycustom')) {
-	$arrayofmassactions['updateships'] = img_picto('', 'calendar', 'class="pictofixedwidth"').$langs->trans("UpdateShips");
-}
-if (in_array($massaction, array('presend', 'createbills', 'updateships'))) {
+if (in_array($massaction, array('presend', 'createbills'))) {
 	$arrayofmassactions = array();
 }
 $massactionbutton = $form->selectMassAction('', $arrayofmassactions);

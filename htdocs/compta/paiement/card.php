@@ -326,18 +326,48 @@ print '<tr><td>'.$langs->trans('PaymentMode').'</td><td>'.$labeltype;
 print $object->num_payment ? ' - '.$object->num_payment : '';
 print '</td></tr>';
 
-// Amount
-print '<tr><td>'.$langs->trans('Amount').'</td><td>'.price($object->amount, 0, $langs, 0, -1, -1, $conf->currency).'</td></tr>';
+// Amount: show bank line currency (foreign) + base currency when payment is linked to a bank entry
+// Normalize amounts to standard monetary precision to avoid long decimals
+$amount_base = price2num($object->amount, 'MT');
+$amountcurrency_base = $conf->currency;
+$amount_foreign = null;
+$amountcurrency_foreign = null;
+
+if (isModEnabled("bank") && !empty($object->fk_account) && !empty($object->bank_line)) {
+	// Load bank entry and its account to get real movement amount & currency
+	$bankline = new AccountLine($db);
+	if ($bankline->fetch($object->bank_line) > 0 && !empty($bankline->fk_account)) {
+		$bankaccount = new Account($db);
+		if ($bankaccount->fetch($bankline->fk_account) > 0 && !empty($bankaccount->currency_code)) {
+			$amountcurrency_foreign = $bankaccount->currency_code;
+				// movement amount stored in bank account currency (use absolute value for display)
+				$amount_foreign = price2num(abs($bankline->amount), 'MT');
+		}
+	}
+}
+
+print '<tr><td>'.$langs->trans('Amount').'</td><td><span class="amount">';
+// Foreign amount (bank account currency / bank entry amount) - top line
+if (!empty($amountcurrency_foreign) && $amountcurrency_foreign != $amountcurrency_base && $amount_foreign !== null) {
+	print dol_escape_htmltag($amountcurrency_foreign).' '.price($amount_foreign, 2, $langs, 1, -1, -1, '').'<br>';
+}
+// Base/system currency amount from payment object - bottom line
+print dol_escape_htmltag($amountcurrency_base).' '.price($amount_base, 2, $langs, 1, -1, -1, '');
+print '</span></td></tr>';
 
 $disable_delete = 0;
-$bankline = null;
+$bankline = isset($bankline) ? $bankline : null;
 
 // Bank account
 if (isModEnabled("bank")) {
-	$bankline = new AccountLine($db);
+	if ($bankline === null) {
+		$bankline = new AccountLine($db);
+		if ($object->fk_account > 0 && !empty($object->bank_line)) {
+			$bankline->fetch($object->bank_line);
+		}
+	}
 
 	if ($object->fk_account > 0) {
-		$bankline->fetch($object->bank_line);
 		if ($bankline->rappro) {
 			$disable_delete = 1;
 			$title_button = dol_escape_htmltag($langs->transnoentitiesnoconv("CantRemoveConciliatedPayment"));
@@ -553,6 +583,27 @@ if ($resql) {
 			$alreadypaid = price2num($paiement + $creditnotes + $deposits, 'MT');
 			$remaintopay = price2num($invoice->total_ttc - $paiement - $creditnotes - $deposits, 'MT');
 
+			// Multicurrency values for dual-line display (foreign on top, base on bottom)
+			$show_multicurrency = 0;
+			$mc_total_ttc = 0;
+			$mc_paid_by_this = 0;
+			$mc_remaindertopay = 0;
+			if (isModEnabled('multicurrency') && !empty($invoice->multicurrency_code) && ($invoice->multicurrency_code != $conf->currency || (float) $invoice->multicurrency_tx != 1.0)) {
+				$show_multicurrency = 1;
+				// Full amount in invoice currency
+				if ((float) $invoice->multicurrency_total_ttc != 0.0) {
+					$mc_total_ttc = $invoice->multicurrency_total_ttc;
+				} elseif ((float) $invoice->multicurrency_tx != 0.0) {
+					$mc_total_ttc = price2num($invoice->total_ttc * $invoice->multicurrency_tx, 'MT');
+				}
+				// This payment amount in invoice currency
+				if ((float) $invoice->multicurrency_tx != 0.0) {
+					$mc_paid_by_this = price2num($objp->amount * $invoice->multicurrency_tx, 'MT');
+				}
+				// Global remainder in invoice currency
+				$mc_remaindertopay = $invoice->getRemainToPay(1);
+			}
+
 			print '<tr class="oddeven">';
 
 			// Invoice
@@ -578,14 +629,36 @@ if ($resql) {
 				print '<td class="right">'.price($marginInfo['total_margin']).'</td>';
 			}
 
-			// Expected to pay
-			print '<td class="right"><span class="amount">'.price($objp->total_ttc).'</span></td>';
+			// Expected to pay: foreign currency on first line, base currency on second line when multicurrency is enabled
+			print '<td class="right">';
+			print '<span class="amount">';
+			if ($show_multicurrency && !empty($invoice->multicurrency_code)) {
+				// Currency code already shown, hide symbol in numeric part
+				print dol_escape_htmltag($invoice->multicurrency_code).' '.price($mc_total_ttc, 2, $langs, 1, -1, -1, '').'<br>';
+			}
+			print dol_escape_htmltag($conf->currency).' '.price($objp->total_ttc, 2, $langs, 1, -1, -1, '');
+			print '</span>';
+			print '</td>';
 
-			// Amount paid
-			print '<td class="right"><span class="amount">'.price($objp->amount).'</span></td>';
+			// Amount paid by this payment: foreign currency on first line, base currency on second line when multicurrency is enabled
+			print '<td class="right">';
+			print '<span class="amount">';
+			if ($show_multicurrency && !empty($invoice->multicurrency_code)) {
+				print dol_escape_htmltag($invoice->multicurrency_code).' '.price($mc_paid_by_this, 2, $langs, 1, -1, -1, '').'<br>';
+			}
+			print dol_escape_htmltag($conf->currency).' '.price($objp->amount, 2, $langs, 1, -1, -1, '');
+			print '</span>';
+			print '</td>';
 
-			// Remain to pay
-			print '<td class="right"><span class="amount">'.price($remaintopay).'</span></td>';
+			// Remain to pay: foreign currency on first line, base currency on second line when multicurrency is enabled
+			print '<td class="right">';
+			print '<span class="amount">';
+			if ($show_multicurrency && !empty($invoice->multicurrency_code)) {
+				print dol_escape_htmltag($invoice->multicurrency_code).' '.price($mc_remaindertopay, 2, $langs, 1, -1, -1, '').'<br>';
+			}
+			print dol_escape_htmltag($conf->currency).' '.price($remaintopay, 2, $langs, 1, -1, -1, '');
+			print '</span>';
+			print '</td>';
 
 			// Status
 			print '<td class="right">'.$invoice->getLibStatut(5, (float) $alreadypaid).'</td>';

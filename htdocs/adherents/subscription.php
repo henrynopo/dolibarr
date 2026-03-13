@@ -1115,12 +1115,12 @@ if (($action == 'addsubscription' || $action == 'create_thirdparty') && $user->h
 			// Bank account
 			print '<tr class="bankswitchclass"><td class="fieldrequired">'.$langs->trans("FinancialAccount").'</td><td>';
 			print img_picto('', 'bank_account', 'class="pictofixedwidth"');
-			$form->select_comptes(GETPOST('accountid'), 'accountid', 0, '', 2);
+			$form->select_comptes(GETPOST('accountid'), 'accountid', 0, '', 2, '', 0, 'minwidth200');
 			print "</td></tr>\n";
 
 			// Payment mode
 			print '<tr class="bankswitchclass"><td class="fieldrequired">'.$langs->trans("PaymentMode").'</td><td>';
-			print $form->select_types_paiements(GETPOST('operation'), 'operation', '', 2);
+			print $form->select_types_paiements(GETPOST('operation'), 'operation', '', 2, 1, 0, 0, 1, 'minwidth200', 1);
 			print "</td></tr>\n";
 
 			// Date of payment

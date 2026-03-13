@@ -147,8 +147,10 @@ if (isModEnabled('invoice') && $user->hasRight('facture', 'lire')) {
 	$tmpinvoice = new Facture($db);
 
 	$sql = "SELECT f.rowid, f.ref, f.fk_statut as status, f.type, f.total_ht, f.total_tva, f.total_ttc, f.paye, f.tms";
-	if (isModEnabled('multicurrency')) {
-		$sql .= ", f.multicurrency_code, f.multicurrency_total_ht, f.multicurrency_total_ttc";
+	$parameters = array('type' => 'customer');
+	$hookmanager->executeHooks('invoiceIndexSelectSuffix', $parameters);
+	if (!empty($hookmanager->resPrint)) {
+		$sql .= $hookmanager->resPrint;
 	}
 	$sql .= ", f.date_lim_reglement as datelimite";
 	$sql .= ", s.nom as name";
@@ -259,9 +261,18 @@ if (isModEnabled('invoice') && $user->hasRight('facture', 'lire')) {
 				print '<td class="tdoverflowmax150">';
 				print $thirdpartystatic->getNomUrl(1, 'customer', 44);
 				print '</td>';
-				$disp_ht = (isModEnabled('multicurrency') && !empty($obj->multicurrency_code)) ? $obj->multicurrency_total_ht : $obj->total_ht;
-				$disp_ttc = (isModEnabled('multicurrency') && !empty($obj->multicurrency_code)) ? $obj->multicurrency_total_ttc : $obj->total_ttc;
-				$disp_currency = (isModEnabled('multicurrency') && !empty($obj->multicurrency_code)) ? $obj->multicurrency_code : $conf->currency;
+				$parameters = array('obj' => $obj, 'type' => 'customer');
+				$hookmanager->executeHooks('invoiceIndexAmountDisplay', $parameters);
+				$arr = is_array($hookmanager->resArray) ? $hookmanager->resArray : array();
+				if (!empty($arr['currency'])) {
+					$disp_ht = $arr['amount_ht'];
+					$disp_ttc = $arr['amount_ttc'];
+					$disp_currency = $arr['currency'];
+				} else {
+					$disp_ht = $obj->total_ht;
+					$disp_ttc = $obj->total_ttc;
+					$disp_currency = $conf->currency;
+				}
 				if (getDolGlobalString('MAIN_SHOW_HT_ON_SUMMARY')) {
 					print '<td class="nowrap right"><span class="amount">'.price($disp_ht, 0, $langs, 1, -1, -1, $disp_currency).'</span></td>';
 				}
@@ -308,8 +319,10 @@ if ((isModEnabled('fournisseur') && !getDolGlobalString('MAIN_USE_NEW_SUPPLIERMO
 	$facstatic = new FactureFournisseur($db);
 
 	$sql = "SELECT ff.rowid, ff.ref, ff.fk_statut as status, ff.type, ff.libelle, ff.total_ht, ff.total_tva, ff.total_ttc, ff.tms, ff.paye, ff.ref_supplier";
-	if (isModEnabled('multicurrency')) {
-		$sql .= ", ff.multicurrency_code, ff.multicurrency_total_ht, ff.multicurrency_total_ttc";
+	$parameters = array('type' => 'supplier');
+	$hookmanager->executeHooks('invoiceIndexSelectSuffix', $parameters);
+	if (!empty($hookmanager->resPrint)) {
+		$sql .= $hookmanager->resPrint;
 	}
 	$sql .= ", s.nom as name";
 	$sql .= ", s.rowid as socid";
@@ -395,9 +408,18 @@ if ((isModEnabled('fournisseur') && !getDolGlobalString('MAIN_USE_NEW_SUPPLIERMO
 				print '<td class="nowrap tdoverflowmax100">';
 				print $thirdpartystatic->getNomUrl(1, 'supplier');
 				print '</td>';
-				$disp_ht_ff = (isModEnabled('multicurrency') && !empty($obj->multicurrency_code)) ? $obj->multicurrency_total_ht : $obj->total_ht;
-				$disp_ttc_ff = (isModEnabled('multicurrency') && !empty($obj->multicurrency_code)) ? $obj->multicurrency_total_ttc : $obj->total_ttc;
-				$disp_currency_ff = (isModEnabled('multicurrency') && !empty($obj->multicurrency_code)) ? $obj->multicurrency_code : $conf->currency;
+				$parameters = array('obj' => $obj, 'type' => 'supplier');
+				$hookmanager->executeHooks('invoiceIndexAmountDisplay', $parameters);
+				$arr = is_array($hookmanager->resArray) ? $hookmanager->resArray : array();
+				if (!empty($arr['currency'])) {
+					$disp_ht_ff = $arr['amount_ht'];
+					$disp_ttc_ff = $arr['amount_ttc'];
+					$disp_currency_ff = $arr['currency'];
+				} else {
+					$disp_ht_ff = $obj->total_ht;
+					$disp_ttc_ff = $obj->total_ttc;
+					$disp_currency_ff = $conf->currency;
+				}
 				if (getDolGlobalString('MAIN_SHOW_HT_ON_SUMMARY')) {
 					print '<td class="right"><span class="amount">'.price($disp_ht_ff, 0, $langs, 1, -1, -1, $disp_currency_ff).'</span></td>';
 				}
@@ -639,8 +661,10 @@ if (isModEnabled('invoice') && isModEnabled('order') && $user->hasRight("command
 	$langs->load("orders");
 
 	$sql = "SELECT sum(f.total_ht) as tot_fht, sum(f.total_ttc) as tot_fttc";
-	if (isModEnabled('multicurrency')) {
-		$sql .= ", c.multicurrency_code, c.multicurrency_total_ht, c.multicurrency_total_ttc";
+	$parameters = array('type' => 'orderToBill');
+	$hookmanager->executeHooks('invoiceIndexSelectSuffix', $parameters);
+	if (!empty($hookmanager->resPrint)) {
+		$sql .= $hookmanager->resPrint;
 	}
 	$sql .= ", s.nom as name, s.email";
 	$sql .= ", s.rowid as socid";
@@ -669,8 +693,9 @@ if (isModEnabled('invoice') && isModEnabled('order') && $user->hasRight("command
 	$sql .= $hookmanager->resPrint;
 
 	$sql .= " GROUP BY s.nom, s.email, s.rowid, s.code_client, s.code_compta, c.rowid, c.ref, c.facture, c.fk_statut, c.total_ht, c.total_tva, c.total_ttc, cc.rowid, cc.code";
-	if (isModEnabled('multicurrency')) {
-		$sql .= ", c.multicurrency_code, c.multicurrency_total_ht, c.multicurrency_total_ttc";
+	$hookmanager->executeHooks('invoiceIndexSelectSuffix', $parameters);
+	if (!empty($hookmanager->resPrint)) {
+		$sql .= $hookmanager->resPrint;
 	}
 
 	$resql = $db->query($sql);
@@ -752,9 +777,18 @@ if (isModEnabled('invoice') && isModEnabled('order') && $user->hasRight("command
 				print '<td class="nowrap tdoverflowmax100">';
 				print $societestatic->getNomUrl(1, 'customer');
 				print '</td>';
-				$ord_disp_ht = (isModEnabled('multicurrency') && !empty($obj->multicurrency_code)) ? $obj->multicurrency_total_ht : $obj->total_ht;
-				$ord_disp_ttc = (isModEnabled('multicurrency') && !empty($obj->multicurrency_code)) ? $obj->multicurrency_total_ttc : $obj->total_ttc;
-				$ord_currency = (isModEnabled('multicurrency') && !empty($obj->multicurrency_code)) ? $obj->multicurrency_code : $conf->currency;
+				$parameters = array('obj' => $obj, 'type' => 'orderToBill');
+				$hookmanager->executeHooks('invoiceIndexAmountDisplay', $parameters);
+				$arr = is_array($hookmanager->resArray) ? $hookmanager->resArray : array();
+				if (!empty($arr['currency'])) {
+					$ord_disp_ht = $arr['amount_ht'];
+					$ord_disp_ttc = $arr['amount_ttc'];
+					$ord_currency = $arr['currency'];
+				} else {
+					$ord_disp_ht = $obj->total_ht;
+					$ord_disp_ttc = $obj->total_ttc;
+					$ord_currency = $conf->currency;
+				}
 				if (getDolGlobalString('MAIN_SHOW_HT_ON_SUMMARY')) {
 					print '<td class="right"><span class="amount">'.price($ord_disp_ht, 0, $langs, 1, -1, -1, $ord_currency).'</span></td>';
 				}

@@ -54,4 +54,3 @@ RecurringSupplierInvoices=Recurring supplier invoices
 ToCreateAPredefinedSupplierInvoice=In order to create template supplier invoice, you must create a standard invoice, then, without validating it, click on the "%s" button.
 GeneratedFromSupplierTemplate=Generated from supplier invoice template %s
 SupplierInvoiceGeneratedFromTemplate=Supplier invoice %s Generated from supplier invoice template %s
-SelectedDiscountWillBeAppliedWhenInvoiceIsCreated=Selected discount will be applied when the invoice is created.

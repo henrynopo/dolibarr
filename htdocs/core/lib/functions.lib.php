@@ -11220,6 +11220,15 @@ function dol_eval_standard($s, $returnvalue = 1, $hideerrors = 1, $onlysimplestr
 	global $object;
 	global $obj; // To get $obj used into list when dol_eval() is used for computed fields and $obj is not yet $object
 
+	// Avoid "Trying to access array offset on null" / "Attempt to read property 'lines' on null" when eval runs in list or other context where $object/$obj are not set
+	if (!isset($object) || $object === null) {
+		$object = new stdClass();
+		$object->lines = array();
+	}
+	if (!isset($obj) || $obj === null) {
+		$obj = $object;
+	}
+
 	$isObBufferActive = false;  // When true, the ObBuffer must be cleaned in the exception handler
 	if (!in_array($onlysimplestring, array('0', '1', '2'))) {
 		return "Bad call of dol_eval. Parameter onlysimplestring must be '0' (deprecated), '1' or '2'";

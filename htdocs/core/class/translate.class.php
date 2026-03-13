@@ -410,6 +410,10 @@ class Translate
 			if ($langofdir == 'ar_AR') {
 				$langofdir = 'ar_SA'; // main parent for ar_EG is not 'ar_AR' but 'ar_SA'
 			}
+			// en_SG (Singapore) fallback to en_GB first, then en_US
+			if (strtolower($this->defaultlang) == 'en_sg' && strtolower($langofdir) == 'en_en') {
+				$langofdir = 'en_GB';
+			}
 			$this->load($domain, $alt + 1, $stopafterdirection, $langofdir, 0, 0, $tabtranslatedomain, $langkey);
 		}
 

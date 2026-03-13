@@ -137,8 +137,7 @@ if ($action == 'specimen') {  // For orders
 } elseif ($action == 'del') {
 	$ret = delDocumentModel($value, $type);
 	if ($ret > 0) {
-		// 使用 getDolGlobalString 避免未定义属性告警（PHP 8.2+）
-		if (getDolGlobalString('COMMANDE_SUPPLIER_ADDON_PDF') == "$value") {
+		if ($conf->global->COMMANDE_SUPPLIER_ADDON_PDF == "$value") {
 			dolibarr_del_const($db, 'COMMANDE_SUPPLIER_ADDON_PDF', $conf->entity);
 		}
 	}
@@ -429,8 +428,7 @@ foreach ($dirmodels as $reldir) {
 
 					// Default
 					print '<td class="center">';
-					// 使用 getDolGlobalString 避免未定义属性告警（PHP 8.2+）
-					if (getDolGlobalString('COMMANDE_SUPPLIER_ADDON_PDF') == "$name") {
+					if ($conf->global->COMMANDE_SUPPLIER_ADDON_PDF == "$name") {
 						print '<a class="reposition" href="'.$_SERVER["PHP_SELF"].'?action=unsetdoc&token='.newToken().'&value='.urlencode($name).'&scan_dir='.urlencode($module->scandir).'&label='.urlencode($module->name).'&type=order_supplier" alt="'.$langs->trans("Disable").'">'.img_picto($langs->trans("Enabled"), 'on').'</a>';
 					} else {
 						print '<a class="reposition" href="'.$_SERVER["PHP_SELF"].'?action=setdoc&token='.newToken().'&value='.urlencode($name).'&scan_dir='.urlencode($module->scandir).'&label='.urlencode($module->name).'&type=order_supplier" alt="'.$langs->trans("Default").'">'.img_picto($langs->trans("Disabled"), 'off').'</a>';

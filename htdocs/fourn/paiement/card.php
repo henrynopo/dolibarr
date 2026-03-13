@@ -227,9 +227,30 @@ if ($result > 0) {
 	print '</td></tr>';
 	*/
 
-	// Amount
-	print '<tr><td>'.$langs->trans('Amount').'</td>';
-	print '<td><span class="amount">'.price($object->amount, 0, $langs, 0, 0, -1, $conf->currency).'</span></td></tr>';
+	// Amount: show bank line currency (foreign) + base currency when payment is linked to a bank entry
+	$amount_base = price2num($object->amount, 'MT');
+	$amountcurrency_base = $conf->currency;
+	$amount_foreign = null;
+	$amountcurrency_foreign = null;
+
+	if (isModEnabled("bank") && !empty($object->fk_account) && !empty($object->bank_line)) {
+		$bankline = new AccountLine($db);
+		if ($bankline->fetch($object->bank_line) > 0 && !empty($bankline->fk_account)) {
+			$bankaccount = new Account($db);
+			if ($bankaccount->fetch($bankline->fk_account) > 0 && !empty($bankaccount->currency_code)) {
+				$amountcurrency_foreign = $bankaccount->currency_code;
+				// Use absolute bank movement amount for display
+				$amount_foreign = price2num(abs($bankline->amount), 'MT');
+			}
+		}
+	}
+
+	print '<tr><td>'.$langs->trans('Amount').'</td><td><span class="amount">';
+	if (!empty($amountcurrency_foreign) && $amountcurrency_foreign != $amountcurrency_base && $amount_foreign !== null) {
+		print dol_escape_htmltag($amountcurrency_foreign).' '.price($amount_foreign, 2, $langs, 1, -1, -1, '').'<br>';
+	}
+	print dol_escape_htmltag($amountcurrency_base).' '.price($amount_base, 2, $langs, 1, -1, -1, '');
+	print '</span></td></tr>';
 
 	// Status of validation of payment
 	if (getDolGlobalString('BILL_ADD_PAYMENT_VALIDATION')) {
@@ -332,10 +353,41 @@ if ($result > 0) {
 				print '<td>'.$objp->ref_supplier."</td>\n";
 				// Third party
 				print '<td><a href="'.DOL_URL_ROOT.'/fourn/card.php?socid='.$objp->socid.'">'.img_object($langs->trans('ShowCompany'), 'company').' '.$objp->name.'</a></td>';
-				// Expected to pay
-				print '<td class="right">'.price($objp->total_ttc).'</td>';
-				// Paid
-				print '<td class="right">'.price($objp->amount).'</td>';
+
+				// Load full invoice to get multicurrency info
+				$invoice_sup = new FactureFournisseur($db);
+				$invoice_sup->fetch($objp->facid);
+
+				$show_multicurrency = 0;
+				$mc_total_ttc = 0;
+				$mc_paid_by_this = 0;
+				if (isModEnabled('multicurrency') && !empty($invoice_sup->multicurrency_code) && $invoice_sup->multicurrency_code != $conf->currency) {
+					$show_multicurrency = 1;
+					if (!empty($invoice_sup->multicurrency_total_ttc)) {
+						$mc_total_ttc = $invoice_sup->multicurrency_total_ttc;
+					} elseif (!empty($invoice_sup->multicurrency_tx)) {
+						$mc_total_ttc = price2num($objp->total_ttc * $invoice_sup->multicurrency_tx, 'MT');
+					}
+					if (!empty($invoice_sup->multicurrency_tx)) {
+						$mc_paid_by_this = price2num($objp->amount * $invoice_sup->multicurrency_tx, 'MT');
+					}
+				}
+
+				// Expected to pay: foreign currency on top, base currency below
+				print '<td class="right"><span class="amount">';
+				if ($show_multicurrency) {
+					print dol_escape_htmltag($invoice_sup->multicurrency_code).' '.price($mc_total_ttc, 2, $langs, 1, -1, -1, '').'<br>';
+				}
+				print dol_escape_htmltag($conf->currency).' '.price($objp->total_ttc, 2, $langs, 1, -1, -1, '');
+				print '</span></td>';
+
+				// Paid by this payment: foreign currency on top, base currency below
+				print '<td class="right"><span class="amount">';
+				if ($show_multicurrency) {
+					print dol_escape_htmltag($invoice_sup->multicurrency_code).' '.price($mc_paid_by_this, 2, $langs, 1, -1, -1, '').'<br>';
+				}
+				print dol_escape_htmltag($conf->currency).' '.price($objp->amount, 2, $langs, 1, -1, -1, '');
+				print '</span></td>';
 				// Status
 				print '<td class="right">'.$facturestatic->LibStatut($objp->paye, $objp->status, 6, 1).'</td>';
 				print "</tr>\n";

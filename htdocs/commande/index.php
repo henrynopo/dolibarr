@@ -256,9 +256,10 @@ if (isModEnabled('order')) {
 	$sql .= ", s.client";
 	$sql .= ", s.code_client";
 	$sql .= ", s.canvas";
-	if (isModEnabled('multicurrency')) {
-		$sql .= ", c.multicurrency_total_ht";
-		$sql .= ", c.multicurrency_code";
+	$parameters = array();
+	$hookmanager->executeHooks('ordersIndexSelectSuffix', $parameters);
+	if (!empty($hookmanager->resPrint)) {
+		$sql .= $hookmanager->resPrint;
 	}
 	$sql .= " FROM ".MAIN_DB_PREFIX."commande as c";
 	$sql .= ", ".MAIN_DB_PREFIX."societe as s";
@@ -289,11 +290,8 @@ if (isModEnabled('order')) {
 			$i = 0;
 			while ($i < $num && $i < $max) {
 				$obj = $db->fetch_object($resql);
-				$currencyDisplay = (isModEnabled('multicurrency') && !empty($obj->multicurrency_code)) ? $obj->multicurrency_code : (!empty($conf->currency) ? $conf->currency : 'auto');
-				$amountToShow = (isModEnabled('multicurrency') && !empty($obj->multicurrency_code)) ? $obj->multicurrency_total_ht : $obj->total_ht;
-				$amountText = price($amountToShow, 1, $langs, 0, -1, -1, $currencyDisplay);
 				print '<tr class="oddeven">';
-				print '<td class="nowraponall" width="20%">';
+				print '<td class="nowrap" width="20%">';
 
 				$commandestatic->id = $obj->rowid;
 				$commandestatic->ref = $obj->ref;
@@ -305,7 +303,7 @@ if (isModEnabled('order')) {
 				$companystatic->canvas = $obj->canvas;
 
 				print '<table class="nobordernopadding"><tr class="nocellnopadd">';
-				print '<td width="96" class="nobordernopadding nowraponall">';
+				print '<td width="96" class="nobordernopadding nowrap">';
 				print $commandestatic->getNomUrl(1);
 				print '</td>';
 
@@ -322,15 +320,18 @@ if (isModEnabled('order')) {
 
 				print '</td>';
 
-				print '<td class="tdoverflowmax150 maxwidth150onsmartphone">';
+				print '<td class="nowrap">';
 				print $companystatic->getNomUrl(1, 'company', 24);
 				print '</td>';
 
-				print '<td class="nowraponall right amount"><span class="amount">'.$amountText.'</span></td>';
+				$parameters = array('obj' => $obj);
+				$hookmanager->executeHooks('ordersIndexRowAmount', $parameters);
+				$amountHtml = $hookmanager->resPrint;
+				print '<td class="right">'.($amountHtml !== '' ? $amountHtml : price($obj->total_ht, 1, $langs, 0, -1, -1, $conf->currency)).'</td>';
 
-				print '<td class="center nowraponall" title="'.dol_escape_htmltag($langs->trans("OrderDate")).': '.dol_print_date($db->jdate($obj->date), 'day', 'tzuserrel').'">'.dol_print_date($db->jdate($obj->date), 'day', 'tzuserrel').'</td>'."\n";
+				print '<td class="right">'.dol_print_date($db->jdate($obj->date), 'day').'</td>'."\n";
 
-				print '<td class="right" width="18">'.$commandestatic->LibStatut($obj->status, $obj->facture, 3).'</td>';
+				print '<td class="right">'.$commandestatic->LibStatut($obj->status, $obj->facture, 3).'</td>';
 
 				print '</tr>';
 				$i++;
@@ -355,9 +356,10 @@ if (isModEnabled('order')) {
 	$sql .= ", s.client";
 	$sql .= ", s.code_client";
 	$sql .= ", s.canvas";
-	if (isModEnabled('multicurrency')) {
-		$sql .= ", c.multicurrency_total_ht";
-		$sql .= ", c.multicurrency_code";
+	$parameters = array();
+	$hookmanager->executeHooks('ordersIndexSelectSuffix', $parameters);
+	if (!empty($hookmanager->resPrint)) {
+		$sql .= $hookmanager->resPrint;
 	}
 	$sql .= " FROM ".MAIN_DB_PREFIX."commande as c";
 	$sql .= ", ".MAIN_DB_PREFIX."societe as s";
@@ -388,11 +390,8 @@ if (isModEnabled('order')) {
 			$i = 0;
 			while ($i < $num && $i < $max) {
 				$obj = $db->fetch_object($resql);
-				$currencyDisplay = (isModEnabled('multicurrency') && !empty($obj->multicurrency_code)) ? $obj->multicurrency_code : (!empty($conf->currency) ? $conf->currency : 'auto');
-				$amountToShow = (isModEnabled('multicurrency') && !empty($obj->multicurrency_code)) ? $obj->multicurrency_total_ht : $obj->total_ht;
-				$amountText = price($amountToShow, 1, $langs, 0, -1, -1, $currencyDisplay);
 				print '<tr class="oddeven">';
-				print '<td class="nowraponall" width="20%">';
+				print '<td width="20%" class="nowrap">';
 
 				$commandestatic->id = $obj->rowid;
 				$commandestatic->ref = $obj->ref;
@@ -404,7 +403,7 @@ if (isModEnabled('order')) {
 				$companystatic->canvas = $obj->canvas;
 
 				print '<table class="nobordernopadding"><tr class="nocellnopadd">';
-				print '<td width="96" class="nobordernopadding nowraponall">';
+				print '<td width="96" class="nobordernopadding nowrap">';
 				print $commandestatic->getNomUrl(1);
 				print '</td>';
 
@@ -421,15 +420,18 @@ if (isModEnabled('order')) {
 
 				print '</td>';
 
-				print '<td class="tdoverflowmax150 maxwidth150onsmartphone">';
+				print '<td>';
 				print $companystatic->getNomUrl(1, 'company');
 				print '</td>';
 
-				print '<td class="nowraponall right amount"><span class="amount">'.$amountText.'</span></td>';
+				$parameters = array('obj' => $obj);
+				$hookmanager->executeHooks('ordersIndexRowAmount', $parameters);
+				$amountHtml = $hookmanager->resPrint;
+				print '<td class="right">'.($amountHtml !== '' ? $amountHtml : price($obj->total_ht, 1, $langs, 0, -1, -1, $conf->currency)).'</td>';
 
-				print '<td class="center nowraponall" title="'.dol_escape_htmltag($langs->trans("OrderDate")).': '.dol_print_date($db->jdate($obj->date), 'day', 'tzuserrel').'">'.dol_print_date($db->jdate($obj->date), 'day', 'tzuserrel').'</td>'."\n";
+				print '<td class="right">'.dol_print_date($db->jdate($obj->date), 'day').'</td>'."\n";
 
-				print '<td class="right" width="18">'.$commandestatic->LibStatut($obj->status, $obj->facture, 3).'</td>';
+				print '<td class="right">'.$commandestatic->LibStatut($obj->status, $obj->facture, 3).'</td>';
 
 				print '</tr>';
 				$i++;
