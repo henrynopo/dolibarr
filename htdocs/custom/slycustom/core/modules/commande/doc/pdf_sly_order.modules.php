@@ -1555,6 +1555,11 @@ class pdf_sly_order extends ModelePDFCommandes
 
 		$default_font_size = pdf_getPDFFontSize($outputlangs);
 
+		// Use system default language for company info labels
+		$headerlangs = new Translate('', $conf);
+		$headerlangs->setDefaultLang($conf->global->MAIN_LANG_DEFAULT ?? 'en_US');
+		$headerlangs->loadLangs(array("main", "bills", "propal", "orders", "companies"));
+
 		pdf_pagehead($pdf, $outputlangs, $this->page_hauteur);
 
 		// Show Draft Watermark
@@ -1612,7 +1617,7 @@ class pdf_sly_order extends ModelePDFCommandes
 			$pdf->SetXY($company_info_x, $posy);
 			if (!empty($this->emetteur->country_code) && $this->emetteur->country_code == 'SG') {
 				if ($this->emetteur->name) {
-					$uenLabel = $outputlangs->transcountrynoentities("ProfId1", "SG");
+					$uenLabel = $headerlangs->transcountrynoentities("ProfId1", "SG");
 					if (preg_match('/\((.*)\)/i', $uenLabel, $reg)) {
 						$uenLabel = $reg[1];
 					}
@@ -1637,10 +1642,10 @@ class pdf_sly_order extends ModelePDFCommandes
 				}
 				$contactParts = array();
 				if ($this->emetteur->phone) {
-					$contactParts[] = $outputlangs->transnoentities("Phone").": ".$this->emetteur->phone;
+					$contactParts[] = $headerlangs->transnoentities("Phone").": ".$this->emetteur->phone;
 				}
 				if ($this->emetteur->email) {
-					$contactParts[] = $outputlangs->transnoentities("Email").": ".$outputlangs->convToOutputCharset($this->emetteur->email);
+					$contactParts[] = $headerlangs->transnoentities("Email").": ".$outputlangs->convToOutputCharset($this->emetteur->email);
 				}
 				if (count($contactParts) > 0) {
 					$pdf->SetX($company_info_x);
@@ -1648,7 +1653,7 @@ class pdf_sly_order extends ModelePDFCommandes
 					$pdf->MultiCell($company_info_width, 4, implode(" - ", $contactParts), 0, 'L');
 				}
 			} else {
-				$lh1 = $outputlangs->transnoentities("RegisteredOffice").": ".$this->emetteur->name;
+				$lh1 = $headerlangs->transnoentities("RegisteredOffice").": ".$this->emetteur->name;
 				if ($this->emetteur->address) {
 					$lh1 .= " - ".str_replace("\n", ", ", $this->emetteur->address);
 				}
@@ -1665,10 +1670,10 @@ class pdf_sly_order extends ModelePDFCommandes
 				$pdf->MultiCell($company_info_width, 4, $outputlangs->convToOutputCharset($lh1), 0, 'L');
 				$lh2 = '';
 				if ($this->emetteur->phone) {
-					$lh2 .= $outputlangs->transnoentities("Phone").": ".$this->emetteur->phone;
+					$lh2 .= $headerlangs->transnoentities("Phone").": ".$this->emetteur->phone;
 				}
 				if ($this->emetteur->email) {
-					$lh2 .= ($lh2 ? " - " : "").$outputlangs->transnoentities("Email").": ".$outputlangs->convToOutputCharset($this->emetteur->email);
+					$lh2 .= ($lh2 ? " - " : "").$headerlangs->transnoentities("Email").": ".$outputlangs->convToOutputCharset($this->emetteur->email);
 				}
 				if ($lh2 !== '') {
 					$pdf->SetX($company_info_x);
