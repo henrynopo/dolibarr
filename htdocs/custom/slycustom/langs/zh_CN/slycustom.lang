@@ -2,21 +2,27 @@
 # Copyright (C) 2025 SLY
 
 ModuleSLYCustomName=SLY 定制
-ModuleSLYCustomDesc=SLY 定制：发票/订单/发货单 PDF 模板、ShipsGo、导出等。
+ModuleSLYCustomDesc=SLY：客户发票/销售订单与形式发票/发货与装箱单/供应商采购单与发票等 PDF、ShipsGo 定时同步、工具菜单导出与订单搜索、销售条款 PDF 附加、列表与首页多币种及菜单与产品标签等 Hook；兼容 14.0/22.0，22.0 按需应用 patches 下补丁。
+ModuleSlyCustomName=SLY 定制
+ModuleSlyCustomDesc=SLY：客户发票/销售订单与形式发票/发货与装箱单/供应商采购单与发票等 PDF、ShipsGo 定时同步、工具菜单导出与订单搜索、销售条款 PDF 附加、列表与首页多币种及菜单与产品标签等 Hook；兼容 14.0/22.0，22.0 按需应用 patches 下补丁。
+Module500100Name=SLY 定制
+Module500100Desc=SLY：客户发票/销售订单与形式发票/发货与装箱单/供应商采购单与发票等 PDF、ShipsGo 定时同步、工具菜单导出与订单搜索、销售条款 PDF 附加、列表与首页多币种及菜单与产品标签等 Hook；兼容 14.0/22.0，22.0 按需应用 patches 下补丁。
 SLYCustomSetup=SLY 定制设置
 SLYCustomDescription=关于本模块
-SLYCustomDescriptionLong=本模块在官方 Dolibarr 14.0 上提供 SLY 定制功能：PDF 模板（发票、订单、形式发票、发货单、采购订单）、可选 ShipsGo 集成及自定义导出页面。兼容性说明及仍可能依赖核心补丁的功能请见模块目录下 README。
-SLYExports=SLY 导出
+SLYCustomDescriptionLong=本模块集中提供 SLY 在 Dolibarr 14.0 与 22.0 上的定制：多类 SLY PDF 模板（客户发票、销售订单/形式发票、发货单与装箱单、供应商采购订单、供应商发票含借记通知单等）、可选 ShipsGo 运单状态同步（计划任务）、工具菜单下 SLY 导出（销售/采购/发货/发票明细及一站式）、Search Order、仪表盘可选替代 widget（最近动态、生日；多币种发票类 widget 已改回使用官方）、类 Rubis 的销售条款 PDF 附加及订单生成文档选项，以及在卡片页/列表/首页等处的 Hook（来源订单列、订单与财务首页多币种、将 Shipment 归入商业菜单、产品 extrafield 显示名、供应商与付款相关列表等）。22.0 上部分能力仍依赖少量 core 补丁，见 patches/APPLY-ON-22.md 与 patches/PATCHES-BY-MODULE.md。
+SLYExports=导出
 API_KEY_SHIPSGO=ShipsGo API 密钥
-API_KEY_SHIPSGOTooltip=ShipsGo 集成的 API 密钥。留空则禁用 ShipsGo 功能。
+API_KEY_SHIPSGOTooltip=ShipsGo 的 API 密钥（启用 Multicompany 时按公司/entity 分别保存）。留空则该公司不启用 ShipsGo。
 SLYCUSTOM_SHIPPING_ENABLE_UNVALIDATE=启用发货单反确认
 SLYCUSTOM_SHIPPING_ENABLE_UNVALIDATETooltip=允许用户将已确认的发货单反确认（设回草稿）。
 SLYCUSTOM_DASHBOARD_BOXES=仪表盘 Widget
-SLYCUSTOM_DASHBOARD_BOXES_DESC=SLY Custom 提供 9 个替代 widget：5 个（客户订单、待办、生日、采购订单、待收货）+ 4 个发票类多币种（最近客户发票、最早未付客户发票、最近供应商发票、最早未付供应商发票）。使用方法：进入仪表盘设置，停用原 core widget，启用 SLY 的 widget（note 为 SLY）。
+SLYCUSTOM_DASHBOARD_BOXES_DESC=SLY Custom 当前注册 2 个可选替代 widget：最近动态、生日（第三阶段已移除多币种发票类替代 box，改由官方 widget 负责多币种）。可在仪表盘设置中停用原版并启用 SLY 版本（列表中 note 为 SLY）。
 SLYCUSTOM_GO_TO_DASHBOARD_SETUP=前往仪表盘设置
 SLYCUSTOM_SYNC_BOXES=同步 SLY boxes
 SLYCUSTOM_SYNC_BOXES_TOOLTIP=若仪表盘设置中看不到 SLY widget，请点击此按钮将其注册到数据库（例如在添加 boxes 之前启用模块的情况）。
 SLYCUSTOM_BOXES_SYNCED=SLY boxes 已成功同步。你可以在仪表盘设置中添加它们。
+# 发货 PDF 文档大标题（模板内会转为大写）
+SLYPackingListPDFTitle=装箱单
 SLYCUSTOM_PDF_TEMPLATES_SECTION=PDF 模板（发票 / 装箱单）
 SLYCUSTOM_SYNC_PDF_MODELS=同步 PDF 模板到列表
 SLYCUSTOM_SYNC_PDF_MODELS_TOOLTIP=将 SLY 发票与装箱单模板注册到系统，使其出现在「默认 PDF 模板」下拉中（设置 → 发票 / 发货）。若下拉中看不到模板，可点击一次。
@@ -27,14 +33,33 @@ UnvalidateShipment=反确认发货单
 ConfirmUnvalidateShipment=确定要将发货单 %s 设回草稿吗？
 SourceOrder=来源订单
 SourcePurchaseOrder=来源采购订单
+SalesPerson=销售人员
+PurchasePerson=采购联系人
 SearchOrder=搜索订单
+SLYExportTabGroupDetails=明细导出（销售单 / 发货 / 采购单行报表）
+SLYExportTabGroupCashflow=待收待付与定金检查
+SLYExportMenuInvoices=发票与发货
+SLYExportMenuPaymentsPlanning=收付款计划
+SLYExportMenuLineDetail=明细行导出
+SLYExportMenuCashflow=导出 — 待收待付与定金
 SLYExportMenu=SLY 导出
-SLYExportAllInOne=SLY 一站式
-SLYExportSODetails=SLY 销售订单明细
-SLYExportSOInvoiceDetails=SLY 销售发票明细
-SLYExportShipmentDetails=SLY 发货明细
-SLYExportPODetails=SLY 采购订单明细
-SLYExportPOInvoiceDetails=SLY 采购发票明细
+SearchCriteria=筛选条件
+SLYExportAllInOne=一站式
+SLYExportSODetails=销售订单明细
+SLYExportSOInvoiceDetails=销售发票明细
+SLYExportShipmentDetails=发货明细
+SLYExportPODetails=采购订单明细
+SLYExportPOInvoiceDetails=采购发票明细
+SLYExportSOInvoiceReceivable=SO 发票待收清单
+SLYExportPOInvoicePayable=PO 发票待付清单
+SLYExportSODepositInvoiceMissing=SO 定金发票缺失
+SLYDepositInvoiceMissingBanner=按付款条款应有定金发票，但目前仍有 %s 个销售订单未关联已确认（已校验）的定金发票。
+SLYDepositInvoiceMissingBannerLink=打开定金缺失清单
+SLYDepositInvoiceMissingAlertShort=条款要求定金，但该 SO 尚未关联已确认（已校验）的定金发票。
+SLYExportPODepositInvoiceMissing=PO 定金发票缺失
+SLYPoDepositInvoiceMissingBanner=按付款条款应有供应商定金发票，但目前仍有 %s 个采购订单未关联已确认（已校验）的定金发票。
+SLYPoDepositInvoiceMissingBannerLink=打开 PO 定金缺失清单
+SLYPoDepositInvoiceMissingAlertShort=条款要求定金，但该 PO 尚未关联已确认（已校验）的供应商定金发票。
 MultipleOrdersFound=找到多条订单
 OrderContact=订单联系人
 InvoiceContact=发票联系人
@@ -45,6 +70,32 @@ Prepayment=预付款
 Document=票据信息
 GST=消费税
 TotalVATSG=GST 总计
+# SLY ALL-in-One 校验 UI
+SLYAllInOneCheckHeader=一站式：下载前校验
+SLYAllInOneCheckTitle=下载前校验结果（逐一显示）
+SLYAllInOneCheckHelp=请根据下列“失败条件”修正关联关系/联系人数量。修正完成后再点击“开始下载”。
+SLYAllInOnePassedNone=通过（无）
+SLYAllInOneConfirmStart=确认无误，开始下载
+SLYAllInOneHasErrors=检测到失败条件，请先修正后再重试。
+SLYAllInOneValidationFailed=一站式校验未通过
+SLYAllInOneRule_SQL_ERROR=SQL 错误
+SLYAllInOneRule_SO_PoCntGt1=关联 PO 超过 1 个
+SLYAllInOneRule_SO_SalespersonNe1=关联 Salesperson 不是 1 个
+SLYAllInOneRule_SO_BillToCntGt1=关联 Bill_To（consignee invoice）超过 1 个
+SLYAllInOneRule_SO_ShipmentCntGt1=关联超过 1 个 shipment
+SLYAllInOneRule_SO_ConsigneeShipContactCntGt1=关联 Customer shipping contact（consignee shipment）超过 1 个
+SLYAllInOneRule_SOInv_SoCntGt1=关联 SO 超过 1 个
+SLYAllInOneRule_SOInv_ShipmentCntGt1=Shipment 多于 1 个
+SLYAllInOneRule_SOInv_BillToCntGt1=关联 Bill_To（consignee invoice）超过 1 个
+SLYAllInOneRule_Shipment_SoCntNe1=关联 SO 不是 1 个
+SLYAllInOneRule_Shipment_BillToCntGt1=关联 Bill_To（consignee invoice）超过 1 个
+SLYAllInOneRule_Shipment_CustomerShipContactCntGt1=Customer shipping contact（consignee shipment）超过 1 个
+SLYAllInOneRule_Shipment_InvoiceCntGt1=关联的 Invoice 多于 1 个
+SLYAllInOneRule_PO_SoCntGt1=关联 SO 超过 1 个
+SLYAllInOneRule_PO_PurchasePersonCntNe1=关联 purchase person 不是 1 个
+SLYAllInOneRule_POInv_PoCntGt1=关联 PO 超过 1 个
+SLYAllInOnePreparingDownloadFor=准备下载： 
+SLYAllInOneAllDownloadsInitiated=已全部触发下载。
 # SLY Debit Note（我们发给供应商的借记通知单，仅手动生成）
 SLYDebitNoteModel=SLY Debit Note
 SLYDebitNoteModelDesc=发给供应商的借记通知单。请勿设为默认模板；仅在需要向供应商发送时手动生成 PDF。（平时多为供应商提供 credit note 给我们。）
@@ -58,7 +109,6 @@ SLYCUSTOM_TAB_PDF=PDF 模板
 SLYCUSTOM_TAB_BOXES=仪表盘
 SLYCUSTOM_TAB_CGV=销售条款
 SLYCUSTOM_TAB_RUBIS=销售条款
-SLYCUSTOM_TAB_LANGPICKER=语言选择器
 
 # 销售条款（原 Rubis 升级版）
 SLYCUSTOM_RUBIS_UPGRADE_DESC=本功能为原 Rubis 模块的升级版本，用于在订单（及可选发票）PDF 末尾附加销售条款 PDF。下方选项与原 Rubis 的「销售条款(CGV)」设置一致，可在本页上传、替换或删除默认及分语言的条款文件。
@@ -97,32 +147,13 @@ SLYCUSTOM_ADD_TERMS_HINT=根据所选语言使用对应默认条款 PDF
 SLYCUSTOM_TERMS_NO_TEMPLATE=当前语言暂无销售条款模版
 SLYCUSTOM_TERMS_SELECT_TEMPLATE=模版
 
-# 语言选择器（来自 custom/langpicker）
+# 共用（如销售条款上传 — 选择语言）
 SelectLanguage=选择语言
-LangPickerSection=语言选择器
-LangPickerSectionDesc=在顶部菜单显示语言下拉，并可在登录页显示语言选择。
-LangPickerStatus=状态
-LangPickerStatusEnabled=已激活（顶部菜单显示）
-LangPickerStatusDisabled=已关闭（顶部菜单隐藏）
-LangPickerActivate=激活
-LangPickerDisable=关闭
-LangPickerActivated=语言选择器已激活，将显示在顶部菜单。
-LangPickerDisabled=语言选择器已关闭，已从顶部菜单隐藏。
-LANG_PICKER_LOGIN_PAGE_DEFAULT_LANG=登录页默认语言
-LANG_PICKER_HIDDEN=在顶部菜单隐藏语言选择器
-SLYCUSTOM_LOGIN_BLOCK_WIDTH=顶栏（login block）宽度
-SLYCUSTOM_LOGIN_BLOCK_WIDTH_TOOLTIP=覆盖顶栏右侧条（工具、语言、用户）的宽度。留空则使用主题默认。若内容挤可调大（如 280–320）。
-SLYCUSTOM_LOGIN_BLOCK_WIDTH_UNIT=像素（留空=主题默认）
-LangPickerLanguages=菜单中显示的语言
-AddLangSuccess=语言已添加
-DeleteLangSuccess=语言已删除
-ConfirmDeleteLang=确定从选择器列表中移除此语言？
-Language=语言
-LangCode=语言代码
-Position=顺序
-Up=上移
-Down=下移
-LangPickerHooksUpdated=语言选择器钩子已更新。请刷新页面或进入首页即可在顶部菜单看到语言选择；重新打开登录页可看到语言选项。
+
+# 覆盖产品/服务海关字段标签（SLY 使用厂号）
+CustomsCode=厂号
+CustomCode=厂号
+CustomsCodeHelp=厂号/工厂代码（SLY 对海关名称的覆盖）。
 
 # 第三方注册资本货币（与公司会计货币可独立）
 CapitalCurrency=注册资本货币

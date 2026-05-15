@@ -2831,37 +2831,36 @@ while ($i < $imaxinloop) {
 		if (!empty($arrayfields['sale_representative']['checked'])) {
 			print '<td>';
 			if ($obj->socid > 0) {
-				$listsalesrepresentatives = $companystatic->getSalesRepresentatives($user);
-				if ($listsalesrepresentatives < 0) {
-					dol_print_error($db);
+				// First: internal contact of the order (SALESREPFOLL, usually fk_c_type_contact = 91).
+				if (!isset($saleRepNomUrlCache) || !is_array($saleRepNomUrlCache)) {
+					$saleRepNomUrlCache = array();
 				}
-				$nbofsalesrepresentative = count($listsalesrepresentatives);
-				if ($nbofsalesrepresentative > 6) {
-					// We print only number
-					print $nbofsalesrepresentative;
-				} elseif ($nbofsalesrepresentative > 0) {
+
+				$printed = false;
+				$arrayidcontact = $generic_commande->getIdContact('internal', 'SALESREPFOLL');
+				if (!empty($arrayidcontact) && is_array($arrayidcontact)) {
 					$j = 0;
-					foreach ($listsalesrepresentatives as $val) {
-						$userstatic->id = $val['id'];
-						$userstatic->lastname = $val['lastname'];
-						$userstatic->firstname = $val['firstname'];
-						$userstatic->email = $val['email'];
-						$userstatic->status = $val['statut'];
-						$userstatic->entity = $val['entity'];
-						$userstatic->photo = $val['photo'];
-						$userstatic->login = $val['login'];
-						$userstatic->office_phone = $val['office_phone'];
-						$userstatic->office_fax = $val['office_fax'];
-						$userstatic->user_mobile = $val['user_mobile'];
-						$userstatic->job = $val['job'];
-						$userstatic->gender = $val['gender'];
-						//print '<div class="float">':
-						print ($nbofsalesrepresentative < 2) ? $userstatic->getNomUrl(-1, '', 0, 0, 12) : $userstatic->getNomUrl(-2);
-						$j++;
-						if ($j < $nbofsalesrepresentative) {
-							print ' ';
+					$nbofsalesrepresentative = count($arrayidcontact);
+					foreach ($arrayidcontact as $userid) {
+						$userid = (int) $userid;
+						if ($userid <= 0) {
+							continue;
 						}
-						//print '</div>';
+						if (!isset($saleRepNomUrlCache[$userid])) {
+							$tmpshow = '';
+							if ($userstatic->fetch($userid) > 0) {
+								$tmpshow = ($nbofsalesrepresentative < 2) ? $userstatic->getNomUrl(-1, '', 0, 0, 12) : $userstatic->getNomUrl(-2);
+							}
+							$saleRepNomUrlCache[$userid] = $tmpshow;
+						}
+						if ($saleRepNomUrlCache[$userid] !== '') {
+							print $saleRepNomUrlCache[$userid];
+							$printed = true;
+							$j++;
+							if ($j < $nbofsalesrepresentative) {
+								print ' ';
+							}
+						}
 					}
 				}
 				//else print $langs->trans("NoSalesRepresentativeAffected");

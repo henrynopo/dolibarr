@@ -28,12 +28,12 @@ htdocs/custom/slycustom/admin/setup.php
 | 内容 | 大致位置 |
 |------|----------|
 | `$tab = GETPOST('tab', 'aZ09');` | 约第 211 行 |
-| `if (!in_array($tab, array('general', 'pdf', 'boxes', 'langpicker'), true))` | 紧接着上一行 |
+| `if (!in_array($tab, array('general', 'pdf', 'boxes', 'rubis'), true))` | 紧接着上一行 |
 | `$taburl = DOL_URL_ROOT.'/custom/slycustom/admin/setup.php';` | 约第 378 行 |
 | `if ($tab == 'general') {` | 约第 237 行 |
 | `if ($tab == 'pdf') {` | 约第 295 行 |
 | `if ($tab == 'boxes') {` | 约第 314 行 |
-| `if ($tab == 'langpicker') {` | 约第 337 行 |
+| `if ($tab == 'rubis') {` | 销售条款 Tab |
 | `SLYCUSTOM_SETUP_TABS_V2`（注释） | 约第 231 行 |
 
 **命令行快速检查**（在项目根或 `htdocs` 下执行）：

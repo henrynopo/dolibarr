@@ -6960,12 +6960,17 @@ class Form
 	 * @param string 	$more 			More string to add
 	 * @param int 		$hidelist 		1=Hide list
 	 * @param int 		$discount_type 	0 => customer discount, 1 => supplier discount
+	 * @param float|null	$display_amount	Optional amount to display (e.g. in document/third party currency)
+	 * @param string	$display_currency	Optional currency code for display (used with display_amount)
 	 * @return    void
 	 */
-	public function form_remise_dispo($page, $selected, $htmlname, $socid, $amount, $filter = '', $maxvalue = 0, $more = '', $hidelist = 0, $discount_type = 0)
+	public function form_remise_dispo($page, $selected, $htmlname, $socid, $amount, $filter = '', $maxvalue = 0, $more = '', $hidelist = 0, $discount_type = 0, $display_amount = null, $display_currency = '')
 	{
 		// phpcs:enable
 		global $conf, $langs;
+
+		$amount_to_show = ($display_amount !== null && $display_amount !== '' && $display_currency !== '') ? $display_amount : $amount;
+		$currency_to_show = ($display_amount !== null && $display_amount !== '' && $display_currency !== '') ? $display_currency : $conf->currency;
 
 		if ($htmlname != "none") {
 			print '<form method="post" action="' . $page . '">';
@@ -7001,7 +7006,7 @@ class Form
 					}
 				}
 			}
-			print $langs->trans($translationKey, price($amount, 0, $langs, 0, 0, -1, $conf->currency));
+			print $langs->trans($translationKey, price($amount_to_show, 0, $langs, 0, 0, -1, $currency_to_show));
 			if (empty($hidelist)) {
 				print ' ';
 			}

@@ -17,7 +17,7 @@
 
 /**
  *	\defgroup   slycustom     Module SLY Custom
- *	\brief      SLY 定制功能模块：PDF 模板、ShipsGo、列表列、语言选择器等（支持官方 14.0 / 22.0）
+ *	\brief      SLY customisations: PDFs, ShipsGo, exports, Search Order, terms/hooks for Dolibarr 14.0 / 22.0
  *	\file       htdocs/custom/slycustom/core/modules/modSlyCustom.class.php
  *	\ingroup    slycustom
  *	\brief      Description and activation file for the module SLY Custom
@@ -45,8 +45,8 @@ class modSlyCustom extends DolibarrModules
 		$this->family = "other";
 		$this->module_position = '90';
 		$this->name = preg_replace('/^mod/i', '', get_class($this));
-		$this->description = "SLY 定制：PDF 模板、ShipsGo、来源订单列、语言选择器、导出等";
-		$this->descriptionlong = "将 SLY 独有功能以模块形式提供，支持官方 Dolibarr 14.0 与 22.0。启用后即提供 SLY 发票/订单/发货单/采购单 PDF、ShipsGo 物流、列表来源订单列、语言选择器、订单附加条款等；22.0 上配合少量 core 补丁可恢复多币种与 linkedobject 等完整能力，见 patches/APPLY-ON-22.md 与 patches/PATCHES-BY-MODULE.md。";
+		$this->description = 'ModuleSlyCustomDesc';
+		$this->descriptionlong = 'SLYCustomDescriptionLong';
 		$this->editor_name = 'SLY';
 		$this->editor_url = '';
 		$this->version = '1.0.0';
@@ -62,22 +62,25 @@ class modSlyCustom extends DolibarrModules
 			'tpl' => 0,
 			'barcode' => 0,
 			'models' => 1,
-			'css' => array('/custom/slycustom/css/langpicker.css.php'),
-			'js' => array('/custom/slycustom/js/langpicker.js'),
+			'css' => array(),
+			'js' => array(),
 			'hooks' => array(
 				'data' => array(
 					'invoicecard', 'invoicelist',
 					'invoiceindex',  // 财务首页：多币种 invoiceIndexSelectSuffix / invoiceIndexAmountDisplay
 					'ordercard', 'orderlist',
+					'productcard',  // 产品卡片：加载 slycustom 以覆盖 CustomsCode/CustomCode → Plant No./厂号
 					'ordersindex',  // 订单首页：多币种列 ordersIndexSelectSuffix / ordersIndexRowAmount
+					// 以下页面会 new HookManager 且只 init 单一 context；若不声明则 ActionsSlycustom 不会加载，menuLeftMenuItems 从不执行
+					'commercialindex',  // comm/index.php — Commerce 顶栏首页须立刻显示 Shipment 左侧菜单
+					'productindex',  // product/index.php — Products 首页须立刻从产品侧栏移除 Shipment
+					'productservicelist',  // product/list.php — 产品/服务列表页同样须移除 Shipment
 					'expeditioncard', 'shipmentlist', 'ordershipmentcard',
 					'paymentlist', 'paymentcard',
 					'supplierinvoicelist', 'supplierorderlist',
 					'paymentsupplierlist', 'propallist',
 					'ordersuppliercard', 'invoicesuppliercard',
-				'remx',  // 折扣拆分页：afterSplitDiscount（需应用 sly22.0-remx-hooks.patch）
-					// 语言选择器（来自 custom/langpicker）
-					'toprightmenu', 'mainloginpage', 'login',
+					'remx',  // 折扣拆分页：afterSplitDiscount（需应用 sly22.0-remx-hooks.patch）
 					'menuLeftMenuItems',  // 左侧菜单：将 Shipment 从产品目录移到商业目录
 					'formfile',  // 销售订单生成文档表单：增加「附加销售条款」选项
 				),
@@ -131,11 +134,6 @@ class modSlyCustom extends DolibarrModules
 		$this->rights[$r][4] = 'export';
 		$this->rights[$r][5] = 'read';
 		$r++;
-		$this->rights[$r][0] = $this->numero.sprintf("%02d", $r + 1);
-		$this->rights[$r][1] = '使用语言选择器';
-		$this->rights[$r][4] = 'langpicker';
-		$this->rights[$r][5] = 'read';
-		$r++;
 
 		$this->menu = array();
 		$r = 0;
@@ -155,7 +153,7 @@ class modSlyCustom extends DolibarrModules
 			'user' => 2,
 		);
 		$r++;
-		// SLY Export (Tools): all 7 entries as direct children of Tools so they display in parallel (same level)
+		// Tools → SLY Export → (SLY Invoices | SLY Payments planning)
 		$this->menu[$r] = array(
 			'fk_menu' => 'fk_mainmenu=tools',
 			'type' => 'left',
@@ -163,7 +161,7 @@ class modSlyCustom extends DolibarrModules
 			'prefix' => img_picto('', 'list', 'class="paddingright pictofixedwidth valignmiddle"'),
 			'mainmenu' => 'tools',
 			'leftmenu' => 'sly_export',
-			'url' => '/custom/slycustom/exports/tools.php?mainmenu=tools&leftmenu=sly_export',
+			'url' => '/custom/slycustom/exports/export_all.php?mainmenu=tools&leftmenu=sly_export_invoices',
 			'langs' => 'slycustom@slycustom',
 			'position' => 400,
 			'enabled' => '$conf->slycustom->enabled',
@@ -172,15 +170,14 @@ class modSlyCustom extends DolibarrModules
 			'user' => 2,
 		);
 		$r++;
-		// SLY ALL-in-One: level 2 under SLY Export; the 5 detail exports are level 3 under it
 		$this->menu[$r] = array(
 			'fk_menu' => 'fk_mainmenu=tools,fk_leftmenu=sly_export',
 			'type' => 'left',
-			'titre' => 'SLYExportAllInOne',
+			'titre' => 'SLYExportMenuInvoices',
 			'prefix' => img_picto('', 'list', 'class="paddingright pictofixedwidth valignmiddle"'),
 			'mainmenu' => 'tools',
-			'leftmenu' => 'sly_export_all',
-			'url' => '/custom/slycustom/exports/export_all.php?mainmenu=tools&leftmenu=sly_export_all',
+			'leftmenu' => 'sly_export_invoices',
+			'url' => '/custom/slycustom/exports/export_all.php?mainmenu=tools&leftmenu=sly_export_invoices',
 			'langs' => 'slycustom@slycustom',
 			'position' => 401,
 			'enabled' => '$conf->slycustom->enabled',
@@ -190,13 +187,13 @@ class modSlyCustom extends DolibarrModules
 		);
 		$r++;
 		$this->menu[$r] = array(
-			'fk_menu' => 'fk_mainmenu=tools,fk_leftmenu=sly_export_all',
+			'fk_menu' => 'fk_mainmenu=tools,fk_leftmenu=sly_export_invoices',
 			'type' => 'left',
-			'titre' => 'SLYExportSODetails',
+			'titre' => 'SLYExportAllInOne',
 			'prefix' => '',
 			'mainmenu' => 'tools',
-			'leftmenu' => 'sly_export_all',
-			'url' => '/custom/slycustom/exports/export_SO_Details.php?mainmenu=tools&leftmenu=sly_export_all',
+			'leftmenu' => 'sly_export_invoices',
+			'url' => '/custom/slycustom/exports/export_all.php?mainmenu=tools&leftmenu=sly_export_invoices',
 			'langs' => 'slycustom@slycustom',
 			'position' => 402,
 			'enabled' => '$conf->slycustom->enabled',
@@ -206,13 +203,13 @@ class modSlyCustom extends DolibarrModules
 		);
 		$r++;
 		$this->menu[$r] = array(
-			'fk_menu' => 'fk_mainmenu=tools,fk_leftmenu=sly_export_all',
+			'fk_menu' => 'fk_mainmenu=tools,fk_leftmenu=sly_export_invoices',
 			'type' => 'left',
-			'titre' => 'SLYExportSOInvoiceDetails',
+			'titre' => 'SLYExportSODetails',
 			'prefix' => '',
 			'mainmenu' => 'tools',
-			'leftmenu' => 'sly_export_all',
-			'url' => '/custom/slycustom/exports/export_SO_Inv_Details.php?mainmenu=tools&leftmenu=sly_export_all',
+			'leftmenu' => 'sly_export_invoices',
+			'url' => '/custom/slycustom/exports/export_SO_Details.php?mainmenu=tools&leftmenu=sly_export_invoices',
 			'langs' => 'slycustom@slycustom',
 			'position' => 403,
 			'enabled' => '$conf->slycustom->enabled',
@@ -222,13 +219,13 @@ class modSlyCustom extends DolibarrModules
 		);
 		$r++;
 		$this->menu[$r] = array(
-			'fk_menu' => 'fk_mainmenu=tools,fk_leftmenu=sly_export_all',
+			'fk_menu' => 'fk_mainmenu=tools,fk_leftmenu=sly_export_invoices',
 			'type' => 'left',
-			'titre' => 'SLYExportShipmentDetails',
+			'titre' => 'SLYExportSOInvoiceDetails',
 			'prefix' => '',
 			'mainmenu' => 'tools',
-			'leftmenu' => 'sly_export_all',
-			'url' => '/custom/slycustom/exports/export_Shipment_Details.php?mainmenu=tools&leftmenu=sly_export_all',
+			'leftmenu' => 'sly_export_invoices',
+			'url' => '/custom/slycustom/exports/export_SO_Inv_Details.php?mainmenu=tools&leftmenu=sly_export_invoices',
 			'langs' => 'slycustom@slycustom',
 			'position' => 404,
 			'enabled' => '$conf->slycustom->enabled',
@@ -238,13 +235,13 @@ class modSlyCustom extends DolibarrModules
 		);
 		$r++;
 		$this->menu[$r] = array(
-			'fk_menu' => 'fk_mainmenu=tools,fk_leftmenu=sly_export_all',
+			'fk_menu' => 'fk_mainmenu=tools,fk_leftmenu=sly_export_invoices',
 			'type' => 'left',
-			'titre' => 'SLYExportPODetails',
+			'titre' => 'SLYExportShipmentDetails',
 			'prefix' => '',
 			'mainmenu' => 'tools',
-			'leftmenu' => 'sly_export_all',
-			'url' => '/custom/slycustom/exports/export_PO_Details.php?mainmenu=tools&leftmenu=sly_export_all',
+			'leftmenu' => 'sly_export_invoices',
+			'url' => '/custom/slycustom/exports/export_Shipment_Details.php?mainmenu=tools&leftmenu=sly_export_invoices',
 			'langs' => 'slycustom@slycustom',
 			'position' => 405,
 			'enabled' => '$conf->slycustom->enabled',
@@ -254,15 +251,111 @@ class modSlyCustom extends DolibarrModules
 		);
 		$r++;
 		$this->menu[$r] = array(
-			'fk_menu' => 'fk_mainmenu=tools,fk_leftmenu=sly_export_all',
+			'fk_menu' => 'fk_mainmenu=tools,fk_leftmenu=sly_export_invoices',
+			'type' => 'left',
+			'titre' => 'SLYExportPODetails',
+			'prefix' => '',
+			'mainmenu' => 'tools',
+			'leftmenu' => 'sly_export_invoices',
+			'url' => '/custom/slycustom/exports/export_PO_Details.php?mainmenu=tools&leftmenu=sly_export_invoices',
+			'langs' => 'slycustom@slycustom',
+			'position' => 406,
+			'enabled' => '$conf->slycustom->enabled',
+			'perms' => '1',
+			'target' => '',
+			'user' => 2,
+		);
+		$r++;
+		$this->menu[$r] = array(
+			'fk_menu' => 'fk_mainmenu=tools,fk_leftmenu=sly_export_invoices',
 			'type' => 'left',
 			'titre' => 'SLYExportPOInvoiceDetails',
 			'prefix' => '',
 			'mainmenu' => 'tools',
-			'leftmenu' => 'sly_export_all',
-			'url' => '/custom/slycustom/exports/export_PO_Inv_Details.php?mainmenu=tools&leftmenu=sly_export_all',
+			'leftmenu' => 'sly_export_invoices',
+			'url' => '/custom/slycustom/exports/export_PO_Inv_Details.php?mainmenu=tools&leftmenu=sly_export_invoices',
 			'langs' => 'slycustom@slycustom',
-			'position' => 406,
+			'position' => 407,
+			'enabled' => '$conf->slycustom->enabled',
+			'perms' => '1',
+			'target' => '',
+			'user' => 2,
+		);
+		$r++;
+		$this->menu[$r] = array(
+			'fk_menu' => 'fk_mainmenu=tools,fk_leftmenu=sly_export',
+			'type' => 'left',
+			'titre' => 'SLYExportMenuPaymentsPlanning',
+			'prefix' => img_picto('', 'bill', 'class="paddingright pictofixedwidth valignmiddle"'),
+			'mainmenu' => 'tools',
+			'leftmenu' => 'sly_export_cashflow',
+			'url' => '/custom/slycustom/exports/tools.php?mainmenu=tools&leftmenu=sly_export_cashflow&tab=so_inv_receivable',
+			'langs' => 'slycustom@slycustom',
+			'position' => 410,
+			'enabled' => '$conf->slycustom->enabled',
+			'perms' => '1',
+			'target' => '',
+			'user' => 2,
+		);
+		$r++;
+		$this->menu[$r] = array(
+			'fk_menu' => 'fk_mainmenu=tools,fk_leftmenu=sly_export_cashflow',
+			'type' => 'left',
+			'titre' => 'SLYExportSOInvoiceReceivable',
+			'prefix' => '',
+			'mainmenu' => 'tools',
+			'leftmenu' => 'sly_export_cashflow',
+			'url' => '/custom/slycustom/exports/tools.php?mainmenu=tools&leftmenu=sly_export_cashflow&tab=so_inv_receivable',
+			'langs' => 'slycustom@slycustom',
+			'position' => 411,
+			'enabled' => '$conf->slycustom->enabled',
+			'perms' => '1',
+			'target' => '',
+			'user' => 2,
+		);
+		$r++;
+		$this->menu[$r] = array(
+			'fk_menu' => 'fk_mainmenu=tools,fk_leftmenu=sly_export_cashflow',
+			'type' => 'left',
+			'titre' => 'SLYExportPOInvoicePayable',
+			'prefix' => '',
+			'mainmenu' => 'tools',
+			'leftmenu' => 'sly_export_cashflow',
+			'url' => '/custom/slycustom/exports/tools.php?mainmenu=tools&leftmenu=sly_export_cashflow&tab=po_inv_payable',
+			'langs' => 'slycustom@slycustom',
+			'position' => 412,
+			'enabled' => '$conf->slycustom->enabled',
+			'perms' => '1',
+			'target' => '',
+			'user' => 2,
+		);
+		$r++;
+		$this->menu[$r] = array(
+			'fk_menu' => 'fk_mainmenu=tools,fk_leftmenu=sly_export_cashflow',
+			'type' => 'left',
+			'titre' => 'SLYExportSODepositInvoiceMissing',
+			'prefix' => '',
+			'mainmenu' => 'tools',
+			'leftmenu' => 'sly_export_cashflow',
+			'url' => '/custom/slycustom/exports/tools.php?mainmenu=tools&leftmenu=sly_export_cashflow&tab=so_deposit_invoice_missing',
+			'langs' => 'slycustom@slycustom',
+			'position' => 413,
+			'enabled' => '$conf->slycustom->enabled',
+			'perms' => '1',
+			'target' => '',
+			'user' => 2,
+		);
+		$r++;
+		$this->menu[$r] = array(
+			'fk_menu' => 'fk_mainmenu=tools,fk_leftmenu=sly_export_cashflow',
+			'type' => 'left',
+			'titre' => 'SLYExportPODepositInvoiceMissing',
+			'prefix' => '',
+			'mainmenu' => 'tools',
+			'leftmenu' => 'sly_export_cashflow',
+			'url' => '/custom/slycustom/exports/tools.php?mainmenu=tools&leftmenu=sly_export_cashflow&tab=po_deposit_invoice_missing',
+			'langs' => 'slycustom@slycustom',
+			'position' => 414,
 			'enabled' => '$conf->slycustom->enabled',
 			'perms' => '1',
 			'target' => '',
@@ -379,39 +472,6 @@ class modSlyCustom extends DolibarrModules
 
 		$this->syncModulePartsModels();
 
-		// Language picker table (from custom/langpicker)
-		$result = $this->db->query("SHOW TABLES LIKE '".$this->db->escape(MAIN_DB_PREFIX."lang_picker")."'");
-		if ($result && $this->db->num_rows($result) == 0) {
-			$this->db->query(
-				"CREATE TABLE ".MAIN_DB_PREFIX."lang_picker (".
-				"rowid INTEGER AUTO_INCREMENT PRIMARY KEY,".
-				"lang_code VARCHAR(100) NOT NULL,".
-				"position INTEGER DEFAULT 0".
-				")"
-			);
-			$this->db->query("ALTER TABLE ".MAIN_DB_PREFIX."lang_picker ADD UNIQUE INDEX uk_lang_code (lang_code)");
-			foreach (array(array(1, 'en_US', 1), array(2, 'fr_FR', 2), array(3, 'es_ES', 3), array(4, 'it_IT', 4), array(5, 'de_DE', 5), array(6, 'zh_CN', 6)) as $row) {
-				$this->db->query("INSERT INTO ".MAIN_DB_PREFIX."lang_picker (rowid, lang_code, position) VALUES (".(int)$row[0].", '".$this->db->escape($row[1])."', ".(int)$row[2].")");
-			}
-		}
-		// Default constants for language picker (can be overridden in setup)
-		if (dolibarr_get_const($this->db, 'LANG_PICKER_HIDDEN', $conf->entity) === false) {
-			dolibarr_set_const($this->db, 'LANG_PICKER_HIDDEN', '0', 'chaine', 0, '', $conf->entity);
-		}
-
-		// Ensure language picker hook contexts are registered (for installs that enabled module before we added toprightmenu/mainloginpage/login)
-		$hooksConst = dolibarr_get_const($this->db, 'MAIN_MODULE_SLYCUSTOM_HOOKS', 0);
-		$langPickerContexts = array('toprightmenu', 'mainloginpage', 'login');
-		if ($hooksConst !== false && $hooksConst !== null && $hooksConst !== '') {
-			$arr = json_decode($hooksConst, true);
-			if (is_array($arr)) {
-				$merged = array_unique(array_merge($arr, $langPickerContexts));
-				if (count($merged) > count($arr)) {
-					dolibarr_set_const($this->db, 'MAIN_MODULE_SLYCUSTOM_HOOKS', json_encode(array_values($merged)), 'chaine', 0, '', 0);
-				}
-			}
-		}
-
 		$sql = array(
 			// Migrate old template names so existing config keeps working
 			"UPDATE ".MAIN_DB_PREFIX."const SET value = 'sly_invoice' WHERE name = 'FACTURE_ADDON_PDF' AND value = 'sponge_SLY_consignee'",
@@ -472,7 +532,13 @@ class modSlyCustom extends DolibarrModules
 				return -1;
 			}
 			$sql = "UPDATE ".MAIN_DB_PREFIX."menu SET prefix = '".$prefixList."'";
-			$sql .= " WHERE module = '".$module."' AND mainmenu = 'tools' AND leftmenu = 'sly_export_all' AND position = 401 AND entity = ".(int) $entity;
+			$sql .= " WHERE module = '".$module."' AND mainmenu = 'tools' AND leftmenu = 'sly_export_invoices' AND position = 401 AND entity = ".(int) $entity;
+			if ($this->db->query($sql) === false) {
+				return -1;
+			}
+			$prefixBill = $this->db->escape(img_picto('', 'bill', 'class="paddingright pictofixedwidth valignmiddle"'));
+			$sql = "UPDATE ".MAIN_DB_PREFIX."menu SET prefix = '".$prefixBill."'";
+			$sql .= " WHERE module = '".$module."' AND mainmenu = 'tools' AND leftmenu = 'sly_export_cashflow' AND position = 410 AND entity = ".(int) $entity;
 			if ($this->db->query($sql) === false) {
 				return -1;
 			}

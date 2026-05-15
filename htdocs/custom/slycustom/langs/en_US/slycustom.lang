@@ -2,28 +2,34 @@
 # Copyright (C) 2025 SLY
 
 ModuleSLYCustomName=SLY Custom
-ModuleSLYCustomDesc=SLY customisations: invoice/order/shipment PDF templates, ShipsGo, exports.
+ModuleSLYCustomDesc=SLY: PDF templates (invoice, sales order, proforma, shipment, supplier PO/invoice), ShipsGo cron, Tools exports & Search Order, terms PDF append, hooks (multicurrency on lists/index, Shipment menu layout, product labels, order doc options, remx split discount with patch). Dolibarr 14.0 / 22.0; optional core patches per patches/APPLY-ON-22.md.
+ModuleSlyCustomName=SLY Custom
+ModuleSlyCustomDesc=SLY: PDF templates (invoice, sales order, proforma, shipment, supplier PO/invoice), ShipsGo cron, Tools exports & Search Order, terms PDF append, hooks (multicurrency on lists/index, Shipment menu layout, product labels, order doc options, remx split discount with patch). Dolibarr 14.0 / 22.0; optional core patches per patches/APPLY-ON-22.md.
+Module500100Name=SLY Custom
+Module500100Desc=SLY: PDF templates (invoice, sales order, proforma, shipment, supplier PO/invoice), ShipsGo cron, Tools exports & Search Order, terms PDF append, hooks (multicurrency on lists/index, Shipment menu layout, product labels, order doc options, remx split discount with patch). Dolibarr 14.0 / 22.0; optional core patches per patches/APPLY-ON-22.md.
 SLYCustomSetup=SLY Custom Setup
 SLYCustomDescription=About this module
-SLYCustomDescriptionLong=This module provides SLY-specific features on top of official Dolibarr 14.0: PDF templates (invoice, order, proforma, shipment, supplier order), optional ShipsGo integration, and custom export pages. See README in the module folder for compatibility notes and features that may still require core patches.
-SLYExports=SLY Exports
+SLYCustomDescriptionLong=SLY Custom bundles company-specific behaviour for Dolibarr 14.0 and 22.0: SLY PDF models (customer invoice, sales orders and proformas, shipments/packing lists, supplier orders, supplier invoices including debit note), optional ShipsGo API status sync (scheduled job), SLY export pages under Tools (SO/PO/shipment/invoice detail exports and all-in-one), Search Order, replacement dashboard widgets (last actions, birthdays—multicurrency invoice boxes now use core), Rubis-style terms PDF append and order document options, and hooks across cards/lists (source order columns, multicurrency amounts on order/invoice home, Shipment under Commerce menu, product extrafield labels, supplier flows, payment lists, etc.). On 22.0 some features still need small core patches—see patches/APPLY-ON-22.md and patches/PATCHES-BY-MODULE.md.
+SLYExports=Exports
 API_KEY_SHIPSGO=ShipsGo API Key
-API_KEY_SHIPSGOTooltip=API key for ShipsGo integration. Leave empty to disable ShipsGo features.
+API_KEY_SHIPSGOTooltip=API key for ShipsGo integration (stored per company / entity when Multicompany is enabled). Leave empty to disable ShipsGo for this company.
 SLYCUSTOM_SHIPPING_ENABLE_UNVALIDATE=Enable shipment unvalidate
 SLYCUSTOM_SHIPPING_ENABLE_UNVALIDATETooltip=Allow users to unvalidate (set back to draft) confirmed shipments.
 SLYCUSTOM_DASHBOARD_BOXES=Dashboard Widgets
-SLYCUSTOM_DASHBOARD_BOXES_DESC=SLY Custom provides 9 replacement widgets: 5 (customer orders, actions, birthdays, supplier orders, supplier orders awaiting reception) + 4 invoice widgets with multicurrency (last customer bills, oldest unpaid customer bills, last supplier bills, oldest unpaid supplier bills). To use them: go to Dashboard setup, disable the original core widgets, and enable the SLY widgets (note: SLY).
+SLYCUSTOM_DASHBOARD_BOXES_DESC=SLY Custom registers two optional replacement widgets: last actions and birthdays (Phase 3: multicurrency invoice/order dashboard boxes were removed in favour of core). In Dashboard setup, disable the originals if you prefer and enable the SLY ones (note in list: SLY).
 SLYCUSTOM_GO_TO_DASHBOARD_SETUP=Go to Dashboard setup
 SLYCUSTOM_SYNC_BOXES=Sync SLY boxes
 SLYCUSTOM_SYNC_BOXES_TOOLTIP=If the SLY widgets do not appear in the dashboard setup, click this to register them into the database (e.g. after enabling the module before boxes were added).
 SLYCUSTOM_BOXES_SYNCED=SLY boxes successfully synced. You can now add them in Dashboard setup.
+# Shipment PDF document title (shown uppercase on packing list PDFs)
+SLYPackingListPDFTitle=Packing list
 SLYCUSTOM_PDF_TEMPLATES_SECTION=PDF templates (invoice / packing list)
 SLYCUSTOM_SYNC_PDF_MODELS=Sync PDF templates to list
 SLYCUSTOM_SYNC_PDF_MODELS_TOOLTIP=Register SLY invoice and packing list templates so they appear in the default PDF template dropdown (Setup → Invoices / Sendings). Run once if templates are missing.
 SLYCUSTOM_PDF_MODELS_SYNCED=PDF templates (sly_invoice, sly_packinglist) synced. They should now appear in default template dropdowns.
 SLYCUSTOM_MENU_ICONS=Menu icons
 SLYCUSTOM_SYNC_MENU_ICONS=Sync menu icons
-SLYCUSTOM_SYNC_MENU_ICONS_TOOLTIP=Update icons for "Search Order" and "SLY Exports" in the left menu. Click if icons are missing after enabling the module.
+SLYCUSTOM_SYNC_MENU_ICONS_TOOLTIP=Update icons for "Search Order" and "Exports" in the left menu. Click if icons are missing after enabling the module.
 SLYCUSTOM_MENU_ICONS_SYNCED=Menu icons synced. Refresh the Tools or Commerce page to see the icons.
 UpdateShips=Update ShipsGo status
 ShipmentUpdated=Shipment status updated successfully
@@ -31,14 +37,34 @@ UnvalidateShipment=Unvalidate shipment
 ConfirmUnvalidateShipment=Are you sure you want to unvalidate shipment %s?
 SourceOrder=Source order
 SourcePurchaseOrder=Source purchase order
+SaleRepresentativesOfThirdParty=Salesperson
+SalesPerson=SalesPerson
+PurchasePerson=Purchase Person
 SearchOrder=Search Order
+SLYExportTabGroupDetails=Line-detail exports (SO / PO / shipment)
+SLYExportTabGroupCashflow=AR / AP & deposit compliance
+SLYExportMenuInvoices=Invoices & Shipment
+SLYExportMenuPaymentsPlanning=Payments planning
+SLYExportMenuLineDetail=Line-detail exports
+SLYExportMenuCashflow=Export — AR/AP & deposits
 SLYExportMenu=SLY Export
-SLYExportAllInOne=SLY ALL-in-One
-SLYExportSODetails=SLY SO Details
-SLYExportSOInvoiceDetails=SLY SO Invoice Details
-SLYExportShipmentDetails=SLY Shipment Details
-SLYExportPODetails=SLY PO Details
-SLYExportPOInvoiceDetails=SLY PO Invoice Details
+SearchCriteria=Search criteria
+SLYExportAllInOne=ALL-in-One
+SLYExportSODetails=SO Details
+SLYExportSOInvoiceDetails=SO Invoice Details
+SLYExportShipmentDetails=Shipment Details
+SLYExportPODetails=PO Details
+SLYExportPOInvoiceDetails=PO Invoice Details
+SLYExportSOInvoiceReceivable=SO Invoice Receivable
+SLYExportPOInvoicePayable=PO Invoice Payable
+SLYExportSODepositInvoiceMissing=SO deposit invoice missing
+SLYDepositInvoiceMissingBanner=According to payment terms, %s sales order(s) require a deposit invoice but no validated deposit invoice is linked yet.
+SLYDepositInvoiceMissingBannerLink=Open missing-deposit list
+SLYDepositInvoiceMissingAlertShort=Deposit required by payment terms; no validated deposit invoice linked to this SO.
+SLYExportPODepositInvoiceMissing=PO deposit invoice missing
+SLYPoDepositInvoiceMissingBanner=According to payment terms, %s purchase order(s) require a supplier deposit invoice but no validated deposit invoice is linked yet.
+SLYPoDepositInvoiceMissingBannerLink=Open missing supplier-deposit list
+SLYPoDepositInvoiceMissingAlertShort=Deposit required by payment terms; no validated supplier deposit invoice linked to this PO.
 MultipleOrdersFound=Multiple orders found
 OrderContact=Order contact
 InvoiceContact=Invoice contact
@@ -49,6 +75,32 @@ Prepayment=Prepayment
 Document=Document
 GST=GST
 TotalVATSG=Total GST
+# SLY ALL-in-One validation UI
+SLYAllInOneCheckHeader=ALL-in-One pre-download validation
+SLYAllInOneCheckTitle=Pre-download validation results (shown one by one)
+SLYAllInOneCheckHelp=Please fix the failing conditions (relations / contact counts). Then click “Start download”.
+SLYAllInOnePassedNone=Passed (none)
+SLYAllInOneConfirmStart=No validation errors found. Start download
+SLYAllInOneHasErrors=Failing conditions were found. Please fix them and retry.
+SLYAllInOneValidationFailed=ALL-in-One validation failed
+SLYAllInOneRule_SQL_ERROR=SQL Error
+SLYAllInOneRule_SO_PoCntGt1=More than 1 linked PO
+SLYAllInOneRule_SO_SalespersonNe1=Salesperson count is not 1
+SLYAllInOneRule_SO_BillToCntGt1=More than 1 Bill_To (consignee invoice)
+SLYAllInOneRule_SO_ShipmentCntGt1=More than 1 linked shipment
+SLYAllInOneRule_SO_ConsigneeShipContactCntGt1=More than 1 Customer shipping contact (consignee shipment)
+SLYAllInOneRule_SOInv_SoCntGt1=More than 1 linked SO
+SLYAllInOneRule_SOInv_ShipmentCntGt1=More than 1 shipment
+SLYAllInOneRule_SOInv_BillToCntGt1=More than 1 Bill_To (consignee invoice)
+SLYAllInOneRule_Shipment_SoCntNe1=SO linked count is not 1
+SLYAllInOneRule_Shipment_BillToCntGt1=More than 1 Bill_To (consignee invoice)
+SLYAllInOneRule_Shipment_CustomerShipContactCntGt1=More than 1 Customer shipping contact (consignee shipment)
+SLYAllInOneRule_Shipment_InvoiceCntGt1=More than 1 linked invoice
+SLYAllInOneRule_PO_SoCntGt1=More than 1 linked SO
+SLYAllInOneRule_PO_PurchasePersonCntNe1=Purchase person count is not 1
+SLYAllInOneRule_POInv_PoCntGt1=More than 1 linked PO
+SLYAllInOnePreparingDownloadFor=Preparing download for: 
+SLYAllInOneAllDownloadsInitiated=All downloads have been initiated.
 # SLY Debit Note (supplier invoice PDF template - we send to supplier, manual generation only)
 SLYDebitNoteModel=SLY Debit Note
 SLYDebitNoteModelDesc=Debit note sent to supplier. Do not set as default; generate PDF manually when sending to supplier. (Normally we receive credit notes from suppliers.)
@@ -62,7 +114,6 @@ SLYCUSTOM_TAB_PDF=PDF templates
 SLYCUSTOM_TAB_BOXES=Dashboard
 SLYCUSTOM_TAB_CGV=Terms & conditions
 SLYCUSTOM_TAB_RUBIS=Terms & conditions
-SLYCUSTOM_TAB_LANGPICKER=Language picker
 
 # Terms & conditions (upgraded from Rubis module)
 SLYCUSTOM_RUBIS_UPGRADE_DESC=This is the upgraded version of the original Rubis module. It appends Terms & conditions PDFs to order (and optionally invoice) PDFs. The options below match the original Rubis "Terms (CGV)" settings; you can upload, replace or delete default and per-language term files here.
@@ -101,32 +152,13 @@ SLYCUSTOM_ADD_TERMS_HINT=Uses default terms PDF for the selected language
 SLYCUSTOM_TERMS_NO_TEMPLATE=No sales terms template for this language
 SLYCUSTOM_TERMS_SELECT_TEMPLATE=Template
 
-# Language Picker (from custom/langpicker)
+# Shared (e.g. terms upload — select language)
 SelectLanguage=Select a language
-LangPickerSection=Language Picker
-LangPickerSectionDesc=Show a language dropdown in the top menu and optionally on the login page.
-LangPickerStatus=Status
-LangPickerStatusEnabled=Enabled (visible in top menu)
-LangPickerStatusDisabled=Disabled (hidden from top menu)
-LangPickerActivate=Enable
-LangPickerDisable=Disable
-LangPickerActivated=Language picker enabled. It will appear in the top menu.
-LangPickerDisabled=Language picker disabled. It will be hidden from the top menu.
-LANG_PICKER_LOGIN_PAGE_DEFAULT_LANG=Default language on login page
-LANG_PICKER_HIDDEN=Hide language picker from top menu
-SLYCUSTOM_LOGIN_BLOCK_WIDTH=Top bar (login block) width
-SLYCUSTOM_LOGIN_BLOCK_WIDTH_TOOLTIP=Override the width of the top-right bar (tools, language, user). Leave empty to use theme default. Increase if content is cramped (e.g. 280–320).
-SLYCUSTOM_LOGIN_BLOCK_WIDTH_UNIT=px (empty = theme default)
-LangPickerLanguages=Languages in menu
-AddLangSuccess=Language added successfully
-DeleteLangSuccess=Language deleted successfully
-ConfirmDeleteLang=Delete this language from the picker list?
-Language=Language
-LangCode=Language code
-Position=Position
-Up=Up
-Down=Down
-LangPickerHooksUpdated=Language picker hooks updated. Refresh the page or go to Home to see the language selector in the top menu; reopen the login page to see the language option.
+
+# Override product/service customs field label (Plant No. in SLY)
+CustomsCode=Plant No.
+CustomCode=Plant No.
+CustomsCodeHelp=Plant number / factory code (SLY override of customs nomenclature).
 
 # Third party Capital (registered capital) - independent currency
 CapitalCurrency=Capital currency

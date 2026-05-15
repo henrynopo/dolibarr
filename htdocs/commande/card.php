@@ -2770,7 +2770,7 @@ if ($action == 'create' && $usercancreate) {
 						}
 
 
-						$paymentTermsSelect = $form->getSelectConditionsPaiements(0, 'cond_reglement_id', -1, 0, 0, 'minwidth200');
+						$paymentTermsSelect = $form->getSelectConditionsPaiements(0, 'cond_reglement_id', 1, 0, 0, 'minwidth200');
 
 						$formquestion[] = array(
 							'type' => 'other',

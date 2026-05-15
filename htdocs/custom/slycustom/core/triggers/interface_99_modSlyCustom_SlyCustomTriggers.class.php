@@ -10,7 +10,7 @@
 /**
  * \file    core/triggers/interface_99_modSlyCustom_SlyCustomTriggers.class.php
  * \ingroup slycustom
- * \brief   SLY Custom triggers - ShipsGo integration on shipment validation
+ * \brief   SLY Custom triggers - ShipsGo integration; dropshipping: link shipment to PO when created from SO.
  */
 
 require_once DOL_DOCUMENT_ROOT.'/core/triggers/dolibarrtriggers.class.php';
@@ -46,14 +46,58 @@ class InterfaceSlyCustomTriggers extends DolibarrTriggers
 	 */
 	public function runTrigger($action, $object, User $user, Translate $langs, Conf $conf)
 	{
-		if (!isModEnabled('slycustom') || empty($conf->global->API_KEY_SHIPSGO)) {
-			return 0;
+		// Dropshipping: when shipment is created from SO, link it to all POs linked to that SO
+		if ($action == 'SHIPPING_CREATE' && isModEnabled('slycustom')) {
+			$soid = 0;
+			if (!empty($object->origin_type) && (strtolower($object->origin_type) === 'commande' || strtolower($object->origin_type) === 'order') && !empty($object->origin_id)) {
+				$soid = (int) $object->origin_id;
+			} elseif (!empty($object->origin) && (strtolower($object->origin) === 'commande' || strtolower($object->origin) === 'order') && !empty($object->origin_id)) {
+				$soid = (int) $object->origin_id;
+			}
+			if ($soid > 0 && (int) $object->id > 0) {
+				$prefix = $this->db->prefix();
+				// Find all POs linked to this SO (both directions: SO created first then PO, or PO created first then SO)
+				$poIds = array();
+				$sql1 = "SELECT fk_target AS poid FROM ".$prefix."element_element WHERE fk_source = ".$soid." AND sourcetype IN ('commande','order') AND targettype IN ('order_supplier','commande_fournisseur')";
+				$res1 = $this->db->query($sql1);
+				if ($res1) {
+					while ($r = $this->db->fetch_object($res1)) {
+						if ((int) $r->poid > 0) {
+							$poIds[(int) $r->poid] = true;
+						}
+					}
+				}
+				$sql2 = "SELECT fk_source AS poid FROM ".$prefix."element_element WHERE fk_target = ".$soid." AND targettype IN ('commande','order') AND sourcetype IN ('order_supplier','commande_fournisseur')";
+				$res2 = $this->db->query($sql2);
+				if ($res2) {
+					while ($r = $this->db->fetch_object($res2)) {
+						if ((int) $r->poid > 0) {
+							$poIds[(int) $r->poid] = true;
+						}
+					}
+				}
+				$expid = (int) $object->id;
+				foreach (array_keys($poIds) as $poid) {
+					$chk = "SELECT 1 FROM ".$prefix."element_element WHERE ((fk_source = ".$expid." AND sourcetype IN ('shipping','expedition') AND fk_target = ".$poid." AND targettype IN ('order_supplier','commande_fournisseur')) OR (fk_target = ".$expid." AND targettype IN ('shipping','expedition') AND fk_source = ".$poid." AND sourcetype IN ('order_supplier','commande_fournisseur'))) LIMIT 1";
+					$rchk = $this->db->query($chk);
+					if ($rchk && $this->db->num_rows($rchk) > 0) {
+						continue;
+					}
+					$this->db->query("INSERT INTO ".$prefix."element_element (fk_source, sourcetype, fk_target, targettype) VALUES (".$expid.", 'shipping', ".$poid.", 'order_supplier')");
+				}
+			}
+			return 1;
 		}
 
-		if ($action == 'SHIPPING_VALIDATE') {
-			// ShipsGo: post container info when shipment is validated
+		if ($action == 'SHIPPING_VALIDATE' && isModEnabled('slycustom')) {
+			// ShipsGo: post container info when shipment is validated (API key per entity / Multicompany)
+			require_once DOL_DOCUMENT_ROOT.'/custom/slycustom/class/ShipsGo_Update.class.php';
 			require_once DOL_DOCUMENT_ROOT.'/custom/slycustom/class/ShipsGo_API.class.php';
-			$shipsGo = new ShipsGo_API($conf->global->API_KEY_SHIPSGO);
+			$apiKey = ShipmentStatus::getApiKeyForExpedition($this->db, $object, $conf);
+			if ($apiKey === '') {
+				return 0;
+			}
+			$shipsGo = new ShipsGo_API($apiKey);
 			$ContainerNumber = $object->tracking_number ?? '';
 			$blno = '';
 			$requestid = '';

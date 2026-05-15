@@ -61,7 +61,57 @@ if (substr($sapi_type, 0, 3) == 'cgi') {
 	exit(1);
 }
 
-require_once $path."../../htdocs/master.inc.php";
+// Resolve master.inc.php: official tree has .../dolibarr/htdocs/master.inc.php next to .../dolibarr/scripts/.
+// Many hosts unpack only htdocs *contents* into .../dolibarr/ (no htdocs subfolder) → master.inc.php is .../dolibarr/master.inc.php.
+$dolibarrRoot = dirname(dirname(__DIR__));
+$masterCandidates = array();
+$envMaster = getenv('DOLIBARR_MASTER_INC');
+if ($envMaster !== false && $envMaster !== '') {
+	$masterCandidates[] = $envMaster;
+}
+$masterCandidates[] = $dolibarrRoot.'/htdocs/master.inc.php';
+$masterCandidates[] = $dolibarrRoot.'/master.inc.php';
+
+$masterInc = '';
+foreach ($masterCandidates as $candidate) {
+	if ($candidate === '') {
+		continue;
+	}
+	if (is_readable($candidate)) {
+		$masterInc = $candidate;
+		break;
+	}
+	$rp = realpath($candidate);
+	if ($rp !== false && is_readable($rp)) {
+		$masterInc = $rp;
+		break;
+	}
+}
+
+if ($masterInc === '') {
+	$parentOfScripts = dirname($dolibarrRoot);
+	if ($parentOfScripts !== '' && is_dir($parentOfScripts)) {
+		$matches = glob($parentOfScripts.'/*/htdocs/master.inc.php', GLOB_NOSORT);
+		if (is_array($matches)) {
+			foreach ($matches as $f) {
+				if (is_readable($f)) {
+					$masterInc = $f;
+					break;
+				}
+			}
+		}
+	}
+}
+
+if ($masterInc === '') {
+	fwrite(STDERR, "cron_run_jobs.php: Cannot find master.inc.php.\n");
+	fwrite(STDERR, "Tried: ".implode(', ', array_filter(array($dolibarrRoot.'/htdocs/master.inc.php', $dolibarrRoot.'/master.inc.php')))."\n");
+	fwrite(STDERR, "Or set DOLIBARR_MASTER_INC to the full path of master.inc.php.\n");
+	fwrite(STDERR, "Script: ".__FILE__."\n");
+	exit(1);
+}
+
+require_once $masterInc;
 /**
  * @var Conf $conf
  * @var DoliDB $db

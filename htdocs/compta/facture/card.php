@@ -4408,10 +4408,10 @@ if ($action == 'create') {
 			print '</td></tr>';
 		}
 
-		// Payment term
+		// Payment term (filtertype=1 to show all available terms including those with deposit_percent)
 		print '<tr><td class="nowrap fieldrequired">'.$langs->trans('PaymentConditionsShort').'</td><td colspan="2">';
 		print img_picto('', 'payment', 'class="pictofixedwidth"');
-		print $form->getSelectConditionsPaiements((int) $cond_reglement_id, 'cond_reglement_id', -1, 1, 0, 'maxwidth500 widthcentpercentminusx');
+		print $form->getSelectConditionsPaiements((int) $cond_reglement_id, 'cond_reglement_id', 1, 1, 0, 'maxwidth500 widthcentpercentminusx');
 		print '</td></tr>';
 
 		// Warranty
@@ -5416,7 +5416,7 @@ if ($action == 'create') {
 		print '</td><td>';
 		if ($object->type != Facture::TYPE_CREDIT_NOTE) {
 			if ($action == 'editconditions') {
-				$form->form_conditions_reglement($_SERVER['PHP_SELF'].'?facid='.$object->id, (string) $object->cond_reglement_id, 'cond_reglement_id');
+				$form->form_conditions_reglement($_SERVER['PHP_SELF'].'?facid='.$object->id, (string) $object->cond_reglement_id, 'cond_reglement_id', 0, '', 1);
 			} else {
 				$form->form_conditions_reglement($_SERVER['PHP_SELF'].'?facid='.$object->id, (string) $object->cond_reglement_id, 'none');
 			}

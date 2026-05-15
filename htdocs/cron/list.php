@@ -296,8 +296,14 @@ $sql .= " t.nbrun,";
 $sql .= " t.libname,";
 $sql .= " t.test";
 $sql .= " FROM ".MAIN_DB_PREFIX."cronjob as t";
-$sql .= " WHERE entity IN (0,".$conf->entity.")";
-if (!empty($TTestNotAllowed)) {
+// When from module setup or current entity is 0, show all jobs (same as Cronjob::fetch uses getEntity('cron'); entity=0 would otherwise hide entity 1 jobs)
+if ($mode == 'modulesetup' || (int) $conf->entity === 0) {
+	$sql .= " WHERE 1=1";
+} else {
+	$sql .= " WHERE t.entity IN (0,".((int) $conf->entity).")";
+}
+// In modulesetup show all jobs so admins can see and edit them even when test condition fails
+if (!empty($TTestNotAllowed) && $mode != 'modulesetup') {
 	$sql .= ' AND t.rowid NOT IN ('.$db->sanitize(implode(',', $TTestNotAllowed)).')';
 }
 if ($search_status >= 0 && $search_status < 2 && $search_status != '') {
@@ -777,7 +783,7 @@ if ($num > 0) {
 print '</table>';
 print '</div>';
 
-print '</from>';
+print '</form>';
 
 if ($mode == 'modulesetup') {
 	print dol_get_fiche_end();

@@ -31,11 +31,9 @@ require_once DOL_DOCUMENT_ROOT.'/core/lib/admin.lib.php';
 require_once DOL_DOCUMENT_ROOT.'/core/lib/files.lib.php';
 require_once DOL_DOCUMENT_ROOT.'/core/class/html.form.class.php';
 require_once DOL_DOCUMENT_ROOT.'/core/class/html.formadmin.class.php';
-require_once DOL_DOCUMENT_ROOT.'/custom/slycustom/class/langpicker.class.php';
 
 $form = new Form($db);
 $formadmin = new FormAdmin($db);
-/** @var SlyLangPicker $langpicker */
 
 if (!$user->admin) {
 	accessforbidden();
@@ -51,7 +49,7 @@ if (isModEnabled('slycustom')) {
 	$moduleSly->syncDocumentModels();
 	$moduleSly->syncModulePartsModels();
 	$moduleSly->syncMenuPrefixes(); // Ensure Search Order and SLY Exports menu icons in left menu
-		// Sync hook contexts from module descriptor to DB so new contexts (e.g. formfile for "Include sales terms") work without re-enabling module
+		// Sync hook contexts from module descriptor to DB so new contexts (e.g. formfile for "Include sales terms") work without re-enabling the module
 		$descriptorHooks = isset($moduleSly->module_parts['hooks']['data']) && is_array($moduleSly->module_parts['hooks']['data'])
 			? $moduleSly->module_parts['hooks']['data'] : array();
 		$hooksVal = dolibarr_get_const($db, 'MAIN_MODULE_SLYCUSTOM_HOOKS', 0);
@@ -62,28 +60,6 @@ if (isModEnabled('slycustom')) {
 		$merged = array_unique(array_merge($currentArr, $descriptorHooks));
 		if (count($merged) > count($currentArr)) {
 			dolibarr_set_const($db, 'MAIN_MODULE_SLYCUSTOM_HOOKS', json_encode(array_values($merged)), 'chaine', 0, '', 0);
-			setEventMessages($langs->trans("LangPickerHooksUpdated"), null, 'mesgs');
-		}
-		// Ensure langpicker CSS/JS are registered so dropdown works (in case module was enabled before we added them)
-		$cssVal = dolibarr_get_const($db, 'MAIN_MODULE_SLYCUSTOM_CSS', 0);
-		$langpickerCss = array('/custom/slycustom/css/langpicker.css.php');
-		if ($cssVal === false || $cssVal === null || $cssVal === '') {
-			dolibarr_set_const($db, 'MAIN_MODULE_SLYCUSTOM_CSS', json_encode($langpickerCss), 'chaine', 0, '', 0);
-		} else {
-			$cssArr = json_decode($cssVal, true);
-			if (is_array($cssArr) && !in_array($langpickerCss[0], $cssArr)) {
-				dolibarr_set_const($db, 'MAIN_MODULE_SLYCUSTOM_CSS', json_encode(array_values(array_merge($cssArr, $langpickerCss))), 'chaine', 0, '', 0);
-			}
-		}
-		$jsVal = dolibarr_get_const($db, 'MAIN_MODULE_SLYCUSTOM_JS', 0);
-		$langpickerJs = array('/custom/slycustom/js/langpicker.js');
-		if ($jsVal === false || $jsVal === null || $jsVal === '') {
-			dolibarr_set_const($db, 'MAIN_MODULE_SLYCUSTOM_JS', json_encode($langpickerJs), 'chaine', 0, '', 0);
-		} else {
-			$jsArr = json_decode($jsVal, true);
-			if (is_array($jsArr) && !in_array($langpickerJs[0], $jsArr)) {
-				dolibarr_set_const($db, 'MAIN_MODULE_SLYCUSTOM_JS', json_encode(array_values(array_merge($jsArr, $langpickerJs))), 'chaine', 0, '', 0);
-			}
 		}
 	}
 
@@ -164,64 +140,6 @@ if ($action == 'sync_sly_pdf_models') {
 		}
 	}
 	header('Location: '.$_SERVER["PHP_SELF"].'?tab=pdf'.$urlparams_str);
-	exit;
-}
-
-// Language picker: add / up / down / delete
-$langpicker = new SlyLangPicker($db);
-if ($action == 'langpicker_add') {
-	if (GETPOST('token', 'none') === newToken()) {
-		$lang_code = GETPOST('lang_code', 'alphanohtml');
-		if ($lang_code !== '') {
-			$next = $langpicker->getNextPosition();
-			if ($langpicker->create(array('lang_code' => $lang_code, 'position' => $next)) > 0) {
-				setEventMessages($langs->trans("AddLangSuccess"), null, 'mesgs');
-			}
-		}
-	}
-	$action = '';
-}
-if ($action == 'langpicker_up') {
-	$id = GETPOSTINT('id');
-	if ($id > 0 && GETPOST('token', 'none') === newToken()) {
-		$langpicker->up($id);
-	}
-	header('Location: '.$_SERVER["PHP_SELF"].'?tab=langpicker'.$urlparams_str);
-	exit;
-}
-if ($action == 'langpicker_down') {
-	$id = GETPOSTINT('id');
-	if ($id > 0 && GETPOST('token', 'none') === newToken()) {
-		$langpicker->down($id);
-	}
-	header('Location: '.$_SERVER["PHP_SELF"].'?tab=langpicker'.$urlparams_str);
-	exit;
-}
-if ($action == 'langpicker_delete') {
-	$id = GETPOSTINT('id');
-	if ($id > 0 && GETPOST('token', 'none') === newToken()) {
-		$langpicker->deleteWhere('rowid = '.(int) $id);
-		setEventMessages($langs->trans("DeleteLangSuccess"), null, 'mesgs');
-	}
-	header('Location: '.$_SERVER["PHP_SELF"].'?tab=langpicker'.$urlparams_str);
-	exit;
-}
-if ($action == 'update_langpicker' && !GETPOST('cancel', 'alpha') && GETPOST('token', 'none') === newToken()) {
-	dolibarr_set_const($db, 'LANG_PICKER_LOGIN_PAGE_DEFAULT_LANG', GETPOST('LANG_PICKER_LOGIN_PAGE_DEFAULT_LANG', 'alphanohtml'), 'chaine', 0, '', $conf->entity);
-	// LANG_PICKER_HIDDEN (enable/disable) is changed only via Status buttons (LangPickerActivate / LangPickerDisable), not in this form
-	setEventMessages($langs->trans("SetupSaved"), null, 'mesgs');
-	$action = '';
-}
-if ($action == 'langpicker_activate' && GETPOST('token', 'none') === newToken()) {
-	dolibarr_set_const($db, 'LANG_PICKER_HIDDEN', '0', 'chaine', 0, '', $conf->entity);
-	setEventMessages($langs->trans("LangPickerActivated"), null, 'mesgs');
-	header('Location: '.$_SERVER["PHP_SELF"].'?tab=langpicker'.$urlparams_str);
-	exit;
-}
-if ($action == 'langpicker_disable' && GETPOST('token', 'none') === newToken()) {
-	dolibarr_set_const($db, 'LANG_PICKER_HIDDEN', '1', 'chaine', 0, '', $conf->entity);
-	setEventMessages($langs->trans("LangPickerDisabled"), null, 'mesgs');
-	header('Location: '.$_SERVER["PHP_SELF"].'?tab=langpicker'.$urlparams_str);
 	exit;
 }
 
@@ -374,23 +292,23 @@ if ($action == 'update' && !GETPOST('cancel', 'alpha')) {
  * View – tabbed by feature
  */
 $tab = GETPOST('tab', 'aZ09');
-if (!in_array($tab, array('general', 'pdf', 'boxes', 'rubis', 'langpicker'), true)) {
+if (!in_array($tab, array('general', 'pdf', 'boxes', 'rubis'), true)) {
 	$tab = 'general';
 }
 // Ensure module lang is loaded so tab labels are translated
 $langs->load("slycustom@slycustom", 0, 0, '', 0, 1);
 // Tab labels: use trans() and fallback to inline strings when key is not translated (no dependency on file path)
 $tab_fallbacks = array(
-	'en_US' => array('General', 'PDF templates', 'Dashboard', 'Terms & conditions', 'Language picker'),
-	'zh_CN' => array('常规', 'PDF 模板', '仪表盘', '销售条款', '语言选择器'),
+	'en_US' => array('General', 'PDF templates', 'Dashboard', 'Terms & conditions'),
+	'zh_CN' => array('常规', 'PDF 模板', '仪表盘', '销售条款'),
 );
-$tab_keys = array('SLYCUSTOM_TAB_GENERAL', 'SLYCUSTOM_TAB_PDF', 'SLYCUSTOM_TAB_BOXES', 'SLYCUSTOM_TAB_RUBIS', 'SLYCUSTOM_TAB_LANGPICKER');
+$tab_keys = array('SLYCUSTOM_TAB_GENERAL', 'SLYCUSTOM_TAB_PDF', 'SLYCUSTOM_TAB_BOXES', 'SLYCUSTOM_TAB_RUBIS');
 $langcode = (!empty($langs->defaultlang) ? $langs->defaultlang : 'en_US');
 if (!isset($tab_fallbacks[$langcode])) {
 	$langcode = 'en_US';
 }
 $tab_labels = array();
-for ($i = 0; $i < 5; $i++) {
+for ($i = 0; $i < 4; $i++) {
 	$t = $langs->trans($tab_keys[$i]);
 	$tab_labels[$i] = ($t !== $tab_keys[$i] && $t !== '') ? $t : $tab_fallbacks[$langcode][$i];
 }
@@ -401,7 +319,6 @@ $head[0] = array($taburl.'?tab=general', $tab_labels[0], 'general');
 $head[1] = array($taburl.'?tab=pdf', $tab_labels[1], 'pdf');
 $head[2] = array($taburl.'?tab=boxes', $tab_labels[2], 'boxes');
 $head[3] = array($taburl.'?tab=rubis', $tab_labels[3], 'rubis');
-$head[4] = array($taburl.'?tab=langpicker', $tab_labels[4], 'langpicker');
 
 $page_name = "SLYCustomSetup";
 $help_url = '';
@@ -414,7 +331,7 @@ $linkback = '<a href="'.dol_escape_htmltag($backurl).'">'.$langs->trans("BackToM
 print load_fiche_titre($langs->trans($page_name), $linkback, 'title_setup');
 
 // Custom tab bar (always visible; some themes hide dol_get_fiche_head tabs on setup pages)
-$tab_ids = array('general', 'pdf', 'boxes', 'rubis', 'langpicker');
+$tab_ids = array('general', 'pdf', 'boxes', 'rubis');
 print '<!-- SLYCUSTOM_SETUP_TABS_V2 tab=('.dol_escape_htmltag($tab).') -->'."\n";
 print '<div class="slycustom-setup-tabbar" style="margin:10px 0 0 0;padding:0 0 8px 0;border-bottom:1px solid #bbb;clear:both;">'."\n";
 // Escape only < and > for tab labels so "Terms & conditions" displays correctly
@@ -819,95 +736,6 @@ if ($tab == 'rubis') {
 		print '</form>';
 		print '</div>';
 	}
-}
-
-// Tab: Language picker
-if ($tab == 'langpicker') {
-	$langpicker_hidden = getDolGlobalString('LANG_PICKER_HIDDEN', 0);
-	print '<div class="div-table-responsive-no-min">';
-	print '<table class="noborder centpercent">';
-	print '<tr class="liste_titre"><td colspan="2">'.$langs->trans("LangPickerSection").'</td></tr>';
-	print '<tr class="oddeven"><td colspan="2">'.$langs->trans("LangPickerSectionDesc").'</td></tr>';
-	print '<tr class="oddeven"><td class="titlefield">'.$langs->trans("LangPickerStatus").'</td><td>';
-	print '<span class="opacitymedium">'.($langpicker_hidden ? $langs->trans("LangPickerStatusDisabled") : $langs->trans("LangPickerStatusEnabled")).'</span>';
-	print ' <span class="marginleftonly marginrightonly">|</span> ';
-	if ($langpicker_hidden) {
-		print '<a class="butAction" href="'.$_SERVER["PHP_SELF"].'?tab=langpicker&amp;action=langpicker_activate&amp;token='.newToken().$urlparams_str.'">'.$langs->trans("LangPickerActivate").'</a>';
-		print ' <span class="butActionRefused">'.$langs->trans("LangPickerDisable").'</span>';
-	} else {
-		print '<span class="butActionRefused">'.$langs->trans("LangPickerActivate").'</span>';
-		print ' <a class="butAction" href="'.$_SERVER["PHP_SELF"].'?tab=langpicker&amp;action=langpicker_disable&amp;token='.newToken().$urlparams_str.'">'.$langs->trans("LangPickerDisable").'</a>';
-	}
-	print '</td></tr>';
-	if ($action == 'edit_langpicker') {
-		print '<tr><td colspan="2">';
-		print '<form method="POST" action="'.$_SERVER["PHP_SELF"].'">';
-		print '<input type="hidden" name="token" value="'.newToken().'">';
-		print '<input type="hidden" name="action" value="update_langpicker">';
-		print '<input type="hidden" name="tab" value="langpicker">';
-		if ($save_lastsearch_values) {
-			print '<input type="hidden" name="save_lastsearch_values" value="1">';
-		}
-		if ($backtopage !== '' && $backtopage !== null) {
-			print '<input type="hidden" name="backtopage" value="'.dol_escape_htmltag($backtopage).'">';
-		}
-		print '<table class="noborder centpercent">';
-		print '<tr class="liste_titre"><td class="titlefield">'.$langs->trans("Parameter").'</td><td>'.$langs->trans("Value").'</td></tr>';
-		print '<tr class="oddeven"><td>'.$langs->trans("LANG_PICKER_LOGIN_PAGE_DEFAULT_LANG").'</td><td>';
-		print $formadmin->select_language(getDolGlobalString('LANG_PICKER_LOGIN_PAGE_DEFAULT_LANG', 'en_US'), 'LANG_PICKER_LOGIN_PAGE_DEFAULT_LANG', 0, null, '', 0, 0, 'minwidth200');
-		print '</td></tr>';
-		print '</table>';
-		print '<div class="center"><input type="submit" class="button button-save" value="'.$langs->trans("Save").'"> ';
-		print '<input type="submit" name="cancel" class="button button-cancel" value="'.$langs->trans("Cancel").'"></div>';
-		print '</form>';
-		print '</td></tr>';
-	} else {
-		print '<tr class="oddeven"><td>'.$langs->trans("LANG_PICKER_LOGIN_PAGE_DEFAULT_LANG").'</td><td>'.dol_escape_htmltag(getDolGlobalString('LANG_PICKER_LOGIN_PAGE_DEFAULT_LANG', 'en_US')).'</td></tr>';
-		print '<tr><td colspan="2"><a class="butAction" href="'.$_SERVER["PHP_SELF"].'?tab=langpicker&action=edit_langpicker&token='.newToken().$urlparams_str.'">'.$langs->trans("Modify").'</a></td></tr>';
-	}
-	print '</table>';
-	print '</div>';
-
-	print '<br>';
-	print '<div class="div-table-responsive-no-min">';
-	print '<table class="noborder centpercent">';
-	print '<tr class="liste_titre"><td colspan="4">'.$langs->trans("LangPickerLanguages").'</td></tr>';
-	print '<tr><td colspan="4">';
-	print '<form method="POST" action="'.$_SERVER["PHP_SELF"].'" class="inline">';
-	print '<input type="hidden" name="token" value="'.newToken().'">';
-	print '<input type="hidden" name="action" value="langpicker_add">';
-	print '<input type="hidden" name="tab" value="langpicker">';
-	if ($save_lastsearch_values) {
-		print '<input type="hidden" name="save_lastsearch_values" value="1">';
-	}
-	if ($backtopage !== '' && $backtopage !== null) {
-		print '<input type="hidden" name="backtopage" value="'.dol_escape_htmltag($backtopage).'">';
-	}
-	print $langs->trans("Language").' ';
-	print $formadmin->select_language('', 'lang_code', 0, null, $langs->trans("SelectLanguage"));
-	print ' <input type="submit" class="button button-add" value="'.$langs->trans("Add").'">';
-	print '</form>';
-	print '</td></tr>';
-	$langpicker->fetchAll(0, 0, 't.position', 'ASC');
-	if (count($langpicker->lines) > 0) {
-		print '<tr class="liste_titre"><td>'.$langs->trans("Language").'</td><td>'.$langs->trans("LangCode").'</td><td class="center">'.$langs->trans("Position").'</td><td class="right"></td></tr>';
-		$i = 0;
-		$nb = count($langpicker->lines);
-		foreach ($langpicker->lines as $line) {
-			$picto = picto_from_langcode($line->lang_code);
-			$trans = ($line->lang_code == 'auto' ? $langs->trans("AutoDetectLang") : $langs->trans("Language_".$line->lang_code));
-			print '<tr class="oddeven">';
-			print '<td>'.$picto.' '.$trans.'</td><td>'.dol_escape_htmltag($line->lang_code).'</td><td class="center">';
-			$up = $i > 0 ? '<a href="'.$_SERVER["PHP_SELF"].'?tab=langpicker&action=langpicker_up&id='.$line->id.'&token='.newToken().$urlparams_str.'">'.img_up('default', 0, 'imgupforline').'</a>' : '';
-			$down = $i < $nb - 1 ? '<a href="'.$_SERVER["PHP_SELF"].'?tab=langpicker&action=langpicker_down&id='.$line->id.'&token='.newToken().$urlparams_str.'">'.img_down('default', 0, 'imgdownforline').'</a>' : '';
-			print $up.' '.$down.'</td><td class="right">';
-			print '<a href="'.$_SERVER["PHP_SELF"].'?tab=langpicker&action=langpicker_delete&id='.$line->id.'&token='.newToken().$urlparams_str.'" class="reposition">'.img_delete($langs->trans("Delete")).'</a>';
-			print '</td></tr>';
-			$i++;
-		}
-	}
-	print '</table>';
-	print '</div>';
 }
 
 print dol_get_fiche_end(0);

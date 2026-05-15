@@ -360,9 +360,10 @@ if ($object->id > 0) {
 	print '</tr></table>';
 	print '</td><td>';
 	if ($action == 'editconditions') {
-		$form->form_conditions_reglement($_SERVER['PHP_SELF'].'?socid='.$object->id, (string) $object->cond_reglement_supplier_id, 'cond_reglement_supplier_id', 1);
+		// filtertype=1 so all payment terms from dictionary are shown (same as customer); filtertype<=0 would exclude terms with deposit_percent
+		$form->form_conditions_reglement($_SERVER['PHP_SELF'].'?socid='.$object->id, (string) $object->cond_reglement_supplier_id, 'cond_reglement_supplier_id', 1, '', 1);
 	} else {
-		$form->form_conditions_reglement($_SERVER['PHP_SELF'].'?socid='.$object->id, (string) $object->cond_reglement_supplier_id, 'none');
+		$form->form_conditions_reglement($_SERVER['PHP_SELF'].'?socid='.$object->id, (string) $object->cond_reglement_supplier_id, 'none', 0, '', 1);
 	}
 	print "</td>";
 	print '</tr>';
@@ -495,6 +496,18 @@ if ($object->id > 0) {
 	print '<div class="underbanner underbanner-before-box clearboth"></div>';
 	print '<br>';
 
+	// Multicurrency display for summary boxes and discount: use third party default currency when set
+	$boxstat_currency = $conf->currency;
+	$boxstat_rate = 1;
+	if (isModEnabled('multicurrency') && !empty($object->multicurrency_code) && $object->multicurrency_code != $conf->currency) {
+		require_once DOL_DOCUMENT_ROOT.'/multicurrency/class/multicurrency.class.php';
+		$tmparray = MultiCurrency::getIdAndTxFromCode($db, $object->multicurrency_code);
+		if (!empty($tmparray[1]) && (float) $tmparray[1] > 0) {
+			$boxstat_currency = $object->multicurrency_code;
+			$boxstat_rate = (float) $tmparray[1];
+		}
+	}
+
 	// Summary link
 	$boxstat .= '<div class="box divboxtable box-halfright">';
 	$boxstat .= '<table summary="'.dol_escape_htmltag($langs->trans("DolibarrStateBoard")).'" class="border boxtable boxtablenobottom boxtablenotop" width="100%">';
@@ -514,7 +527,7 @@ if ($object->id > 0) {
 		}
 		$boxstat .= '<div class="boxstats" title="'.dol_escape_htmltag($text).'">';
 		$boxstat .= '<span class="boxstatstext">'.img_object("", $icon).' <span>'.$text.'</span></span><br>';
-		$boxstat .= '<span class="boxstatsindicator">'.price($outstandingTotal, 1, $langs, 1, -1, -1, $conf->currency).'</span>';
+		$boxstat .= '<span class="boxstatsindicator">'.price(price2num($outstandingTotal * $boxstat_rate, 'MT'), 1, $langs, 1, -1, -1, $boxstat_currency).'</span>';
 		$boxstat .= '</div>';
 		if ($link) {
 			$boxstat .= '</a>';
@@ -535,7 +548,7 @@ if ($object->id > 0) {
 		}
 		$boxstat .= '<div class="boxstats" title="'.dol_escape_htmltag($text).'">';
 		$boxstat .= '<span class="boxstatstext">'.img_object("", $icon).' <span>'.$text.'</span></span><br>';
-		$boxstat .= '<span class="boxstatsindicator">'.price($outstandingTotal, 1, $langs, 1, -1, -1, $conf->currency).'</span>';
+		$boxstat .= '<span class="boxstatsindicator">'.price(price2num($outstandingTotal * $boxstat_rate, 'MT'), 1, $langs, 1, -1, -1, $boxstat_currency).'</span>';
 		$boxstat .= '</div>';
 		if ($link) {
 			$boxstat .= '</a>';
@@ -589,7 +602,7 @@ if ($object->id > 0) {
 			}
 			$boxstat .= '<div class="boxstats" title="'.dol_escape_htmltag($text).'">';
 			$boxstat .= '<span class="boxstatstext">'.img_object("", $icon).' <span>'.$text.'</span></span><br>';
-			$boxstat .= '<span class="boxstatsindicator'.($outstandingOpenedLate > 0 ? ' amountremaintopay' : '').'">'.price($outstandingOpenedLate, 1, $langs, 1, -1, -1, $conf->currency).$warn.'</span>';
+			$boxstat .= '<span class="boxstatsindicator'.($outstandingOpenedLate > 0 ? ' amountremaintopay' : '').'">'.price(price2num($outstandingOpenedLate * $boxstat_rate, 'MT'), 1, $langs, 1, -1, -1, $boxstat_currency).$warn.'</span>';
 			$boxstat .= '</div>';
 			if ($link) {
 				$boxstat .= '</a>';

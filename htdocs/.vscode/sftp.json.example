@@ -1,0 +1,74 @@
+{
+	"name": "SLY Dolibarr",
+	"defaultProfile": "test",
+	"profiles": {
+		"test": {
+			"name": "SLY Doli-Test",
+			"context": ".",
+			"host": "YOUR_TEST_FTP_HOST",
+			"protocol": "ftp",
+			"port": 21,
+			"username": "YOUR_FTP_USERNAME",
+			"password": "YOUR_FTP_PASSWORD",
+			"remotePath": "/",
+			"uploadOnSave": true,
+			"watcher": {
+				"files": "**/*",
+				"autoUpload": true,
+				"autoDelete": true
+			},
+			"ignore": [
+				"**/documents/**",
+				"**/conf/conf.php",
+				"**/install/**",
+				".git/**",
+				".vscode/**",
+				".cursor/**",
+				"*.log",
+				"backup.sql",
+				"**/sftp.json",
+				".DS_Store",
+				".github/**",
+				".phan/**",
+				".tx/**"
+			],
+			"concurrency": 5,
+			"useTempFile": false,
+			"skipNewer": false
+		},
+		"production": {
+			"name": "SLY 运行服务器",
+			"context": ".",
+			"host": "YOUR_PRODUCTION_FTP_HOST",
+			"protocol": "ftp",
+			"port": 21,
+			"username": "YOUR_FTP_USERNAME",
+			"password": "YOUR_FTP_PASSWORD",
+			"remotePath": "/",
+			"uploadOnSave": false,
+			"watcher": {
+				"files": "**/*",
+				"autoUpload": false,
+				"autoDelete": false
+			},
+			"ignore": [
+				"**/documents/**",
+				"**/conf/conf.php",
+				"**/install/**",
+				".git/**",
+				".vscode/**",
+				".cursor/**",
+				"*.log",
+				"backup.sql",
+				"**/sftp.json",
+				".DS_Store",
+				".github/**",
+				".phan/**",
+				".tx/**"
+			],
+			"concurrency": 5,
+			"useTempFile": false,
+			"skipNewer": false
+		}
+	}
+}

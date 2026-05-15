@@ -558,7 +558,17 @@ if ($object->id > 0) {
 			dol_print_error($db, $object->error);
 		}
 		if ($amount_discount > 0) {
-			print '<a href="'.DOL_URL_ROOT.'/comm/remx.php?id='.$object->id.'&backtopage='.urlencode($_SERVER["PHP_SELF"].'?socid='.$object->id).'&action=create&token='.newToken().'">'.price($amount_discount, 1, $langs, 1, -1, -1, $conf->currency).'</a>';
+			$discount_display_currency = $conf->currency;
+			$discount_display_amount = $amount_discount;
+			if ($isCustomer && isModEnabled('multicurrency') && !empty($object->multicurrency_code) && $object->multicurrency_code != $conf->currency) {
+				require_once DOL_DOCUMENT_ROOT.'/multicurrency/class/multicurrency.class.php';
+				$tmparray = MultiCurrency::getIdAndTxFromCode($db, $object->multicurrency_code);
+				if (!empty($tmparray[1]) && (float) $tmparray[1] > 0) {
+					$discount_display_currency = $object->multicurrency_code;
+					$discount_display_amount = price2num($amount_discount * (float) $tmparray[1], 'MT');
+				}
+			}
+			print '<a href="'.DOL_URL_ROOT.'/comm/remx.php?id='.$object->id.'&backtopage='.urlencode($_SERVER["PHP_SELF"].'?socid='.$object->id).'&action=create&token='.newToken().'">'.price($discount_display_amount, 1, $langs, 1, -1, -1, $discount_display_currency).'</a>';
 		}
 		//else print $langs->trans("DiscountNone");
 		print '</td>';
@@ -761,6 +771,18 @@ if ($object->id > 0) {
 
 	$boxstat = '';
 
+	// Multicurrency display for summary boxes and discount: use third party default currency when set
+	$boxstat_currency = $conf->currency;
+	$boxstat_rate = 1;
+	if ($isCustomer && isModEnabled('multicurrency') && !empty($object->multicurrency_code) && $object->multicurrency_code != $conf->currency) {
+		require_once DOL_DOCUMENT_ROOT.'/multicurrency/class/multicurrency.class.php';
+		$tmparray = MultiCurrency::getIdAndTxFromCode($db, $object->multicurrency_code);
+		if (!empty($tmparray[1]) && (float) $tmparray[1] > 0) {
+			$boxstat_currency = $object->multicurrency_code;
+			$boxstat_rate = (float) $tmparray[1];
+		}
+	}
+
 	// Max nb of elements in lists
 	$MAXLIST = getDolGlobalString('MAIN_SIZE_SHORTLIST_LIMIT');
 
@@ -783,7 +805,7 @@ if ($object->id > 0) {
 		}
 		$boxstat .= '<div class="boxstats" title="'.dol_escape_htmltag($text).'">';
 		$boxstat .= '<span class="boxstatstext">'.img_object("", $icon).' <span>'.$text.'</span></span><br>';
-		$boxstat .= '<span class="boxstatsindicator">'.price($outstandingTotal, 1, $langs, 1, -1, -1, $conf->currency).'</span>';
+		$boxstat .= '<span class="boxstatsindicator">'.price(price2num($outstandingTotal * $boxstat_rate, 'MT'), 1, $langs, 1, -1, -1, $boxstat_currency).'</span>';
 		$boxstat .= '</div>';
 		if ($link) {
 			$boxstat .= '</a>';
@@ -804,7 +826,7 @@ if ($object->id > 0) {
 		}
 		$boxstat .= '<div class="boxstats" title="'.dol_escape_htmltag($text).'">';
 		$boxstat .= '<span class="boxstatstext">'.img_object("", $icon).' <span>'.$text.'</span></span><br>';
-		$boxstat .= '<span class="boxstatsindicator">'.price($outstandingTotal, 1, $langs, 1, -1, -1, $conf->currency).'</span>';
+		$boxstat .= '<span class="boxstatsindicator">'.price(price2num($outstandingTotal * $boxstat_rate, 'MT'), 1, $langs, 1, -1, -1, $boxstat_currency).'</span>';
 		$boxstat .= '</div>';
 		if ($link) {
 			$boxstat .= '</a>';
@@ -826,7 +848,7 @@ if ($object->id > 0) {
 		}
 		$boxstat .= '<div class="boxstats" title="'.dol_escape_htmltag($text).'">';
 		$boxstat .= '<span class="boxstatstext">'.img_object("", $icon).' <span>'.$text.'</span></span><br>';
-		$boxstat .= '<span class="boxstatsindicator">'.price($outstandingTotal, 1, $langs, 1, -1, -1, $conf->currency).'</span>';
+		$boxstat .= '<span class="boxstatsindicator">'.price(price2num($outstandingTotal * $boxstat_rate, 'MT'), 1, $langs, 1, -1, -1, $boxstat_currency).'</span>';
 		$boxstat .= '</div>';
 		if ($link) {
 			$boxstat .= '</a>';
@@ -845,7 +867,7 @@ if ($object->id > 0) {
 		}
 		$boxstat .= '<div class="boxstats" title="'.dol_escape_htmltag($text).'">';
 		$boxstat .= '<span class="boxstatstext">'.img_object("", $icon).' <span>'.$text.'</span></span><br>';
-		$boxstat .= '<span class="boxstatsindicator'.($outstandingOpened > 0 ? ' amountremaintopay' : '').'">'.price($outstandingOpened, 1, $langs, 1, -1, -1, $conf->currency).$warn.'</span>';
+		$boxstat .= '<span class="boxstatsindicator'.($outstandingOpened > 0 ? ' amountremaintopay' : '').'">'.price(price2num($outstandingOpened * $boxstat_rate, 'MT'), 1, $langs, 1, -1, -1, $boxstat_currency).$warn.'</span>';
 		$boxstat .= '</div>';
 		if ($link) {
 			$boxstat .= '</a>';
@@ -866,7 +888,7 @@ if ($object->id > 0) {
 			}
 			$boxstat .= '<div class="boxstats" title="'.dol_escape_htmltag($text).'">';
 			$boxstat .= '<span class="boxstatstext">'.img_object("", $icon).' <span>'.$text.'</span></span><br>';
-			$boxstat .= '<span class="boxstatsindicator'.($outstandingOpenedLate > 0 ? ' amountremaintopay' : '').'">'.price($outstandingOpenedLate, 1, $langs, 1, -1, -1, $conf->currency).$warn.'</span>';
+			$boxstat .= '<span class="boxstatsindicator'.($outstandingOpenedLate > 0 ? ' amountremaintopay' : '').'">'.price(price2num($outstandingOpenedLate * $boxstat_rate, 'MT'), 1, $langs, 1, -1, -1, $boxstat_currency).$warn.'</span>';
 			$boxstat .= '</div>';
 			if ($link) {
 				$boxstat .= '</a>';

@@ -15,7 +15,7 @@
 # 1. 核心（货币符号）
 git apply --ignore-whitespace htdocs/custom/slycustom/patches/sly22.0-core-price-symbol.patch
 
-# 1b. 左侧菜单三级结构：父节点只取第一个匹配（sly_export → sly_export_all → 5 个详情）
+# 1b. Tools 侧栏：`sly_export`（SLY Export）→ `sly_export_invoices`（SLY Invoices：一站式 + 5 个行明细入口）、`sly_export_cashflow`（SLY Payments planning：待收/待付/定金等）
 git apply --ignore-whitespace htdocs/custom/slycustom/patches/sly22.0-menu-parent-match.patch
 
 # 2. 客户付款列表 arrayfields
@@ -107,6 +107,8 @@ git apply --ignore-whitespace htdocs/custom/slycustom/patches/sly22.0-comm-propa
 ```
 
 **数据库**：另需执行一次 **sly22.0-expedition-extrafields.sql**（ShipsGo 扩展表），见下方「数据库（22.0）」小节。
+
+（可选，但建议）执行 **sly22.0-facture-so-inv-extrafields.sql**：为 SO/PO Invoice Details 导出使用的 invoice extrafield 列提供 schema（Date_Cust_Pay/…/Remark）。
 
 **说明**：**accountancy** 按约定不移植；admin/API 已从 14.0 补丁按逻辑移植到 22.0 并生成上述补丁。**其它模块**（adherents、contact、product、societe 等）因 22.0 与 14.0 差异大，**sly14.0-other-modules.patch** 无法整体 apply，需按 **CORE-CUSTOMIZATIONS-FULL-LIST.md** §2.11 逐文件参考移植。**语言包**：已生成 **sly22.0-langs.patch**（由 sly14.0-langs.patch 去掉 22.0 不存在的 4 个 zh_CN 文件后应用并解决冲突得到）。在 22.0 上应用步骤 13；若出现冲突，保留 SLY 翻译段后保存并 `git add htdocs/langs/`。
 

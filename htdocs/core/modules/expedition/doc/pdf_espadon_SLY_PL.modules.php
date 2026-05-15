@@ -21,7 +21,7 @@
  */
 
 /**
- *	\file       htdocs/custom/slycustom/core/modules/expedition/doc/pdf_espadon_SLY_PL.modules.php
+ *	\file       htdocs/core/modules/expedition/doc/pdf_espadon.modules.php
  *	\ingroup    expedition
  *	\brief      Class file allowing Espadons shipping template generation
  */
@@ -30,7 +30,6 @@ require_once DOL_DOCUMENT_ROOT.'/core/modules/expedition/modules_expedition.php'
 require_once DOL_DOCUMENT_ROOT.'/core/lib/company.lib.php';
 require_once DOL_DOCUMENT_ROOT.'/core/lib/pdf.lib.php';
 require_once DOL_DOCUMENT_ROOT.'/core/lib/functions2.lib.php';
-require_once DOL_DOCUMENT_ROOT.'/contact/class/contact.class.php';
 
 /**
  *	Class to build sending documents with model espadon
@@ -179,14 +178,14 @@ class pdf_espadon_SLY_PL extends ModelePdfExpedition
 		}
 
 		// Load traductions files required by page
-		$outputlangs->loadLangs(array("main", "bills", "orders", "products", "dict", "companies", "propal", "deliveries", "sendings", "productbatch", "slycustom@slycustom"));
+		$outputlangs->loadLangs(array("main", "bills", "orders", "products", "dict", "companies", "propal", "deliveries", "sendings", "productbatch"));
 
 		global $outputlangsbis;
 		$outputlangsbis = null;
 		if (!empty($conf->global->PDF_USE_ALSO_LANGUAGE_CODE) && $outputlangs->defaultlang != $conf->global->PDF_USE_ALSO_LANGUAGE_CODE) {
 			$outputlangsbis = new Translate('', $conf);
 			$outputlangsbis->setDefaultLang($conf->global->PDF_USE_ALSO_LANGUAGE_CODE);
-			$outputlangsbis->loadLangs(array("main", "bills", "orders", "products", "dict", "companies", "propal", "deliveries", "sendings", "productbatch", "slycustom@slycustom"));
+			$outputlangsbis->loadLangs(array("main", "bills", "orders", "products", "dict", "companies", "propal", "deliveries", "sendings", "productbatch"));
 		}
 
 		$nblines = count($object->lines);
@@ -302,10 +301,10 @@ class pdf_espadon_SLY_PL extends ModelePdfExpedition
 				}
 
 				$pdf->SetTitle($outputlangs->convToOutputCharset($object->ref));
-				$pdf->SetSubject($outputlangs->transnoentities("SLYPackingListPDFTitle"));
+				$pdf->SetSubject($outputlangs->transnoentities("Shipment"));
 				$pdf->SetCreator("Dolibarr ".DOL_VERSION);
 				$pdf->SetAuthor($outputlangs->convToOutputCharset($user->getFullName($outputlangs)));
-				$pdf->SetKeyWords($outputlangs->convToOutputCharset($object->ref)." ".$outputlangs->transnoentities("SLYPackingListPDFTitle"));
+				$pdf->SetKeyWords($outputlangs->convToOutputCharset($object->ref)." ".$outputlangs->transnoentities("Shipment"));
 				if (!empty($conf->global->MAIN_DISABLE_PDF_COMPRESSION)) {
 					$pdf->SetCompression(false);
 				}
@@ -564,9 +563,7 @@ class pdf_espadon_SLY_PL extends ModelePdfExpedition
 					}
 					//Gross Weight. SLY 2021.8.27
 					if ($this->getColumnStatus('weight_gross')) {
-						$grossRaw = isset($object->lines[$i]->array_options['options_grossweight']) ? $object->lines[$i]->array_options['options_grossweight'] : '';
-						$grossFormatted = ($grossRaw !== '' && $grossRaw !== null) ? price((float) $grossRaw, 0, '', 1, 3) : '';
-						$this->printStdColumnContent($pdf, $curY, 'weight_gross', $grossFormatted);
+						$this->printStdColumnContent($pdf, $curY, 'weight_gross', $this->getExtrafieldContent($object->lines[$i], 'grossweight'));
 						$nexY = max($pdf->GetY(), $nexY);
 					}
 					//Qty Cartons. SLY 2021.8.27
@@ -781,9 +778,7 @@ class pdf_espadon_SLY_PL extends ModelePdfExpedition
 		}
 
 		if ($this->getColumnStatus('weight_gross')) {
-		    $grossTotalRaw = isset($object->array_options['options_totalgrossweight']) ? $object->array_options['options_totalgrossweight'] : '';
-		    $grossTotalFormatted = ($grossTotalRaw !== '' && $grossTotalRaw !== null) ? price((float) $grossTotalRaw, 0, '', 1, 3) : '';
-		    $this->printStdColumnContent($pdf, $tab2_top, 'weight_gross', $grossTotalFormatted);
+		    $this->printStdColumnContent($pdf, $tab2_top, 'weight_gross', $this->getExtrafieldContent($object, 'totalgrossweight'));
 		}
 		
 		if ($this->getColumnStatus('qty_carton')) {
@@ -930,7 +925,7 @@ class pdf_espadon_SLY_PL extends ModelePdfExpedition
 		$pdf->SetFont('', 'B', $default_font_size + 2);
 		$pdf->SetXY($posx, $posy);
 		$pdf->SetTextColor(0, 0, 60);
-		$title = $outputlangs->transnoentities("SLYPackingListPDFTitle");
+		$title = $outputlangs->transnoentities("SendingSheet");
 		$pdf->MultiCell($w, 4, $title, '', 'R');
 
 		$pdf->SetFont('', '', $default_font_size + 1);
@@ -964,7 +959,6 @@ class pdf_espadon_SLY_PL extends ModelePdfExpedition
 		// Add list of linked orders
 		$origin = $object->origin;
 		$origin_id = $object->origin_id;
-		$object->fetch_origin(); // Load origin_object so recipient = customer shipping contact (third-party)
 
 		// TODO move to external function
 		if (!empty($conf->$origin->enabled)) {     // commonly $origin='commande'
@@ -997,8 +991,8 @@ class pdf_espadon_SLY_PL extends ModelePdfExpedition
 			$arrayidcontact = array();
 
 			if (!empty($conf->global->DOC_SHOW_FIRST_SALES_REP)) {	//show internal sales rep if allowed. added by SLY 2020.12.27
-				if (!empty($origin) && is_object($object->origin_object)) {
-					$arrayidcontact = $object->origin_object->getIdContact('internal', 'SALESREPFOLL');
+				if (!empty($origin) && is_object($object->$origin)) {
+					$arrayidcontact = $object->$origin->getIdContact('internal', 'SALESREPFOLL');
 				}
 			}
 			if (is_array($arrayidcontact) && count($arrayidcontact) > 0) {
@@ -1041,31 +1035,24 @@ class pdf_espadon_SLY_PL extends ModelePdfExpedition
 			$pdf->MultiCell($widthrecbox - 2, 4, $carac_emetteur, 0, 'L');
 
 
-			// Recipient = third-party contact/address — Customer shipping contact (from source order). Use local contact so we don't alter $object->contact (card page must keep original third party).
+			// If SHIPPING contact defined, we use it
 			$usecontact = false;
-			$recipientContact = null;
-			if (!empty($origin) && is_object($object->origin_object)) {
-				$arrayidcontact = $object->origin_object->getIdContact('external', 'SHIPPING');
-				if (is_array($arrayidcontact) && count($arrayidcontact) > 0) {
-					$recipientContact = new Contact($this->db);
-					if ($recipientContact->fetch($arrayidcontact[0]) > 0) {
-						$usecontact = true;
-					} else {
-						$recipientContact = null;
-					}
-				}
+			$arrayidcontact = $object->$origin->getIdContact('external', 'SHIPPING');
+			if (count($arrayidcontact) > 0) {
+				$usecontact = true;
+				$result = $object->fetch_contact($arrayidcontact[0]);
 			}
 
 			// Recipient name
-			if ($usecontact && $recipientContact && ($recipientContact->socid != $object->thirdparty->id && (!isset($conf->global->MAIN_USE_COMPANY_NAME_OF_CONTACT) || !empty($conf->global->MAIN_USE_COMPANY_NAME_OF_CONTACT)))) {
-				$thirdparty = $recipientContact;
+			if ($usecontact && ($object->contact->socid != $object->thirdparty->id && (!isset($conf->global->MAIN_USE_COMPANY_NAME_OF_CONTACT) || !empty($conf->global->MAIN_USE_COMPANY_NAME_OF_CONTACT)))) {
+				$thirdparty = $object->contact;
 			} else {
 				$thirdparty = $object->thirdparty;
 			}
 
 			$carac_client_name = pdfBuildThirdpartyName($thirdparty, $outputlangs);
 
-			$carac_client = pdf_build_address($outputlangs, $this->emetteur, $object->thirdparty, $recipientContact, $usecontact, 'targetwithdetails', $object);
+			$carac_client = pdf_build_address($outputlangs, $this->emetteur, $object->thirdparty, (!empty($object->contact) ? $object->contact : null), $usecontact, 'targetwithdetails', $object);
 
 			// Show recipient
 			$widthrecbox = !empty($conf->global->MAIN_PDF_USE_ISO_LOCATION) ? 92 : 100;

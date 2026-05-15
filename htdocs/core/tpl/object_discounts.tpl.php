@@ -59,6 +59,38 @@ if (empty($absolute_creditnote)) {
 	$absolute_creditnote = 0;
 }
 
+// Multicurrency display: use document or third party currency for discount amounts
+$display_currency = $conf->currency;
+$display_absolute_discount = $absolute_discount;
+$display_absolute_creditnote = $absolute_creditnote;
+if (isModEnabled('multicurrency')) {
+	require_once DOL_DOCUMENT_ROOT.'/multicurrency/class/multicurrency.class.php';
+	$dbtmp = isset($object->db) ? $object->db : $db;
+	$multicurrency_tx = 0;
+	if (!empty($object->multicurrency_code) && $object->multicurrency_code != $conf->currency) {
+		if (!empty($object->multicurrency_tx) && (float) $object->multicurrency_tx > 0) {
+			$multicurrency_tx = (float) $object->multicurrency_tx;
+		} else {
+			$tmparray = MultiCurrency::getIdAndTxFromCode($dbtmp, $object->multicurrency_code, !empty($object->date) ? $object->date : 0);
+			$multicurrency_tx = !empty($tmparray[1]) ? (float) $tmparray[1] : 0;
+		}
+		if ($multicurrency_tx > 0) {
+			$display_currency = $object->multicurrency_code;
+			$display_absolute_discount = price2num($absolute_discount * $multicurrency_tx, 'MT');
+			$display_absolute_creditnote = price2num($absolute_creditnote * $multicurrency_tx, 'MT');
+		}
+	}
+	if ($display_currency == $conf->currency && !empty($thirdparty->multicurrency_code) && $thirdparty->multicurrency_code != $conf->currency) {
+		$dbtmp = isset($thirdparty->db) ? $thirdparty->db : $db;
+		$tmparray = MultiCurrency::getIdAndTxFromCode($dbtmp, $thirdparty->multicurrency_code);
+		if (!empty($tmparray[1]) && (float) $tmparray[1] > 0) {
+			$display_currency = $thirdparty->multicurrency_code;
+			$multicurrency_tx = (float) $tmparray[1];
+			$display_absolute_discount = price2num($absolute_discount * $multicurrency_tx, 'MT');
+			$display_absolute_creditnote = price2num($absolute_creditnote * $multicurrency_tx, 'MT');
+		}
+	}
+}
 
 // Relative and absolute discounts
 $addrelativediscount = '<a class="editfielda" href="'.DOL_URL_ROOT.'/comm/remise.php?id='.((int) $thirdparty->id).'&backtopage='.urlencode($backtopage).'&action=create&token='.newToken().(!empty($discount_type) ? '&discount_type=1' : '').'">'.img_edit($langs->trans("EditRelativeDiscount")).'</a>';
@@ -92,10 +124,10 @@ if ($absolute_discount > 0) {
 		// On create form with form action: show dropdown so user can select discount (will be applied after invoice is created)
 		if ($isNewObject && $isInvoice && !empty($discount_form_action)) {
 			$more = $addabsolutediscount;
-			$form->form_remise_dispo($discount_form_action, GETPOSTINT('discountid'), 'remise_id', $thirdparty->id, $absolute_discount, isset($filterabsolutediscount) ? $filterabsolutediscount : '', 0, $more, 0, $discount_type);
+			$form->form_remise_dispo($discount_form_action, GETPOSTINT('discountid'), 'remise_id', $thirdparty->id, $absolute_discount, isset($filterabsolutediscount) ? $filterabsolutediscount : '', 0, $more, 0, $discount_type, $display_absolute_discount, $display_currency);
 		} else {
 			$translationKey = empty($discount_type) ? 'CompanyHasDownPaymentOrCommercialDiscount' : 'HasDownPaymentOrCommercialDiscountFromSupplier';
-			$text = $langs->trans($translationKey, price($absolute_discount, 0, $langs, 1, -1, -1, $conf->currency));
+			$text = $langs->trans($translationKey, price($display_absolute_discount, 0, $langs, 1, -1, -1, $display_currency));
 
 			if ($isInvoice && !$isNewObject && $object->statut > $objclassname::STATUS_DRAFT && $object->type != $objclassname::TYPE_CREDIT_NOTE && $object->type != $objclassname::TYPE_DEPOSIT) {
 				$text = $form->textwithpicto($text, $langs->trans('AbsoluteDiscountUse'));
@@ -114,7 +146,7 @@ if ($absolute_discount > 0) {
 		// Discount available of type fixed amount (not credit note)
 		$more = $addabsolutediscount;
 		// TODO: Check $resteapayer - is '$maxvalue' in form_remise_dispo()
-		$form->form_remise_dispo($_SERVER["PHP_SELF"].'?facid='.$object->id, GETPOSTINT('discountid'), 'remise_id', $thirdparty->id, $absolute_discount, $filterabsolutediscount, $resteapayer, $more, 0, $discount_type);
+		$form->form_remise_dispo($_SERVER["PHP_SELF"].'?facid='.$object->id, GETPOSTINT('discountid'), 'remise_id', $thirdparty->id, $absolute_discount, $filterabsolutediscount, $resteapayer, $more, 0, $discount_type, $display_absolute_discount, $display_currency);
 	}
 }
 
@@ -125,7 +157,7 @@ if ($absolute_creditnote > 0) {
 	// Show credit note dropdown only in draft (same as deposit/commercial discount)
 	if (!empty($cannotApplyDiscount) || !$isInvoice || $isNewObject || $object->statut > $objclassname::STATUS_DRAFT || $object->type == $objclassname::TYPE_CREDIT_NOTE) {
 		$translationKey = empty($discount_type) ? 'CompanyHasCreditNote' : 'HasCreditNoteFromSupplier';
-		$text = $langs->trans($translationKey, price($absolute_creditnote, 0, $langs, 1, -1, -1, $conf->currency));
+		$text = $langs->trans($translationKey, price($display_absolute_creditnote, 0, $langs, 1, -1, -1, $display_currency));
 
 		if ($isInvoice && !$isNewObject && $object->statut == $objclassname::STATUS_DRAFT && $object->type != $objclassname::TYPE_DEPOSIT) {
 			$text = $form->textwithpicto($text, $langs->trans('CreditNoteDepositUse'));
@@ -147,7 +179,7 @@ if ($absolute_creditnote > 0) {
 		// There is credit notes discounts available; preselect discount from same order as current invoice when set by caller (e.g. facture card)
 		$selected_credit = isset($preselected_remise_id_for_payment) ? (int) $preselected_remise_id_for_payment : 0;
 		$more = $isInvoice && !$isNewObject ? ' ('.$viewabsolutediscount.')' : '';
-		$form->form_remise_dispo($_SERVER["PHP_SELF"].'?facid='.$object->id, $selected_credit, 'remise_id_for_payment', $thirdparty->id, $absolute_creditnote, $filtercreditnote, 0, $more, 0, $discount_type); // We allow credit note even if amount is higher
+		$form->form_remise_dispo($_SERVER["PHP_SELF"].'?facid='.$object->id, $selected_credit, 'remise_id_for_payment', $thirdparty->id, $absolute_creditnote, $filtercreditnote, 0, $more, 0, $discount_type, $display_absolute_creditnote, $display_currency); // We allow credit note even if amount is higher
 	}
 }
 

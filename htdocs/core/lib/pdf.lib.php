@@ -206,6 +206,14 @@ function pdf_getInstance($format = '', $metric = 'mm', $pagetype = 'P')
 
 		// For TCPDF, we specify permission we want to block
 		$pdfrights = (getDolGlobalString('PDF_SECURITY_ENCRYPTION_RIGHTS') ? json_decode(getDolGlobalString('PDF_SECURITY_ENCRYPTION_RIGHTS'), true) : array('modify', 'copy')); // Json format in llx_const
+		// Be robust against invalid config (int/string instead of array) to avoid TCPDF foreach warnings
+		if (!is_array($pdfrights)) {
+			if (is_string($pdfrights) && $pdfrights !== '') {
+				$pdfrights = array($pdfrights);
+			} else {
+				$pdfrights = array('modify', 'copy');
+			}
+		}
 
 		// Password for the end user
 		$pdfuserpass = getDolGlobalString('PDF_SECURITY_ENCRYPTION_USERPASS');
@@ -219,6 +227,18 @@ function pdf_getInstance($format = '', $metric = 'mm', $pagetype = 'P')
 		// Array of recipients containing public-key certificates ('c') and permissions ('p').
 		// For example: array(array('c' => 'file://../examples/data/cert/tcpdf.crt', 'p' => array('print')))
 		$pubkeys = (getDolGlobalString('PDF_SECURITY_ENCRYPTION_PUBKEYS') ? json_decode(getDolGlobalString('PDF_SECURITY_ENCRYPTION_PUBKEYS'), true) : null); // Json format in llx_const
+		// Normalize badly formatted 'p' values to arrays so TCPDF_STATIC::getUserPermissionCode() always receives array|object
+		if (is_array($pubkeys)) {
+			foreach ($pubkeys as $k => $pk) {
+				if (isset($pk['p']) && !is_array($pk['p'])) {
+					if ($pk['p'] === null || $pk['p'] === '') {
+						unset($pubkeys[$k]['p']);
+					} else {
+						$pubkeys[$k]['p'] = array($pk['p']);
+					}
+				}
+			}
+		}
 
 		$pdf->SetProtection($pdfrights, $pdfuserpass, $pdfownerpass, $encstrength, $pubkeys);
 	}
