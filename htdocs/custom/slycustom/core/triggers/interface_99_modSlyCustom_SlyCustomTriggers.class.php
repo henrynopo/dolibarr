@@ -113,22 +113,37 @@ class InterfaceSlyCustomTriggers extends DolibarrTriggers
 				$lastOrder = end($object->linkedObjects['commande']);
 				$so_ref = $lastOrder->ref ?? '';
 			}
-			$object->fetch_delivery_methods();
-			$ShippingLine = isset($object->meths[$object->shipping_method_id]) ? $object->meths[$object->shipping_method_id] : '';
+			// v2 API requires carrier code from c_shipment_mode.code, not translated label from meths
+			$ShippingLine = '';
+			$sqlsm = "SELECT code FROM ".MAIN_DB_PREFIX."c_shipment_mode WHERE rowid = ".(int) $object->shipping_method_id;
+			$resm = $this->db->query($sqlsm);
+			if ($resm && $rowm = $this->db->fetch_object($resm)) {
+				$ShippingLine = $rowm->code ?? '';
+			}
 			$email = !empty($user->email) ? $user->email : '';
 			$Referance = $so_ref ? ($so_ref.' / '.$object->ref) : $object->ref;
 			if (!empty($ContainerNumber) && !empty($ShippingLine) && !empty($Referance) && empty($requestid)) {
 				if (!empty($blno)) {
-					$ship_result = $shipsGo->PostContainerInfoWithBl($ContainerNumber, $blno, $ShippingLine, $email, $Referance);
+					$ship_result = $shipsGo->createShipmentWithBl($ContainerNumber, $blno, $ShippingLine, $email ? array($email) : array(), $Referance);
 				} else {
-					$ship_result = $shipsGo->PostContainerInfo($ContainerNumber, $ShippingLine, $email, $Referance);
+					$ship_result = $shipsGo->createShipment($ContainerNumber, $ShippingLine, $email ? array($email) : array(), $Referance);
 				}
-				if (!empty($ship_result['RequestId'])) {
+				$shipId = null;
+				if (!empty($ship_result['shipment']['id'])) {
+					$shipId = $ship_result['shipment']['id'];
+				}
+
+				$message = strtoupper($ship_result['message'] ?? '');
+
+				if ($shipId && ($message === 'SUCCESS' || $message === 'ALREADY_EXISTS')) {
 					$updatesql = "UPDATE ".MAIN_DB_PREFIX."expedition_extrafields SET";
-					$updatesql .= " requestid = ".(int) $ship_result['RequestId'];
+					$updatesql .= " requestid = ".(int) $shipId;
 					$updatesql .= ", updatedtime = '".$this->db->idate(dol_now())."'";
 					$updatesql .= " WHERE fk_object = ".(int) $object->id;
 					$this->db->query($updatesql);
+					dol_syslog(__METHOD__.': ShipsGo shipment '.$message.' for expedition '.$object->id.', id: '.$shipId, LOG_INFO);
+				} else {
+					dol_syslog(__METHOD__.': ShipsGo shipment creation failed for expedition '.$object->id.'. Response: '.json_encode($ship_result), LOG_WARNING);
 				}
 			}
 			return 1;

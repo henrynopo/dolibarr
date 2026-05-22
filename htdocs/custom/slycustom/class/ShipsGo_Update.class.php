@@ -110,18 +110,37 @@ class ShipmentStatus
 		$updatesql = "UPDATE ".MAIN_DB_PREFIX."expedition_extrafields SET";
 		$updatesql .= " sailingstatusid = ".(int) ($ship_status['SailingStatusId'] ?? 0);
 		$updatesql .= ", pol = '".$this->db->escape($ship_status['Pol'] ?? '')."'";
-		if (!empty($ship_status['DepartureDate'])) {
-			$updatesql .= ", atd = '".$this->db->escape(date('Y-m-d', strtotime(str_replace('/', '-', $ship_status['DepartureDate']))))."'";
+		// ETD (Estimated) and ATD (Actual)
+		if (!empty($ship_status['Etd'])) {
+			$ts = strtotime(str_replace('/', '-', $ship_status['Etd']));
+			if ($ts !== false) {
+				$updatesql .= ", etd = '".$this->db->escape(date('Y-m-d', $ts))."'";
+			}
+		}
+		if (!empty($ship_status['Atd'])) {
+			$ts = strtotime(str_replace('/', '-', $ship_status['Atd']));
+			if ($ts !== false) {
+				$updatesql .= ", atd = '".$this->db->escape(date('Y-m-d', $ts))."'";
+			}
 		}
 		$updatesql .= ", pod = '".$this->db->escape($ship_status['Pod'] ?? '')."'";
-		if (!empty($ship_status['ArrivalDate'])) {
-			$updatesql .= ", ata = '".$this->db->escape(date('Y-m-d', strtotime(str_replace('/', '-', $ship_status['ArrivalDate']))))."'";
+		// ATA (Actual) and ETA (Estimated)
+		if (!empty($ship_status['Ata'])) {
+			$ts = strtotime(str_replace('/', '-', $ship_status['Ata']));
+			if ($ts !== false) {
+				$updatesql .= ", ata = '".$this->db->escape(date('Y-m-d', $ts))."'";
+			}
 		}
-		$etaDate = $ship_status['Eta'] ?? $ship_status['EstimatedArrivalDate'] ?? null;
-		if (!empty($etaDate)) {
-			$updatesql .= ", eta = '".$this->db->escape(date('Y-m-d', strtotime(str_replace('/', '-', $etaDate))))."'";
+		if (!empty($ship_status['Eta'])) {
+			$ts = strtotime(str_replace('/', '-', $ship_status['Eta']));
+			if ($ts !== false) {
+				$updatesql .= ", eta = '".$this->db->escape(date('Y-m-d', $ts))."'";
+			}
 		}
-		$updatesql .= ", livemapurl = '".$this->db->escape($ship_status['LiveMapUrl'] ?? '')."'";
+		$mapUrl = $ship_status['MapUrl'] ?? '';
+		if (!empty($mapUrl)) {
+			$updatesql .= ", livemapurl = '".$this->db->escape($mapUrl)."'";
+		}
 		$updatesql .= ", updatedtime = '".$this->db->idate(dol_now())."'";
 		$updatesql .= " WHERE fk_object = ".((int) $fkExpedition);
 
@@ -200,14 +219,14 @@ class ShipmentStatus
 					$remaining--;
 					continue;
 				}
-				$ship_status_list = $shipsGotmp->GetContainerInfo($line->tracking_number);
-				if (!empty($ship_status_list['Message'])) {
+				$ship_status_list = $shipsGotmp->getContainerInfo($line->tracking_number);
+				if (isset($ship_status_list['error'])) {
 					$error++;
 					$remaining--;
 					continue;
 				}
-				$ship_status = is_array($ship_status_list) && isset($ship_status_list[0]) ? $ship_status_list[0] : (is_array($ship_status_list) ? $ship_status_list : array());
-				if (!empty($ship_status['Message']) && $ship_status['Message'] == 'Success') {
+				$ship_status = $shipsGotmp->normalizeResponse($ship_status_list);
+				if (!empty($ship_status['Success'])) {
 					if ($this->applyShipsGoStatusToExtrafields((int) $line->rowid, $ship_status)) {
 						$count++;
 						$doneThisEntity++;
