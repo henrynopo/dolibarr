@@ -195,8 +195,9 @@ class ShipmentStatus
 			$sql .= ' INNER JOIN '.MAIN_DB_PREFIX.'expedition AS a ON b.fk_object = a.rowid';
 			$sql .= " WHERE a.entity = ".((int) $entityId);
 			$sql .= " AND (";
-			$sql .= " (b.updatedtime IS NOT NULL AND b.updatedtime <= '".$this->db->escape($cutoff)."' AND (b.sailingstatusid IS NULL OR b.sailingstatusid NOT IN (3,4)))";
+			$sql .= " (b.updatedtime IS NOT NULL AND b.updatedtime < '2026-05-19 12:00:00' AND b.updatedtime <= '".$this->db->escape($cutoff)."' AND (b.sailingstatusid IS NULL OR b.sailingstatusid NOT IN (3,4)))";
 			$sql .= " OR (b.sailingstatusid IS NULL AND a.fk_statut > 0)";
+			$sql .= " OR (b.updatedtime > '2026-05-19 12:00:00' AND b.updatedtime <= '".$this->db->escape($cutoff)."' AND (b.sailingstatusid IS NULL OR b.sailingstatusid NOT IN (5,6)))";
 			$sql .= " )";
 			$sql .= ' ORDER BY b.ata, b.updatedtime ASC';
 			$sql .= $this->db->plimit($remaining, 0);

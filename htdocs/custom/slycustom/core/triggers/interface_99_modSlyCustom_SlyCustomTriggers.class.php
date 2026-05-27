@@ -90,7 +90,7 @@ class InterfaceSlyCustomTriggers extends DolibarrTriggers
 		}
 
 		if ($action == 'SHIPPING_VALIDATE' && isModEnabled('slycustom')) {
-			// ShipsGo: post container info when shipment is validated (API key per entity / Multicompany)
+			// ShipsGo: create shipment when validated
 			require_once DOL_DOCUMENT_ROOT.'/custom/slycustom/class/ShipsGo_Update.class.php';
 			require_once DOL_DOCUMENT_ROOT.'/custom/slycustom/class/ShipsGo_API.class.php';
 			$apiKey = ShipmentStatus::getApiKeyForExpedition($this->db, $object, $conf);
@@ -98,22 +98,16 @@ class InterfaceSlyCustomTriggers extends DolibarrTriggers
 				return 0;
 			}
 			$shipsGo = new ShipsGo_API($apiKey);
-			$ContainerNumber = $object->tracking_number ?? '';
-			$blno = '';
-			$requestid = '';
-			$sqlef = "SELECT requestid, blno FROM ".MAIN_DB_PREFIX."expedition_extrafields WHERE fk_object = ".(int) $object->id;
-			$resef = $this->db->query($sqlef);
-			if ($resef && $rowef = $this->db->fetch_object($resef)) {
-				$requestid = (string) ($rowef->requestid ?? '');
-				$blno = (string) ($rowef->blno ?? '');
-			}
+			$ContainerNumber = $object->tracking_number;
+			$blno = $object->array_options['options_blno'] ?? '';
+			$requestid = $object->array_options['options_requestid'] ?? '';
 			$object->fetchObjectLinked();
 			$so_ref = '';
 			if (!empty($object->linkedObjects['commande'])) {
 				$lastOrder = end($object->linkedObjects['commande']);
 				$so_ref = $lastOrder->ref ?? '';
 			}
-			// v2 API requires carrier code from c_shipment_mode.code, not translated label from meths
+			// v2 API requires carrier code from c_shipment_mode.code
 			$ShippingLine = '';
 			$sqlsm = "SELECT code FROM ".MAIN_DB_PREFIX."c_shipment_mode WHERE rowid = ".(int) $object->shipping_method_id;
 			$resm = $this->db->query($sqlsm);
