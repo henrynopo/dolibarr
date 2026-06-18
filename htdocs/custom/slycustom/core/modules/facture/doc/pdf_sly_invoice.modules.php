@@ -2223,6 +2223,16 @@ class pdf_sly_invoice extends ModelePDFFactures
 				$pdf->SetXY($docx, $docy);
 				$pdf->MultiCell($widthrecbox - 2, 4, $outputlangs->transnoentities("DateDue") . " : " . dol_print_date($object->date_lim_reglement, "day", false, $outputlangs, true), 0, 'R');
 			}
+			// Show linked order reference
+			$object->fetchObjectLinked();
+			if (!empty($object->linkedObjects['commande'])) {
+				$outputlangs->load('orders');
+				$linkedOrder = reset($object->linkedObjects['commande']);
+				$docy = $pdf->GetY();
+				$pdf->SetXY($docx, $docy);
+				$pdf->SetFont('', '', $default_font_size - 2);
+				$pdf->MultiCell($widthrecbox - 2, 4, $outputlangs->transnoentities("RefOrder")." : ".$outputlangs->convToOutputCharset($linkedOrder->ref), 0, 'R');
+			}
 			$y_after_docbox = $pdf->GetY();
 
 			// Recipient = Customer invoice contact (third-party BILLING contact). Use local contact so we don't alter $object->contact (card page must keep original third party).

@@ -1028,7 +1028,7 @@ class pdf_sly_packinglist extends ModelePdfExpedition
 			$docy = $posy + 3;
 			$pdf->SetXY($docx, $docy);
 			$pdf->SetFont('', 'B', $default_font_size + 2);
-			$doctitle = $outputlangs->transnoentities("SendingSheet");
+			$doctitle = "PACKING LIST";
 			$pdf->MultiCell($widthrecbox - 2, 5, (function_exists('mb_strtoupper') ? mb_strtoupper($doctitle, 'UTF-8') : strtoupper($doctitle)), 0, 'R');
 			$docy = $pdf->GetY();
 			$pdf->SetXY($docx, $docy);
