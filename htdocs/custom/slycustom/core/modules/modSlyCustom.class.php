@@ -108,7 +108,8 @@ class modSlyCustom extends DolibarrModules
 			1 => array('file' => 'box_sly_birthdays.php@slycustom', 'note' => 'SLY', 'enabledbydefaulton' => ''),
 		);
 
-		// Cron: ShipsGo status update
+		// Cron: ShipsGo status update (kept as-is from the original 1-hour schedule).
+		// Webhook is the primary path; this cron still runs hourly as a safety net.
 		$this->cronjobs = array(
 			0 => array(
 				'entity' => 0,

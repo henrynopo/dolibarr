@@ -99,43 +99,170 @@ class ShipmentStatus
 	}
 
 	/**
-	 * Apply GetContainerInfo response to expedition_extrafields row.
+	 * HMAC shared secret used to verify ShipsGo webhook signatures.
+	 *
+	 * @param DoliDB $db       Database handler
+	 * @param int    $entityId Entity id
+	 * @return string Non-empty secret or ''
+	 */
+	public static function getSecretKeyForEntity($db, $entityId)
+	{
+		if (!function_exists('dolibarr_get_const')) {
+			require_once DOL_DOCUMENT_ROOT.'/core/lib/admin.lib.php';
+		}
+		$v = dolibarr_get_const($db, 'SHIPSGO_WEBHOOK_SECRET', (int) $entityId);
+		if (!is_string($v)) {
+			return '';
+		}
+		return trim($v);
+	}
+
+	/**
+	 * Public webhook URL for a given entity.
+	 *
+	 * Builds a full URL with scheme + host. Falls back to detecting from
+	 * $_SERVER if DOL_URL_ROOT is empty (rare production misconfig).
+	 *
+	 * @param int $entityId Entity id
+	 * @return string
+	 */
+	public static function getWebhookUrl($entityId)
+	{
+		$base = '';
+		if (defined('DOL_MAIN_URL_ROOT') && DOL_MAIN_URL_ROOT !== '') {
+			$base = DOL_MAIN_URL_ROOT;
+		} elseif (defined('DOL_URL_ROOT') && DOL_URL_ROOT !== '') {
+			$base = DOL_URL_ROOT;
+		}
+		if ($base === '') {
+			$protocol = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https' : 'http';
+			$host = !empty($_SERVER['HTTP_HOST']) ? $_SERVER['HTTP_HOST'] : '';
+			$base = $host !== '' ? ($protocol.'://'.$host) : '';
+		}
+		// Trim trailing slash so the concatenation is clean.
+		$base = rtrim($base, '/');
+		return $base.'/custom/slycustom/webhook/shipsgo.php?entity='.(int) $entityId;
+	}
+
+	/**
+	 * Map ShipsGo v2 status string to v1-style numeric ID (kept consistent with ShipsGo_API::mapStatusToId).
+	 *
+	 * @param string $status V2 status enum value
+	 * @return int
+	 */
+	public static function mapStatusToId($status)
+	{
+		$map = array(
+			'NEW' => 0,
+			'INPROGRESS' => 1,
+			'BOOKED' => 2,
+			'LOADED' => 3,
+			'SAILING' => 4,
+			'ARRIVED' => 5,
+			'DISCHARGED' => 6,
+			'UNTRACKED' => 99,
+		);
+		return isset($map[$status]) ? $map[$status] : 99;
+	}
+
+	/**
+	 * Convert a raw webhook payload (single shipment) to the normalized array
+	 * consumed by applyShipsGoStatusToExtrafields().
+	 *
+	 * Field mapping is the single point to adjust when ShipsGo's webhook schema
+	 * differs from the v2 GET response.
+	 *
+	 * @param array $ship Shipment object from webhook payload
+	 * @return array Normalized ship_status (Success/SailingStatusId/Pol/Pod/Etd/Atd/Eta/Ata/MapUrl)
+	 */
+	public function normalizeWebhookPayload(array $ship)
+	{
+		$status = isset($ship['status']) ? (string) $ship['status'] : 'UNKNOWN';
+		$route = isset($ship['route']) && is_array($ship['route']) ? $ship['route'] : array();
+
+		// Real deliveries carry location as the UN/LOCODE string ("BRSSZ"); tolerate an
+		// object {name, code} too. Dereferencing ['name'] on a string location fails
+		// instead of returning the code.
+		$polLoc = isset($route['port_of_loading']['location']) ? $route['port_of_loading']['location'] : '';
+		$pol = is_string($polLoc) ? $polLoc : (($polLoc['name'] ?? '') ?: ($polLoc['code'] ?? ''));
+		$podLoc = isset($route['port_of_discharge']['location']) ? $route['port_of_discharge']['location'] : '';
+		$pod = is_string($podLoc) ? $podLoc : (($podLoc['name'] ?? '') ?: ($podLoc['code'] ?? ''));
+
+		$shipId = isset($ship['id']) ? $ship['id'] : null;
+		$mapToken = isset($ship['tokens']['map']) ? $ship['tokens']['map'] : '';
+		$mapUrl = (!empty($shipId) && !empty($mapToken))
+			? 'https://map.shipsgo.com/ocean/shipments/'.$shipId.'?token='.$mapToken
+			: '';
+
+		return array(
+			'Message' => 'Success',
+			'Success' => true,
+			'SailingStatusId' => self::mapStatusToId($status),
+			'Status' => $status,
+			'Pol' => $pol,
+			'Pod' => $pod,
+			'Etd' => isset($route['port_of_loading']['date_of_loading_initial']) ? $route['port_of_loading']['date_of_loading_initial'] : '',
+			'Atd' => isset($route['port_of_loading']['date_of_loading']) ? $route['port_of_loading']['date_of_loading'] : '',
+			'Eta' => isset($route['port_of_discharge']['date_of_discharge_initial']) ? $route['port_of_discharge']['date_of_discharge_initial'] : '',
+			'Ata' => isset($route['port_of_discharge']['date_of_discharge']) ? $route['port_of_discharge']['date_of_discharge'] : '',
+			'MapUrl' => $mapUrl,
+		);
+	}
+
+	/**
+	 * Convert a ShipsGo date to the Y-m-d stored in extrafields.
+	 *
+	 * v2 dates are ISO8601 carrying the port's own UTC offset (2025-03-10T12:00:00-03:00):
+	 * keep the port-local date as shown by ShipsGo rather than re-rendering through
+	 * strtotime()/date(), which converts to the server timezone (off-by-one near midnight).
+	 * Any other format keeps the legacy strtotime path.
+	 *
+	 * @param string $v Raw date string
+	 * @return string Y-m-d, or '' when unparseable
+	 */
+	private function shipsgoDateToSql($v)
+	{
+		$v = trim((string) $v);
+		if ($v === '') {
+			return '';
+		}
+		if (preg_match('/^(\d{4}-\d{2}-\d{2})T/', $v, $m)) {
+			return $m[1];
+		}
+		$ts = strtotime(str_replace('/', '-', $v));
+		return $ts !== false ? date('Y-m-d', $ts) : '';
+	}
+
+	/**
+	 * Apply GetContainerInfo response (or normalized webhook payload) to expedition_extrafields row.
 	 *
 	 * @param int   $fkExpedition Expedition row id
 	 * @param array $ship_status  Normalized status array (Success branch)
 	 * @return bool True if UPDATE OK
 	 */
-	protected function applyShipsGoStatusToExtrafields($fkExpedition, array $ship_status)
+	public function applyShipsGoStatusToExtrafields($fkExpedition, array $ship_status)
 	{
 		$updatesql = "UPDATE ".MAIN_DB_PREFIX."expedition_extrafields SET";
 		$updatesql .= " sailingstatusid = ".(int) ($ship_status['SailingStatusId'] ?? 0);
 		$updatesql .= ", pol = '".$this->db->escape($ship_status['Pol'] ?? '')."'";
 		// ETD (Estimated) and ATD (Actual)
-		if (!empty($ship_status['Etd'])) {
-			$ts = strtotime(str_replace('/', '-', $ship_status['Etd']));
-			if ($ts !== false) {
-				$updatesql .= ", etd = '".$this->db->escape(date('Y-m-d', $ts))."'";
-			}
+		$sqlDate = $this->shipsgoDateToSql($ship_status['Etd'] ?? '');
+		if ($sqlDate !== '') {
+			$updatesql .= ", etd = '".$this->db->escape($sqlDate)."'";
 		}
-		if (!empty($ship_status['Atd'])) {
-			$ts = strtotime(str_replace('/', '-', $ship_status['Atd']));
-			if ($ts !== false) {
-				$updatesql .= ", atd = '".$this->db->escape(date('Y-m-d', $ts))."'";
-			}
+		$sqlDate = $this->shipsgoDateToSql($ship_status['Atd'] ?? '');
+		if ($sqlDate !== '') {
+			$updatesql .= ", atd = '".$this->db->escape($sqlDate)."'";
 		}
 		$updatesql .= ", pod = '".$this->db->escape($ship_status['Pod'] ?? '')."'";
 		// ATA (Actual) and ETA (Estimated)
-		if (!empty($ship_status['Ata'])) {
-			$ts = strtotime(str_replace('/', '-', $ship_status['Ata']));
-			if ($ts !== false) {
-				$updatesql .= ", ata = '".$this->db->escape(date('Y-m-d', $ts))."'";
-			}
+		$sqlDate = $this->shipsgoDateToSql($ship_status['Ata'] ?? '');
+		if ($sqlDate !== '') {
+			$updatesql .= ", ata = '".$this->db->escape($sqlDate)."'";
 		}
-		if (!empty($ship_status['Eta'])) {
-			$ts = strtotime(str_replace('/', '-', $ship_status['Eta']));
-			if ($ts !== false) {
-				$updatesql .= ", eta = '".$this->db->escape(date('Y-m-d', $ts))."'";
-			}
+		$sqlDate = $this->shipsgoDateToSql($ship_status['Eta'] ?? '');
+		if ($sqlDate !== '') {
+			$updatesql .= ", eta = '".$this->db->escape($sqlDate)."'";
 		}
 		$mapUrl = $ship_status['MapUrl'] ?? '';
 		if (!empty($mapUrl)) {

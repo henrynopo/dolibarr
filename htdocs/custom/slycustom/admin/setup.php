@@ -84,6 +84,12 @@ $arrayofparameters = array(
 		'css' => 'minwidth400',
 		'tooltip' => 'API_KEY_SHIPSGOTooltip',
 	),
+	'SHIPSGO_WEBHOOK_SECRET' => array(
+		'label' => 'SHIPSGO_WEBHOOK_SECRET',
+		'type' => 'chaine',
+		'css' => 'minwidth400',
+		'tooltip' => 'SHIPSGO_WEBHOOK_SECRETTooltip',
+	),
 	'SLYCUSTOM_SHIPPING_ENABLE_UNVALIDATE' => array(
 		'label' => 'SLYCUSTOM_SHIPPING_ENABLE_UNVALIDATE',
 		'type' => 'yesno',
@@ -261,6 +267,59 @@ if ($action == 'set_default_terms' && GETPOST('token', 'none') === newToken()) {
 	exit;
 }
 
+// Register webhook URL with ShipsGo for the current entity.
+if ($action == 'register_shipsgo_webhook') {
+	if (GETPOST('token', 'none') !== newToken()) {
+		setEventMessages($langs->trans("Error"), null, 'errors');
+	} else {
+		require_once DOL_DOCUMENT_ROOT.'/custom/slycustom/class/ShipsGo_API.class.php';
+		require_once DOL_DOCUMENT_ROOT.'/custom/slycustom/class/ShipsGo_Update.class.php';
+		$apiKey = ShipmentStatus::getApiKeyForEntity($db, (int) $conf->entity);
+		if ($apiKey === '') {
+			setEventMessages($langs->trans("API_KEY_SHIPSGO").': '.$langs->trans("NotConfigured"), null, 'errors');
+		} else {
+			$callbackUrl = ShipmentStatus::getWebhookUrl((int) $conf->entity);
+			$shipsGo = new ShipsGo_API($apiKey);
+			$result = $shipsGo->registerWebhook($callbackUrl);
+			$httpCode = isset($result['httpCode']) ? (int) $result['httpCode'] : 0;
+			$message = '';
+			if (isset($result['message'])) {
+				$message = $result['message'];
+			} elseif (isset($result['error'])) {
+				$message = $result['error'];
+			}
+			if ($httpCode >= 200 && $httpCode < 300) {
+				setEventMessages($langs->trans("SHIPSGO_WEBHOOK_REGISTERED").' '.$callbackUrl.' ('.$message.')', null, 'mesgs');
+				dol_syslog(__METHOD__.' ShipsGo webhook registered entity='.$conf->entity.' url='.$callbackUrl, LOG_INFO);
+			} else {
+				setEventMessages($langs->trans("SHIPSGO_WEBHOOK_REGISTER_FAILED").' HTTP '.$httpCode.' '.$message, null, 'errors');
+				dol_syslog(__METHOD__.' ShipsGo webhook register failed entity='.$conf->entity.' http='.$httpCode.' response='.json_encode($result), LOG_WARNING);
+			}
+		}
+	}
+	header('Location: '.$_SERVER["PHP_SELF"].'?tab=general'.$urlparams_str);
+	exit;
+}
+
+// Generate a fresh random webhook secret for the current entity (overwrites the existing one).
+if ($action == 'generate_shipsgo_secret') {
+	if (GETPOST('token', 'none') !== newToken()) {
+		setEventMessages($langs->trans("Error"), null, 'errors');
+	} else {
+		// 64-char hex (256-bit), same format as the manually-entered secrets. random_bytes is CSPRNG.
+		$newSecret = bin2hex(random_bytes(32));
+		$result = dolibarr_set_const($db, 'SHIPSGO_WEBHOOK_SECRET', $newSecret, 'chaine', 0, '', $conf->entity);
+		if ($result < 0) {
+			setEventMessages($langs->trans("Error"), null, 'errors');
+		} else {
+			setEventMessages($langs->trans("SHIPSGO_WEBHOOK_SECRET_GENERATED"), null, 'mesgs');
+			dol_syslog(__METHOD__.' ShipsGo webhook secret regenerated entity='.$conf->entity, LOG_INFO);
+		}
+	}
+	header('Location: '.$_SERVER["PHP_SELF"].'?tab=general'.$urlparams_str);
+	exit;
+}
+
 if ($action == 'update' && !GETPOST('cancel', 'alpha')) {
 	$db->begin();
 	foreach ($arrayofparameters as $key => $val) {
@@ -418,6 +477,45 @@ if ($tab == 'general') {
 	print '<input type="submit" class="butAction" value="'.$langs->trans("SLYCUSTOM_SYNC_MENU_ICONS").'">';
 	print '</form>';
 	print '</div></td></tr>';
+
+	// ShipsGo webhook: per-entity URL and registration
+	if (isModEnabled('slycustom')) {
+		require_once DOL_DOCUMENT_ROOT.'/custom/slycustom/class/ShipsGo_Update.class.php';
+		$webhookUrl = ShipmentStatus::getWebhookUrl((int) $conf->entity);
+		// Use getDolGlobalString (auto-decrypts dolcrypt: values) — matches the same path used by the input above.
+		$webhookSecret = trim((string) getDolGlobalString('SHIPSGO_WEBHOOK_SECRET'));
+		print '<tr class="liste_titre"><td colspan="2">'.$langs->trans("SHIPSGO_WEBHOOK_URL").'</td></tr>';
+		print '<tr class="oddeven"><td colspan="2">';
+		print '<p><strong>'.$langs->trans("Entity").':</strong> '.((int) $conf->entity).'</p>';
+		print '<p><strong>URL:</strong> <code style="user-select:all;">'.dol_escape_htmltag($webhookUrl).'</code></p>';
+		print '<p><strong>'.$langs->trans("SHIPSGO_WEBHOOK_SECRET").':</strong> ';
+		if ($webhookSecret !== '') {
+			// Use substr (NOT dol_trunc) — the secret is an ASCII hex string, no multibyte processing needed,
+			// and dol_trunc's 4th arg is encoding, which caused a PHP fatal when we passed '...' as ellipsis.
+			$preview = strlen($webhookSecret) > 8 ? substr($webhookSecret, 0, 8).'...' : $webhookSecret;
+			print '<span class="opacitymedium">'.dol_escape_htmltag($preview).' ('.$langs->trans("Configured").', len='.strlen($webhookSecret).')</span>';
+		} else {
+			print '<span class="opacitymedium">'.$langs->trans("NotConfigured").'</span>';
+		}
+		print '</p>';
+		print '<p class="opacitymedium">'.$langs->trans("SHIPSGO_WEBHOOK_URL_TOOLTIP").'</p>';
+		print '<div class="tabsAction">';
+		print '<form method="POST" action="'.$_SERVER["PHP_SELF"].'" style="display:inline;"'
+			.(($webhookSecret !== '') ? ' onsubmit="return confirm(\''.dol_escape_js($langs->trans("SHIPSGO_WEBHOOK_GENERATE_CONFIRM")).'\');"' : '')
+			.'>';
+		print '<input type="hidden" name="token" value="'.newToken().'">';
+		print '<input type="hidden" name="action" value="generate_shipsgo_secret">';
+		print '<input type="hidden" name="tab" value="general">';
+		print '<input type="submit" class="butAction" value="'.$langs->trans("SHIPSGO_WEBHOOK_GENERATE_SECRET").'">';
+		print '</form>';
+		print '<form method="POST" action="'.$_SERVER["PHP_SELF"].'" style="display:inline; margin-left:4px;">';
+		print '<input type="hidden" name="token" value="'.newToken().'">';
+		print '<input type="hidden" name="action" value="register_shipsgo_webhook">';
+		print '<input type="hidden" name="tab" value="general">';
+		print '<input type="submit" class="butAction" value="'.$langs->trans("SHIPSGO_WEBHOOK_REGISTER").'">';
+		print '</form>';
+		print '</div></td></tr>';
+	}
 	print '</table>';
 	print '</div>';
 }

@@ -380,14 +380,17 @@ class ShipsGo_API
 			$first = $shipments[0];
 			$status = $first['status'] ?? 'UNKNOWN';
 			$route = $first['route'] ?? array();
+			// location is the UN/LOCODE string in v2 ("BRSSZ"); tolerate an object {name, code} too.
+			$polLoc = $route['port_of_loading']['location'] ?? '';
+			$podLoc = $route['port_of_discharge']['location'] ?? '';
 
 			return array(
 				'Message' => 'Success',
 				'Success' => true,
 				'SailingStatusId' => $this->mapStatusToId($status),
 				'Status' => $status,
-				'Pol' => $route['port_of_loading']['location']['name'] ?? $route['port_of_loading']['location']['code'] ?? '',
-				'Pod' => $route['port_of_discharge']['location']['name'] ?? $route['port_of_discharge']['location']['code'] ?? '',
+				'Pol' => is_string($polLoc) ? $polLoc : (($polLoc['name'] ?? '') ?: ($polLoc['code'] ?? '')),
+				'Pod' => is_string($podLoc) ? $podLoc : (($podLoc['name'] ?? '') ?: ($podLoc['code'] ?? '')),
 				'Etd' => $route['port_of_loading']['date_of_loading_initial'] ?? '',
 				'Atd' => $route['port_of_loading']['date_of_loading'] ?? '',
 				'Eta' => $route['port_of_discharge']['date_of_discharge_initial'] ?? '',
@@ -405,19 +408,21 @@ class ShipsGo_API
 		if ($singleShipment !== null) {
 			$status = $singleShipment['status'] ?? 'UNKNOWN';
 			$route = $singleShipment['route'] ?? array();
+			// location is the UN/LOCODE string in v2 ("BRSSZ"); tolerate an object {name, code} too.
+			$polLoc = $route['port_of_loading']['location'] ?? '';
+			$podLoc = $route['port_of_discharge']['location'] ?? '';
 
 			return array(
 				'Message' => 'Success',
 				'Success' => true,
 				'SailingStatusId' => $this->mapStatusToId($status),
 				'Status' => $status,
-				'Pol' => $route['port_of_loading']['location']['name'] ?? $route['port_of_loading']['location']['code'] ?? '',
-				'Pod' => $route['port_of_discharge']['location']['name'] ?? $route['port_of_discharge']['location']['code'] ?? '',
+				'Pol' => is_string($polLoc) ? $polLoc : (($polLoc['name'] ?? '') ?: ($polLoc['code'] ?? '')),
+				'Pod' => is_string($podLoc) ? $podLoc : (($podLoc['name'] ?? '') ?: ($podLoc['code'] ?? '')),
 				'Etd' => $route['port_of_loading']['date_of_loading_initial'] ?? '',
 				'Atd' => $route['port_of_loading']['date_of_loading'] ?? '',
 				'Eta' => $route['port_of_discharge']['date_of_discharge_initial'] ?? '',
 				'Ata' => $route['port_of_discharge']['date_of_discharge'] ?? '',
-				'Eta' => $route['port_of_discharge']['date_of_discharge'] ?? '',
 				'TransshipmentCount' => $route['ts_count'] ?? 0,
 				'TransitTime' => $route['transit_time'] ?? 0,
 				'TransitPercentage' => $route['transit_percentage'] ?? 0,
@@ -439,6 +444,46 @@ class ShipsGo_API
 			'Success' => false,
 			'raw' => $v2Response
 		);
+	}
+
+	/**
+	 * Register a webhook subscription with ShipsGo.
+	 *
+	 * Endpoint path /v2/webhooks is the documented v2 entry point; if ShipsGo's
+	 * live API differs, adjust here. The callback URL is per-entity (see
+	 * ShipmentStatus::getWebhookUrl).
+	 *
+	 * @param string $callbackUrl URL ShipsGo will POST to
+	 * @param string $event       Event name (default OCEAN.SHIPMENTS.SHIPMENT_UPDATED)
+	 * @return array Decoded JSON response
+	 */
+	public function registerWebhook($callbackUrl, $event = 'OCEAN.SHIPMENTS.SHIPMENT_UPDATED')
+	{
+		return $this->post('/v2/webhooks', array(
+			'callback_url' => $callbackUrl,
+			'event' => $event,
+		));
+	}
+
+	/**
+	 * List registered webhook subscriptions.
+	 *
+	 * @return array Decoded JSON response
+	 */
+	public function listWebhooks()
+	{
+		return $this->get('/v2/webhooks');
+	}
+
+	/**
+	 * Delete a webhook subscription by id.
+	 *
+	 * @param int|string $webhookId Webhook id from ShipsGo
+	 * @return array Decoded JSON response
+	 */
+	public function deleteWebhook($webhookId)
+	{
+		return $this->post('/v2/webhooks/'.$webhookId.'/delete', array());
 	}
 
 	/**
