@@ -1,5 +1,8 @@
-# SLY Custom module - English
+# SLY Custom module - English (Singapore)
 # Copyright (C) 2025 SLY
+#
+# Temporary sync from en_US to ensure all keys resolve in en_SG.
+# Keep this file aligned with en_US when adding new translation keys.
 
 ModuleSLYCustomName=SLY Custom
 ModuleSLYCustomDesc=SLY: PDF templates (invoice, sales order, proforma, shipment, supplier PO/invoice), ShipsGo cron, Tools exports & Search Order, terms PDF append, hooks (multicurrency on lists/index, Shipment menu layout, product labels, order doc options, remx split discount with patch). Dolibarr 14.0 / 22.0; optional core patches per patches/APPLY-ON-22.md.
@@ -13,16 +16,6 @@ SLYCustomDescriptionLong=SLY Custom bundles company-specific behaviour for Dolib
 SLYExports=Exports
 API_KEY_SHIPSGO=ShipsGo API Key
 API_KEY_SHIPSGOTooltip=API key for ShipsGo integration (stored per company / entity when Multicompany is enabled). Leave empty to disable ShipsGo for this company.
-SHIPSGO_WEBHOOK_SECRET=ShipsGo Webhook Secret
-SHIPSGO_WEBHOOK_SECRETTooltip=HMAC-SHA256 shared secret used to verify incoming ShipsGo webhook deliveries (header X-Shipsgo-Webhook-Signature). Stored per company / entity. Use a long random value; rotate by changing it and re-registering the webhook with ShipsGo.
-SHIPSGO_WEBHOOK_URL=ShipsGo Webhook URL
-SHIPSGO_WEBHOOK_URL_TOOLTIP=Configure this URL in the ShipsGo dashboard (or click Register) for the corresponding entity. Each multicompany entity must have its own subscription.
-SHIPSGO_WEBHOOK_REGISTER=Register webhook with ShipsGo
-SHIPSGO_WEBHOOK_REGISTERED=Webhook successfully registered with ShipsGo.
-SHIPSGO_WEBHOOK_REGISTER_FAILED=Failed to register webhook with ShipsGo.
-SHIPSGO_WEBHOOK_GENERATE_SECRET=Generate secret
-SHIPSGO_WEBHOOK_SECRET_GENERATED=New ShipsGo webhook secret generated (64-char random hex). If an old secret is configured in the ShipsGo dashboard, update it there too.
-SHIPSGO_WEBHOOK_GENERATE_CONFIRM=Regenerating immediately invalidates the old secret already configured in the ShipsGo dashboard (all deliveries will fail signature check). You must update it there afterwards. Continue?
 SLYCUSTOM_SHIPPING_ENABLE_UNVALIDATE=Enable shipment unvalidate
 SLYCUSTOM_SHIPPING_ENABLE_UNVALIDATETooltip=Allow users to unvalidate (set back to draft) confirmed shipments.
 SLYCUSTOM_DASHBOARD_BOXES=Dashboard Widgets
@@ -91,7 +84,7 @@ TotalVATSG=Total GST
 # SLY ALL-in-One validation UI
 SLYAllInOneCheckHeader=ALL-in-One pre-download validation
 SLYAllInOneCheckTitle=Pre-download validation results (shown one by one)
-SLYAllInOneCheckHelp=Please fix the failing conditions (relations / contact counts). Then click “Start download”.
+SLYAllInOneCheckHelp=Please fix the failing conditions (relations / contact counts). Then click "Start download".
 SLYAllInOnePassedNone=Passed (none)
 SLYAllInOneConfirmStart=No validation errors found. Start download
 SLYAllInOneHasErrors=Failing conditions were found. Please fix them and retry.
@@ -112,7 +105,7 @@ SLYAllInOneRule_Shipment_InvoiceCntGt1=More than 1 linked invoice
 SLYAllInOneRule_PO_SoCntGt1=More than 1 linked SO
 SLYAllInOneRule_PO_PurchasePersonCntNe1=Purchase person count is not 1
 SLYAllInOneRule_POInv_PoCntGt1=More than 1 linked PO
-SLYAllInOnePreparingDownloadFor=Preparing download for: 
+SLYAllInOnePreparingDownloadFor=Preparing download for:
 SLYAllInOneAllDownloadsInitiated=All downloads have been initiated.
 # SLY Debit Note (supplier invoice PDF template - we send to supplier, manual generation only)
 SLYDebitNoteModel=SLY Debit Note

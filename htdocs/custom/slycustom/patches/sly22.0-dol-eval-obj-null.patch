@@ -1,0 +1,17 @@
+--- a/htdocs/core/lib/functions.lib.php
++++ b/htdocs/core/lib/functions.lib.php
+@@ -11218,6 +11218,14 @@ function dol_eval_standard($s, $returnvalue = 1, $hideerrors = 1, $onlysimplestri
+ 	// Old variables used (deprecated)
+ 	global $object;
+ 	global $obj; // To get $obj used into list when dol_eval() is used for computed fields and $obj is not yet $object
++
++	// SLY: Ensure $obj is at least a generic object when used in computed/perms eval (avoids "Attempt to read property array_options on null")
++	if (!isset($obj) || !is_object($obj)) {
++		$obj = new stdClass();
++	}
++	if (!isset($obj->array_options) || !is_array($obj->array_options)) {
++		$obj->array_options = array();
++	}
+ 
+ 	$isObBufferActive = false;  // When true, the ObBuffer must be cleaned in the exception handler
+ 	if (!in_array($onlysimplestring, array('0', '1', '2'))) {

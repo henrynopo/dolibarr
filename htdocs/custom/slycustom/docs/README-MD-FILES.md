@@ -1,50 +1,24 @@
-# slycustom 下 .md 文件说明与去重建议
+# slycustom 文档索引
 
-本文档列出各 .md 的用途，并标出**重复/可删**项，便于整理。
+各文档用途一览。14→22 迁移期的一次性文档（PORT-TO-22、UPGRADE-STRATEGY、TESTING-22、
+CORE-CUSTOMIZATIONS-FULL-LIST、CORE-MINIMAL-REVIEW、BOXES-MULTICURRENCY-STATUS、
+PATCHES-OFFICIAL-14、PDF-SLY-22.0.4-COMPAT、SLYCUSTOM-可实现功能、API-22.0.4-MERGE-AUDIT、
+CORE-DIFF-REASONS-BY-MODULE、FILES-DIFFER-FROM-OFFICIAL-22.0.txt、
+PDF-TEMPLATES-REMOVE-OLD、HOOKS-INDEX-PAGES）已于 2026-09 清理，需要时从 git 历史找回。
 
----
-
-## 一、建议保留（各有明确用途）
+## 当前文档
 
 | 文件 | 用途 |
 |------|------|
-| **README.md** | 模块主入口说明 |
-| **CORE-CUSTOMIZATIONS-FULL-LIST.md** | 14.0 相对官方的**完整核心定制清单**（权威，被 PORT-TO-22、PATCHES-BY-MODULE 等引用） |
-| **CORE-MINIMAL-REVIEW.md** | core 修改**审查与最小化**方案、未覆盖项、最小补丁集 |
-| **patches/README.md** | **14.0** 补丁列表与如何应用、数据库 ShipsGo |
-| **patches/APPLY-ON-22.md** | **22.0** 补丁应用顺序、完整 bash、按模块查看表、最小 Core、数据库 |
-| **patches/PATCHES-BY-MODULE.md** | **按功能模块**索引：14.0/22.0 补丁对应、缺口、应用顺序、最小集 |
-| **PORT-TO-22.md** | 14→22 **移植策略**（为何不能直接打 14.0 补丁、策略 A/B、补丁对应、单文件移植步骤） |
-| **SLYCUSTOM-可实现功能.md** | 哪些功能可在**模块内实现** vs 必须 core、hook 名与实现方式（设计参考） |
-| **PATCHES-OFFICIAL-14.md** | 在**官方 14.0** 上仅用 PDF + ShipsGo 时的**最小补丁**与 SQL（14.0 专用） |
-| **UPGRADE-STRATEGY.md** | **升级到最新版**的两种思路、推荐做法、仓库/分支建议（偏策略与运维） |
-| **BOXES-MULTICURRENCY-STATUS.md** | 仪表盘 box **多币种支持**检查清单（技术状态记录） |
-| **PDF-SLY-22.0.4-COMPAT.md** | SLY PDF 与 **22.0.4 兼容性**（架构差异、getDolGlobal、_pagehead 等）（技术） |
-| **TESTING-22.md** | 在 **22.0** 上测试 slycustom 的步骤（部署、启用、可测内容） |
-| **admin/SETUP-TABS-VERIFY.md** | 设置页是否为**带 Tab 版本**的验证步骤（操作） |
-
----
-
-## 二、重复较多、可考虑删除
-
-| 文件 | 与谁重复 / 重叠内容 | 建议 |
-|------|----------------------|------|
-| **PATCHES-OFFICIAL-22.md** | 与 **patches/APPLY-ON-22.md**、**patches/PATCHES-BY-MODULE.md**、**MIGRATION-FULL-PLAN.md** 重叠：移植阶段表、补丁列表、应用顺序、数据库 SQL、各 phase 说明。应用顺序与命令已集中在 APPLY-ON-22；按模块与缺口已集中在 PATCHES-BY-MODULE。 | **可删**。若想保留“移植进度”可把简短状态表合并进 PATCHES-BY-MODULE 或 APPLY-ON-22 开头。 |
-| **MIGRATION-FULL-PLAN.md** | 与 **PORT-TO-22.md**、**patches/PATCHES-BY-MODULE.md** 重叠：迁移阶段、状态、补丁对应、各阶段明细。PORT-TO-22 已包含策略与补丁对应；PATCHES-BY-MODULE 已包含按模块的 14/22 对应与缺口。 | **可删**。总览性的“阶段+状态”已在 PATCHES-BY-MODULE 和 APPLY-ON-22 中体现。 |
-
----
-
-## 三、删除后如何找内容
-
-- **22.0 补丁应用顺序与命令** → `patches/APPLY-ON-22.md`
-- **按功能模块看 14/22 补丁与缺口** → `patches/PATCHES-BY-MODULE.md`
-- **14→22 移植策略与步骤** → `PORT-TO-22.md`
-- **core 最小化与未覆盖项** → `CORE-MINIMAL-REVIEW.md`
-- **14.0 完整定制清单** → `CORE-CUSTOMIZATIONS-FULL-LIST.md`
-
----
-
-## 四、总结
-
-- **建议删除**：`PATCHES-OFFICIAL-22.md`、`MIGRATION-FULL-PLAN.md`（共 2 个）。
-- **其余 14 个** .md 建议保留；若希望进一步精简，可再考虑将 TESTING-22 合并进 README，或把 UPGRADE-STRATEGY 缩成 README 的一小节（一般不删，因策略单独成文更清晰）。
+| **README.md** | 模块主入口说明（功能、安装、目录结构、版本） |
+| **ChangeLog** | 版本变更记录（2.0.0 起以本文件为准） |
+| **docs/MENU-CLEANUP.md** | 菜单层级错位时的清理步骤（界面停用再启用 / CLI） |
+| **docs/UPGRADE-14.0.5-TO-22.0.4.md** | 从 14.0.5 自定义版升级到 22.0.4 的路径与变更整理 |
+| **docs/COMPUTED-FIELD-USAGE.md** | 扩展字段"计算字段"的用法与 dol_eval 语法限制（mode 2 白名单、无 `??`、无中缀括号/嵌套调用） |
+| **docs/COMPAT-CHECKLIST.md** | Dolibarr 升级（23/24）兼容验证清单：模块用到的核心表/列、类 API、描述符机制、数据级依赖 |
+| **docs/SLY-ACCOUNTING-DATE-RULES.md** | SLY 记账日期规则（SLY_AccountingDate 类配套） |
+| **docs/SLY-DROPSHIPPING.md** | 代发（dropshipping）流程说明 |
+| **admin/SETUP-TABS-VERIFY.md** | 设置页 Tab 版本的验证步骤 |
+| **patches/README.md** | 14.0 补丁列表与应用方法 |
+| **patches/APPLY-ON-22.md** | 22.0 补丁应用顺序与最小 core |
+| **patches/PATCHES-BY-MODULE.md** | 按功能模块的补丁索引与迁移缺口 |

@@ -17,7 +17,7 @@
 
 /**
  *	\defgroup   slycustom     Module SLY Custom
- *	\brief      SLY customisations: PDFs, ShipsGo, exports, Search Order, terms/hooks for Dolibarr 14.0 / 22.0
+ *	\brief      SLY customisations: PDFs, ShipsGo shipment sync, Wise incoming payments, exports, Search Order, terms/hooks for Dolibarr 14.0 / 22.0
  *	\file       htdocs/custom/slycustom/core/modules/modSlyCustom.class.php
  *	\ingroup    slycustom
  *	\brief      Description and activation file for the module SLY Custom
@@ -49,7 +49,7 @@ class modSlyCustom extends DolibarrModules
 		$this->descriptionlong = 'SLYCustomDescriptionLong';
 		$this->editor_name = 'SLY';
 		$this->editor_url = '';
-		$this->version = '1.0.0';
+		$this->version = '2.0.0';
 		$this->const_name = 'MAIN_MODULE_'.strtoupper($this->name);
 		$this->picto = 'generic';
 
@@ -95,7 +95,7 @@ class modSlyCustom extends DolibarrModules
 		$this->depends = array();
 		$this->requiredby = array();
 		$this->conflictwith = array();
-		$this->phpmin = array(5, 6);
+		$this->phpmin = array(7, 4); // 7.4+ (typed properties in ShipsGo_API / Wise_API)
 		$this->need_dolibarr_version = array(14, 0); // 14.0+ (含 22.0)
 		$this->langfiles = array("slycustom@slycustom");
 		$this->warnings_activation = array();
@@ -126,6 +126,22 @@ class modSlyCustom extends DolibarrModules
 				'test' => '$conf->slycustom->enabled',
 				'priority' => 50,
 			),
+			1 => array(
+				'entity' => 0,
+				'label' => 'Wise incoming payments enrichment',
+				'jobtype' => 'method',
+				'class' => 'custom/slycustom/class/Wise_Incoming.class.php',
+				'objectname' => 'WiseIncomingPayment',
+				'method' => 'enrichPendingCron',
+				// "<entity>,<rows per run>" — on multicompany clone the job per entity
+				'parameters' => '1,10',
+				'comment' => 'SLY Wise: pull statement details (reference/counterparty) for queued credits',
+				'frequency' => 1,
+				'unitfrequency' => 900, // every 15 min; DB is queried first, Wise API is hit only when NEW rows exist
+				'status' => 0,
+				'test' => '$conf->slycustom->enabled',
+				'priority' => 51,
+			),
 		);
 
 		$this->rights = array();
@@ -133,6 +149,11 @@ class modSlyCustom extends DolibarrModules
 		$this->rights[$r][0] = $this->numero.sprintf("%02d", $r + 1);
 		$this->rights[$r][1] = '使用 SLY 导出与报表';
 		$this->rights[$r][4] = 'export';
+		$this->rights[$r][5] = 'read';
+		$r++;
+		$this->rights[$r][0] = $this->numero.sprintf("%02d", $r + 1);
+		$this->rights[$r][1] = 'Wise incoming payment reconciliation';
+		$this->rights[$r][4] = 'wise';
 		$this->rights[$r][5] = 'read';
 		$r++;
 
@@ -150,6 +171,23 @@ class modSlyCustom extends DolibarrModules
 			'position' => 100,
 			'enabled' => '$conf->slycustom->enabled',
 			'perms' => '1',
+			'target' => '',
+			'user' => 2,
+		);
+		$r++;
+		// Tools → Wise reconcile (incoming payments queue)
+		$this->menu[$r] = array(
+			'fk_menu' => 'fk_mainmenu=tools',
+			'type' => 'left',
+			'titre' => 'SLYWiseReconcile',
+			'prefix' => img_picto('', 'payment', 'class="paddingright pictofixedwidth valignmiddle"'),
+			'mainmenu' => 'tools',
+			'leftmenu' => 'sly_wise_reconcile',
+			'url' => '/custom/slycustom/wise/reconcile.php?mainmenu=tools&leftmenu=sly_wise_reconcile',
+			'langs' => 'slycustom@slycustom',
+			'position' => 420,
+			'enabled' => '$conf->slycustom->enabled',
+			'perms' => '$user->rights->slycustom->wise->read',
 			'target' => '',
 			'user' => 2,
 		);
@@ -490,6 +528,23 @@ class modSlyCustom extends DolibarrModules
 			"INSERT INTO ".MAIN_DB_PREFIX."document_model (nom, type, entity) VALUES('sly_debitnote', 'invoice_supplier', ".((int) $conf->entity).")",
 			"DELETE FROM ".MAIN_DB_PREFIX."document_model WHERE nom = 'cornas_SLY' AND type = 'order_supplier' AND entity = ".((int) $conf->entity),
 			"INSERT INTO ".MAIN_DB_PREFIX."document_model (nom, type, entity) VALUES('cornas_SLY', 'order_supplier', ".((int) $conf->entity).")",
+			// Wise integration tables (idempotent; manual install file: sql/llx_slycustom_wise.sql)
+			"CREATE TABLE IF NOT EXISTS ".MAIN_DB_PREFIX."slycustom_wise_event ("
+				."rowid integer AUTO_INCREMENT PRIMARY KEY, entity integer NOT NULL DEFAULT 1,"
+				."event_type varchar(64) NOT NULL DEFAULT '', subscription_id varchar(64) NOT NULL DEFAULT '',"
+				."schema_version varchar(16) NOT NULL DEFAULT '', delivery_id varchar(64) NOT NULL DEFAULT '',"
+				."is_test tinyint DEFAULT 0, occurred_at datetime NULL, sent_at datetime NULL,"
+				."payload_md5 varchar(32) NOT NULL DEFAULT '', payload_json mediumtext,"
+				."processed tinyint DEFAULT 0, processing_note varchar(255) DEFAULT '', date_creation datetime,"
+				."UNIQUE KEY uk_payload (payload_md5)) ENGINE=innodb",
+			"CREATE TABLE IF NOT EXISTS ".MAIN_DB_PREFIX."slycustom_wise_incoming ("
+				."rowid integer AUTO_INCREMENT PRIMARY KEY, entity integer NOT NULL DEFAULT 1,"
+				."fk_event integer NULL, wise_balance_id bigint NULL, currency varchar(3) NOT NULL DEFAULT '',"
+				."amount double(24,8) DEFAULT 0, occurred_at datetime NULL, post_balance double(24,8) DEFAULT NULL,"
+				."status varchar(24) NOT NULL DEFAULT 'NEW', ref_text varchar(255) DEFAULT '',"
+				."counterparty varchar(255) DEFAULT '', fees double(24,8) DEFAULT NULL, match_data text,"
+				."fk_soc integer NULL, fk_paiement integer NULL, statement_txn_json mediumtext,"
+				."note_private text, date_creation datetime, tms timestamp, UNIQUE KEY uk_event (fk_event)) ENGINE=innodb",
 		);
 
 		$result = $this->_init($sql, $options);

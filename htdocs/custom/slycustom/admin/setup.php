@@ -77,7 +77,16 @@ if ($backtopage !== '' && $backtopage !== null) {
 $urlparams_str = empty($urlparams) ? '' : ('&'.http_build_query($urlparams));
 
 // Parameters: key => array('label' => lang key, 'type' => 'chaine'|'yesno', 'css' => ..., 'tooltip' => lang key)
+// General tab: module-wide options only (feature-specific settings live on their own tabs).
 $arrayofparameters = array(
+	'SLYCUSTOM_SHIPPING_ENABLE_UNVALIDATE' => array(
+		'label' => 'SLYCUSTOM_SHIPPING_ENABLE_UNVALIDATE',
+		'type' => 'yesno',
+		'tooltip' => 'SLYCUSTOM_SHIPPING_ENABLE_UNVALIDATETooltip',
+	),
+);
+// ShipsGo tab parameters.
+$shipsgoparameters = array(
 	'API_KEY_SHIPSGO' => array(
 		'label' => 'API_KEY_SHIPSGO',
 		'type' => 'chaine',
@@ -89,11 +98,6 @@ $arrayofparameters = array(
 		'type' => 'chaine',
 		'css' => 'minwidth400',
 		'tooltip' => 'SHIPSGO_WEBHOOK_SECRETTooltip',
-	),
-	'SLYCUSTOM_SHIPPING_ENABLE_UNVALIDATE' => array(
-		'label' => 'SLYCUSTOM_SHIPPING_ENABLE_UNVALIDATE',
-		'type' => 'yesno',
-		'tooltip' => 'SLYCUSTOM_SHIPPING_ENABLE_UNVALIDATETooltip',
 	),
 );
 
@@ -297,7 +301,7 @@ if ($action == 'register_shipsgo_webhook') {
 			}
 		}
 	}
-	header('Location: '.$_SERVER["PHP_SELF"].'?tab=general'.$urlparams_str);
+	header('Location: '.$_SERVER["PHP_SELF"].'?tab=shipsgo'.$urlparams_str);
 	exit;
 }
 
@@ -316,13 +320,172 @@ if ($action == 'generate_shipsgo_secret') {
 			dol_syslog(__METHOD__.' ShipsGo webhook secret regenerated entity='.$conf->entity, LOG_INFO);
 		}
 	}
-	header('Location: '.$_SERVER["PHP_SELF"].'?tab=general'.$urlparams_str);
+	header('Location: '.$_SERVER["PHP_SELF"].'?tab=shipsgo'.$urlparams_str);
+	exit;
+}
+
+// Wise: save connection + matching + bank mapping settings for the current entity.
+if ($action == 'update_wise' && !GETPOST('cancel', 'alpha')) {
+	if (GETPOST('token', 'none') !== newToken()) {
+		setEventMessages($langs->trans("Error"), null, 'errors');
+	} else {
+		$db->begin();
+		$wiseConsts = array(
+			// Feature toggles (checkboxes: absent from POST = 0)
+			'WISE_INCOMING_ENABLED' => (string) (int) GETPOST('WISE_INCOMING_ENABLED', 'int'),
+			'WISE_OUTGOING_ENABLED' => (string) (int) GETPOST('WISE_OUTGOING_ENABLED', 'int'),
+			'WISE_WEBHOOK_IPCHECK' => (string) (int) GETPOST('WISE_WEBHOOK_IPCHECK', 'int'),
+			'WISE_API_TOKEN' => GETPOST('WISE_API_TOKEN', 'alphanohtml'),
+			'WISE_PROFILE_ID' => GETPOST('WISE_PROFILE_ID', 'alphanohtml'),
+			'WISE_SO_REF_PATTERN' => GETPOST('WISE_SO_REF_PATTERN', 'alphanohtml'),
+			'WISE_PAYMENT_MODE' => GETPOST('WISE_PAYMENT_MODE', 'aZ09'),
+			'WISE_BANK_ACCOUNT_DEFAULT' => (string) GETPOSTINT('WISE_BANK_ACCOUNT_DEFAULT'),
+		);
+		// Per-currency bank mapping: wise_bank_map[CUR] = bank account rowid (0 = none)
+		$bankMap = GETPOST('wise_bank_map', 'array');
+		if (is_array($bankMap)) {
+			foreach ($bankMap as $cur => $accid) {
+				$cur = strtoupper(substr(trim((string) $cur), 0, 3));
+				if (preg_match('/^[A-Z]{3}$/', $cur)) {
+					$wiseConsts['WISE_BANK_ACCOUNT_'.$cur] = (string) (int) $accid;
+				}
+			}
+		}
+		foreach ($wiseConsts as $name => $value) {
+			$result = dolibarr_set_const($db, $name, $value, 'chaine', 0, '', $conf->entity);
+			if ($result < 0) {
+				$error++;
+				break;
+			}
+		}
+		if (!$error) {
+			$db->commit();
+			setEventMessages($langs->trans("SetupSaved"), null, 'mesgs');
+		} else {
+			$db->rollback();
+			setEventMessages($langs->trans("SetupNotSaved"), null, 'errors');
+		}
+	}
+	header('Location: '.$_SERVER["PHP_SELF"].'?tab=wise'.$urlparams_str);
+	exit;
+}
+
+// Wise: test the API token, list profiles and auto-fill WISE_PROFILE_ID when empty.
+if ($action == 'wise_test') {
+	if (GETPOST('token', 'none') !== newToken()) {
+		setEventMessages($langs->trans("Error"), null, 'errors');
+	} else {
+		require_once DOL_DOCUMENT_ROOT.'/custom/slycustom/class/Wise_API.class.php';
+		$apiToken = trim((string) getDolGlobalString('WISE_API_TOKEN'));
+		if ($apiToken === '') {
+			setEventMessages($langs->trans("WISE_TOKEN_NOT_SET"), null, 'errors');
+		} else {
+			$api = new Wise_API($apiToken);
+			$result = $api->getProfiles();
+			$httpCode = isset($result['httpCode']) ? (int) $result['httpCode'] : 0;
+			unset($result['httpCode']);
+			if ($httpCode >= 200 && $httpCode < 300 && !empty($result)) {
+				$found = array();
+				foreach ($result as $prof) {
+					if (is_array($prof) && isset($prof['id'])) {
+						$found[] = $prof['id'].' ('.(isset($prof['type']) ? $prof['type'] : '?').')';
+						// Auto-fill the profile id: prefer business type
+						if (getDolGlobalString('WISE_PROFILE_ID') === '' && isset($prof['type']) && $prof['type'] === 'business') {
+							dolibarr_set_const($db, 'WISE_PROFILE_ID', (string) $prof['id'], 'chaine', 0, '', $conf->entity);
+						}
+					}
+				}
+				setEventMessages($langs->trans("WISE_TEST_OK").' '.implode(', ', $found), null, 'mesgs');
+			} else {
+				$detail = isset($result['error']) ? $result['error'] : json_encode($result);
+				setEventMessages($langs->trans("WISE_TEST_KO").' HTTP '.$httpCode.' '.substr((string) $detail, 0, 300), null, 'errors');
+			}
+		}
+	}
+	header('Location: '.$_SERVER["PHP_SELF"].'?tab=wise'.$urlparams_str);
+	exit;
+}
+
+// Wise: fetch webhook subscriptions and persist the signature public key to
+// DOL_DATA_ROOT/wise_webhook/verification_key.pem (switches the receiver out
+// of bootstrap mode: unsigned deliveries then get HTTP 401).
+if ($action == 'wise_save_signature_key') {
+	if (GETPOST('token', 'none') !== newToken()) {
+		setEventMessages($langs->trans("Error"), null, 'errors');
+	} else {
+		require_once DOL_DOCUMENT_ROOT.'/custom/slycustom/class/Wise_API.class.php';
+		$apiToken = trim((string) getDolGlobalString('WISE_API_TOKEN'));
+		$profileId = trim((string) getDolGlobalString('WISE_PROFILE_ID'));
+		if ($apiToken === '' || $profileId === '') {
+			setEventMessages($langs->trans("WISE_TOKEN_NOT_SET"), null, 'errors');
+		} else {
+			$api = new Wise_API($apiToken);
+			$result = $api->getSubscriptions((int) $profileId);
+			$httpCode = isset($result['httpCode']) ? (int) $result['httpCode'] : 0;
+			unset($result['httpCode']);
+			$keyFound = '';
+			$keySubId = '';
+			$keySubType = '';
+			if ($httpCode >= 200 && $httpCode < 300 && is_array($result)) {
+				foreach ($result as $sub) {
+					if (!is_array($sub)) {
+						continue;
+					}
+					$candidate = '';
+					// Field name varies across API versions (signature_key,
+					// delivery_signature_key, ...). Also scan any "*key*" string.
+					foreach (array('signature_key', 'delivery_signature_key', 'signatureKey') as $f) {
+						if (!empty($sub[$f]) && is_string($sub[$f])) {
+							$candidate = trim($sub[$f]);
+							break;
+						}
+					}
+					if ($candidate === '') {
+						foreach ($sub as $f => $v) {
+							if (is_string($v) && stripos($f, 'key') !== false
+								&& (stripos($v, 'BEGIN PUBLIC KEY') !== false || preg_match('/^[A-Za-z0-9+\/=\s]{100,}$/', $v))) {
+								$candidate = trim($v);
+								break;
+							}
+						}
+					}
+					if ($candidate !== '') {
+						// Prefer the balances#credit subscription when several exist
+						$keyFound = $candidate;
+						$keySubId = isset($sub['id']) ? (string) $sub['id'] : '';
+						$keySubType = isset($sub['notification_type']) ? (string) $sub['notification_type'] : '';
+						if (stripos($keySubType, 'credit') !== false) {
+							break;
+						}
+					}
+				}
+			}
+			if ($keyFound === '') {
+				$detail = json_encode($result);
+				setEventMessages($langs->trans("WISE_SIGNATURE_KEY_NOT_FOUND").' profileId='.$profileId.' HTTP '.$httpCode.' '.substr((string) $detail, 0, 400), null, 'errors');
+			} else {
+				$keyDir = DOL_DATA_ROOT.'/wise_webhook';
+				if (!is_dir(dol_osencode($keyDir))) {
+					dol_mkdir($keyDir);
+				}
+				$keyFile = $keyDir.'/verification_key.pem';
+				if (@file_put_contents(dol_osencode($keyFile), $keyFound."\n") === false) {
+					setEventMessages($langs->trans("WISE_SIGNATURE_KEY_WRITE_FAILED").' '.$keyFile, null, 'errors');
+				} else {
+					$fingerprint = substr(preg_replace('/\s+/', '', $keyFound), 0, 24);
+					setEventMessages($langs->trans("WISE_SIGNATURE_KEY_SAVED").' ('.$keySubType.' '.$keySubId.', '.$fingerprint.'...)', null, 'mesgs');
+					dol_syslog(__METHOD__.' Wise signature key saved for subscription '.$keySubId.' ('.$keySubType.')', LOG_INFO);
+				}
+			}
+		}
+	}
+	header('Location: '.$_SERVER["PHP_SELF"].'?tab=wise'.$urlparams_str);
 	exit;
 }
 
 if ($action == 'update' && !GETPOST('cancel', 'alpha')) {
 	$db->begin();
-	foreach ($arrayofparameters as $key => $val) {
+	foreach (array_merge($arrayofparameters, $shipsgoparameters) as $key => $val) {
 		if (!GETPOSTISSET($key)) {
 			continue;
 		}
@@ -351,33 +514,28 @@ if ($action == 'update' && !GETPOST('cancel', 'alpha')) {
  * View – tabbed by feature
  */
 $tab = GETPOST('tab', 'aZ09');
-if (!in_array($tab, array('general', 'pdf', 'boxes', 'rubis'), true)) {
+if (!in_array($tab, array('general', 'shipsgo', 'pdf', 'boxes', 'rubis', 'wise'), true)) {
 	$tab = 'general';
 }
 // Ensure module lang is loaded so tab labels are translated
 $langs->load("slycustom@slycustom", 0, 0, '', 0, 1);
 // Tab labels: use trans() and fallback to inline strings when key is not translated (no dependency on file path)
 $tab_fallbacks = array(
-	'en_US' => array('General', 'PDF templates', 'Dashboard', 'Terms & conditions'),
-	'zh_CN' => array('常规', 'PDF 模板', '仪表盘', '销售条款'),
+	'en_US' => array('General', 'ShipsGo', 'PDF templates', 'Dashboard', 'Terms & conditions', 'Wise'),
+	'zh_CN' => array('常规', 'ShipsGo 物流', 'PDF 模板', '仪表盘', '销售条款', 'Wise 收款'),
 );
-$tab_keys = array('SLYCUSTOM_TAB_GENERAL', 'SLYCUSTOM_TAB_PDF', 'SLYCUSTOM_TAB_BOXES', 'SLYCUSTOM_TAB_RUBIS');
+$tab_keys = array('SLYCUSTOM_TAB_GENERAL', 'SLYCUSTOM_TAB_SHIPSGO', 'SLYCUSTOM_TAB_PDF', 'SLYCUSTOM_TAB_BOXES', 'SLYCUSTOM_TAB_RUBIS', 'SLYCUSTOM_TAB_WISE');
 $langcode = (!empty($langs->defaultlang) ? $langs->defaultlang : 'en_US');
 if (!isset($tab_fallbacks[$langcode])) {
 	$langcode = 'en_US';
 }
 $tab_labels = array();
-for ($i = 0; $i < 4; $i++) {
+for ($i = 0; $i < 6; $i++) {
 	$t = $langs->trans($tab_keys[$i]);
 	$tab_labels[$i] = ($t !== $tab_keys[$i] && $t !== '') ? $t : $tab_fallbacks[$langcode][$i];
 }
 // Use absolute URL so tab links work in any environment (subdir, rewrite, etc.)
 $taburl = DOL_URL_ROOT.'/custom/slycustom/admin/setup.php';
-$head = array();
-$head[0] = array($taburl.'?tab=general', $tab_labels[0], 'general');
-$head[1] = array($taburl.'?tab=pdf', $tab_labels[1], 'pdf');
-$head[2] = array($taburl.'?tab=boxes', $tab_labels[2], 'boxes');
-$head[3] = array($taburl.'?tab=rubis', $tab_labels[3], 'rubis');
 
 $page_name = "SLYCustomSetup";
 $help_url = '';
@@ -390,7 +548,7 @@ $linkback = '<a href="'.dol_escape_htmltag($backurl).'">'.$langs->trans("BackToM
 print load_fiche_titre($langs->trans($page_name), $linkback, 'title_setup');
 
 // Custom tab bar (always visible; some themes hide dol_get_fiche_head tabs on setup pages)
-$tab_ids = array('general', 'pdf', 'boxes', 'rubis');
+$tab_ids = array('general', 'shipsgo', 'pdf', 'boxes', 'rubis', 'wise');
 print '<!-- SLYCUSTOM_SETUP_TABS_V2 tab=('.dol_escape_htmltag($tab).') -->'."\n";
 print '<div class="slycustom-setup-tabbar" style="margin:10px 0 0 0;padding:0 0 8px 0;border-bottom:1px solid #bbb;clear:both;">'."\n";
 // Escape only < and > for tab labels so "Terms & conditions" displays correctly
@@ -405,7 +563,7 @@ foreach ($tab_ids as $i => $tid) {
 print '</div>'."\n";
 print '<div class="tabBar tabBarWithBottom slycustom-setup-content" style="padding-top:16px; max-width:960px;">'."\n";
 
-// Tab: General (ShipsGo, Unvalidate)
+// Tab: General (module-wide options)
 if ($tab == 'general') {
 	print '<div class="div-table-responsive-no-min">';
 	print '<table class="noborder centpercent">';
@@ -477,7 +635,71 @@ if ($tab == 'general') {
 	print '<input type="submit" class="butAction" value="'.$langs->trans("SLYCUSTOM_SYNC_MENU_ICONS").'">';
 	print '</form>';
 	print '</div></td></tr>';
+	print '</table>';
+	print '</div>';
+}
 
+// Tab: ShipsGo (API key, webhook secret, webhook registration)
+if ($tab == 'shipsgo') {
+	print '<div class="div-table-responsive-no-min">';
+	print '<table class="noborder centpercent">';
+	print '<tr class="liste_titre"><td colspan="2">'.$langs->trans("SLYCUSTOM_SHIPSGO_SECTION").'</td></tr>';
+	if ($action == 'edit') {
+		print '<tr><td colspan="2">';
+		print '<form method="POST" action="'.$_SERVER["PHP_SELF"].'">';
+		print '<input type="hidden" name="token" value="'.newToken().'">';
+		print '<input type="hidden" name="action" value="update">';
+		print '<input type="hidden" name="tab" value="shipsgo">';
+		if ($save_lastsearch_values) {
+			print '<input type="hidden" name="save_lastsearch_values" value="1">';
+		}
+		if ($backtopage !== '' && $backtopage !== null) {
+			print '<input type="hidden" name="backtopage" value="'.dol_escape_htmltag($backtopage).'">';
+		}
+		print '<table class="noborder centpercent">';
+		print '<tr class="liste_titre"><td class="titlefield">'.$langs->trans("Parameter").'</td><td>'.$langs->trans("Value").'</td></tr>';
+		foreach ($shipsgoparameters as $key => $val) {
+			$tooltip = isset($val['tooltip']) ? $langs->trans($val['tooltip']) : '';
+			print '<tr class="oddeven"><td>';
+			print $form->textwithpicto($langs->trans($val['label']), $tooltip);
+			print '</td><td>';
+			if (isset($val['type']) && $val['type'] == 'yesno') {
+				print $form->selectyesno($key, getDolGlobalString($key, 1), 1);
+			} else {
+				$css = isset($val['css']) ? $val['css'] : 'minwidth200';
+				$current = getDolGlobalString($key);
+				print '<input type="text" name="'.$key.'" class="flat '.$css.'" value="'.dol_escape_htmltag($current).'" autocomplete="off">';
+			}
+			print '</td></tr>';
+		}
+		print '</table>';
+		print '<br><div class="center">';
+		print '<input class="button button-save" type="submit" value="'.$langs->trans("Save").'"> ';
+		print '<input class="button button-cancel" type="submit" name="cancel" value="'.$langs->trans("Cancel").'">';
+		print '</div>';
+		print '</form>';
+		print '</td></tr>';
+	} else {
+		print '<tr class="liste_titre"><td class="titlefield">'.$langs->trans("Parameter").'</td><td>'.$langs->trans("Value").'</td></tr>';
+		foreach ($shipsgoparameters as $key => $val) {
+			$tooltip = isset($val['tooltip']) ? $langs->trans($val['tooltip']) : '';
+			print '<tr class="oddeven"><td>';
+			print $form->textwithpicto($langs->trans($val['label']), $tooltip);
+			print '</td><td>';
+			if (isset($val['type']) && $val['type'] == 'yesno') {
+				$v = getDolGlobalString($key, 1);
+				print $v ? $langs->trans("Yes") : $langs->trans("No");
+			} else {
+				$v = getDolGlobalString($key);
+				$preview = ($key === 'SHIPSGO_WEBHOOK_SECRET' && strlen((string) $v) > 8) ? substr((string) $v, 0, 8).'...' : $v;
+				print $v ? dol_escape_htmltag($preview) : '<span class="opacitymedium">'.$langs->trans("None").'</span>';
+			}
+			print '</td></tr>';
+		}
+		print '<tr><td colspan="2"><div class="tabsAction">';
+		print '<a class="butAction" href="'.$_SERVER["PHP_SELF"].'?tab=shipsgo&action=edit&token='.newToken().$urlparams_str.'">'.$langs->trans("Modify").'</a>';
+		print '</div></td></tr>';
+	}
 	// ShipsGo webhook: per-entity URL and registration
 	if (isModEnabled('slycustom')) {
 		require_once DOL_DOCUMENT_ROOT.'/custom/slycustom/class/ShipsGo_Update.class.php';
@@ -505,13 +727,13 @@ if ($tab == 'general') {
 			.'>';
 		print '<input type="hidden" name="token" value="'.newToken().'">';
 		print '<input type="hidden" name="action" value="generate_shipsgo_secret">';
-		print '<input type="hidden" name="tab" value="general">';
+		print '<input type="hidden" name="tab" value="shipsgo">';
 		print '<input type="submit" class="butAction" value="'.$langs->trans("SHIPSGO_WEBHOOK_GENERATE_SECRET").'">';
 		print '</form>';
 		print '<form method="POST" action="'.$_SERVER["PHP_SELF"].'" style="display:inline; margin-left:4px;">';
 		print '<input type="hidden" name="token" value="'.newToken().'">';
 		print '<input type="hidden" name="action" value="register_shipsgo_webhook">';
-		print '<input type="hidden" name="tab" value="general">';
+		print '<input type="hidden" name="tab" value="shipsgo">';
 		print '<input type="submit" class="butAction" value="'.$langs->trans("SHIPSGO_WEBHOOK_REGISTER").'">';
 		print '</form>';
 		print '</div></td></tr>';
@@ -834,6 +1056,190 @@ if ($tab == 'rubis') {
 		print '</form>';
 		print '</div>';
 	}
+}
+
+// Tab: Wise incoming payments (connection, matching, bank mapping, status)
+if ($tab == 'wise') {
+	require_once DOL_DOCUMENT_ROOT.'/custom/slycustom/class/Wise_API.class.php';
+	require_once DOL_DOCUMENT_ROOT.'/custom/slycustom/class/Wise_Incoming.class.php';
+
+	$wiseToken = trim((string) getDolGlobalString('WISE_API_TOKEN'));
+	$wiseProfileId = trim((string) getDolGlobalString('WISE_PROFILE_ID'));
+	$wiseKeyFile = DOL_DATA_ROOT.'/wise_webhook/verification_key.pem';
+	$wiseKeyOk = is_readable($wiseKeyFile);
+	$wiseWebhookUrl = DOL_MAIN_URL_ROOT.'/custom/slycustom/webhook/wise.php';
+
+	// Bank accounts (for the per-currency mapping) and payment modes
+	$bankAccounts = array();
+	$sql = 'SELECT rowid, ref, label, currency_code, clos FROM '.MAIN_DB_PREFIX.'bank_account';
+	$sql .= ' WHERE entity IN (1, '.(int) $conf->entity.') ORDER BY currency_code, ref';
+	$resql = $db->query($sql);
+	if ($resql) {
+		while ($obj = $db->fetch_object($resql)) {
+			$bankAccounts[(int) $obj->rowid] = array(
+				'ref' => $obj->ref,
+				'label' => $obj->label,
+				'currency' => strtoupper((string) $obj->currency_code),
+				'clos' => (int) $obj->clos,
+			);
+		}
+		$db->free($resql);
+	}
+	$currencies = array();
+	foreach ($bankAccounts as $acc) {
+		if ($acc['currency'] !== '' && !in_array($acc['currency'], $currencies)) {
+			$currencies[] = $acc['currency'];
+		}
+	}
+
+	$paymentModes = array();
+	$sql = 'SELECT code, libelle FROM '.MAIN_DB_PREFIX.'c_paiement';
+	$sql .= ' WHERE active = 1 AND entity IN (0, '.(int) $conf->entity.') ORDER BY position ASC';
+	$resql = $db->query($sql);
+	if ($resql) {
+		while ($obj = $db->fetch_object($resql)) {
+			$paymentModes[$obj->code] = $obj->libelle.' ('.$obj->code.')';
+		}
+		$db->free($resql);
+	}
+
+	// Incoming queue status
+	$queueCounts = array();
+	$sql = 'SELECT status, COUNT(*) AS n, SUM(amount) AS total FROM '.MAIN_DB_PREFIX.'slycustom_wise_incoming';
+	$sql .= ' WHERE entity = '.(int) $conf->entity.' GROUP BY status';
+	$resql = $db->query($sql);
+	if ($resql) {
+		while ($obj = $db->fetch_object($resql)) {
+			$queueCounts[$obj->status] = array('n' => (int) $obj->n, 'total' => (float) $obj->total);
+		}
+		$db->free($resql);
+	}
+
+	print '<div class="div-table-responsive-no-min">';
+	print '<table class="noborder centpercent">';
+
+	// Status overview
+	print '<tr class="liste_titre"><td colspan="2">'.$langs->trans("WISE_STATUS_SECTION").'</td></tr>';
+	$incomingOn = WiseIncomingPayment::isIncomingEnabled($db, (int) $conf->entity);
+	$outgoingOn = WiseIncomingPayment::isOutgoingEnabled($db, (int) $conf->entity);
+	print '<tr class="oddeven"><td>'.$form->textwithpicto($langs->trans("WISE_FLOW_STATUS"), $langs->transnoentities("WISE_FLOW_STATUSTooltip")).'</td><td>'
+		.$langs->trans("WISE_FLOW_INCOMING").': '.($incomingOn ? '<strong>'.$langs->trans("Activated").'</strong>' : '<span class="warning">'.$langs->trans("Disabled").'</span>')
+		.' &nbsp;|&nbsp; '.$langs->trans("WISE_FLOW_OUTGOING").': '.($outgoingOn ? '<strong>'.$langs->trans("Activated").'</strong>' : '<span class="opacitymedium">'.$langs->trans("Disabled").'</span>')
+		.'</td></tr>';
+	print '<tr class="oddeven"><td class="titlefield">'.$langs->trans("WISE_WEBHOOK_URL").'</td><td><code style="user-select:all;">'.dol_escape_htmltag($wiseWebhookUrl).'</code></td></tr>';
+	print '<tr class="oddeven"><td>'.$langs->trans("WISE_API_TOKEN").'</td><td>'.($wiseToken !== '' ? '<span class="opacitymedium">'.substr($wiseToken, 0, 6).'... ('.$langs->trans("Configured").', len='.strlen($wiseToken).')</span>' : '<span class="opacitymedium">'.$langs->trans("NotConfigured").'</span>').'</td></tr>';
+	print '<tr class="oddeven"><td>'.$langs->trans("WISE_PROFILE_ID").'</td><td>'.($wiseProfileId !== '' ? dol_escape_htmltag($wiseProfileId) : '<span class="opacitymedium">'.$langs->trans("NotConfigured").'</span>').'</td></tr>';
+	print '<tr class="oddeven"><td>'.$form->textwithpicto($langs->trans("WISE_SIGNATURE_KEY"), $langs->transnoentities("WISE_SIGNATURE_KEYTooltip")).'</td><td>'.($wiseKeyOk
+		? $langs->trans("WISE_SIGNATURE_KEY_FOUND")
+		: '<span class="warning">'.$langs->trans("WISE_SIGNATURE_KEY_MISSING").'</span>'
+			.((string) getDolGlobalString('WISE_WEBHOOK_IPCHECK') === '1' ? '<br>'.$langs->trans("WISE_IPCHECK_ACTIVE") : '')).'</td></tr>';
+	// Effective SO pattern: manual override > derived from order numbering mask > default
+	$wiseManualPattern = trim((string) getDolGlobalString('WISE_SO_REF_PATTERN'));
+	$wiseDerivedPattern = WiseIncomingPayment::deriveSoPatternFromNumbering($db, (int) $conf->entity);
+	$wiseEffectivePattern = WiseIncomingPayment::getSoPattern($db, (int) $conf->entity);
+	if ($wiseManualPattern !== '') {
+		$wisePatternSource = $langs->trans("WISE_SO_REF_SOURCE_MANUAL");
+	} elseif ($wiseDerivedPattern !== '') {
+		$wisePatternSource = $langs->trans("WISE_SO_REF_SOURCE_MASK");
+	} else {
+		$wisePatternSource = $langs->trans("WISE_SO_REF_SOURCE_DEFAULT");
+	}
+	print '<tr class="oddeven"><td>'.$form->textwithpicto($langs->trans("WISE_SO_REF_PATTERN_EFFECTIVE"), $langs->transnoentities("WISE_SO_REF_PATTERNTooltip")).'</td>';
+	print '<td><code>'.dol_escape_htmltag($wiseEffectivePattern).'</code><br><span class="opacitymedium">'.$wisePatternSource.(($wiseManualPattern === '' && $wiseDerivedPattern !== '') ? ' — '.dol_escape_htmltag($wiseDerivedPattern) : '').'</span></td></tr>';
+	$queueLine = array();
+	foreach (array(WiseIncomingPayment::STATUS_NEW, WiseIncomingPayment::STATUS_ENRICHED, WiseIncomingPayment::STATUS_RECORDED, WiseIncomingPayment::STATUS_IGNORED) as $st) {
+		if (isset($queueCounts[$st])) {
+			$queueLine[] = $st.': '.$queueCounts[$st]['n'];
+		}
+	}
+	print '<tr class="oddeven"><td>'.$langs->trans("WISE_QUEUE_STATUS").'</td><td>'.(empty($queueLine) ? '<span class="opacitymedium">'.$langs->trans("None").'</span>' : implode(' &nbsp;|&nbsp; ', $queueLine)).'</td></tr>';
+	print '</table></div>';
+
+	// Settings form
+	print '<br>';
+	print '<form method="POST" action="'.$_SERVER["PHP_SELF"].'">';
+	print '<input type="hidden" name="token" value="'.newToken().'">';
+	print '<input type="hidden" name="action" value="update_wise">';
+	print '<input type="hidden" name="tab" value="wise">';
+	if ($backtopage !== '' && $backtopage !== null) {
+		print '<input type="hidden" name="backtopage" value="'.dol_escape_htmltag($backtopage).'">';
+	}
+	print '<div class="div-table-responsive-no-min">';
+	print '<table class="noborder centpercent">';
+	print '<tr class="liste_titre"><td colspan="2">'.$langs->trans("SLYCUSTOM_WISE_SECTION").'</td></tr>';
+
+	// Feature toggles
+	print '<tr class="oddeven"><td class="titlefield">'.$form->textwithpicto($langs->trans("WISE_INCOMING_ENABLED"), $langs->transnoentities("WISE_INCOMING_ENABLEDTooltip")).'</td>';
+	print '<td>'.$form->selectyesno('WISE_INCOMING_ENABLED', WiseIncomingPayment::isIncomingEnabled($db, (int) $conf->entity) ? 1 : 0, 1).'</td></tr>';
+	print '<tr class="oddeven"><td class="titlefield">'.$form->textwithpicto($langs->trans("WISE_OUTGOING_ENABLED"), $langs->transnoentities("WISE_OUTGOING_ENABLEDTooltip")).'</td>';
+	print '<td>'.$form->selectyesno('WISE_OUTGOING_ENABLED', WiseIncomingPayment::isOutgoingEnabled($db, (int) $conf->entity) ? 1 : 0, 1).'</td></tr>';
+	print '<tr class="oddeven"><td class="titlefield">'.$form->textwithpicto($langs->trans("WISE_WEBHOOK_IPCHECK"), $langs->transnoentities("WISE_WEBHOOK_IPCHECKTooltip")).'</td>';
+	print '<td>'.$form->selectyesno('WISE_WEBHOOK_IPCHECK', (string) getDolGlobalString('WISE_WEBHOOK_IPCHECK') === '1' ? 1 : 0, 1).'</td></tr>';
+
+	$wiseTokenTooltip = $langs->trans("WISE_API_TOKENTooltip");
+	print '<tr class="oddeven"><td class="titlefield">'.$form->textwithpicto($langs->trans("WISE_API_TOKEN"), $wiseTokenTooltip).'</td>';
+	print '<td><input type="text" name="WISE_API_TOKEN" class="flat minwidth400" value="'.dol_escape_htmltag($wiseToken).'" autocomplete="off"></td></tr>';
+
+	print '<tr class="oddeven"><td class="titlefield">'.$form->textwithpicto($langs->trans("WISE_PROFILE_ID"), $langs->trans("WISE_PROFILE_IDTooltip")).'</td>';
+	print '<td><input type="text" name="WISE_PROFILE_ID" class="flat minwidth200" value="'.dol_escape_htmltag($wiseProfileId).'" autocomplete="off"></td></tr>';
+
+	print '<tr class="oddeven"><td class="titlefield">'.$form->textwithpicto($langs->trans("WISE_SO_REF_PATTERN"), $langs->trans("WISE_SO_REF_PATTERNTooltip")).'</td>';
+	print '<td><input type="text" name="WISE_SO_REF_PATTERN" class="flat minwidth400" value="'.dol_escape_htmltag(getDolGlobalString('WISE_SO_REF_PATTERN')).'" placeholder="/\b([A-Z]{0,4}[0-9]{2,5}[-\/]?[0-9]{1,6})\b/i" autocomplete="off"></td></tr>';
+
+	print '<tr class="oddeven"><td class="titlefield">'.$form->textwithpicto($langs->trans("WISE_PAYMENT_MODE"), $langs->trans("WISE_PAYMENT_MODETooltip")).'</td><td>';
+	$currentMode = getDolGlobalString('WISE_PAYMENT_MODE') !== '' ? getDolGlobalString('WISE_PAYMENT_MODE') : 'VIR';
+	print '<select name="WISE_PAYMENT_MODE" class="flat">';
+	foreach ($paymentModes as $code => $label) {
+		print '<option value="'.dol_escape_htmltag($code).'"'.($code === $currentMode ? ' selected' : '').'>'.dol_escape_htmltag($label).'</option>';
+	}
+	print '</select></td></tr>';
+
+	print '<tr class="oddeven"><td class="titlefield">'.$form->textwithpicto($langs->trans("WISE_BANK_ACCOUNT_DEFAULT"), $langs->trans("WISE_BANK_ACCOUNT_DEFAULTTooltip")).'</td><td>';
+	print '<select name="WISE_BANK_ACCOUNT_DEFAULT" class="flat">';
+	print '<option value="0">--</option>';
+	$currentDefault = (int) getDolGlobalString('WISE_BANK_ACCOUNT_DEFAULT');
+	foreach ($bankAccounts as $accid => $acc) {
+		print '<option value="'.$accid.'"'.($accid === $currentDefault ? ' selected' : '').'>'.dol_escape_htmltag($acc['ref'].' — '.$acc['label'].' ('.$acc['currency'].($acc['clos'] ? ', '.$langs->trans("Closed") : '').')').'</option>';
+	}
+	print '</select></td></tr>';
+
+	// Per-currency mapping: one row per currency found among bank accounts
+	foreach ($currencies as $cur) {
+		$currentAcc = (int) getDolGlobalString('WISE_BANK_ACCOUNT_'.$cur);
+		print '<tr class="oddeven"><td class="titlefield">'.$form->textwithpicto($langs->trans("WISE_BANK_MAPPING_CUR", $cur), $langs->trans("WISE_BANK_MAPPING_CURTooltip", $cur)).'</td><td>';
+		print '<select name="wise_bank_map['.$cur.']" class="flat">';
+		print '<option value="0">--</option>';
+		foreach ($bankAccounts as $accid => $acc) {
+			if ($acc['currency'] !== $cur) {
+				continue;
+			}
+			print '<option value="'.$accid.'"'.($accid === $currentAcc ? ' selected' : '').'>'.dol_escape_htmltag($acc['ref'].' — '.$acc['label'].($acc['clos'] ? ', '.$langs->trans("Closed") : '')).'</option>';
+		}
+		print '</select></td></tr>';
+	}
+
+	print '</table>';
+	print '<br><div class="center">';
+	print '<input class="button button-save" type="submit" value="'.$langs->trans("Save").'">';
+	print '</div>';
+	print '</form>';
+	print '</div>';
+
+	// Test connection + fetch signature key
+	print '<br><div class="tabsAction">';
+	print '<form method="POST" action="'.$_SERVER["PHP_SELF"].'" style="display:inline;">';
+	print '<input type="hidden" name="token" value="'.newToken().'">';
+	print '<input type="hidden" name="action" value="wise_test">';
+	print '<input type="hidden" name="tab" value="wise">';
+	print '<input type="submit" class="butAction" value="'.$langs->trans("WISE_TEST_CONNECTION").'">';
+	print '</form>';
+	print '<form method="POST" action="'.$_SERVER["PHP_SELF"].'" style="display:inline; margin-left:4px;">';
+	print '<input type="hidden" name="token" value="'.newToken().'">';
+	print '<input type="hidden" name="action" value="wise_save_signature_key">';
+	print '<input type="hidden" name="tab" value="wise">';
+	print '<input type="submit" class="butAction" value="'.$langs->trans("WISE_SAVE_SIGNATURE_KEY").'">';
+	print '</form>';
+	print '</div>';
 }
 
 print dol_get_fiche_end(0);

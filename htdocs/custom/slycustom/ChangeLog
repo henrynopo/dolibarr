@@ -1,0 +1,59 @@
+SLY Custom — ChangeLog
+======================
+
+Note: entries before 2.0.0 are a retroactive reconstruction from git history
+(the module shipped with the version constant 1.0.0 throughout); 2.0.0 is the
+first version managed through this file.
+
+2.0.0 (2026-09-16)
+- Wise incoming payments integration:
+  * Reconcile page custom/slycustom/wise/reconcile.php (Tools menu, guarded by
+    the new slycustom wise/read permission): queue list with status filters,
+    live SO-matched invoice candidates with confidence flags, FIFO default
+    allocation, confirm-to-record (Paiement + bank line + auto-close), ignore
+    and re-enrich actions.
+  * Public webhook receiver custom/slycustom/webhook/wise.php for the
+    "Account deposits" subscription (balances#credit): RSA-SHA256 signature
+    verification (per-subscription key file), Wise egress IP allowlist
+    (current + legacy AWS ranges — the legacy range was observed in
+    production), raw-body md5 event dedupe, test-notification isolation,
+    credit queueing with flow toggle (WISE_INCOMING_ENABLED), statement
+    fallback sync recovering credits lost to 4xx rejections.
+  * Tables llx_slycustom_wise_event / llx_slycustom_wise_incoming (installed
+    idempotently by module init, or manually via sql/llx_slycustom_wise.sql).
+  * Wise_API client: profiles, subscriptions (v3/v1/2026Q3 paths), balances,
+    statements (async generation + polling).
+  * WiseIncomingPayment engine: statement enrichment (+/-5 min window) to
+    recover the payer reference, SO-number extraction auto-derived from the
+    order numbering mask (COMMANDE_<NAME>_MASK; WISE_SO_REF_PATTERN override),
+    SO -> invoices matching via llx_element_element, payment recording with
+    multicompany (per-entity consts, payload profile_id entity routing) and
+    multicurrency (foreign-credit and company-currency paths) handling.
+  * Setup page: new "Wise" tab (flow toggles incl. IP allowlist, API token /
+    profile id, test connection, fetch-and-save signature key, payment mode,
+    per-currency bank account mapping, queue status, effective SO pattern).
+  * Cron job "Wise incoming payments enrichment" (every 15 min, disabled by
+    default; parameters "<entity>,<limit>"; runs statement sync first).
+  * Outgoing payment preparation gated by WISE_OUTGOING_ENABLED (flow under
+    development).
+- Setup page: ShipsGo settings (API key, webhook secret, URL / register /
+  generate) moved from "General" to a dedicated "ShipsGo" tab.
+- Module description (en_US / en_SG / zh_CN) now lists the Wise integration.
+- phpmin raised to 7.4 (typed properties in ShipsGo_API / Wise_API).
+
+1.1.0 (2026-08-26)
+- ShipsGo webhook receiver custom/slycustom/webhook/shipsgo.php (HMAC-SHA256
+  per-entity secret; the hourly cron stays as safety net).
+
+1.0.3 (2026-06-18)
+- Sales order reference printed on the customer invoice and packing list PDFs.
+
+1.0.2 (2026-05-27)
+- ShipsGo shipment creation and cron adjustments.
+
+1.0.1 (2026-05-22)
+- ShipsGo upgraded to API v2; invoice PDF bank code width adjustment.
+
+1.0.0 (2026-03-13)
+- SLY22.0.4 baseline: slycustom external module extracted from the customized
+  14.0 core (SLY PDF templates, Tools exports, hooks, terms append, en_SG).
