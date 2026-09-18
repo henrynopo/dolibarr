@@ -1,0 +1,35 @@
+/* SG Payroll Module - CSS */
+/* Minimal custom CSS — relies on Dolibarr theme classes for consistency */
+
+/* Status badge overrides (supplement standard Dolibarr badge-status) */
+.sgpayroll-badge { font-size: 0.85em; padding: 2px 8px; border-radius: 3px; }
+.sgpayroll-badge-draft     { background: #e0e0e0; color: #555; }
+.sgpayroll-badge-submitted { background: #e3f0ff; color: #1565c0; }
+.sgpayroll-badge-approved  { background: #e8f5e9; color: #2e7d32; }
+.sgpayroll-badge-paid      { background: #f3e5f5; color: #6a1b9a; }
+
+/* Expiry warning highlights */
+.sgpayroll-expiry-red    { background-color: #ffcdd2 !important; }
+.sgpayroll-expiry-yellow { background-color: #fff9c4 !important; }
+
+/* Multi-currency inline display */
+.sgpayroll-currency-tag {
+    display: inline-block;
+    font-size: 0.8em;
+    padding: 1px 5px;
+    border-radius: 3px;
+    background: #e3f2fd;
+    color: #1565c0;
+    margin-left: 4px;
+    vertical-align: middle;
+}
+
+/* Card section spacing */
+.sgpayroll-card-section { margin-bottom: 12px; }
+
+/* Unit labels (h = hours, Days) so they are not confused with amount "0.00" */
+.sgpayroll-unit {
+	font-size: 0.9em;
+	opacity: 0.85;
+	margin-left: 1px;
+}

@@ -62,7 +62,8 @@ class InterfaceAccountingHook extends DolibarrTriggers
 		$sdl          = (float)($object->sdl_amount      ?? 0);
 		$netPay       = (float)($object->net_pay         ?? 0);
 		$payRef       = 'PAY-'.$object->pay_year.'-'.str_pad($object->pay_month, 2, '0', STR_PAD_LEFT);
-		$docDate      = date('Y-m-d', mktime(0, 0, 0, $object->pay_month, 28, $object->pay_year));
+		$docDateTs    = mktime(0, 0, 0, (int)$object->pay_month, 28, (int)$object->pay_year);
+		$docDate      = date('Y-m-d', $docDateTs);
 
 		$error = 0;
 
@@ -100,7 +101,7 @@ class InterfaceAccountingHook extends DolibarrTriggers
 				foreach ($entries as $e) {
 					list($acct, $label, $debit, $credit) = $e;
 					$bk = new BookKeeping($this->db);
-					$bk->doc_date            = $docDate;
+					$bk->doc_date            = $docDateTs;
 					$bk->doc_ref             = $payRef;
 					$bk->doc_type            = 'sgpayroll';
 					$bk->numero_compte       = $acct;
@@ -143,7 +144,7 @@ class InterfaceAccountingHook extends DolibarrTriggers
 				$salary->label   = 'SG Payroll: '.$payRef.' (Net Pay)';
 				$salary->datesp  = dol_get_first_day($object->pay_year, $object->pay_month);
 				$salary->dateep  = dol_get_last_day($object->pay_year, $object->pay_month);
-				$salary->datep   = $docDate;
+				$salary->datep   = $docDateTs;
 				$salary->fk_user_author = $user->id;
 				$salary->entity  = $conf->entity;
 				$salary->paye    = 0; // Unpaid
@@ -164,7 +165,7 @@ class InterfaceAccountingHook extends DolibarrTriggers
 		$relDir  = 'sgpayroll/documents/'.$object->fk_user;
 		$absDir  = DOL_DATA_ROOT.'/'.$relDir;
 		if (!is_dir($absDir)) {
-			dol_mkdir($absDir, 1);
+			dol_mkdir($absDir);
 		}
 
 		// Generate filename
