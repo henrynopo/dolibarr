@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Odoo 记账与核销操作指南</title>
+<style>
+	:root { --accent: #1a5276; --border: #ccd5db; --light: #f4f7f9; }
+	* { box-sizing: border-box; }
+	body {
+		font-family: "Microsoft YaHei", "PingFang SC", "Segoe UI", sans-serif;
+		color: #2c3e50; line-height: 1.75; max-width: 860px;
+		margin: 2rem auto; padding: 0 1.5rem 4rem;
+	}
+	h1 { font-size: 1.7em; color: var(--accent); border-bottom: 3px solid var(--accent); padding-bottom: .4em; }
+	h2 { font-size: 1.3em; color: var(--accent); margin-top: 2.2em; border-left: 5px solid var(--accent); padding-left: .6em; }
+	h3 { font-size: 1.1em; margin-top: 1.6em; }
+	table { border-collapse: collapse; width: 100%; margin: 1em 0; font-size: .95em; }
+	th, td { border: 1px solid var(--border); padding: .5em .7em; text-align: left; vertical-align: top; }
+	th { background: var(--accent); color: #fff; white-space: nowrap; }
+	tbody tr:nth-child(even) { background: var(--light); }
+	pre {
+		background: var(--light); border: 1px solid var(--border); border-radius: 4px;
+		padding: .8em 1em; font-family: Consolas, "Courier New", monospace;
+		font-size: .9em; overflow-x: auto; white-space: pre;
+	}
+	strong { color: #943126; }
+	ol, ul { padding-left: 1.6em; }
+	li { margin: .3em 0; }
+	.note { color: #7d8a94; font-size: .9em; margin-top: 3em; border-top: 1px solid var(--border); padding-top: .8em; }
+	@media print {
+		body { margin: 0; max-width: none; }
+		h2 { page-break-after: avoid; }
+		table, pre { page-break-inside: avoid; }
+	}
+</style>
+</head>
+<body>
+
+<h1>Odoo 记账与核销操作指南</h1>
+<p>适用于 Dolibarr → Odoo 自动同步体系；受众：Odoo 端记账人员</p>
+
+<h2>一、总体原则</h2>
+<ol>
+	<li><strong>Dolibarr 是唯一数据源头</strong>。所有发票、账单、定金单、退款单由系统自动推送至 Odoo，<strong>以草稿（Draft）形式</strong>到达，不会自动过账。</li>
+	<li><strong>记账人员的职责</strong>：核对草稿 → 过账（Post）→ 登记收付款 → 核销。所有数值核对以 Dolibarr 单据为准。</li>
+	<li><strong>禁止</strong>在 Odoo 手工创建与 Dolibarr 重复的发票/账单；<strong>禁止</strong>手工修改推送草稿的金额和行（后续同步会覆盖）。发现数据有问题：回 Dolibarr 改，等自动同步更新 Odoo 后重新过账。</li>
+</ol>
+
+<h2>二、单据到达 Odoo 时的固定规则</h2>
+<table>
+	<thead><tr><th>项目</th><th>Odoo 中的呈现</th></tr></thead>
+	<tbody>
+		<tr><td>编号 Number</td><td>= Dolibarr 票号（过账后保留不变）</td></tr>
+		<tr><td>Reference</td><td>= 关联的 SO / PO 号（便于对单）</td></tr>
+		<tr><td>金额</td><td>发票<strong>原始币种</strong>（如 USD）；公司本位币折算由 Odoo 按自身汇率显示，与 Dolibarr 有小额差异属正常</td></tr>
+		<tr><td>记账日期</td><td>按系统配置取（发票日期 / 到货日 ATA 等）；<strong>定金单和供应商退款单固定为开票日期</strong></td></tr>
+		<tr><td>到达节奏</td><td>自动同步任务定期推送；船运 ATA 更新后，已推送草稿的记账日期会被自动修正</td></tr>
+	</tbody>
+</table>
+
+<h2>三、草稿结构识别（核对前先看懂行）</h2>
+<table>
+	<thead><tr><th>单据类型</th><th>草稿行结构</th><th>Total 含义</th></tr></thead>
+	<tbody>
+		<tr><td>普通发票/账单</td><td>1–2 行：净额（+税行）</td><td>= Dolibarr 票面总额</td></tr>
+		<tr><td><strong>有定金抵扣的票</strong></td><td>主行净额 + <strong>负行</strong>（预收/预付科目，标注 down payment 及定金单号）</td><td>= <strong>剩余应付/应收</strong>（票面 − 定金）</td></tr>
+		<tr><td>定金发票本身</td><td>单行，挂预收（客户定金）或预付（供应商定金）科目</td><td>= 定金金额</td></tr>
+		<tr><td>有 credit note 抵扣的票</td><td><strong>看不到任何 CN 痕迹</strong>——抵扣额已含在主行净额里（CN 本身不会推送）</td><td>= 抵扣后净额</td></tr>
+		<tr><td>费用报销</td><td>以供应商账单形式的草稿</td><td>= 报销金额</td></tr>
+	</tbody>
+</table>
+
+<p><strong>定金抵扣示例</strong>（票面 17,820，已收定金 5,346）：</p>
+<pre>行1  销售收入            17,820
+行2  预收账款(定金)       −5,346
+Total                     12,474   ← 与 Dolibarr「Remaining unpaid」一致</pre>
+
+<h2>四、日常操作流程</h2>
+<ol>
+	<li><strong>打开待处理草稿</strong>：按日记账筛选 Draft 状态；带 <strong>To Review</strong> 标记的优先处理（含义见第六节）。</li>
+	<li><strong>核对</strong>：金额、币种、往来单位、记账日期、单据行结构与上表一致。</li>
+	<li><strong>过账</strong>：点 Post / Confirm。编号保留 Dolibarr 票号，不会变成 Odoo 序列号。</li>
+	<li><strong>登记收付款</strong>：Dolibarr 侧已收/付款的票，Odoo 会标记 To Review——此时在 Odoo 登记对应 payment（金额=原币金额，银行/现金日记账）。</li>
+	<li><strong>核销</strong>：登记 payment 后 Odoo 自动按「往来单位 + 金额」匹配应收/应付；金额不一致（部分收款、多票合并付）时在核销界面手工勾选匹配。</li>
+</ol>
+
+<h2>五、定金业务的核销说明</h2>
+<p>定金在两个科目层面<strong>自动清零，无需手工调账</strong>：</p>
+<pre>预收/预付科目：定金发票 post 后 +5,346，正式发票的负行 −5,346  →  余额自动归 0
+应收/应付层面：定金票（5,346）和正式票（12,474）各自登记 payment、各自核销</pre>
+<p>供应商方向（预付定金）完全对称。唯一要求：<strong>定金发票和正式发票都要 post</strong>，两张都过账后科目自然平。</p>
+
+<h2>六、To Review 标记的两种含义</h2>
+<p>打开单据看 <strong>chatter（消息区）</strong> 的说明文字：</p>
+<table>
+	<thead><tr><th>chatter 提示</th><th>含义</th><th>操作</th></tr></thead>
+	<tbody>
+		<tr><td>paid in Dolibarr …</td><td>Dolibarr 侧已收款，等你登记 payment</td><td>登记收付款并核销</td></tr>
+		<tr><td>Auto reset to draft: … changed after posting</td><td>Dolibarr 单据在过账后被修改，系统已把该分录<strong>退回草稿并推入新数据</strong></td><td>重新核对新值 → 再次 Post</td></tr>
+	</tbody>
+</table>
+
+<h2>七、异常情况处理</h2>
+<ul>
+	<li><strong>Dolibarr 有单、Odoo 找不到草稿</strong>：该票推送失败，请管理员在 Dolibarr 设置页底部 <strong>Sync failures</strong> 列表查看原因（修复后自动重试）。</li>
+	<li><strong>同一票号出现多张草稿</strong>（罕见）：请管理员处理，保留一张、删多余草稿，勿自行修改。</li>
+	<li><strong>已过账分录 Odoo 拒绝重置</strong>（锁期间 / 已核销行）：chatter 会提示 manual review required——需按提示手工处理。</li>
+	<li><strong>记账日期随后变动</strong>：船运到港日（ATA）更新会自动修正关联草稿的记账日期；若分录已过账则不会动，会以 To Review 提示人工确认。</li>
+</ul>
+
+<p class="note">本文档由 Odoo Connector 模块维护；流程规则变更时同步更新（源文件：docs/ODOO-BOOKKEEPING-GUIDE.md）。</p>
+
+</body>
+</html>
