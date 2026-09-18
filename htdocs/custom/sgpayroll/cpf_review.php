@@ -19,9 +19,9 @@ if (!$res && file_exists("../../../main.inc.php")) { $res = @include '../../../m
 if (!$res) die('Cannot load Dolibarr main.inc.php');
 
 require_once DOL_DOCUMENT_ROOT.'/core/class/html.form.class.php';
-require_once DOL_DOCUMENT_ROOT.'/custom/sgpayroll/class/payrollrecord.class.php';
-require_once DOL_DOCUMENT_ROOT.'/custom/sgpayroll/class/payrollcalc.class.php';
-require_once DOL_DOCUMENT_ROOT.'/custom/sgpayroll/lib/sgpayroll.lib.php';
+dol_include_once('sgpayroll/class/payrollrecord.class.php');
+dol_include_once('sgpayroll/class/payrollcalc.class.php');
+dol_include_once('sgpayroll/lib/sgpayroll.lib.php');
 
 // ── Security ──────────────────────────────────────────────────────────────────
 if (!isModEnabled('sgpayroll')) accessforbidden();

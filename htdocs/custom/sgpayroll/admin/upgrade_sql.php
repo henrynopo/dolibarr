@@ -28,9 +28,6 @@ if (file_exists($libPath)) require_once $libPath;
 if (!$user->admin) accessforbidden();
 
 $langs->loadLangs(array('sgpayroll@sgpayroll', 'admin'));
-if ($langs->trans('Module100Name') === 'Module100Name') {
-	$langs->loadLangs(array('sgpayroll@custom/sgpayroll', 'admin'));
-}
 
 $action = GETPOST('action', 'aZ09');
 $confirm = GETPOST('confirm', 'aZ09');
@@ -40,7 +37,7 @@ $confirm = GETPOST('confirm', 'aZ09');
  * ──────────────────────────────────────────────────────────────────────── */
 $sqlDir = realpath(dirname(__DIR__).'/sql');
 if (!$sqlDir) {
-	$sqlDir = realpath(DOL_DOCUMENT_ROOT.'/custom/sgpayroll/sql');
+	$sqlDir = realpath(dol_buildpath('/sgpayroll/sql/', 0));
 }
 
 /* ──────────────────────────────────────────────────────────────────────────

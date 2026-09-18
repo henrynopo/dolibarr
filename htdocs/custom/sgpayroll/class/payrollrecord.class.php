@@ -5,7 +5,7 @@
 /** \file class/payrollrecord.class.php — PayrollRecord ORM (run header + line) */
 
 require_once DOL_DOCUMENT_ROOT.'/core/class/commonobject.class.php';
-require_once DOL_DOCUMENT_ROOT.'/custom/sgpayroll/class/payrollcalc.class.php';
+dol_include_once('sgpayroll/class/payrollcalc.class.php');
 
 /**
  * Class SGPayrollRecord — wraps llx_sgpayroll_payroll_line rows

@@ -97,7 +97,7 @@ class modSGPayroll extends DolibarrModules
 				'entity' => 0,
 				'label' => 'SGPayroll reminders',
 				'jobtype' => 'method',
-				'class' => 'custom/sgpayroll/cron/reminder_cron.php',
+				'class' => 'sgpayroll/cron/reminder_cron.php',
 				'objectname' => 'SGPayrollReminderCron',
 				'method' => 'run',
 				'parameters' => '',
@@ -435,6 +435,12 @@ class modSGPayroll extends DolibarrModules
 	public function init($options = '')
 	{
 		$this->remove($options);
+
+		// Standard table installation on module activation. All sql/ scripts are
+		// idempotent (CREATE TABLE IF NOT EXISTS / INSERT IGNORE); ALTER statements
+		// that fail on an already-upgraded schema are silently ignored by run_sql.
+		$this->_load_tables('/sgpayroll/sql/');
+
 		return $this->_init(array(), $options);
 	}
 }

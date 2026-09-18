@@ -15,7 +15,7 @@ Singapore payroll module for Dolibarr ERP/CRM.
    $dolibarr_main_document_root_alt = '/path/to/dolibarr/htdocs/custom';
    ```
 2. Go to **Home → Setup → Modules** and enable **Singapore Payroll (Sgpayroll)**.
-3. Create the module tables via **Singapore Payroll → Setup → SQL Upgrade Runner** (`admin/upgrade_sql.php`) — module activation does not create tables by itself.
+3. Activating the module runs `sql/` automatically (standard Dolibarr `_load_tables` behaviour, scripts are idempotent). For later schema upgrades use **Singapore Payroll → Setup → SQL Upgrade Runner** (`admin/upgrade_sql.php`).
 4. Optional: the **Salaries** module is used when enabled (net-pay sync to Salary payments for finance); it is not a hard dependency.
 
 ## Singapore public holidays

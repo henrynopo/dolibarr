@@ -12,10 +12,10 @@
  */
 
 require_once DOL_DOCUMENT_ROOT.'/core/lib/pdf.lib.php';
-require_once DOL_DOCUMENT_ROOT.'/custom/sgpayroll/class/payrollrecord.class.php';
-require_once DOL_DOCUMENT_ROOT.'/custom/sgpayroll/class/employee.class.php';
-require_once DOL_DOCUMENT_ROOT.'/custom/sgpayroll/class/payrollcalc.class.php';
-require_once DOL_DOCUMENT_ROOT.'/custom/sgpayroll/lib/sgpayroll.lib.php';
+dol_include_once('sgpayroll/class/payrollrecord.class.php');
+dol_include_once('sgpayroll/class/employee.class.php');
+dol_include_once('sgpayroll/class/payrollcalc.class.php');
+dol_include_once('sgpayroll/lib/sgpayroll.lib.php');
 
 /**
  * Class pdf_payslip_sgpayroll
@@ -132,7 +132,7 @@ class pdf_payslip_sgpayroll
 
         // Leave Balance — AL balance from HRM holiday counters via shared lib helper
         if (!function_exists('sgpayroll_get_al_balance_from_hrm')) {
-            require_once DOL_DOCUMENT_ROOT.'/custom/sgpayroll/lib/sgpayroll.lib.php';
+            dol_include_once('sgpayroll/lib/sgpayroll.lib.php');
         }
         $leaveDays = sgpayroll_get_al_balance_from_hrm($this->db, (int)$line->fk_user);
 

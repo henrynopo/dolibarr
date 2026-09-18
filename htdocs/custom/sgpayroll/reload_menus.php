@@ -1,6 +1,6 @@
 <?php
 require_once '../../main.inc.php';
-require_once DOL_DOCUMENT_ROOT.'/custom/sgpayroll/core/modules/modSGPayroll.class.php';
+dol_include_once('sgpayroll/core/modules/modSGPayroll.class.php');
 
 if (!$user->admin) accessforbidden();
 

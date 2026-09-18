@@ -16,8 +16,8 @@ if (!$res && file_exists("../../main.inc.php"))    { $res = @include '../../main
 if (!$res && file_exists("../../../main.inc.php")) { $res = @include '../../../main.inc.php'; }
 if (!$res) { die("Error: could not load Dolibarr main.inc.php"); }
 
-require_once DOL_DOCUMENT_ROOT.'/custom/sgpayroll/lib/sgpayroll.lib.php';
-require_once DOL_DOCUMENT_ROOT.'/custom/sgpayroll/class/employee.class.php';
+dol_include_once('sgpayroll/lib/sgpayroll.lib.php');
+dol_include_once('sgpayroll/class/employee.class.php');
 
 // Security
 if (!isModEnabled("sgpayroll")) accessforbidden();
@@ -129,10 +129,10 @@ if ($action === 'confirm_all' && $canApprove) {
 		$pdfFail = 0;
 		if ($resEmp) {
 			// Load PDF class if available
-			$pdfClassFile = DOL_DOCUMENT_ROOT.'/custom/sgpayroll/pdf/pdf_ir8a_sgpayroll.class.php';
+			$pdfClassFile = dol_buildpath('/sgpayroll/core/modules/sgpayroll/core/modules/sgpayroll/pdf/pdf_ir8a_sgpayroll.class.php', 0);
 			$hasPdfClass  = file_exists($pdfClassFile);
 			if ($hasPdfClass) {
-				dol_include_once('/custom/sgpayroll/pdf/pdf_ir8a_sgpayroll.class.php');
+				dol_include_once('sgpayroll/core/modules/sgpayroll/core/modules/sgpayroll/pdf/pdf_ir8a_sgpayroll.class.php');
 			}
 
 			while ($emp = $db->fetch_object($resEmp)) {

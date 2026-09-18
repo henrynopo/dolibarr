@@ -23,8 +23,8 @@ if (!$res && file_exists("../../../../main.inc.php")){ $res = @include '../../..
 if (!$res) die('Cannot load main.inc.php');
 
 require_once DOL_DOCUMENT_ROOT.'/core/lib/pdf.lib.php';
-require_once DOL_DOCUMENT_ROOT.'/custom/sgpayroll/class/employee.class.php';
-require_once DOL_DOCUMENT_ROOT.'/custom/sgpayroll/lib/sgpayroll.lib.php';
+dol_include_once('sgpayroll/class/employee.class.php');
+dol_include_once('sgpayroll/lib/sgpayroll.lib.php');
 
 if (!isModEnabled("sgpayroll")) accessforbidden();
 if (!$user->hasRight('sgpayroll', 'export', 'iras')) accessforbidden();

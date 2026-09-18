@@ -10,7 +10,7 @@
  */
 
 require_once DOL_DOCUMENT_ROOT.'/core/lib/pdf.lib.php';
-require_once DOL_DOCUMENT_ROOT.'/custom/sgpayroll/lib/sgpayroll.lib.php';
+dol_include_once('sgpayroll/lib/sgpayroll.lib.php');
 
 /**
  * Class pdf_ir8a_sgpayroll
@@ -68,7 +68,7 @@ class pdf_ir8a_sgpayroll
 	{
 		global $conf, $langs, $mysoc;
 		$langs->loadLangs(array('sgpayroll@sgpayroll'));
-		require_once DOL_DOCUMENT_ROOT.'/custom/sgpayroll/lib/sgpayroll.lib.php';
+		dol_include_once('sgpayroll/lib/sgpayroll.lib.php');
 
 		// Fetch AIS data
 		$sql = "SELECT ar.*, u.lastname, u.firstname, e.nric_fin, e.id_type, e.dob, e.citizenship, u.gender, u.address, u.town, u.zip, u.job AS designation, e.bank_name AS payment_bank, e.work_contract_date, e.cessation_date";

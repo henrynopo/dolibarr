@@ -15,7 +15,7 @@ if (!$res && file_exists("../../../main.inc.php"))   { $res = @include '../../..
 if (!$res && file_exists("../../../../main.inc.php")){ $res = @include '../../../../main.inc.php'; }
 if (!$res) die('Cannot load main.inc.php');
 
-require_once DOL_DOCUMENT_ROOT.'/custom/sgpayroll/pdf/pdf_ir8a_sgpayroll.class.php';
+dol_include_once('sgpayroll/core/modules/sgpayroll/pdf/pdf_ir8a_sgpayroll.class.php');
 
 if (!isModEnabled("sgpayroll")) accessforbidden();
 

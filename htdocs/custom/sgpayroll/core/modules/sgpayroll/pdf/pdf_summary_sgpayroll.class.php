@@ -10,8 +10,8 @@
  */
 
 require_once DOL_DOCUMENT_ROOT.'/core/lib/pdf.lib.php';
-require_once DOL_DOCUMENT_ROOT.'/custom/sgpayroll/class/payrollrecord.class.php';
-require_once DOL_DOCUMENT_ROOT.'/custom/sgpayroll/lib/sgpayroll.lib.php';
+dol_include_once('sgpayroll/class/payrollrecord.class.php');
+dol_include_once('sgpayroll/lib/sgpayroll.lib.php');
 
 /**
  * Class pdf_summary_sgpayroll

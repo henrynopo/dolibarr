@@ -63,7 +63,7 @@ if ($action === 'install_sql') {
 	// Candidates for SQL directory
 	$candidates = array(
 		dol_buildpath('/sgpayroll/sql/', 0),
-		DOL_DOCUMENT_ROOT . '/custom/sgpayroll/sql/',
+		dol_buildpath('/sgpayroll/sql/', 0),
 		realpath(dirname(__DIR__) . '/sql') . DIRECTORY_SEPARATOR
 	);
 	

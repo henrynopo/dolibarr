@@ -16,10 +16,10 @@ if (!$res && file_exists("../../../main.inc.php")) { $res = @include '../../../m
 if (!$res) { die('Cannot load Dolibarr main.inc.php'); }
 
 require_once DOL_DOCUMENT_ROOT.'/core/class/html.form.class.php';
-require_once DOL_DOCUMENT_ROOT.'/custom/sgpayroll/class/payrollcalc.class.php';
-require_once DOL_DOCUMENT_ROOT.'/custom/sgpayroll/class/employee.class.php';
-require_once DOL_DOCUMENT_ROOT.'/custom/sgpayroll/class/payrollrecord.class.php';
-require_once DOL_DOCUMENT_ROOT.'/custom/sgpayroll/lib/sgpayroll.lib.php';
+dol_include_once('sgpayroll/class/payrollcalc.class.php');
+dol_include_once('sgpayroll/class/employee.class.php');
+dol_include_once('sgpayroll/class/payrollrecord.class.php');
+dol_include_once('sgpayroll/lib/sgpayroll.lib.php');
 if (!isModEnabled('sgpayroll')) accessforbidden();
 $langs->loadLangs(array('sgpayroll@sgpayroll'));
 
@@ -287,7 +287,7 @@ if ($action === 'approve' && $user->hasRight('sgpayroll', 'payroll', 'approve') 
 		// Post-commit: never abort redirect. PDF vs email isolated so failures are not blamed together.
 		// Generate PDF before email so SGPayroll_Send can attach Payslip_MM_YYYY.pdf on first approve.
 		try {
-			require_once DOL_DOCUMENT_ROOT.'/custom/sgpayroll/pdf/pdf_payslip_sgpayroll.class.php';
+			dol_include_once('sgpayroll/core/modules/sgpayroll/pdf/pdf_payslip_sgpayroll.class.php');
 			$pdfGen = new pdf_payslip_sgpayroll($db);
 			$payYear  = $payLine->pay_year;
 			$payMonth = str_pad((string)(int)$payLine->pay_month, 2, '0', STR_PAD_LEFT);

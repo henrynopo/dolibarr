@@ -19,7 +19,7 @@
  */
 
 require_once DOL_DOCUMENT_ROOT.'/core/triggers/dolibarrtriggers.class.php';
-require_once DOL_DOCUMENT_ROOT.'/custom/sgpayroll/lib/sgpayroll.lib.php';
+dol_include_once('sgpayroll/lib/sgpayroll.lib.php');
 /**
  * Class InterfaceAccountingHook
  * (class name must match the trigger file name per Dolibarr naming rule)
@@ -156,7 +156,7 @@ class InterfaceAccountingHook extends DolibarrTriggers
 		}
 
 		// ── 3. Save Payslip PDF to Employee Document Vault ─────────────────────
-		require_once DOL_DOCUMENT_ROOT.'/custom/sgpayroll/pdf/pdf_payslip_sgpayroll.class.php';
+		dol_include_once('sgpayroll/core/modules/sgpayroll/pdf/pdf_payslip_sgpayroll.class.php');
 		require_once DOL_DOCUMENT_ROOT.'/core/lib/files.lib.php';
 
 		$pdfGen = new pdf_payslip_sgpayroll($this->db);

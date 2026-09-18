@@ -25,9 +25,9 @@ if (!$res && file_exists("../../../main.inc.php")) { $res = @include '../../../m
 if (!$res) die('Cannot load Dolibarr main.inc.php');
 
 require_once DOL_DOCUMENT_ROOT.'/core/class/html.form.class.php';
-require_once DOL_DOCUMENT_ROOT.'/custom/sgpayroll/class/payrollrecord.class.php';
-require_once DOL_DOCUMENT_ROOT.'/custom/sgpayroll/class/employee.class.php';
-require_once DOL_DOCUMENT_ROOT.'/custom/sgpayroll/lib/sgpayroll.lib.php';
+dol_include_once('sgpayroll/class/payrollrecord.class.php');
+dol_include_once('sgpayroll/class/employee.class.php');
+dol_include_once('sgpayroll/lib/sgpayroll.lib.php');
 
 // ── Security: any authenticated user can access their own portal ──────────────
 if (!isModEnabled('sgpayroll')) accessforbidden();

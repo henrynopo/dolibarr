@@ -28,8 +28,8 @@ require_once DOL_DOCUMENT_ROOT.'/core/class/html.form.class.php';
 require_once DOL_DOCUMENT_ROOT.'/core/class/html.formother.class.php';
 require_once DOL_DOCUMENT_ROOT.'/core/lib/functions2.lib.php';
 require_once DOL_DOCUMENT_ROOT.'/user/class/user.class.php';
-require_once DOL_DOCUMENT_ROOT.'/custom/sgpayroll/class/employee.class.php';
-require_once DOL_DOCUMENT_ROOT.'/custom/sgpayroll/lib/sgpayroll.lib.php';
+dol_include_once('sgpayroll/class/employee.class.php');
+dol_include_once('sgpayroll/lib/sgpayroll.lib.php');
 
 // Load translations
 $langs->loadLangs(array('sgpayroll@sgpayroll', 'users', 'hrm'));
@@ -172,7 +172,7 @@ if ($limit > 0 && $limit != $conf->liste_limit) $param .= '&limit='.((int)$limit
 // New button
 $newcardbutton = '';
 if ($user->hasRight('sgpayroll', 'employee', 'write')) {
-	$newcardbutton = dolGetButtonTitle($langs->trans('NewEmployee'), '', 'fa fa-plus-circle', DOL_URL_ROOT.'/custom/sgpayroll/employee_card.php?action=create', '', 1);
+	$newcardbutton = dolGetButtonTitle($langs->trans('NewEmployee'), '', 'fa fa-plus-circle', dol_buildpath('/sgpayroll/employee_card.php', 1).'?action=create', '', 1);
 }
 
 print_barre_liste($title, $page, $_SERVER["PHP_SELF"], $param, $sortfield, $sortorder, '', $num, $nbtotalofrecords, 'title_accountancy.png', 0, $newcardbutton, '', $limit);
@@ -285,7 +285,7 @@ while ($i < min($num, $limit)) {
 	if (!$obj) break;
 
 	$empName = sgpayroll_format_employee_name($obj->firstname, $obj->lastname);
-	$editUrl = DOL_URL_ROOT.'/custom/sgpayroll/employee_card.php?fk_user='.$obj->user_id;
+	$editUrl = dol_buildpath('/sgpayroll/employee_card.php', 1).'?fk_user='.$obj->user_id;
 
 	// Pass expiry warning
 	$expiryClass = '';

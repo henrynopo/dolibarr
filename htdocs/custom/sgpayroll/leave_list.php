@@ -28,7 +28,7 @@ require_once DOL_DOCUMENT_ROOT.'/core/class/html.form.class.php';
 if (isModEnabled('holiday')) {
 	require_once DOL_DOCUMENT_ROOT.'/holiday/class/holiday.class.php';
 }
-require_once DOL_DOCUMENT_ROOT.'/custom/sgpayroll/lib/sgpayroll.lib.php';
+dol_include_once('sgpayroll/lib/sgpayroll.lib.php');
 
 // ── Security ──────────────────────────────────────────────────────────────────
 if (!isModEnabled('sgpayroll')) accessforbidden();

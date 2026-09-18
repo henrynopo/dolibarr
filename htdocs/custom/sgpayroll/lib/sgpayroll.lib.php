@@ -359,7 +359,7 @@ function sgpayroll_rebuild_ais_rows($db, $incomeYear, $ya, $user)
  */
 function sgpayroll_working_days($year, $month, $customWorkDays = 0, $schedule = '')
 {
-	require_once DOL_DOCUMENT_ROOT . '/custom/sgpayroll/class/payrollcalc.class.php';
+	dol_include_once('sgpayroll/class/payrollcalc.class.php');
 
 	// 1. Employee-level monthly override (explicit days per month)
 	if ($customWorkDays > 0) {
@@ -475,7 +475,7 @@ function sgpayroll_worked_days_in_month($year, $month, $emp)
 		return $totalMonthWorkingDays;
 	}
 
-	require_once DOL_DOCUMENT_ROOT . '/custom/sgpayroll/class/payrollcalc.class.php';
+	dol_include_once('sgpayroll/class/payrollcalc.class.php');
 	$phList = SGPayrollCalc::getSingaporePublicHolidays($year);
 
 	// When employee has a weekly schedule, count only schedule days in the truncated range (not all weekdays)
