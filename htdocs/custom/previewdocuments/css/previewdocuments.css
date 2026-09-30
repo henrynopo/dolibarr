@@ -1,0 +1,105 @@
+/*body .ui-widget-header {
+
+    background: #344154;
+
+    border: 1px #344154 solid;
+
+    color:#fff;
+
+}
+
+
+
+body .ui-widget-overlay {
+
+    background-color: rgba(0,0,0,0.5);
+
+    background: rgba(0,0,0,0.5);
+
+    opacity: 1;
+
+}
+
+
+
+body .ui-corner-all {
+
+    padding:  0;
+
+}*/
+
+.lightbox_nc {
+
+    position:fixed; /* keeps the lightbox_nc window in the current viewport */
+
+    top:0;
+
+    left:0;
+
+    width:100%;
+
+    height:100%;
+
+    background-color: rgba(0,0,0,0.5);
+
+    text-align:center;
+
+    z-index: 15;
+
+}
+
+.lightbox_nc p {
+
+    text-align:right;
+
+    color:#fff;
+
+    margin-right:20px;
+
+    font-size: 2em;
+
+    font-weight: bold;
+
+    margin: 0;
+
+    cursor: pointer;
+
+}
+
+.lightbox_nc img {
+
+    box-shadow:0 0 25px #111;
+
+    -webkit-box-shadow:0 0 25px #111;
+
+    -moz-box-shadow:0 0 25px #111;
+
+    max-width:800px;
+
+    background: #fff;
+
+}
+
+.lightbox_nc .content_img{
+
+    height: 100%;
+
+    overflow: auto;
+
+}
+
+
+.added_nc img{
+    height: auto !important;
+}
+
+#d_wrapper li{
+    text-align: center;
+}
+
+a.added_nc {
+    display: block !important
+}
+#tablelines a.added_nc {
+    display: initial !important
+}
