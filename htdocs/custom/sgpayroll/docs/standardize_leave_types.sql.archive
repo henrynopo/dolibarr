@@ -1,0 +1,16 @@
+-- ============================================================
+-- Singapore Standard Leave Types for Dolibarr HRM
+-- ============================================================
+
+INSERT INTO llx_c_holiday_types (code, label, affect, delay, newbymonth, fk_country, active) VALUES 
+('AL', 'Annual Leave (年假)', 1, 0, 0, 29, 1),
+('SL', 'Sick Leave (病假)', 1, 0, 0, 29, 1),
+('HL', 'Hospitalisation Leave (住院假)', 1, 0, 0, 29, 1),
+('ML', 'Maternity Leave (产假)', 1, 0, 0, 29, 1),
+('PL', 'Paternity Leave (陪产假)', 1, 0, 0, 29, 1),
+('CCL', 'Childcare Leave (育儿假)', 1, 0, 0, 29, 1),
+('UPL', 'Unpaid Leave (无薪假)', 0, 0, 0, 29, 1),
+('CL', 'Compassionate Leave (恩恤假)', 0, 0, 0, 29, 1),
+('MRL', 'Marriage Leave (婚假)', 0, 0, 0, 29, 1),
+('OIL', 'Off-in-Lieu (补休)', 1, 0, 0, 29, 1)
+ON DUPLICATE KEY UPDATE label=VALUES(label), active=1;

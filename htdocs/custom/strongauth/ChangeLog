@@ -1,0 +1,155 @@
+StrongAuth ChangeLog
+
+1.0.1 — 2026-09-21
+  Login-flow fixes (passkey-enrollment regression)
+  * FIXED: enrolling a Passkey silently flipped internal-domain users from
+    pass_through to factor_choice — the next M365/SSO login (which posts no
+    factor) was bounced back to the login page by afterLogin's "no factor
+    presented" check. Step-up on top of the IdP MFA is now opt-in via
+    STRONGAUTH_REQUIRE_2FA_IDP only (Orchestrator internal branch).
+  * FIXED: any login authenticated via strongauth_sso now passes the factor
+    gate (the IdP's own MFA is the second factor) regardless of the user's
+    internal/local classification — previously a passkey/TOTP holder or a
+    mis-classified email could be double-gated on an SSO login
+    (actions_strongauth afterLogin).
+  * Admin branch restored to "enrolled factors are honored" semantics (my
+    interim pass_through-always was reverted); break-glass still exempts
+    admins from the IdP-only rule, and SSO logins pass via the rule above.
+  * Login page: the 6-digit box renders only when the pending path offers
+    TOTP; passkey-only users now see a "continue with Passkey" hint instead
+    of a code box they have no secret for. The same box accepts a backup
+    code (lost-authenticator recovery — previously backup codes had no
+    entry point on the login page).
+  * Passkey management: per-credential list with delete on the manage page
+    ( StrongAuth_WebauthnRepo::deleteCredential, audit-logged).
+  * Diagnostics: STRONGAUTH_CODE_REV marker (shown in setup ▸ Maintenance)
+    + temporary htdocs/check_sso.php probe (code rev, module file mtimes,
+    OPcache status/invalidate, resolved auth path, constants, audit tail,
+    SSO session tail) — to be deleted after deployment is verified.
+
+1.0.0 — 2026-09-17
+  Core authentication
+  * RFC 6238 TOTP second factor (6 digits / 30s / SHA-256 / ±1 step, hard-coded)
+  * AES-256-GCM encryption of TOTP secrets (v1:iv:tag:ct format, entity-0 master key)
+  * Backup codes: bcrypt-hashed, single-use, count configurable (1–50)
+  * Optional WebAuthn/FIDO2 Passkey — internal-domain users only, enforced at
+    registration UI, JSON endpoint, and login verification (3 layers)
+  * Account lockout: GLOBAL per user (cross-entity) after N failures, admin-configurable
+  * 30-day device-trust cookies with UA fingerprint + auto-revoke on mismatch (off by default)
+
+  Single sign-on
+  * OIDC providers: Entra ID (M365), Google Workspace, self-hosted/generic OIDC
+    (Apple sign-in removed by policy — SSO restricted to corporate directories;
+    Apple users still get Passkey via iCloud Keychain as a second factor)
+  * Authorization Code + PKCE (S256), state/nonce, 10-min challenge TTL, single-use
+  * ID-token verification: signature (JWKS), iss, aud, nonce; email_verified=false rejected
+  * Google: optional hosted-domain (hd) pinning via tenant_id field
+  * Entra: dedicated-tenant guidance (save warns on common/consumers/organizations)
+  * Apple: REMOVED — personal-identity emails widen the bypass surface; Passkey
+    (iCloud Keychain) remains available to Apple-device users as a factor
+  * SSO pickup via Dolibarr native pipeline: module_parts['login'] +
+    check_user_password_strongauth_sso() one-time cookie; works alongside local passwords
+  * Email is the identity link; optional auto-provisioning with disabled- placeholder
+    (no local password possible)
+
+  Login-flow integration (Dolibarr 22/23/24)
+  * afterLogin hook: factor policy, lockout, device trust, forced enrollment,
+    internal-domain password rejection (IdP-only by design)
+  * Correct pending-2FA mechanics: rollback + session_reset before marker writes
+    (prevents the dol_login session-resume bypass)
+  * Login page: 6-digit input, Passkey button + ceremony JS, trust-device checkbox,
+    SSO provider buttons, username prefill, policy-rejection banners
+
+  Admin & audit
+  * Permissions: strongauth->reset (manage others / IdP config / key rotation /
+    migration), strongauth->audit (log viewer)
+  * Setup page with deployment self-checks: composer deps, authentication method,
+    multicompany entity coverage, internal-domains-without-IdP
+  * IdP configuration with encrypted client secrets and Apple private keys
+  * Append-only audit log (11 event types) → SIEM; entity-scoped viewer
+  * AES key rotation with transactional re-encryption
+  * Optional one-shot totp2fa migration (AES-CBC legacy decrypt → AES-256-GCM),
+    explicit and independent of the totp2fa module
+
+  Fixes applied during the 2026-09-17 security audit
+  * Removed 2FA bypass via missing/ordered session_reset in login abort helpers
+  * Fixed entity context: $conf->entity everywhere (Dolibarr has no $db->entity)
+  * Unified bootstrap (lib/strongauth.lib.php) — module classes were never autoloadable
+  * SSO endpoints reachable pre-login (NOLOGIN); replaced dead beforeLogin hook
+  * Locked down json.php: internal-domain + master-switch checks on registration,
+    available_factors check on assertion start
+  * Wired STRONGAUTH_REQUIRE_2FA_LOCAL / _IDP to real strategy decisions
+  * audit_log user JOIN restricted to current entity; XSS escapes; CSRF checks on
+    all admin/view POSTs; descriptor entity handling fixed
+
+  Fixes surfaced by the offline dry-run harness (portable PHP + stubs)
+  * Provider_OIDCBase (abstract base) was missing from the bootstrap — every
+    provider subclass load would have fatalled
+  * isInternalDomain() now lowercases the address (mixed-case emails in
+    llx_user were misclassified as external)
+  * RobThree 2.x API adaptation: algorithm must be the Algorithm enum (string
+    caused TypeError); createSecret takes BITS not chars (20 → 4-char weak
+    secret; now 160 bits = 32 chars); provisioning URI assembled in-module
+    (getQRCodeUrl removed upstream)
+  * QR rendering rebuilt on Dolibarr's bundled TCPDF 2D-barcode encoder —
+    fully offline, no external QR API, no totp2fa dependency (needs ext-gd)
+
+  Dry-run coverage: 34-file syntax check, 43 logic assertions (crypto
+  roundtrip/tamper, orchestrator policy matrix, lockout state machine, audit
+  insert, lang parity, bootstrap wiring), full class-load smoke, and a real
+  RFC 6238 end-to-end (live code accept/reject, ±1 window tolerance,
+  TCPDF QR PNG pipeline).
+
+  Self-contained packaging (2026-09-18)
+  * vendor/ is now bundled with the module (37 MB, pure PHP) — no composer
+    step on the server; composer.json kept for dependency refreshes only
+  * Dependencies corrected & pinned: firebase/php-jwt ^7 (6.x has open
+    security advisories), web-auth/webauthn-framework ~4.0.0 (package name
+    fixed — the old "spomky-labs/*" name does not exist on packagist)
+  * Factor_WebAuthn rewritten for the real webauthn-framework 4.x API
+    (PublicKeyCredentialLoader + Attestation/Assertion validators +
+    StrongAuth_WebauthnRepo implementing PublicKeyCredentialSourceRepository;
+    the previously-assumed "Server" facade never existed in 4.x); credentials
+    stored losslessly as source_json
+  * Setup page: one-click "enable SSO authentication method" — rewrites
+    conf/conf.php with a timestamped backup (the auth method is a file
+    setting, not a database constant)
+  * Vendor integration verified offline: 23 assertions covering class
+    presence, creation/request options shape, malformed-attestation
+    rejection, JWT-v7 JWKS roundtrip + tamper, and live TOTP codes
+  * Platform fix: dependencies re-resolved with composer platform.php=8.1
+    (symfony pinned to 6.4) — the bundled vendor previously demanded PHP >=8.2
+    and broke PHP 8.1 servers; verified on a real PHP 8.1.34 runtime
+  * ADMIN BREAK-GLASS: Dolibarr admins are exempt from policy lock-outs —
+    an internal-domain admin whose IdP is not yet configured could be locked
+    out entirely (password login refused, SSO unavailable). Admins now always
+    authenticate with the local password, are never forced into enrollment,
+    and still verify enrolled factors when present
+
+  Production rollout fixes (2026-09-18, live debugging on the d-test host)
+  * Auto-created tables on enable: deployment-independent fallback (conf.php
+    often omits the custom document root, which silently broke the standard
+    SQL loader); setup-page one-click schema repair with per-table feedback
+  * getLoginPageOptions SSO buttons now vendor-branded: "Microsoft 365" +
+    fa-microsoft icon, "Google" + fa-google; friendlier rejection message
+  * ProviderRegistry: SELECT missed the `enabled` column — every provider was
+    filtered out of the login page regardless of status (test button worked
+    because it reads the row directly)
+  * OIDC redirect_uri is now absolute (scheme + host) — Azure rejects relative
+    URIs with AADSTS90102
+  * firebase/php-jwt v7 JWKS adaptation: normalizeJwks() infers alg from kty
+    (the original fix used a `?? ` expression inside foreach-by-reference —
+    writes went to a temporary copy and never reached the real array)
+  * SSO callback redirect carries the CSRF token (required when conf.php
+    defines CSRFCHECK_WITH_TOKEN)
+  * Admin break-glass made switchable (STRONGAUTH_ADMIN_BREAKGLASS, default
+    ON) so internal-domain policy can be enforced for admins too
+  * idp_setup rewritten as a provider wizard: vendor cards, guided app
+    registration with copy-ready redirect URI, only the 3 required fields;
+    new providers default to enabled
+  * totp2fa migration tooling REMOVED (scripts/, admin page, lang keys) —
+    production never migrated data, totp2fa was disabled instead; users
+    enroll fresh through the forced first-login wizard
+  * README gains an admin runbook (emergency SQL keys, conf.php auth-method
+    setting, break-glass semantics, key-backup warning)
+

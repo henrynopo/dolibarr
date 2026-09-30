@@ -1,0 +1,128 @@
+# Dolibarr language file - it_IT - customlink
+CHARSET=UTF-8
+
+## ADMIN INFOS
+##ADMIN
+NothingToSetup=Attiva il modulo per accedere alla pagina di configurazione
+GeneralSetup=impostazioni generali
+PatasTools=Strumenti Patas-M
+PatasToolsNews=Trova qui le informazioni da patas-monkey.com (richiede una connessione Internet)
+PatasMonkeyPresent=Questo modulo è una creazione di Patas-Monkey, una documentazione è disponibile sul nostro sito
+MoreModulesLink=Puoi trovare tutti i nostri sviluppi su Dolistore
+SettingIsOnToolsMenu=Il modulo non richiede alcuna configurazione particolare.<br/> Le sue funzionalità sono accessibili dagli strumenti principali "Patas-M".
+BackToModuleList=Torna all'elenco dei moduli
+NewVersionAviable=È disponibile una nuova versione del modulo
+NumberVersion=Versione
+MonthVersion=Mese di pubblicazione
+ChangesVersion=Modifiche principali apportate
+
+##ABOUT
+About=Di
+Slogan=Sviluppo, supporto e formazione per Dolibarr
+LienModules=I nostri moduli
+LienServices=I nostri servizi
+LienDoc=La nostra documentazione
+LienDolistore=Trova i nostri altri moduli
+Changelog=Modifica del modulo
+SupportModuleInformation=Informazioni tecniche
+SupportModuleInformationDesc=Queste informazioni sono utili e possono essere chiesto se si incontra un bug nel funzionamento del modulo.
+
+DolibarrVersion=Versione Dolibarr
+ModuleVersion=Versione del modulo
+PHPVersion=Versione PHP
+DatabaseVersion=Versione del database
+WebServerVersion=Versione server web
+
+##EXTRAFIELDS
+Extrafield=Campi aggiuntivi
+
+InfoCustomLinkModules=Gestione avanzata dei collegamenti tra elementi
+CustomlinkSetup=Configurazione del modulo personalizzato
+CustomLink=Customlink
+CreateLink=Nuovo link
+CreateCustomLink=Nuova connessione
+CustomLinkArea=Area personalizzata
+SearchLink=Cerca un link
+SearchTag=Cerca un tag
+TagLink=Tag interessato
+SearchContact=Cerca il contatto
+SearchVentilation=Cerca la ventilazione
+ListOfLinks=Elenco dei collegamenti
+CreateTag=Nuovo tag
+ListOfTags=Elenco di tag
+Target=Destinazione
+ListOfContacts=Contatti correlati
+ExternalContact=Contatti esterni
+ListOfUsers=Utenti collegati
+NbOfLink=Numero
+NbOfTag=Numero di tag
+UpdateLink=Modificare
+DeleteLink=Cancellare
+SourceRef=Riferimento originale
+TargetRef=Riferimento collegato
+AddNewLink=Aggiungi un nuovo link
+AddNewTag=Aggiungi un nuovo tag
+JoinElement=Aderire
+ElementType=Elemento
+AssociatedElement=Elementi associati
+TypeOfAssociation=Tipo di associazione
+TypeOfLink=Tipo di ventilazione
+RefOfLink=Link di riferimento
+FournishBill=Fattura
+CustomerBill=Fattura del cliente
+FactoryOF=Produzione di fabbrica
+invoice_supplier=Fattura
+order_supplier=Fornitore di controllo
+propal=Proposta commerciale
+DateVentilation=Data di ventilazione
+DateBuildOF=Produzione
+commande=Ordine del cliente
+facture=Fattura del cliente
+InvoiceDivision=Ventilazione
+CustomerBillAdd=Fattura dei clienti da raggiungere
+FournishBillAdd=Fattura dei fornitori da raggiungere
+ListOfVentiledBillsInput=Elenco delle fatture ventilate in arrivo
+ListOfVentiledBillsOutput=Elenco di ventilazione in uscita
+DictOfSocieteContact=Tipo di contatti aziendali
+MarginOnVentilation=Costi aggiuntivi ventilati
+ListOfVentilations=Ventilazione del fornitore
+AddNewVentilation=Creazione di una nuova ventilazione
+LastNewLinks=Ultimi link aggiunti
+LastNewTags=Ultimi tag aggiunti
+factureBrief=Fatto.cliente
+supplier_proposal=Prezzo richiesto
+invoice_supplierBrief=Fatto.Quattro.
+factoryBrief=Fabbrica di
+shipping=Spedizione
+project_task=Compito
+TicketSup=Biglietto
+
+MembersListOfTiers=Membri di terzi
+ElementTags=Tag elementi
+LinkedSociety=Società correlate (i)
+ExternalBills=Fatture dei clienti associate
+ExternalSupplierBills=Fatture dei fornitori associati
+ErrorRefNotFound=Riferimento al socio non trovato %s
+
+Shipping=Spedizione
+desc=Funzionalità
+Value=Selezione
+NumberVersion=Versione
+MonthVersion=Mese dell'editoria
+ChangesVersion=Principali modifiche alla versione
+CreateCustomTag=Nuovo tag
+Join=registrare
+BackToModuleList=Torna all'elenco dei moduli
+CustomlinkGeneralSetting=impostazioni generali
+
+## Feature toggles (setup)
+CUSTOMLINK_FeatureToggles=Attivazione funzionalità
+CUSTOMLINK_EnableTagFeature=Attiva funzionalità Tag
+CUSTOMLINK_EnableLinkFeature=Attiva funzionalità Link
+CUSTOMLINK_EnableTagFeatureDesc=Consenti di creare e gestire tag sugli elementi (etichette).
+CUSTOMLINK_EnableLinkFeatureDesc=Consenti di creare e gestire collegamenti tra elementi.
+CUSTOMLINK_FeatureDisabledInSetup=Questa funzionalità è disattivata nella configurazione del modulo.
+CUSTOMLINK_AllowedLinkTypes=Tipi di destinazione link consentiti
+CUSTOMLINK_AllowedLinkTypesDesc=Seleziona quali tipi di elementi possono essere scelti quando si aggiunge un link. Tutti deselezionati = tutti consentiti.
+CUSTOMLINK_NoElementTypes=Nessun tipo di elemento disponibile nel database.
+Parameter=Parametro
