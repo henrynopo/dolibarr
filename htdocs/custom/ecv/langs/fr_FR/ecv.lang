@@ -1,0 +1,143 @@
+ecv_GenerateCVFor=Générer CV pour
+ecv_Member=Adhérent
+
+ecv_recherche_avancee=Recherche avancée
+ecv_supérieur_a=supérieur à
+ecv_result_of_search=Résultat de la recherche
+
+ecv_permis_circulations=Permis de circulation
+ecv_annee_acquisition=Année d'acquisition
+ecv_permis_type=Type de permis
+ecv_permis=Permis
+
+
+
+ModuleName=E-CV
+
+ecvSetup=Configuration du module E-CV
+ModuleDesc190961110ecv=Générateur de curriculum vitae
+ecv1=E-CV
+ecv2=E-CV
+
+ecv_nom_user=Nom
+ecv_societe_d=Société
+ecv_fonction=Fonction
+ecv_naissance_user=Date Naissance
+
+
+
+# DROITS
+Permission_label=Consulter
+
+# MENU		
+ecv=E-CV
+e_cv=E-CV
+ecv_competences=Compétences
+ecv_competence=Compétence
+ecv_liste_des_ecv=La liste des CV
+ecv_ajouter_un_ecv=Ajouter un CV
+ecv_ajouter_une_competence=Ajouter une compétence
+ecv_liste_des_competences=Liste des compétences
+
+
+#ecv
+ecv_ref=Réf
+ecvcertificats=Certificats
+ecv_objet=Objet
+ecv_date=Date d'embauche
+ecv_poste=Poste Occupé
+ecv_objectifs=Résumé de profile
+ecv_modele=Modèle de CV
+ecv_projets=Projets réalisés
+ecv_description=Description de poste occupé
+ecv_photo=Photo
+ecv_employe=Employé
+ecv_fk_user=Employé
+
+#experiences
+ecv_experiences=Expériences professionnelles
+ecv_ecvexperiences=Expériences professionnelles
+ecv_societe_experience=Société
+ecv_debut_experience=Date de début
+ecv_fin_experience=Date de fin
+ecv_projets=Projets réalisés
+ecv_description_experience=Description de poste occupé 
+ecv_addprojet=Ajouter un projet
+ecv_profile_soc=Logo
+ecv_detail_experience=Détails d'une expérience professionnelle
+ecv_nouveau_experience=Nouvelle Expérience professionnelle
+ecv_periode_experience=Période
+ecv_no_jours=Nos jours
+#formations
+ecv_formations=Formations professionnelles
+ecvformations=Formations professionnelles
+ecv_etablissement_formation=Etablissement de la formation
+ecv_diplome_de=Diplôme de
+ecv_intitule_formation=Intitulé de la formation
+ecv_niveau=Niveau
+ecv_filiere=Filière
+ecv_debut_formation=Date de début
+ecv_fin_formation=Date de fin
+ecv_annee_formation=Année
+ecv_periode_formation=Période 
+ecv_detail_formation=Détails d'une formation
+ecv_nouveau_formation=Nouvelle formation
+
+
+#certificats
+ecv_certificats=Certificats
+ecvcertificats=Certificats
+ecv_intitule_certificat=Intitulé du certificat
+ecv_etablissement_certificat=Etablissement de délivrance
+ecv_annee_certificats=Année
+ecv_debut_certificat=Date de début
+ecv_fin_certificat=Date de fin
+ecv_description_certificat=Description de contenue
+ecv_copie=Copie de la certificat
+ecv_detail_certificat=Détails d'une certificat
+ecv_nouveau_certificat=Nouveau certificat
+
+#competences
+ecv_competences=Compétences
+ecv_ecvcompetences=Compétences
+ecv_titre_competence=Compétence
+ecv_valeur_competence=Valeur
+ecv_icon_competence=Photo
+ecv_detail_competence=Détails d'une compétence
+ecv_nouveau_competence=Nouvelle compétence
+
+Curriculum Vitae=Curriculum Vitae
+#langues
+
+ecvlangues=Langues
+ecv_langues=Langues
+ecv_titre_langue=Langue
+ecv_valeur_langue=Valeur
+ecv_detail_langue=Détails d'une langue
+ecv_nouveau_langue=Nouvelle langue
+
+#qualifications
+
+ecv_qualifications=Principales Qualifications
+ecv_qualification=Qualifications
+ecv_name_qualification=Nom de la qualification
+ecv_detail_qualification=Détails d'une qualification
+ecv_nouveau_qualification=Nouvelle qualification
+
+# CARD
+msgconfirmdelet=Êtes-vous sûr de vouloir continuer la suppression?
+Export=Export PDF
+Export_pdf=Exporter pdf
+Export_doc=Exporter Word
+
+
+
+Qualifiant=Qualifiant
+Master_specialisé=Master spécialisé
+Master_recherche=Master recherche
+Doctorat=Doctorat
+
+
+Modéle=Modéle
+
+Nouveau_permis=Nouveau permis

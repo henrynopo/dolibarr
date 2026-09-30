@@ -1,0 +1,338 @@
+.generatecvforcheck label{
+    margin-right: 15px;
+    cursor: pointer;
+    padding: 8px 6px;
+}
+
+div.mainmenu.ecv {
+    background-image: url(../../ecv/img/object_ecv.png);
+    background-size: 19px;
+}
+
+.ecv_srch_filtrage_div{
+    padding: 2px 6px 3px;
+    margin: 2px 3px 10px;
+    /*border: 1px solid #44568633;*/
+    border: 1px dashed #44568652;
+    border-radius: 6px;
+    position: relative;
+}
+.ecv_srch_filtrage_div input[type="submit"]{
+    font-size: 11px;
+    margin: 0px !important;
+}
+.ecv_srch_filtrage_div input[type="submit"]:hover{
+    margin: 0px !important;
+}
+
+.ecv_srch_filtrage_div .select2-container{
+    /*max-width: 300px;*/
+    width: 300px !important;
+}
+.ecv_srch_filtrage_div .date_inputs{
+    width: 85px;
+}
+.ecv_srch_filtrage_div table td {
+    border: none !important;
+	background: #fff;
+}
+
+.ecv_srch_filtrage_div {
+    background: #fff;
+        overflow: auto;
+}
+.ecv_srch_filtrage_div .fouth_td {
+    /*width: 20% !important;*/
+    /*text-align: center;*/
+}
+.containeroffilter {
+    position: relative;
+    /*margin-bottom: 15px;*/
+}
+/*.containeroffilter .titleoffilter {
+    font-size: 11px;
+    margin-left: 50px;
+    position: absolute;
+    top: -7px;
+    z-index: 25;
+    background: #fff;
+    padding: 0 3px;
+}*/
+.containeroffilter .titleoffilter {
+    width: 181px;
+    font-style: italic;
+    font-size: 13px;
+    color: #4d65a2;
+    min-width: 181px;
+
+}
+.ecv_srch_filtrage_div .srch_competance .select2-container {
+    width: 100% !important;
+    min-width: 300px;
+}
+.ecv_srch_filtrage_div b.tofiltre {
+    /* color: #585858; */
+    font-size: 13px;
+}
+.ecv_srch_filtrage_div b.tofiltre:after {
+    content: " :";
+}
+.ecv_srch_filtrage_div table{
+	width: 100%;
+}
+.ecv_srch_filtrage_div input:not(.datepickerecvmod) {
+    min-width: 300px;
+        max-width: initial;
+}
+
+.ecv_srch_filtrage_div td {
+    white-space: nowrap;
+}
+
+
+.ecv_srch_filtrage_div td.selectlangu .select2-container{
+    width: 100% !important;
+}
+
+
+.ecv_srch_filtrage_div td.selectperms .select2-container{
+    width: 98% !important;
+}
+
+@media only screen and (max-width: 600px) {
+
+}
+
+/*  css card_ecv  */
+
+    .card_ecv #wrapper ul{
+        list-style: none;
+    }
+    .card_ecv #wrapper ul li{
+        display: inline-block;
+        padding: 6px;
+        position: relative;
+    }
+    .card_ecv #wrapper ul li img{
+        width: auto !important;
+        height: 80px;
+        border: solid 1px #ccc;
+        background: #fff;
+    }
+    .card_ecv #wrapper ul li span{
+        position: absolute;
+        width: 100%;
+        height: 83px;
+        top: 0;
+        left: 0;
+        text-align: center;
+        line-height: 75px;
+        border: solid 1px #ccc;
+        background: #fff;
+        display: none;
+        font-size: 13px;
+    }
+    .card_ecv #wrapper ul li:hover span{
+        display: block;
+    }
+    .card_ecv #lightbox {
+        position:fixed; /* keeps the lightbox window in the current viewport */
+        top:0; 
+        left:0; 
+        width:100%; 
+        height:100%; 
+        background-color: rgba(0,0,0,0.5);
+        text-align:center;
+        padding-top: 0;
+        z-index: 5000;
+        overflow: auto;
+    }
+    .card_ecv #lightbox p {
+        text-align:right; 
+        color:#fff; 
+        margin-right:20px; 
+        font-size: 2em;
+        font-weight: bold;
+        cursor: pointer;
+        font-family: cursive;
+    }
+    .card_ecv #lightbox img {
+        box-shadow:0 0 25px #111;
+        -webkit-box-shadow:0 0 25px #111;
+        -moz-box-shadow:0 0 25px #111;
+        max-width:800px;
+        background: #fff;
+    }
+    .card_ecv table.nc_table_ tr td:first-child {
+        width: 20%;
+    }
+    .card_ecv .modele_cv:hover{
+        cursor: pointer;
+    }
+
+
+    /*  css index_qualificecv  */
+
+    .form_ecv div.liste_titre_bydiv, .form_ecv .liste_titre div.tagtr, .form_ecv tr.liste_titre, .form_ecv tr.liste_titre_sel, .form_ecv form.liste_titre, .form_ecv form.liste_titre_sel, .form_ecv table.dataTable thead tr {
+        background: rgb(220,220,223) !important; 
+    }
+    .form_ecv table#exp{
+        border-spacing: 0;
+    }
+    .form_ecv table#exp td,table#exp th{
+        border: 1px solid #ddd ! important;
+    }
+    .form_ecv input{
+        border: solid 1px rgba(0,0,0,.2) !important;
+    }
+    .form_ecv .img_valider:hover{
+        cursor: pointer;
+    }
+    .form_ecv .img_delete:hover{
+        cursor: pointer;
+    }
+    .form_ecv .img_edit:hover{
+        cursor: pointer;
+    }
+    .form_ecv .img_add:hover{
+        cursor: pointer;
+    }
+    .index_qualificecv .delete_projet:hover{
+        cursor: pointer;
+    }
+    .index_qualificecv .select2{
+        width: 100%!important;
+    }
+
+    /*  css index_permisecv  */
+
+    .index_permisecv .delete_projet:hover{
+        cursor: pointer;
+    }
+    .index_permisecv .select2{
+        width: 100%!important;
+    }
+
+    /*  css competcecv  */
+
+    .competcecv .select2{
+        width: 100%!important;
+    }
+    .competcecv #wrapper ul{
+
+        list-style: none;
+    }
+    .competcecv #wrapper ul li{
+        display: inline-block;
+        padding: 2px;
+        position: relative;
+    }
+    
+    /*#wrapper ul li span{
+        position: absolute;
+        width: 100%;
+        height: 83px;
+        top: 0;
+        left: 0;
+        text-align: center;
+        line-height: 75px;
+        border: solid 1px #ccc;
+        background: #fff;
+        display: none;
+        cursor: pointer;
+        font-size: 13px;
+    }*/
+    .competcecv #wrapper ul li:hover span{
+
+        display: block;
+    }
+
+    .competcecv #lightbox {
+        position:fixed; /* keeps the lightbox window in the current viewport */
+        top:0; 
+        left:0; 
+        width:100%; 
+        height:100%; 
+        background-color: rgba(0,0,0,0.5);
+        text-align:center;
+        padding-top: 0;
+    z-index: 5000;
+            overflow: auto;
+    }
+    .competcecv #lightbox p {
+        text-align:right; 
+        color:#fff; 
+        margin-right:20px; 
+        font-size: 2em;
+        font-weight: bold;
+        cursor: pointer;
+        font-family: cursive;
+    }
+    .competcecv #lightbox img {
+        box-shadow:0 0 25px #111;
+        -webkit-box-shadow:0 0 25px #111;
+        -moz-box-shadow:0 0 25px #111;
+        max-width:800px;
+        background: #fff;
+    }
+
+    .competcecv #wrapper ul li img {
+        width: auto !important;
+        height: 80px;
+        border: solid 1px #ccc;
+        background: #fff;
+    }
+
+
+    /*  css certifcecv */
+
+    .certifcecv #wrapper ul{
+
+        list-style: none;
+    }
+    .certifcecv #wrapper ul li{
+        display: inline-block;
+        padding: 2px;
+        position: relative;
+    }
+    
+    .certifcecv #wrapper ul li:hover span{
+
+        display: block;
+    }
+
+    .certifcecv #wrapper ul li img {
+        height: 30px !important; 
+        width: auto;
+        border: solid 1px #ccc;
+        background: #fff;
+    }
+
+    .certifcecv #lightbox {
+        position:fixed; /* keeps the lightbox window in the current viewport */
+        top:0; 
+        left:0; 
+        width:100%; 
+        height:100%; 
+        background-color: rgba(0,0,0,0.5);
+        text-align:center;
+        padding-top: 0;
+        z-index: 5000;
+        overflow: auto;
+    }
+    .certifcecv #lightbox p {
+        text-align:right; 
+        color:#fff; 
+        margin-right:20px; 
+        font-size: 2em;
+        font-weight: bold;
+        cursor: pointer;
+        font-family: cursive;
+    }
+    .certifcecv #lightbox img {
+        box-shadow:0 0 25px #111;
+        -webkit-box-shadow:0 0 25px #111;
+        -moz-box-shadow:0 0 25px #111;
+        max-width:800px;
+        background: #fff;
+    }
