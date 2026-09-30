@@ -44,6 +44,8 @@ $linkedObjectBlock = dol_sort_array($linkedObjectBlock, 'date,ref', 'desc', 0, 0
 /** @var Facture[] $linkedObjectBlock */
 
 $total = 0;
+$multicurrency_total = 0;
+$multicurrency_code_total = '';
 $ilink = 0;
 foreach ($linkedObjectBlock as $key => $objectlink) {
 	$ilink++;
@@ -93,10 +95,17 @@ foreach ($linkedObjectBlock as $key => $objectlink) {
 		'@phan-var-force Facture $objectlink';
 		if ($objectlink->status != 3) {
 			// If not abandoned
+			if (isModEnabled('multicurrency') && !empty($objectlink->multicurrency_code) && $conf->currency != $objectlink->multicurrency_code) {
+				$multicurrency_total += $objectlink->multicurrency_total_ht;
+				if ($multicurrency_code_total === '') {
+					$multicurrency_code_total = $objectlink->multicurrency_code;
+				}
+				echo $objectlink->multicurrency_code.' '.price($objectlink->multicurrency_total_ht).'<br>';
+			}
 			$total += $objectlink->total_ht;
-			echo price($objectlink->total_ht);
+			echo $conf->currency.' '.price($objectlink->total_ht);
 		} else {
-			echo '<strike>'.price($objectlink->total_ht).'</strike>';
+			echo '<strike>'.((isModEnabled('multicurrency') && !empty($objectlink->multicurrency_code) && $conf->currency != $objectlink->multicurrency_code) ? $objectlink->multicurrency_code.' '.price($objectlink->multicurrency_total_ht).'<br>'.$conf->currency.' ' : '').price($objectlink->total_ht).'</strike>';
 		}
 	}
 
@@ -123,12 +132,17 @@ foreach ($linkedObjectBlock as $key => $objectlink) {
 	print "</tr>\n";
 }
 if (count($linkedObjectBlock) > 1) {
+	$total_amount_cell = '';
+	if (isModEnabled('multicurrency') && $multicurrency_code_total !== '' && (float) $multicurrency_total != 0 && $conf->currency != $multicurrency_code_total) {
+		$total_amount_cell .= $multicurrency_code_total.' '.price($multicurrency_total).'<br>';
+	}
+	$total_amount_cell .= $conf->currency.' '.price($total);
 	print '<tr class="liste_total '.(empty($noMoreLinkedObjectBlockAfter) ? 'liste_sub_total' : '').'">';
 	print '<td>'.$langs->trans("Total").'</td>';
 	print '<td></td>';
 	print '<td class="center"></td>';
 	print '<td class="center"></td>';
-	print '<td class="right">'.price($total).'</td>';
+	print '<td class="right">'.$total_amount_cell.'</td>';
 	print '<td class="right"></td>';
 	print '<td class="right"></td>';
 	print '</tr>';

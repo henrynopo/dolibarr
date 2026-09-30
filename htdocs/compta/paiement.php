@@ -682,6 +682,16 @@ if ($result >= 0) {
 
 			print '<tr class="liste_titre">';
 			print '<td>'.$arraytitle.'</td>';
+			// Source order column (invoice -> commande link, same as 14.0)
+			$langs->load('orders');
+			if (isModEnabled('slycustom')) {
+				$langs->load('slycustom@slycustom');
+			}
+			$sourceorderlabel = $langs->trans('SourceOrder');
+			if ($sourceorderlabel === 'SourceOrder') {
+				$sourceorderlabel = $langs->trans('Order');
+			}
+			print '<td>'.$sourceorderlabel.'</td>';
 			if ($displayAllInvoices) {
 				print '<td>' . $langs->trans('Type') . '</td>';
 			}
@@ -700,9 +710,9 @@ if ($result >= 0) {
 			print '<td class="right">'.$alreadypayedlabel.'</td>';
 			print '<td class="right">'.$remaindertopay.'</td>';
 			print '<td class="right">'.$langs->trans('PaymentAmount').'</td>';
-
-			$parameters = array();
-			$reshook = $hookmanager->executeHooks('printFieldListTitle', $parameters, $facture, $action); // Note that $action and $object may have been modified by hook
+			$parameters = array('context' => 'payment_unpaid_invoices');
+			$reshook = $hookmanager->executeHooks('printFieldListTitle', $parameters, $facture, $action);
+			print $hookmanager->resPrint;
 
 			print '<td align="right">&nbsp;</td>';
 			print "</tr>\n";
@@ -736,7 +746,7 @@ if ($result >= 0) {
 				$creditnotes = $invoice->getSumCreditNotesUsed();
 				$deposits = $invoice->getSumDepositsUsed();
 				$alreadypayed = price2num($paiement + $creditnotes + $deposits, 'MT');
-				$remaintopay = price2num($invoice->total_ttc - $paiement - $creditnotes - $deposits, 'MT');
+				$remaintopay = $invoice->getRemainToPay();
 
 				// Multicurrency Price
 				$tooltiponmulticurrencyfullamount = '';
@@ -749,7 +759,7 @@ if ($result >= 0) {
 					$multicurrency_creditnotes = $invoice->getSumCreditNotesUsed(1);
 					$multicurrency_deposits = $invoice->getSumDepositsUsed(1);
 					$multicurrency_alreadypayed = price2num($multicurrency_payment + $multicurrency_creditnotes + $multicurrency_deposits, 'MT');
-					$multicurrency_remaintopay = price2num($invoice->multicurrency_total_ttc - $multicurrency_payment - $multicurrency_creditnotes - $multicurrency_deposits, 'MT');
+					$multicurrency_remaintopay = $invoice->getRemainToPay(1);
 					// Multicurrency full amount tooltip
 					$tooltiponmulticurrencyfullamount = $langs->trans('AmountHT') . ": " . price($objp->multicurrency_total_ht, 0, $langs, 0, -1, -1, $objp->multicurrency_code) . "<br>";
 					$tooltiponmulticurrencyfullamount .= $langs->trans('AmountVAT') . ": " . price($objp->multicurrency_total_tva, 0, $langs, 0, -1, -1, $objp->multicurrency_code) . "<br>";
@@ -769,6 +779,25 @@ if ($result >= 0) {
 					print ' - '.$soc->getNomUrl(1).' ';
 				}
 				print "</td>\n";
+
+				// Source order cell (invoice -> commande via element_element, same as 14.0)
+				$p = MAIN_DB_PREFIX;
+				$sqlco = "SELECT c.ref, c.rowid AS id FROM ".$p."element_element ee";
+				$sqlco .= " INNER JOIN ".$p."commande c ON (c.rowid = ee.fk_source AND ee.sourcetype = 'commande' AND ee.targettype = 'facture' AND ee.fk_target = ".(int) $objp->facid.")";
+				$sqlco .= " UNION ALL SELECT c2.ref, c2.rowid AS id FROM ".$p."element_element ee2";
+				$sqlco .= " INNER JOIN ".$p."commande c2 ON (c2.rowid = ee2.fk_target AND ee2.targettype = 'commande' AND ee2.sourcetype = 'facture' AND ee2.fk_source = ".(int) $objp->facid.")";
+				$sqlco .= " LIMIT 1";
+				$resqlco = $db->query($sqlco);
+				if ($resqlco && $db->num_rows($resqlco) > 0) {
+					$objco = $db->fetch_object($resqlco);
+					$db->free($resqlco);
+					print '<td class="tdoverflowmax150"><a href="'.DOL_URL_ROOT.'/commande/card.php?id='.((int) $objco->id).'">'.dol_escape_htmltag($objco->ref).'</a></td>';
+				} else {
+					if ($resqlco) {
+						$db->free($resqlco);
+					}
+					print '<td class="tdoverflowmax150">&nbsp;</td>';
+				}
 
 				// type
 				if ($displayAllInvoices) {
@@ -934,8 +963,9 @@ if ($result >= 0) {
 				}
 				print "</td>";
 
-				$parameters = array();
-				$reshook = $hookmanager->executeHooks('printFieldListValue', $parameters, $objp, $action); // Note that $action and $object may have been modified by hook
+				$parameters = array('context' => 'payment_unpaid_invoices', 'facid' => (int) $objp->facid);
+				$reshook = $hookmanager->executeHooks('printFieldListValue', $parameters, $facture, $action);
+				print $hookmanager->resPrint;
 
 				// Warning
 				print '<td align="center" width="16">';
@@ -966,8 +996,8 @@ if ($result >= 0) {
 				$i++;
 			}
 
-			if ($i > 1) {
-				$colspan = 3;
+				if ($i > 1) {
+				$colspan = 4;
 
 				// type
 				if ($displayAllInvoices) {

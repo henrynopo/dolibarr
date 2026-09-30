@@ -63,8 +63,21 @@ $amounts = GETPOST('amounts', 'array'); // from text inputs : invoice amount pay
 $remains = GETPOST('remains'); // from dolibarr's object (no need to check)
 $currentInvId = GETPOST('imgClicked'); // from DOM elements : imgId (equals invoice id)
 
+// Multicurrency
+$multicurrency_amountPayment = '';
+$multicurrency_amounts = array();
+$multicurrency_remains = array();
+if (isModEnabled('multicurrency')) {
+	$multicurrency_amountPayment = GETPOST('multicurrency_amountPayment');
+	$multicurrency_amounts = GETPOST('multicurrency_amounts');
+	$multicurrency_remains = GETPOST('multicurrency_remains');
+}
+
 // Getting the posted keys=>values, sanitize the ones who are from text inputs
 $amountPayment = $amountPayment != '' ? (is_numeric(price2num($amountPayment)) ? price2num($amountPayment) : '') : ''; // keep void if not a valid entry
+if (isModEnabled('multicurrency')) {
+	$multicurrency_amountPayment = $multicurrency_amountPayment != '' ? (is_numeric(price2num($multicurrency_amountPayment)) ? price2num($multicurrency_amountPayment) : '') : '';
+}
 
 // Multicurrency LRR
 $multicurrency = GETPOSTINT('multicurrency');
@@ -209,6 +222,12 @@ if ($multicurrency) {
 	$toJsonArray['makeRed'] = ($totalRemaining < price2num($result) || price2num($result) < 0);
 	$toJsonArray['result'] = price($result); // Return value to user format
 	$toJsonArray['resultnum'] = price2num($result); // Return value to numeric format
+}
+
+if (isModEnabled('multicurrency')) {
+	$toJsonArray['multicurrency_makeRed'] = ($multicurrency_totalRemaining < price2num($multicurrency_result) || price2num($multicurrency_result) < 0);
+	$toJsonArray['multicurrency_result'] = price($multicurrency_result); // Return value to user format
+	$toJsonArray['multicurrency_resultnum'] = price2num($multicurrency_result); // Return value to numeric format
 }
 
 // Encode to JSON to return
