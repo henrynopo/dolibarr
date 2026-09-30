@@ -306,8 +306,8 @@ if (empty($reshook)) {
 			if (getDolGlobalInt('MAIN_MULTILANGS') && GETPOST('lang_id')) {
 				$newlang = GETPOST('lang_id');
 			}
-			if (getDolGlobalInt('MAIN_MULTILANGS') && empty($newlang)) {
-				$newlang = $object->thirdparty->default_lang;
+			if (getDolGlobalInt('MAIN_MULTILANGS') && empty($newlang) && !empty($object->thirdparty)) {
+				$newlang = (!empty($object->thirdparty) ? $object->thirdparty->default_lang : '');
 			}
 			if (!empty($newlang)) {
 				$outputlangs = new Translate("", $conf);
@@ -403,6 +403,19 @@ if (empty($reshook)) {
 					$db->free($resql);
 				}
 				$object->update_price();
+				// SLY: Update from new vendor (same logic as payment terms): payment terms, payment mode, bank account — draft shows new vendor defaults
+				$newsoc = new Societe($db);
+				if ($newsoc->fetch($new_socid) > 0) {
+					if (!empty($newsoc->cond_reglement_supplier_id)) {
+						$object->setPaymentTerms($newsoc->cond_reglement_supplier_id);
+					}
+					if (!empty($newsoc->mode_reglement_supplier_id)) {
+						$object->setPaymentMethods($newsoc->mode_reglement_supplier_id);
+					}
+					if (!empty($newsoc->fk_account)) {
+						$object->setBankAccount($newsoc->fk_account);
+					}
+				}
 			}
 		}
 		header('Location: '.$_SERVER['PHP_SELF'].'?id='.$object->id);
@@ -501,8 +514,8 @@ if (empty($reshook)) {
 				// Define output language
 				$outputlangs = $langs;
 				$newlang = GETPOST('lang_id', 'alpha');
-				if (getDolGlobalInt('MAIN_MULTILANGS') && empty($newlang)) {
-					$newlang = $object->thirdparty->default_lang;
+				if (getDolGlobalInt('MAIN_MULTILANGS') && empty($newlang) && !empty($object->thirdparty)) {
+					$newlang = (!empty($object->thirdparty) ? $object->thirdparty->default_lang : '');
 				}
 				if (!empty($newlang)) {
 					$outputlangs = new Translate("", $conf);
@@ -554,8 +567,8 @@ if (empty($reshook)) {
 				// Define output language
 				$outputlangs = $langs;
 				$newlang = GETPOST('lang_id', 'alpha');
-				if (getDolGlobalInt('MAIN_MULTILANGS') && empty($newlang)) {
-					$newlang = $object->thirdparty->default_lang;
+				if (getDolGlobalInt('MAIN_MULTILANGS') && empty($newlang) && !empty($object->thirdparty)) {
+					$newlang = (!empty($object->thirdparty) ? $object->thirdparty->default_lang : '');
 				}
 				if (!empty($newlang)) {
 					$outputlangs = new Translate("", $conf);
@@ -689,7 +702,7 @@ if (empty($reshook)) {
 						$newlang = GETPOST('lang_id', 'aZ09');
 					}
 					if (empty($newlang)) {
-						$newlang = $object->thirdparty->default_lang;
+						$newlang = (!empty($object->thirdparty) ? $object->thirdparty->default_lang : '');
 					}
 					if (!empty($newlang)) {
 						$outputlangs = new Translate("", $conf);
@@ -838,7 +851,7 @@ if (empty($reshook)) {
 				$outputlangs = $langs;
 				$newlang = '';
 				if (getDolGlobalInt('MAIN_MULTILANGS') /* && empty($newlang) */) {
-					$newlang = $object->thirdparty->default_lang;
+					$newlang = (!empty($object->thirdparty) ? $object->thirdparty->default_lang : '');
 					if (GETPOST('lang_id', 'aZ09')) {
 						$newlang = GETPOST('lang_id', 'aZ09');
 					}
@@ -925,8 +938,8 @@ if (empty($reshook)) {
 				// Define output language
 				$outputlangs = $langs;
 				$newlang = GETPOST('lang_id', 'alpha');
-				if (getDolGlobalInt('MAIN_MULTILANGS') && empty($newlang)) {
-					$newlang = $object->thirdparty->default_lang;
+				if (getDolGlobalInt('MAIN_MULTILANGS') && empty($newlang) && !empty($object->thirdparty)) {
+					$newlang = (!empty($object->thirdparty) ? $object->thirdparty->default_lang : '');
 				}
 				if (!empty($newlang)) {
 					$outputlangs = new Translate("", $conf);
@@ -966,8 +979,8 @@ if (empty($reshook)) {
 				// Define output language
 				$outputlangs = $langs;
 				$newlang = GETPOST('lang_id', 'alpha');
-				if (getDolGlobalInt('MAIN_MULTILANGS') && empty($newlang)) {
-					$newlang = $object->thirdparty->default_lang;
+				if (getDolGlobalInt('MAIN_MULTILANGS') && empty($newlang) && !empty($object->thirdparty)) {
+					$newlang = (!empty($object->thirdparty) ? $object->thirdparty->default_lang : '');
 				}
 				if (!empty($newlang)) {
 					$outputlangs = new Translate("", $conf);
@@ -1099,8 +1112,8 @@ if (empty($reshook)) {
 				if (getDolGlobalInt('MAIN_MULTILANGS') /* && empty($newlang) */ && GETPOST('lang_id', 'aZ09')) {
 					$newlang = GETPOST('lang_id', 'aZ09');
 				}
-				if (getDolGlobalInt('MAIN_MULTILANGS') && empty($newlang)) {
-					$newlang = $object->thirdparty->default_lang;
+				if (getDolGlobalInt('MAIN_MULTILANGS') && empty($newlang) && !empty($object->thirdparty)) {
+					$newlang = (!empty($object->thirdparty) ? $object->thirdparty->default_lang : '');
 				}
 				if (!empty($newlang)) {
 					$outputlangs = new Translate("", $conf);
@@ -1137,8 +1150,8 @@ if (empty($reshook)) {
 			if (getDolGlobalInt('MAIN_MULTILANGS') /* && empty($newlang) */ && GETPOST('lang_id', 'aZ09')) {
 				$newlang = GETPOST('lang_id', 'aZ09');
 			}
-			if (getDolGlobalInt('MAIN_MULTILANGS') && empty($newlang)) {
-				$newlang = $object->thirdparty->default_lang;
+			if (getDolGlobalInt('MAIN_MULTILANGS') && empty($newlang) && !empty($object->thirdparty)) {
+				$newlang = (!empty($object->thirdparty) ? $object->thirdparty->default_lang : '');
 			}
 			if (!empty($newlang)) {
 				$outputlangs = new Translate("", $conf);
@@ -1189,8 +1202,8 @@ if (empty($reshook)) {
 				if (getDolGlobalInt('MAIN_MULTILANGS') /* && empty($newlang) */ && GETPOST('lang_id', 'aZ09')) {
 					$newlang = GETPOST('lang_id', 'aZ09');
 				}
-				if (getDolGlobalInt('MAIN_MULTILANGS') && empty($newlang)) {
-					$newlang = $object->thirdparty->default_lang;
+				if (getDolGlobalInt('MAIN_MULTILANGS') && empty($newlang) && !empty($object->thirdparty)) {
+					$newlang = (!empty($object->thirdparty) ? $object->thirdparty->default_lang : '');
 				}
 				if (!empty($newlang)) {
 					$outputlangs = new Translate("", $conf);
@@ -1252,8 +1265,8 @@ if (empty($reshook)) {
 					if (getDolGlobalInt('MAIN_MULTILANGS') /* && empty($newlang) */ && GETPOST('lang_id', 'aZ09')) {
 						$newlang = GETPOST('lang_id', 'aZ09');
 					}
-					if (getDolGlobalInt('MAIN_MULTILANGS') && empty($newlang)) {
-						$newlang = $object->thirdparty->default_lang;
+					if (getDolGlobalInt('MAIN_MULTILANGS') && empty($newlang) && !empty($object->thirdparty)) {
+						$newlang = (!empty($object->thirdparty) ? $object->thirdparty->default_lang : '');
 					}
 					if (!empty($newlang)) {
 						$outputlangs = new Translate("", $conf);
@@ -1313,8 +1326,8 @@ if (empty($reshook)) {
 				if (getDolGlobalInt('MAIN_MULTILANGS') /* && empty($newlang) */ && GETPOST('lang_id', 'aZ09')) {
 					$newlang = GETPOST('lang_id', 'aZ09');
 				}
-				if (getDolGlobalInt('MAIN_MULTILANGS') && empty($newlang)) {
-					$newlang = $object->thirdparty->default_lang;
+				if (getDolGlobalInt('MAIN_MULTILANGS') && empty($newlang) && !empty($object->thirdparty)) {
+					$newlang = (!empty($object->thirdparty) ? $object->thirdparty->default_lang : '');
 				}
 				if (!empty($newlang)) {
 					$outputlangs = new Translate("", $conf);
@@ -1844,7 +1857,9 @@ if ($action == 'create') {
 
 	if ($socid > 0) {
 		$societe = new Societe($db);
-		$societe->fetch($socid);
+		if ($societe->fetch($socid) <= 0) {
+			$societe = '';
+		}
 	}
 
 	if (!empty($origin) && !empty($originid)) {
@@ -1909,9 +1924,10 @@ if ($action == 'create') {
 		} else {
 			$soc = $objectsrc->thirdparty;
 
-			$cond_reglement_id	= (!empty($objectsrc->cond_reglement_id) ? $objectsrc->cond_reglement_id : (!empty($soc->cond_reglement_id) ? $soc->cond_reglement_id : 0));
+			// SLY: Use supplier payment terms (cond_reglement_supplier_id) for PO, not customer terms
+			$cond_reglement_id	= (!empty($objectsrc->cond_reglement_id) ? $objectsrc->cond_reglement_id : (!empty($soc->cond_reglement_supplier_id) ? $soc->cond_reglement_supplier_id : 0));
 			$deposit_percent	= (!empty($objectsrc->deposit_percent) ? $objectsrc->deposit_percent : (!empty($soc->deposit_percent) ? $soc->deposit_percent : 0));
-			$mode_reglement_id	= (!empty($objectsrc->mode_reglement_id) ? $objectsrc->mode_reglement_id : (!empty($soc->mode_reglement_id) ? $soc->mode_reglement_id : 0));
+			$mode_reglement_id	= (!empty($objectsrc->mode_reglement_id) ? $objectsrc->mode_reglement_id : (!empty($soc->mode_reglement_supplier_id) ? $soc->mode_reglement_supplier_id : 0));
 			$fk_account         = (!empty($objectsrc->fk_account) ? $objectsrc->fk_account : (!empty($soc->fk_account) ? $soc->fk_account : 0));
 			$availability_id	= (!empty($objectsrc->availability_id) ? $objectsrc->availability_id : (!empty($soc->availability_id) ? $soc->availability_id : 0));
 			$shipping_method_id = (!empty($objectsrc->shipping_method_id) ? $objectsrc->shipping_method_id : (!empty($soc->shipping_method_id) ? $soc->shipping_method_id : 0));
@@ -1935,17 +1951,74 @@ if ($action == 'create') {
 			// Object source contacts list
 			$srccontactslist = $objectsrc->liste_contact(-1, 'external', 1);
 		}
-	} else {
-		$cond_reglement_id 	= !empty($societe->cond_reglement_supplier_id) ? $societe->cond_reglement_supplier_id : 0;
-		$deposit_percent = !empty($societe->deposit_percent) ? $societe->deposit_percent : 0;
-		$mode_reglement_id 	= !empty($societe->mode_reglement_supplier_id) ? $societe->mode_reglement_supplier_id : 0;
 
-		if (isModEnabled("multicurrency") && !empty($societe->multicurrency_code)) {
+		// SLY: If payment terms, payment mode or bank account not set: supplier proposal first, then vendor default, then global (terms/mode only)
+		if (empty($cond_reglement_id) || empty($mode_reglement_id) || empty($fk_account)) {
+			if (!empty($origin) && $origin == 'supplier_proposal' && !empty($originid) && isModEnabled('supplier_proposal')) {
+				dol_include_once('/supplier_proposal/class/supplier_proposal.class.php');
+				$objProp = new SupplierProposal($db);
+				if ($objProp->fetch($originid) > 0) {
+					if (empty($cond_reglement_id) && !empty($objProp->cond_reglement_id)) {
+						$cond_reglement_id = $objProp->cond_reglement_id;
+					}
+					if (empty($mode_reglement_id) && !empty($objProp->mode_reglement_id)) {
+						$mode_reglement_id = $objProp->mode_reglement_id;
+					}
+					if (empty($fk_account) && !empty($objProp->fk_account)) {
+						$fk_account = $objProp->fk_account;
+					}
+				}
+			}
+			if (empty($cond_reglement_id) || empty($mode_reglement_id) || empty($fk_account)) {
+				$supplier = new Societe($db);
+				if ($supplier->fetch($socid) > 0) {
+					if (empty($cond_reglement_id) && !empty($supplier->cond_reglement_supplier_id)) {
+						$cond_reglement_id = $supplier->cond_reglement_supplier_id;
+					}
+					if (empty($mode_reglement_id) && !empty($supplier->mode_reglement_supplier_id)) {
+						$mode_reglement_id = $supplier->mode_reglement_supplier_id;
+					}
+					if (empty($fk_account) && !empty($supplier->fk_account)) {
+						$fk_account = $supplier->fk_account;
+					}
+				}
+				if (empty($cond_reglement_id) && getDolGlobalString('SUPPLIER_ORDER_DEFAULT_PAYMENT_TERM_ID')) {
+					$cond_reglement_id = getDolGlobalString('SUPPLIER_ORDER_DEFAULT_PAYMENT_TERM_ID');
+				}
+				if (empty($mode_reglement_id) && getDolGlobalString('SUPPLIER_ORDER_DEFAULT_PAYMENT_MODE_ID')) {
+					$mode_reglement_id = getDolGlobalString('SUPPLIER_ORDER_DEFAULT_PAYMENT_MODE_ID');
+				}
+			}
+		}
+	} else {
+		// SLY: Vendor default: payment terms, payment mode, payment bank account (from fourn/card.php); $societe may be '' when fetch failed
+		$cond_reglement_id 	= (is_object($societe) ? (int) $societe->cond_reglement_supplier_id : 0);
+		$deposit_percent = (is_object($societe) ? $societe->deposit_percent : 0);
+		$mode_reglement_id 	= (is_object($societe) ? (int) $societe->mode_reglement_supplier_id : 0);
+		$fk_account         = (is_object($societe) && !empty($societe->fk_account)) ? (int) $societe->fk_account : 0;
+
+		if (is_object($societe) && isModEnabled("multicurrency") && !empty($societe->multicurrency_code)) {
 			$currency_code = $societe->multicurrency_code;
 		}
 
 		$note_private = $object->getDefaultCreateValueFor('note_private');
 		$note_public = $object->getDefaultCreateValueFor('note_public');
+	}
+
+	// SLY: When payment terms/mode or bank account still empty and we have a supplier, (re)load from DB (all entry paths: direct create or from origin)
+	if (($cond_reglement_id == 0 || $mode_reglement_id == 0 || empty($fk_account)) && $socid > 0) {
+		$socLoad = new Societe($db);
+		if ($socLoad->fetch($socid) > 0) {
+			if ($cond_reglement_id == 0) {
+				$cond_reglement_id = (int) $socLoad->cond_reglement_supplier_id;
+			}
+			if ($mode_reglement_id == 0) {
+				$mode_reglement_id = (int) $socLoad->mode_reglement_supplier_id;
+			}
+			if (empty($fk_account) && !empty($socLoad->fk_account)) {
+				$fk_account = (int) $socLoad->fk_account;
+			}
+		}
 	}
 
 	// If not defined, set default value from constant
@@ -1962,7 +2035,9 @@ if ($action == 'create') {
 	print '<form name="add" action="'.$_SERVER["PHP_SELF"].'" method="post">';
 	print '<input type="hidden" name="token" value="'.newToken().'">';
 	print '<input type="hidden" name="action" value="add">';
-	print '<input type="hidden" name="remise_percent" value="'.(empty($soc->remise_supplier_percent) ? '' : $soc->remise_supplier_percent).'">';
+	// SLY: $soc may be unset on direct create; fall back to $societe
+	$remise_supplier_pct = (isset($soc) && is_object($soc)) ? $soc->remise_supplier_percent : (is_object($societe) ? $societe->remise_supplier_percent : '');
+	print '<input type="hidden" name="remise_percent" value="'.(empty($remise_supplier_pct) ? '' : $remise_supplier_pct).'">';
 	print '<input type="hidden" name="origin" value="'.$origin.'">';
 	print '<input type="hidden" name="originid" value="'.$originid.'">';
 	print '<input type="hidden" name="changecompany" value="0">';	// will be set to 1 by javascript so we know post is done after a company change
@@ -3137,7 +3212,10 @@ if ($action == 'create') {
 			$delallowed = $usercancreate;
 			$modelpdf = (!empty($object->model_pdf) ? $object->model_pdf : (!getDolGlobalString('COMMANDE_SUPPLIER_ADDON_PDF') ? '' : $conf->global->COMMANDE_SUPPLIER_ADDON_PDF));
 
-			print $formfile->showdocuments('commande_fournisseur', $objref, $filedir, $urlsource, (int) $genallowed, (int) $delallowed, $modelpdf, 1, 0, 0, 0, 0, '', '', '', $object->thirdparty->default_lang, '', $object);
+			// Avoid warning if thirdparty not loaded (PHP 8.2+ strict)
+			$defaultlang = (!empty($object->thirdparty) && !empty($object->thirdparty->default_lang)) ? $object->thirdparty->default_lang : '';
+
+			print $formfile->showdocuments('commande_fournisseur', $objref, $filedir, $urlsource, (int) $genallowed, (int) $delallowed, $modelpdf, 1, 0, 0, 0, 0, '', '', '', $defaultlang, '', $object);
 			$somethingshown = $formfile->numoffiles;
 
 			// Show links to link elements

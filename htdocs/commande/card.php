@@ -57,6 +57,7 @@ require_once DOL_DOCUMENT_ROOT . '/core/class/html.formorder.class.php';
 require_once DOL_DOCUMENT_ROOT . '/core/class/html.formmargin.class.php';
 require_once DOL_DOCUMENT_ROOT . '/core/modules/commande/modules_commande.php';
 require_once DOL_DOCUMENT_ROOT . '/core/lib/functions2.lib.php';
+require_once DOL_DOCUMENT_ROOT . '/core/lib/files.lib.php';
 require_once DOL_DOCUMENT_ROOT . '/core/lib/order.lib.php';
 
 require_once DOL_DOCUMENT_ROOT . '/comm/action/class/actioncomm.class.php';
@@ -1274,6 +1275,23 @@ if (empty($reshook)) {
 					}
 				}
 
+				// SLY: When product is selected: if user entered multicurrency price (UP currency), use it and set pu_ht_devise; derive pu_ht from rate when local price was not filled (fix: add line showed 0 when only currency price filled)
+				// multicurrency_tx = foreign per 1 local => local = foreign / rate (see price.lib.php calcul_price_total)
+				if (GETPOST('multicurrency_price_ht') !== '') {
+					$pu_ht_devise = (float) price2num($price_ht_devise, 'CU');
+					if (!empty($object->multicurrency_tx) && ($pu_ht === '' || $pu_ht === null || (float) $pu_ht == 0)) {
+						$pu_ht = (float) price2num((float) $pu_ht_devise / (float) $object->multicurrency_tx, 'MU');
+						$pu_ttc = (float) price2num((float) $pu_ht * (1 + ($tmpvat / 100)), 'MU');
+					}
+				}
+				if (GETPOST('multicurrency_price_ttc') !== '') {
+					$pu_ttc_devise = (float) price2num($price_ttc_devise, 'CU');
+					if (!empty($object->multicurrency_tx) && ($pu_ttc === '' || $pu_ttc === null || (float) $pu_ttc == 0)) {
+						$pu_ttc = (float) price2num((float) $pu_ttc_devise / (float) $object->multicurrency_tx, 'MU');
+						$pu_ht = (float) price2num((float) $pu_ttc / (1 + ($tmpvat / 100)), 'MU');
+					}
+				}
+
 				$desc = '';
 
 				// Define output language
@@ -2323,7 +2341,8 @@ if ($action == 'create' && $usercancreate) {
 			print '</td>';
 		} else {
 			print '<td class="valuefieldcreate">';
-			$filter = '((s.client:IN:1,2,3) AND (s.status:=:1))';
+			// SLY: allow inactive thirdparties in draft so user can change customer (草稿改客户)
+			$filter = '(s.client:IN:1,2,3)';
 			print img_picto('', 'company', 'class="pictofixedwidth"') . $form->select_company('', 'socid', $filter, 'SelectThirdParty', 1, 0, array(), 0, 'minwidth175 maxwidth500 widthcentpercentminusxx');
 			// reload page to retrieve customer information
 			if (!getDolGlobalString('RELOAD_PAGE_ON_CUSTOMER_CHANGE_DISABLED')) {
@@ -2783,7 +2802,7 @@ if ($action == 'create' && $usercancreate) {
 							);
 						}
 
-						$paymentTermsSelect = $form->getSelectConditionsPaiements(0, 'cond_reglement_id', -1, 0, 0, 'minwidth200');
+						$paymentTermsSelect = $form->getSelectConditionsPaiements(0, 'cond_reglement_id', 1, 0, 0, 'minwidth200');
 
 						$formquestion[] = array(
 							'type' => 'other',
@@ -3691,7 +3710,6 @@ if ($action == 'create' && $usercancreate) {
 			}
 
 			print $formfile->showdocuments('commande', $objref, $filedir, $urlsource, $genallowed, (int) $delallowed, $object->model_pdf, 1, 0, 0, 28, 0, '', '', '', $soc->default_lang, '', $object, 0, 'remove_file', $tooltipAfterComboOfModels);
-
 
 			// Show links to link elements
 			$tmparray = $form->showLinkToObjectBlock($object, array(), array('order'), 1);

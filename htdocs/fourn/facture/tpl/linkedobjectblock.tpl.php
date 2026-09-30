@@ -49,6 +49,8 @@ print "<!-- BEGIN PHP TEMPLATE fourn/facture/tpl/linkedobjectblock.tpl.php -->\n
 $langs->load("bills");
 
 $total = 0;
+$multicurrency_total = 0;
+$multicurrency_code_total = '';
 $ilink = 0;
 foreach ($linkedObjectBlock as $key => $objectlink) {
 	$ilink++;
@@ -78,10 +80,17 @@ foreach ($linkedObjectBlock as $key => $objectlink) {
 			}
 			if ($objectlink->status != 3) {
 				// If not abandoned
+				if (isModEnabled('multicurrency') && !empty($objectlink->multicurrency_code) && $conf->currency != $objectlink->multicurrency_code) {
+					$multicurrency_total += $sign * $objectlink->multicurrency_total_ht;
+					if ($multicurrency_code_total === '') {
+						$multicurrency_code_total = $objectlink->multicurrency_code;
+					}
+					echo $objectlink->multicurrency_code.' '.price($objectlink->multicurrency_total_ht).'<br>';
+				}
 				$total += $sign * $objectlink->total_ht;
-				echo price($objectlink->total_ht);
+				echo $conf->currency.' '.price($objectlink->total_ht);
 			} else {
-				echo '<strike>'.price($objectlink->total_ht).'</strike>';
+				echo '<strike>'.((isModEnabled('multicurrency') && !empty($objectlink->multicurrency_code) && $conf->currency != $objectlink->multicurrency_code) ? $objectlink->multicurrency_code.' '.price($objectlink->multicurrency_total_ht).'<br>'.$conf->currency.' ' : '').price($objectlink->total_ht).'</strike>';
 			}
 		} ?></td>
 		<td class="right"><?php
@@ -96,13 +105,18 @@ foreach ($linkedObjectBlock as $key => $objectlink) {
 	<?php
 }
 if (count($linkedObjectBlock) > 1) {
+	$total_amount_cell = '';
+	if (isModEnabled('multicurrency') && $multicurrency_code_total !== '' && (float) $multicurrency_total != 0 && $conf->currency != $multicurrency_code_total) {
+		$total_amount_cell .= $multicurrency_code_total.' '.price($multicurrency_total).'<br>';
+	}
+	$total_amount_cell .= $conf->currency.' '.price($total);
 	?>
 	<tr class="liste_total <?php echo(empty($noMoreLinkedObjectBlockAfter) ? 'liste_sub_total' : ''); ?>">
 		<td><?php echo $langs->trans("Total"); ?></td>
 		<td></td>
 		<td class="center"></td>
 		<td class="center"></td>
-		<td class="right"><?php echo price($total); ?></td>
+		<td class="right"><?php echo $total_amount_cell; ?></td>
 		<td class="right"></td>
 		<td class="right"></td>
 	</tr>

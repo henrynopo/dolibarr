@@ -1835,6 +1835,10 @@ if (!empty($arrayfields['c.ref']['checked'])) {
 	print '<input class="flat maxwidth50imp" type="text" name="search_ref" value="'.dol_escape_htmltag($search_ref).'">';
 	print '</td>';
 }
+// Hook: columns after Ref (e.g. Source purchase order from modules)
+$parameters = array('arrayfields' => $arrayfields, 'insert_after' => 'c.ref');
+$reshook = $hookmanager->executeHooks('printFieldListOption', $parameters, $object, $action);
+print $hookmanager->resPrint;
 // Ref ext
 if (!empty($arrayfields['c.ref_ext']['checked'])) {
 	print '<td class="liste_titre">';
@@ -2152,6 +2156,10 @@ if (!empty($arrayfields['c.ref']['checked'])) {
 	print_liste_field_titre($arrayfields['c.ref']['label'], $_SERVER["PHP_SELF"], 'c.ref', '', $param, '', $sortfield, $sortorder);
 	$totalarray['nbfield']++;
 }
+// Hook: column titles after Ref
+$parameters = array('arrayfields' => $arrayfields, 'param' => $param, 'sortfield' => $sortfield, 'sortorder' => $sortorder, 'totalarray' => &$totalarray, 'insert_after' => 'c.ref');
+$reshook = $hookmanager->executeHooks('printFieldListTitle', $parameters, $object, $action);
+print $hookmanager->resPrint;
 if (!empty($arrayfields['c.ref_ext']['checked'])) {
 	print_liste_field_titre($arrayfields['c.ref_ext']['label'], $_SERVER["PHP_SELF"], 'c.ref_ext', '', $param, '', $sortfield, $sortorder);
 	$totalarray['nbfield']++;
@@ -2374,12 +2382,15 @@ $i = 0;
 $savnbfield = $totalarray['nbfield'];
 $totalarray = array();
 $totalarray['nbfield'] = 0;
+$totalarray['val_by_currency'] = array(); // per-currency sums for Total row (like facture list)
 $imaxinloop = ($limit ? min($num, $limit) : $num);
 while ($i < $imaxinloop) {
 	$obj = $db->fetch_object($resql);
 	if (empty($obj)) {
 		break; // Should not happen
 	}
+
+	$row_currency = !empty($obj->multicurrency_code) ? $obj->multicurrency_code : $conf->currency;
 
 	$typenArray = $formcompany->typent_array(1);
 
@@ -2506,6 +2517,11 @@ while ($i < $imaxinloop) {
 				$totalarray['nbfield']++;
 			}
 		}
+
+		// Hook: column values after Ref
+		$parameters = array('arrayfields' => $arrayfields, 'object' => $object, 'obj' => $obj, 'i' => $i, 'totalarray' => &$totalarray, 'insert_after' => 'c.ref');
+		$reshook = $hookmanager->executeHooks('printFieldListValue', $parameters, $object, $action);
+		print $hookmanager->resPrint;
 
 		// Ref customer
 		if (!empty($arrayfields['c.ref_ext']['checked'])) {
@@ -2817,21 +2833,39 @@ while ($i < $imaxinloop) {
 			print '<td class="right nowrap"><span class="amount">'.price($obj->multicurrency_total_ht)."</span></td>\n";
 			if (!$i) {
 				$totalarray['nbfield']++;
+				$totalarray['pos'][$totalarray['nbfield']] = 'c.multicurrency_total_ht';
 			}
+			$amt_mht = !empty($obj->multicurrency_code) ? $obj->multicurrency_total_ht : 0;
+			if (!isset($totalarray['val_by_currency'][$row_currency])) {
+				$totalarray['val_by_currency'][$row_currency] = array();
+			}
+			$totalarray['val_by_currency'][$row_currency]['c.multicurrency_total_ht'] = ($totalarray['val_by_currency'][$row_currency]['c.multicurrency_total_ht'] ?? 0) + $amt_mht;
 		}
 		// Amount VAT in foreign currency
 		if (!empty($arrayfields['c.multicurrency_total_vat']['checked'])) {
 			print '<td class="right nowrap"><span class="amount">'.price($obj->multicurrency_total_vat)."</span></td>\n";
 			if (!$i) {
 				$totalarray['nbfield']++;
+				$totalarray['pos'][$totalarray['nbfield']] = 'c.multicurrency_total_vat';
 			}
+			$amt_mvat = !empty($obj->multicurrency_code) ? $obj->multicurrency_total_vat : 0;
+			if (!isset($totalarray['val_by_currency'][$row_currency])) {
+				$totalarray['val_by_currency'][$row_currency] = array();
+			}
+			$totalarray['val_by_currency'][$row_currency]['c.multicurrency_total_vat'] = ($totalarray['val_by_currency'][$row_currency]['c.multicurrency_total_vat'] ?? 0) + $amt_mvat;
 		}
 		// Amount TTC / gross in foreign currency
 		if (!empty($arrayfields['c.multicurrency_total_ttc']['checked'])) {
 			print '<td class="right nowrap"><span class="amount">'.price($obj->multicurrency_total_ttc)."</span></td>\n";
 			if (!$i) {
 				$totalarray['nbfield']++;
+				$totalarray['pos'][$totalarray['nbfield']] = 'c.multicurrency_total_ttc';
 			}
+			$amt_mttc = !empty($obj->multicurrency_code) ? $obj->multicurrency_total_ttc : 0;
+			if (!isset($totalarray['val_by_currency'][$row_currency])) {
+				$totalarray['val_by_currency'][$row_currency] = array();
+			}
+			$totalarray['val_by_currency'][$row_currency]['c.multicurrency_total_ttc'] = ($totalarray['val_by_currency'][$row_currency]['c.multicurrency_total_ttc'] ?? 0) + $amt_mttc;
 		}
 
 		$userstatic->id = $obj->fk_user_author;
@@ -2866,40 +2900,74 @@ while ($i < $imaxinloop) {
 		if (!empty($arrayfields['sale_representative']['checked'])) {
 			print '<td>';
 			if ($obj->socid > 0) {
-				$listsalesrepresentatives = $companystatic->getSalesRepresentatives($user);
-				if ($listsalesrepresentatives < 0) {
-					dol_print_error($db);
+				// First: internal contact of the order (SALESREPFOLL, usually fk_c_type_contact = 91).
+				if (!isset($saleRepNomUrlCache) || !is_array($saleRepNomUrlCache)) {
+					$saleRepNomUrlCache = array();
 				}
-				$nbofsalesrepresentative = count($listsalesrepresentatives);
-				if ($nbofsalesrepresentative > 6) {
-					// We print only number
-					print $nbofsalesrepresentative;
-				} elseif ($nbofsalesrepresentative > 0) {
+
+				$printed = false;
+				$arrayidcontact = $generic_commande->getIdContact('internal', 'SALESREPFOLL');
+				if (!empty($arrayidcontact) && is_array($arrayidcontact)) {
 					$j = 0;
-					foreach ($listsalesrepresentatives as $val) {
-						$userstatic->id = $val['id'];
-						$userstatic->lastname = $val['lastname'];
-						$userstatic->firstname = $val['firstname'];
-						$userstatic->email = $val['email'];
-						$userstatic->status = $val['statut'];
-						$userstatic->entity = $val['entity'];
-						$userstatic->photo = $val['photo'];
-						$userstatic->login = $val['login'];
-						$userstatic->office_phone = $val['office_phone'];
-						$userstatic->office_fax = $val['office_fax'];
-						$userstatic->user_mobile = $val['user_mobile'];
-						$userstatic->job = $val['job'];
-						$userstatic->gender = $val['gender'];
-						//print '<div class="float">':
-						print ($nbofsalesrepresentative < 2) ? $userstatic->getNomUrl(-1, '', 0, 0, 12) : $userstatic->getNomUrl(-2);
-						$j++;
-						if ($j < $nbofsalesrepresentative) {
-							print ' ';
+					$nbofsalesrepresentative = count($arrayidcontact);
+					foreach ($arrayidcontact as $userid) {
+						$userid = (int) $userid;
+						if ($userid <= 0) {
+							continue;
 						}
-						//print '</div>';
+						if (!isset($saleRepNomUrlCache[$userid])) {
+							$tmpshow = '';
+							if ($userstatic->fetch($userid) > 0) {
+								$tmpshow = ($nbofsalesrepresentative < 2) ? $userstatic->getNomUrl(-1, '', 0, 0, 12) : $userstatic->getNomUrl(-2);
+							}
+							$saleRepNomUrlCache[$userid] = $tmpshow;
+						}
+						if ($saleRepNomUrlCache[$userid] !== '') {
+							print $saleRepNomUrlCache[$userid];
+							$printed = true;
+							$j++;
+							if ($j < $nbofsalesrepresentative) {
+								print ' ';
+							}
+						}
 					}
 				}
-				//else print $langs->trans("NoSalesRepresentativeAffected");
+				if (!$printed) {
+					$listsalesrepresentatives = $companystatic->getSalesRepresentatives($user);
+					if ($listsalesrepresentatives < 0) {
+						dol_print_error($db);
+					}
+					$nbofsalesrepresentative = count($listsalesrepresentatives);
+					if ($nbofsalesrepresentative > 6) {
+						// We print only number
+						print $nbofsalesrepresentative;
+					} elseif ($nbofsalesrepresentative > 0) {
+						$j = 0;
+						foreach ($listsalesrepresentatives as $val) {
+							$userstatic->id = $val['id'];
+							$userstatic->lastname = $val['lastname'];
+							$userstatic->firstname = $val['firstname'];
+							$userstatic->email = $val['email'];
+							$userstatic->status = $val['statut'];
+							$userstatic->entity = $val['entity'];
+							$userstatic->photo = $val['photo'];
+							$userstatic->login = $val['login'];
+							$userstatic->office_phone = $val['office_phone'];
+							$userstatic->office_fax = $val['office_fax'];
+							$userstatic->user_mobile = $val['user_mobile'];
+							$userstatic->job = $val['job'];
+							$userstatic->gender = $val['gender'];
+							//print '<div class="float">':
+							print ($nbofsalesrepresentative < 2) ? $userstatic->getNomUrl(-1, '', 0, 0, 12) : $userstatic->getNomUrl(-2);
+							$j++;
+							if ($j < $nbofsalesrepresentative) {
+								print ' ';
+							}
+							//print '</div>';
+						}
+					}
+					//else print $langs->trans("NoSalesRepresentativeAffected");
+				}
 			} else {
 				print '&nbsp;';
 			}
@@ -3095,6 +3163,11 @@ while ($i < $imaxinloop) {
 		$subtotal += $obj->total_ht;
 	}
 	$i++;
+}
+
+// Ensure pos exists when there are rows; keep nbfield from data loop so Total row has same column count as data rows
+if ($num > 0 && (!isset($totalarray['pos']) || !is_array($totalarray['pos']))) {
+	$totalarray['pos'] = array();
 }
 
 // Show total line
