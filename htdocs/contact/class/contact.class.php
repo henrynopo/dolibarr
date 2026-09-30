@@ -1313,15 +1313,6 @@ class Contact extends CommonObject
 
 		$this->db->begin();
 
-		if (!$notrigger) {
-			// Call trigger
-			$result = $this->call_trigger('CONTACT_DELETE', $user);
-			if ($result < 0) {
-				$error++;
-			}
-			// End call triggers
-		}
-
 		if (!$error) {
 			// Get all rowid of element_contact linked to a type that is link to llx_socpeople
 			$sql = "SELECT ec.rowid";
@@ -1410,6 +1401,15 @@ class Contact extends CommonObject
 			if ($result < 0) {
 				$error++;
 			}
+		}
+
+		if (!$error && !$notrigger) {
+			// Call trigger
+			$result = $this->call_trigger('CONTACT_DELETE', $user);
+			if ($result < 0) {
+				$error++;
+			}
+			// End call triggers
 		}
 
 		if (!$error) {

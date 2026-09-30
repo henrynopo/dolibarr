@@ -27,6 +27,7 @@
 
 // Load Dolibarr environment
 require '../../main.inc.php';
+
 /**
  * @var Conf $conf
  * @var DoliDB $db
@@ -34,6 +35,7 @@ require '../../main.inc.php';
  * @var Translate $langs
  * @var User $user
  */
+require_once DOL_DOCUMENT_ROOT.'/core/class/extrafields.class.php';
 require_once DOL_DOCUMENT_ROOT.'/expedition/class/expedition.class.php';
 require_once DOL_DOCUMENT_ROOT.'/expedition/class/expeditionstats.class.php';
 require_once DOL_DOCUMENT_ROOT.'/core/class/dolgraph.class.php';
@@ -47,6 +49,24 @@ $action = '';
 
 $userid = GETPOSTINT('userid');
 $socid = GETPOSTINT('socid');
+$datefield = GETPOST('datefield', 'aZ09');
+
+// Build allowed date fields: built-in + expedition date/datetime extrafields
+$object = new Expedition($db);
+$extrafields = new ExtraFields($db);
+$extrafields->fetch_name_optionals_label($object->table_element);
+$allowed_datefields = array('date_valid', 'date_creation', 'date_delivery', 'date_expedition');
+if (!empty($extrafields->attributes[$object->table_element]['type']) && is_array($extrafields->attributes[$object->table_element]['type'])) {
+	foreach ($extrafields->attributes[$object->table_element]['type'] as $key => $type) {
+		$typebase = preg_replace('/\(.*$/', '', $type);
+		if (in_array($typebase, array('date', 'datetime', 'timestamp'))) {
+			$allowed_datefields[] = 'ef_'.$key;
+		}
+	}
+}
+if (!in_array($datefield, $allowed_datefields)) {
+	$datefield = 'date_valid';
+}
 // Security check
 if ($user->socid > 0) {
 	$socid = $user->socid;
@@ -64,6 +84,8 @@ $nowyear = (int) dol_print_date(dol_now(), "%Y");
 $year = GETPOSTINT('year') > 0 ? GETPOSTINT('year') : $nowyear;
 $startyear = $year - (!getDolGlobalInt('MAIN_STATS_GRAPHS_SHOW_N_YEARS') ? 2 : max(1, min(10, getDolGlobalInt('MAIN_STATS_GRAPHS_SHOW_N_YEARS'))));
 $endyear = $year;
+
+$param = '&socid='.((int) $socid).'&userid='.((int) $userid).'&datefield='.urlencode($datefield);
 
 // Load translation files required by the page
 $langs->loadLangs(array('sendings', 'other', 'companies'));
@@ -86,7 +108,6 @@ $title = $langs->trans("Shipments");
 llxHeader('', '', '', '', 0, 0, '', '', '', 'mod-expedition page-stats_index');
 
 $page = 0;
-$param = '';
 $sortfield = '';
 $sortorder = '';
 $massactionbutton = '';
@@ -115,7 +136,7 @@ print_barre_liste($title, $page, $_SERVER["PHP_SELF"], $param, $sortfield, $sort
 $dir = (!empty($conf->expedition->multidir_temp[$conf->entity]) ? $conf->expedition->multidir_temp[$conf->entity] : $conf->service->multidir_temp[$conf->entity]);
 dol_mkdir($dir);
 
-$stats = new ExpeditionStats($db, $socid, '', ($userid > 0 ? $userid : 0));
+$stats = new ExpeditionStats($db, $socid, '', ($userid > 0 ? $userid : 0), $datefield);
 
 // Build graphic number of object
 $data = $stats->getNbByMonthWithPrevYear($endyear, $startyear);
@@ -124,9 +145,9 @@ $data = $stats->getNbByMonthWithPrevYear($endyear, $startyear);
 
 
 if (!$user->hasRight('societe', 'client', 'voir')) {
-	$filenamenb = $dir.'/shipmentsnbinyear-'.$user->id.'-'.$year.'.png';
+	$filenamenb = $dir.'/shipmentsnbinyear-'.$user->id.'-'.$year.'-'.$datefield.'.png';
 } else {
-	$filenamenb = $dir.'/shipmentsnbinyear-'.$year.'.png';
+	$filenamenb = $dir.'/shipmentsnbinyear-'.$year.'-'.$datefield.'.png';
 }
 
 $px1 = new DolGraph();
@@ -162,11 +183,11 @@ $data = $stats->getAmountByMonthWithPrevYear($endyear,$startyear);
 
 if (empty($user->rights->societe->client->voir) || $user->socid)
 {
-	$filenameamount = $dir.'/shipmentsamountinyear-'.$user->id.'-'.$year.'.png';
+	$filenameamount = $dir.'/shipmentsamountinyear-'.$user->id.'-'.$year.'-'.$datefield.'.png';
 }
 else
 {
-	$filenameamount = $dir.'/shipmentsamountinyear-'.$year.'.png';
+	$filenameamount = $dir.'/shipmentsamountinyear-'.$year.'-'.$datefield.'.png';
 }
 
 $px2 = new DolGraph();
@@ -200,11 +221,11 @@ $data = $stats->getAverageByMonthWithPrevYear($endyear, $startyear);
 
 if (empty($user->rights->societe->client->voir) || $user->socid)
 {
-	$filename_avg = $dir.'/shipmentsaverage-'.$user->id.'-'.$year.'.png';
+	$filename_avg = $dir.'/shipmentsaverage-'.$user->id.'-'.$year.'-'.$datefield.'.png';
 }
 else
 {
-	$filename_avg = $dir.'/shipmentsaverage-'.$year.'.png';
+	$filename_avg = $dir.'/shipmentsaverage-'.$year.'-'.$datefield.'.png';
 }
 
 $px3 = new DolGraph();
@@ -279,6 +300,26 @@ print '<tr><td>'.$langs->trans("CreatedBy").'</td><td>';
 print img_picto('', 'user', 'class="pictofixedwidth"');
 print $form->select_dolusers($userid, 'userid', 1, null, 0, '', '', '0', 0, 0, '', 0, '', 'widthcentpercentminusx maxwidth300');
 print '</td></tr>';
+// Date column for stats (Year filter applies to this date)
+$langs->load("sendings");
+$datefield_options = array(
+	'date_valid' => $langs->trans("DateValidation"),
+	'date_creation' => $langs->trans("DateCreation"),
+	'date_expedition' => $langs->trans("DateShipping"),
+	'date_delivery' => $langs->trans("DateDeliveryPlanned"),
+);
+if (!empty($extrafields->attributes[$object->table_element]['label']) && is_array($extrafields->attributes[$object->table_element]['label'])) {
+	foreach ($extrafields->attributes[$object->table_element]['label'] as $key => $label) {
+		$type = isset($extrafields->attributes[$object->table_element]['type'][$key]) ? $extrafields->attributes[$object->table_element]['type'][$key] : '';
+		$typebase = preg_replace('/\(.*$/', '', $type);
+		if (in_array($typebase, array('date', 'datetime', 'timestamp'))) {
+			$datefield_options['ef_'.$key] = $langs->trans($label);
+		}
+	}
+}
+print '<tr><td class="left">'.$langs->trans("DateForStats").'</td><td class="left">';
+print $form->selectarray('datefield', $datefield_options, $datefield, 0, 0, 0, '', 0, 0, 0, '', 'widthcentpercentminusx maxwidth300');
+print '</td></tr>';
 // Year
 print '<tr><td>'.$langs->trans("Year").'</td><td>';
 if (!in_array($year, $arrayyears)) {
@@ -320,7 +361,7 @@ foreach ($data as $val) {
 		}
 
 		print '<tr class="oddeven'.$cssline.'" height="24">';
-		print '<td class="center"><a href="'.$_SERVER["PHP_SELF"].'?year='.$oldyear.'">'.$oldyear.'</a></td>';
+		print '<td class="center"><a href="'.$_SERVER["PHP_SELF"].'?year='.$oldyear.$param.'">'.$oldyear.'</a></td>';
 
 		print '<td class="right">0</td>';
 		/*print '<td class="right">0</td>';
@@ -331,7 +372,7 @@ foreach ($data as $val) {
 	print '<tr class="oddeven'.$cssline.'" height="24">';
 	print '<td class="center">';
 	if ($year) {
-		print '<a href="'.$_SERVER["PHP_SELF"].'?year='.$year.'">'.$year.'</a>';
+		print '<a href="'.$_SERVER["PHP_SELF"].'?year='.$year.$param.'">'.$year.'</a>';
 	} else {
 		// Technical error that should not happen
 		print 'Error: validation date of shipment is not defined. This looks strange because shipment is validated. Try to run /install/repair.php?standard=confirmed';

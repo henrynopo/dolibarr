@@ -79,6 +79,7 @@ create table llx_societe
   euid                     varchar(64),                         		-- EUID number (European Unique Identifier)
   tva_intra                varchar(20),                         		-- VAT number (example: FR12345678901 for france, ...)
   capital                  double(24,8)   DEFAULT NULL,        			-- capital of company
+  capital_currency         varchar(3)     DEFAULT NULL,        			-- currency of capital (e.g. CNY, USD), independent of accounting currency
   fk_stcomm                integer        DEFAULT 0 NOT NULL,      		-- commercial status
   note_private             text,                                		--
   note_public              text,                                        --

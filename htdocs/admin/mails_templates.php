@@ -269,7 +269,7 @@ if (isModEnabled("shipping")) {
 	$elementList['delivery_send'] = img_picto('', 'dolly', 'class="pictofixedwidth"').dol_escape_htmltag($langs->trans('MailToSendDelivery'));
 }
 if (isModEnabled("reception")) {
-	$elementList['reception_send'] = img_picto('', 'dollyrevert', 'class="pictofixedwidth"').dol_escape_htmltag($langs->trans('MailToSendReception'));
+	$elementList['reception_send'] = img_picto('', 'dolly', 'class="pictofixedwidth"').dol_escape_htmltag($langs->trans('MailToSendReception'));
 }
 if (isModEnabled('intervention')) {
 	$elementList['fichinter_send'] = img_picto('', 'intervention', 'class="pictofixedwidth"').dol_escape_htmltag($langs->trans('MailToSendIntervention'));

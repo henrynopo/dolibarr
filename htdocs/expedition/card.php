@@ -82,6 +82,9 @@ if (isModEnabled('incoterm')) {
 if (isModEnabled('productbatch')) {
 	$langs->load('productbatch');
 }
+if (isModEnabled('slycustom')) {
+	$langs->load("slycustom@slycustom");
+}
 
 
 $origin = GETPOST('origin', 'alpha'); // Example: commande, propal

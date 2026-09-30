@@ -360,8 +360,14 @@ $sql .= " t.nbrun,";
 $sql .= " t.libname,";
 $sql .= " t.test";
 $sql .= " FROM ".MAIN_DB_PREFIX."cronjob as t";
-$sql .= " WHERE entity IN (0,".((int) $conf->entity).")";
-if (!empty($TTestNotAllowed)) {
+// When from module setup or current entity is 0, show all jobs (same as Cronjob::fetch uses getEntity('cron'); entity=0 would otherwise hide entity 1 jobs)
+if ($mode == 'modulesetup' || (int) $conf->entity === 0) {
+	$sql .= " WHERE 1=1";
+} else {
+	$sql .= " WHERE t.entity IN (0,".((int) $conf->entity).")";
+}
+// In modulesetup show all jobs so admins can see and edit them even when test condition fails
+if (!empty($TTestNotAllowed) && $mode != 'modulesetup') {
 	$sql .= ' AND t.rowid NOT IN ('.$db->sanitize(implode(',', $TTestNotAllowed)).')';
 }
 if ($search_status >= 0 && $search_status < 2 && $search_status != '') {
@@ -457,10 +463,6 @@ $stringcurrentdate = $langs->trans("CurrentHour").': '.dol_print_date(dol_now(),
 
 if ($action == 'execute') {
 	print $form->formconfirm($_SERVER['PHP_SELF']."?id=".$id.'&securitykey='.$securitykey.$param, $langs->trans("CronExecute"), $langs->trans("CronConfirmExecute"), "confirm_execute", '', '', 1);
-}
-
-if ($action == 'delete' && empty($toselect)) {	// Used when we make a delete on 1 line (not used for mass delete)
-	print $form->formconfirm($_SERVER['PHP_SELF']."?id=".$id.$param, $langs->trans("CronDelete"), $langs->trans("CronConfirmDelete"), "confirm_delete", '', '', 1);
 }
 
 // List of mass actions available
