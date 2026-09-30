@@ -433,6 +433,11 @@ class BookKeeping extends CommonObject
 				$sql .= ", piece_num";
 				$sql .= ", ref";
 				$sql .= ', entity';
+				// SFRS Reports: also persist multicurrency fields when caller has populated them.
+				// Both columns are nullable in llx_accounting_bookkeeping so this is backward
+				// compatible — existing journals leave these unset and NULL is written here.
+				$sql .= ", multicurrency_amount";
+				$sql .= ", multicurrency_code";
 				$sql .= ") VALUES (";
 				$sql .= "'".$this->db->idate($this->doc_date)."'";
 				$sql .= ", ".(isDolTms($this->date_lim_reglement) ? "'".$this->db->idate($this->date_lim_reglement)."'" : 'NULL');
@@ -457,7 +462,74 @@ class BookKeeping extends CommonObject
 				$sql .= ", ".((int) $this->piece_num);
 				$sql .= ", '".$this->db->escape($this->ref)."'";
 				$sql .= ", ".(!isset($this->entity) ? $conf->entity : $this->entity);
-				$sql .= ")";
+				// SFRS Reports: let external modules enrich this BookKeeping line before the
+				// INSERT is built (typically to fill multicurrency_amount / multicurrency_code
+				// from the originating invoice / payment / bank row). The hook mutates $this
+				// in place; we then rebuild $sql so the new values land in the database.
+				// $hookmanager is the global Dolibarr HookManager set in main.inc.php; absent
+				// (e.g. when BookKeeping is used from CLI or before main.inc.php runs) we no-op.
+				if (isset($hookmanager) && is_object($hookmanager)) {
+					$hook_parameters = array(
+						'object' => $this,
+						'context' => 'bookkeeping.create',
+					);
+					$hookmanager->executeHooks('bookkeepingCreateBefore', $hook_parameters, $this, $action);
+
+					// Rebuild $sql with the (potentially updated) multicurrency_* fields.
+					$sql = "INSERT INTO ".$this->db->prefix().$this->table_element." (";
+					$sql .= "doc_date";
+					$sql .= ", date_lim_reglement";
+					$sql .= ", doc_type";
+					$sql .= ", doc_ref";
+					$sql .= ", fk_doc";
+					$sql .= ", fk_docdet";
+					$sql .= ", thirdparty_code";
+					$sql .= ", subledger_account";
+					$sql .= ", subledger_label";
+					$sql .= ", numero_compte";
+					$sql .= ", label_compte";
+					$sql .= ", label_operation";
+					$sql .= ", debit";
+					$sql .= ", credit";
+					$sql .= ", montant";
+					$sql .= ", sens";
+					$sql .= ", fk_user_author";
+					$sql .= ", date_creation";
+					$sql .= ", code_journal";
+					$sql .= ", journal_label";
+					$sql .= ", piece_num";
+					$sql .= ", ref";
+					$sql .= ', entity';
+					$sql .= ", multicurrency_amount";
+					$sql .= ", multicurrency_code";
+					$sql .= ") VALUES (";
+					$sql .= "'".$this->db->idate($this->doc_date)."'";
+					$sql .= ", ".(isDolTms($this->date_lim_reglement) ? "'".$this->db->idate($this->date_lim_reglement)."'" : 'NULL');
+					$sql .= ", '".$this->db->escape($this->doc_type)."'";
+					$sql .= ", '".$this->db->escape($this->doc_ref)."'";
+					$sql .= ", ".((int) $this->fk_doc);
+					$sql .= ", ".((int) $this->fk_docdet);
+					$sql .= ", ".(!empty($this->thirdparty_code) ? ("'".$this->db->escape($this->thirdparty_code)."'") : "NULL");
+					$sql .= ", ".(!empty($this->subledger_account) ? ("'".$this->db->escape($this->subledger_account)."'") : "NULL");
+					$sql .= ", ".(!empty($this->subledger_label) ? ("'".$this->db->escape($this->subledger_label)."'") : "NULL");
+					$sql .= ", '".$this->db->escape($this->numero_compte)."'";
+					$sql .= ", ".(!empty($this->label_compte) ? ("'".$this->db->escape($this->label_compte)."'") : "NULL");
+					$sql .= ", '".$this->db->escape($this->label_operation)."'";
+					$sql .= ", ".((float) $this->debit);
+					$sql .= ", ".((float) $this->credit);
+					$sql .= ", ".((float) $this->montant);
+					$sql .= ", ".(!empty($this->sens) ? ("'".$this->db->escape($this->sens)."'") : "NULL");
+					$sql .= ", '".$this->db->escape((string) $this->fk_user_author)."'";
+					$sql .= ", '".$this->db->idate($now)."'";
+					$sql .= ", '".$this->db->escape($this->code_journal)."'";
+					$sql .= ", ".(!empty($this->journal_label) ? ("'".$this->db->escape($this->journal_label)."'") : "NULL");
+					$sql .= ", ".((int) $this->piece_num);
+					$sql .= ", '".$this->db->escape($this->ref)."'";
+					$sql .= ", ".(!isset($this->entity) ? $conf->entity : $this->entity);
+					$sql .= ", ".(isset($this->multicurrency_amount) && $this->multicurrency_amount !== null && $this->multicurrency_amount !== '' ? (float) $this->multicurrency_amount : 'NULL');
+					$sql .= ", ".(!empty($this->multicurrency_code) ? "'".$this->db->escape($this->multicurrency_code)."'" : 'NULL');
+					$sql .= ")";
+				}
 
 				$resql = $this->db->query($sql);
 				if ($resql) {
@@ -770,7 +842,10 @@ class BookKeeping extends CommonObject
 		$sql .= 'journal_label,';
 		$sql .= 'piece_num,';
 		$sql .= 'ref,';
-		$sql .= 'entity';
+		$sql .= 'entity,';
+		// SFRS Reports: optional multicurrency columns. Both nullable in the schema.
+		$sql .= 'multicurrency_amount,';
+		$sql .= 'multicurrency_code';
 		$sql .= ') VALUES (';
 		$sql .= ' '.(isDolTms($this->doc_date) ? "'".$this->db->idate($this->doc_date)."'" : 'NULL').',';
 		$sql .= ' '.(isDolTms($this->date_lim_reglement) ? "'".$this->db->idate($this->date_lim_reglement)."'" : 'NULL').',';
@@ -794,7 +869,9 @@ class BookKeeping extends CommonObject
 		$sql .= ' '.(empty($this->journal_label) ? 'NULL' : "'".$this->db->escape($this->journal_label)."'").',';
 		$sql .= ' '.(empty($this->piece_num) ? 'NULL' : $this->db->escape((string) $this->piece_num)).',';
 		$sql .= ' '.(empty($this->ref) ? "''" : "'".$this->db->escape($this->ref)."'").',';
-		$sql .= ' '.(!isset($this->entity) ? $conf->entity : $this->entity);
+		$sql .= ' '.(!isset($this->entity) ? $conf->entity : $this->entity).',';
+		$sql .= ' '.(isset($this->multicurrency_amount) && $this->multicurrency_amount !== null && $this->multicurrency_amount !== '' ? (float) $this->multicurrency_amount : 'NULL').',';
+		$sql .= ' '.(!empty($this->multicurrency_code) ? "'".$this->db->escape($this->multicurrency_code)."'" : 'NULL');
 		$sql .= ')';
 
 		$this->db->begin();
