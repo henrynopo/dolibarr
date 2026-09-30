@@ -1,0 +1,43 @@
+# Change Tiers
+# Copyright (C) 2018       Inovea-conseil.com     <info@inovea-conseil.com>
+#
+inoveaFamily = Inovea Conseil
+easyaFamily = Easya Solutions
+
+#
+# Générique
+#
+Module432446Name = Change Third party
+Module432446Desc = Modify the third party concerned by a quote, an invoice and / or an order
+
+#
+# Rights
+#
+ChangeTiersRightLabelProposal=Customer Sales Proposal - change authorized third party
+ChangeTiersRightLabelOrder=Customer order - change of authorized third party
+ChangeTiersRightLabelShipping=Customer shipment - change of authorized third party
+ChangeTiersRightLabelContract=Customer contract - change of authorized third party
+ChangeTiersRightLabelInvoice=Customer invoice - change of authorized third party
+ChangeTiersRightLabelSupplierProposal=Supplier Price Request - change authorized party
+ChangeTiersRightLabelSupplierOrder=Vendor order - change of authorized third party
+ChangeTiersRightLabelSupplierReception=Supplier reception - change of authorized third party
+ChangeTiersRightLabelSupplierInvoice=Vendor invoice - change of authorized party
+ChangeTiersRightEvent=Change in the recording of changes in events
+
+#
+# Page d'administration
+#	
+changetiersSetup = Module Setup
+COMMANDE_CHANGE_THIRDPARTY = Modify thirdparty in an order
+FACTURE_CHANGE_THIRDPARTY = Modify thirdparty in an invoice (draft)
+FACTURE_CHANGE_THIRDPARTY_NOT_ONLY_DRAFT =Modify thirdparty in an invoice (all status)
+PROPAL_CHANGE_THIRDPARTY = Modify thirdparty in a proposal
+SUPPLIER_PROPOSAL_CHANGE_THIRDPARTY = Modify thirdparty in a supplier proposal
+ORDER_SUPPLIER_CHANGE_THIRDPARTY = Modify thirdparty in a supplier order
+INVOICE_SUPPLIER_CHANGE_THIRDPARTY = Modify thirdparty in an supplier invoice
+EXPEDITION_CHANGE_THIRDPARTY = Modify thirdparty in an expedition
+CONTRAT_CHANGE_THIRDPARTY = Modify thirdparty in an contract
+RECEPTION_CHANGE_THIRDPARTY = Modify thirdparty in a reception
+EVENT_CHANGE_THIRDPARTY = Save changes on events
+ThirdpartyChangeEvent = Thirdparty changes
+GlobalParams = General settings

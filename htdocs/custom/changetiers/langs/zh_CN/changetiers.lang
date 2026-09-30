@@ -1,0 +1,44 @@
+# Change Tiers - 中文简体
+# Copyright (C) 2018       Inovea-conseil.com     <info@inovea-conseil.com>
+#
+inoveaFamily = Inovea Conseil
+easyaFamily = Easya Solutions
+
+#
+# 通用
+#
+Module432446Name = 更换往来方
+Module432446Desc = 在报价单、发票和/或订单上直接修改关联的往来方（客户/供应商）
+
+#
+# 权限
+#
+ChangeTiersRightLabelProposal = 客户商业提案 - 允许更换往来方
+ChangeTiersRightLabelOrder = 客户订单 - 允许更换往来方
+ChangeTiersRightLabelShipping = 客户发货单 - 允许更换往来方
+ChangeTiersRightLabelContract = 客户合同 - 允许更换往来方
+ChangeTiersRightLabelInvoice = 客户发票 - 允许更换往来方
+ChangeTiersRightLabelSupplierProposal = 供应商询价 - 允许更换往来方
+ChangeTiersRightLabelSupplierOrder = 供应商订单 - 允许更换往来方
+ChangeTiersRightLabelSupplierReception = 供应商收货 - 允许更换往来方
+ChangeTiersRightLabelSupplierInvoice = 供应商发票 - 允许更换往来方
+ChangeTiersRightEvent = 将更换记录写入日程/事件
+
+#
+# 管理设置页
+#
+changetiersSetup = 模块设置
+COMMANDE_CHANGE_THIRDPARTY = 订单中允许更换往来方
+FACTURE_CHANGE_THIRDPARTY = 发票中允许更换往来方（仅草稿）
+FACTURE_CHANGE_THIRDPARTY_NOT_ONLY_DRAFT = 发票中允许更换往来方（任意状态）
+PROPAL_CHANGE_THIRDPARTY = 商业提案中允许更换往来方
+SUPPLIER_PROPOSAL_CHANGE_THIRDPARTY = 供应商提案中允许更换往来方
+ORDER_SUPPLIER_CHANGE_THIRDPARTY = 供应商订单中允许更换往来方
+INVOICE_SUPPLIER_CHANGE_THIRDPARTY = 供应商发票中允许更换往来方
+EXPEDITION_CHANGE_THIRDPARTY = 发货单中允许更换往来方
+SHIPPING_CHANGE_THIRDPARTY = 发货单中允许更换往来方
+CONTRAT_CHANGE_THIRDPARTY = 合同中允许更换往来方
+RECEPTION_CHANGE_THIRDPARTY = 收货单中允许更换往来方
+EVENT_CHANGE_THIRDPARTY = 将更换操作记录到日程事件
+ThirdpartyChangeEvent = 往来方更换
+GlobalParams = 常规设置
