@@ -59,7 +59,15 @@ if ($result == -1) {
 	$error++;
 }
 // on se positionne sur les même sources dans la liste
-header("Location:".$redirect);
+// Security fix: validate redirect host to prevent open redirect (P1 audit 2026-09-30)
+$parsed_redirect = parse_url($redirect);
+if (!empty($parsed_redirect['host']) && $_SERVER['HTTP_HOST'] !== $parsed_redirect['host']) {
+	$redirect = '';
+}
+if (empty($redirect)) {
+	$redirect = dol_buildpath('/custom/customlink/index.php', 1);
+}
+header("Location: ".$redirect);
 exit;
 
 $db->close();

@@ -294,7 +294,7 @@ function print_tag_list($element, $id)
 			print '<tr><td>';
 			print '<form action="'.dol_buildpath("/custom/customlink", 1).'/deltag.php" method="POST">';
 			print '<input type="hidden" name="token" value="'.newToken().'">';
-			print '<input type="hidden" name="redirect" value="http://'.$_SERVER['HTTP_HOST'].$_SERVER['REQUEST_URI'].'">';
+			print '<input type="hidden" name="redirect" value="'.dol_escape_htmltag('http://'.$_SERVER['HTTP_HOST'].$_SERVER['REQUEST_URI']).'">';
 			print '<input type="hidden" name="element" value="'.$element.'">';
 			print '<input type="hidden" name="fk_element" value="'.$id.'">';
 			print "<div style='display: inline;'>";

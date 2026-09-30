@@ -47,7 +47,7 @@ class ActionsCustomlink // extends CommonObject
 			print load_fiche_titre($langs->trans('AddNewTag'));
 			print '<form action="'.dol_buildpath("/custom/customlink", 1).'/addtag.php" method="POST">';
 			print '<input type="hidden" name="token" value="'.newToken().'">';
-			print '<input type="hidden" name="redirect" value="'.$szhttp.'://'.$_SERVER['HTTP_HOST'].$_SERVER['REQUEST_URI'].'">';
+			print '<input type="hidden" name="redirect" value="'.dol_escape_htmltag($szhttp.'://'.$_SERVER['HTTP_HOST'].$_SERVER['REQUEST_URI']).'">';
 			print '<input type="hidden" name="type_source" value="'.$object->element.'">';
 			print '<input type="hidden" name="fk_source" value="'.(!empty($object->rowid) ? $object->rowid : $object->id).'">';
 			print "<table class='noborder allwidth'>";
@@ -70,7 +70,7 @@ class ActionsCustomlink // extends CommonObject
 			print load_fiche_titre($langs->trans('AddNewLink'));
 			print '<form action="'.dol_buildpath("/custom/customlink", 1).'/addlink.php" method="POST">';
 			print '<input type="hidden" name="token" value="'.newToken().'">';
-			print '<input type="hidden" name="redirect" value="'.$szhttp.'://'.$_SERVER['HTTP_HOST'].$_SERVER['REQUEST_URI'].'">';
+			print '<input type="hidden" name="redirect" value="'.dol_escape_htmltag($szhttp.'://'.$_SERVER['HTTP_HOST'].$_SERVER['REQUEST_URI']).'">';
 			print '<input type="hidden" name="type_source" value="'.$object->element.'">';
 			print '<input type="hidden" name="fk_source" value="'.$fk_source.'">';
 			print "<table class='noborder allwidth'>";
