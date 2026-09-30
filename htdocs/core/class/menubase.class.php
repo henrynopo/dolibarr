@@ -606,11 +606,12 @@ class Menubase
 							}
 						}
 						if ($valparent['mainmenu'] == $val['fk_mainmenu'] && $valparent['leftmenu'] == $val['fk_leftmenu']) {
-							//print "We found parent: keyparent='.$keyparent.' - level=".$valparent['level'].' - '.join(',',$valparent).'<br>';
-							// Now we look to find last subelement of this parent (we add at end)
-							$searchlastsub = ($valparent['level'] + 1);
-							$lastid = $keyparent;
-							$found = 1;
+							// Only the first match is the parent; siblings share same (mainmenu,leftmenu) and must not overwrite
+							if (!$found) {
+								$searchlastsub = ($valparent['level'] + 1);
+								$lastid = $keyparent;
+								$found = 1;
+							}
 						}
 					}
 					//print 'We must insert menu entry between entry '.$lastid.' and '.$nextid.'<br>';

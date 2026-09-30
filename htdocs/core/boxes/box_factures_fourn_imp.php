@@ -87,6 +87,10 @@ class box_factures_fourn_imp extends ModeleBoxes
 			$sql1 .= ", f.total_ht";
 			$sql1 .= ", f.total_tva";
 			$sql1 .= ", f.total_ttc";
+			if (isModEnabled('multicurrency')) {
+				$sql1 .= ", f.multicurrency_total_ht";
+				$sql1 .= ", f.multicurrency_code";
+			}
 			$sql1 .= ", f.paye, f.fk_statut as status, f.type";
 			$sql1 .= ", f.tms";
 			$sql1 .= ", SUM(pf.amount) as am";
@@ -109,6 +113,9 @@ class box_factures_fourn_imp extends ModeleBoxes
 			$sql3 = " GROUP BY s.rowid, s.nom, s.name_alias, s.code_fournisseur, s.code_compta_fournisseur, s.fournisseur, s.logo, s.email, s.entity, s.tva_intra, s.siren, s.siret, s.ape, s.idprof4, s.idprof5, s.idprof6,";
 			$sql3 .= " f.rowid, f.ref, f.ref_supplier, f.date_lim_reglement,";
 			$sql3 .= " f.type, f.datef, f.total_ht, f.total_tva, f.total_ttc, f.paye, f.fk_statut, f.tms";
+			if (isModEnabled('multicurrency')) {
+				$sql3 .= ", f.multicurrency_total_ht, f.multicurrency_code";
+			}
 			$sql3 .= " ORDER BY datelimite ASC, f.ref_supplier ASC";
 			$sql3 .= $this->db->plimit($this->max + 1, 0);
 
@@ -184,9 +191,13 @@ class box_factures_fourn_imp extends ModeleBoxes
 						'asis' => 1,
 					);
 
+					$amountText = price($objp->total_ht, 0, $langs, 0, -1, -1, $conf->currency);
+					if (isModEnabled('multicurrency') && !empty($objp->multicurrency_code)) {
+						$amountText = price($objp->multicurrency_total_ht, 0, $langs, 0, -1, -1, $objp->multicurrency_code);
+					}
 					$this->info_box_contents[$line][] = array(
 						'td' => 'class="nowraponall right amount"',
-						'text' => price($objp->total_ht, 0, $langs, 0, -1, -1, $conf->currency),
+						'text' => $amountText,
 					);
 
 					$this->info_box_contents[$line][] = array(

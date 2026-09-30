@@ -6869,6 +6869,12 @@ abstract class CommonObject
 				// If field is a computed field, value must become result of compute (regardless of whether a row exists
 				// in the element's extrafields table)
 				if (is_array($extrafields->attributes[$this->table_element]['label'])) {
+					// Ensure all extrafield keys exist before running computed formulas (formulas may reference other options_* keys; avoid "Undefined array key" in PHP 8+)
+					foreach ($extrafields->attributes[$this->table_element]['label'] as $key => $val) {
+						if (!array_key_exists('options_'.$key, $this->array_options)) {
+							$this->array_options['options_'.$key] = null;
+						}
+					}
 					foreach ($extrafields->attributes[$this->table_element]['label'] as $key => $val) {
 						if (!empty($extrafields->attributes[$this->table_element]) && !empty($extrafields->attributes[$this->table_element]['computed'][$key])) {
 							//var_dump($conf->disable_compute);
@@ -8851,6 +8857,8 @@ abstract class CommonObject
 
 		// If field is a computed field, value must become result of compute
 		if ($computed) {
+			global $objectoffield;
+			$objectoffield = $this;
 			// Make the eval of compute string
 			//var_dump($computed);
 			$value = dol_eval((string) $computed, 1, 0, '2');

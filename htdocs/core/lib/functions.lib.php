@@ -3797,6 +3797,17 @@ function dol_format_address($object, $withcountry = 0, $sep = "\n", $outputlangs
 		$town = ($extralangcode ? $object->array_languages['town'][$extralangcode] : (empty($object->town) ? '' : $object->town));
 		$ret .= ($town ? (($object->zip ? ' ' : '') . $town) : '');
 		$ret .= (empty($object->state_code) ? '' : (' ' . $object->state_code));
+	} elseif (isset($object->country_code) && $object->country_code == 'SG') {
+		// Singapore: address \n city space postal code (e.g. SINGAPORE 608526), no hyphen. City-state, no state field.
+		$town = ($extralangcode ? $object->array_languages['town'][$extralangcode] : (empty($object->town) ? '' : $object->town));
+		$ret .= ($ret ? $sep : '');
+		if ($town && $object->zip) {
+			$ret .= $town . ' ' . $object->zip;
+		} elseif ($town) {
+			$ret .= $town;
+		} elseif (!empty($object->zip)) {
+			$ret .= $object->zip;
+		}
 	} else {
 		// Other: title firstname name \n address lines \n zip town[, state] \n country
 		$town = (($extralangcode && !empty($object->array_languages['address'][$extralangcode])) ? $object->array_languages['town'][$extralangcode] : (empty($object->town) ? '' : $object->town));
@@ -3812,7 +3823,12 @@ function dol_format_address($object, $withcountry = 0, $sep = "\n", $outputlangs
 	}
 	if ($withcountry) {
 		$langs->load("dict");
-		$ret .= (empty($object->country_code) ? '' : ($ret ? $sep : '') . $outputlangs->convToOutputCharset($outputlangs->transnoentitiesnoconv("Country" . $object->country_code)));
+		if (!empty($object->country_code)) {
+			$ret = rtrim($ret);
+			$countryLabel = $outputlangs->convToOutputCharset($outputlangs->transnoentitiesnoconv("Country" . $object->country_code));
+			$countryLabel = (function_exists('mb_strtoupper') ? mb_strtoupper($countryLabel, 'UTF-8') : strtoupper($countryLabel));
+			$ret .= ($ret ? $sep : '') . $countryLabel;
+		}
 	}
 	if ($hookmanager) {
 		$parameters = array('withcountry' => $withcountry, 'sep' => $sep, 'outputlangs' => $outputlangs, 'mode' => $mode, 'extralangcode' => $extralangcode);
@@ -7766,7 +7782,8 @@ function price($amount, $form = 0, $outlangs = '', $trunc = 1, $rounding = -1, $
 
 		$listofcurrenciesbefore = array('AUD', 'CAD', 'CNY', 'COP', 'CLP', 'GBP', 'HKD', 'MXN', 'PEN', 'USD', 'CRC', 'ZAR');
 		$listoflanguagesbefore = array('nl_NL');
-		if (in_array($currency_code, $listofcurrenciesbefore) || in_array($outlangs->defaultlang, $listoflanguagesbefore)) {
+		// SLY: MAIN_CURRENCY_SYMBOL_BEFORE_VALUE forces symbol before amount (e.g. $ for credit note)
+		if (!empty($conf->global->MAIN_CURRENCY_SYMBOL_BEFORE_VALUE) || in_array($currency_code, $listofcurrenciesbefore) || in_array($outlangs->defaultlang, $listoflanguagesbefore)) {
 			$cursymbolbefore .= $outlangs->getCurrencySymbol($currency_code);
 		} else {
 			$tmpcur = $outlangs->getCurrencySymbol($currency_code);
@@ -10289,6 +10306,7 @@ function getCommonSubstitutionArray($outputlangs, $onlykey = 0, $exclude = null,
 			'__MYCOMPANY_PROFID9__' => $mysoc->idprof9,
 			'__MYCOMPANY_PROFID10__' => $mysoc->idprof10,
 			'__MYCOMPANY_CAPITAL__' => $mysoc->capital,
+			'__MYCOMPANY_CAPITAL_CURRENCY__' => (getDolGlobalString('MAIN_INFO_CAPITAL_CURRENCY') ?: $conf->currency),
 			'__MYCOMPANY_FULLADDRESS__' => (method_exists($mysoc, 'getFullAddress') ? $mysoc->getFullAddress(1, ', ') : ''),	// $mysoc may be stdClass
 			'__MYCOMPANY_ADDRESS__' => $mysoc->address,
 			'__MYCOMPANY_VATNUMBER__' => $mysoc->tva_intra,
@@ -12313,9 +12331,23 @@ function dol_eval_standard($s, $hideerrors = 1, $onlysimplestring = '1')
 	global $objectoffield;	// To allow the use of $objectoffield in computed fields
 	global $object;
 
+	// SLY: Avoid "Trying to access array offset on null" / "Attempt to read property 'lines' on null" when eval runs in list or other context where $object is not set
+	if (!isset($object) || $object === null) {
+		$object = new stdClass();
+		$object->lines = array();
+	}
+
 	// Old variables (deprecated since v23)
 	if (getDolGlobalString('MAIN_ALLOW_OLD_VAR_OBJ_IN_DOL_EVAL')) {
 		global $obj; // To get $obj used into list when dol_eval() is used for computed fields and $obj is not yet $objectoffield
+
+		// SLY: Ensure $obj is at least a generic object when used in computed/perms eval (avoids "Attempt to read property array_options on null")
+		if (!isset($obj) || !is_object($obj)) {
+			$obj = new stdClass();
+		}
+		if (!isset($obj->array_options) || !is_array($obj->array_options)) {
+			$obj->array_options = array();
+		}
 	}
 
 	$isObBufferActive = false;  	// When true, the ObBuffer must be cleaned in the exception handler
@@ -16155,9 +16187,11 @@ function forgeSQLFromUniversalSearchCriteria($filter, &$errorstr = '', $noand = 
 	if (!dolCheckFilters($filter, $errorstr, $firstandlastparenthesis)) {
 		if ($noerror) {
 			return '1 = 2';
-		} else {
-			return 'Filter syntax error - ' . $errorstr;		// Bad balance of parenthesis, we return an error message or force a SQL not found
 		}
+		// SLY: returning the literal error string here gets concatenated into SQL and crashes the
+		// page (DB_ERROR_SYNTAX); log it and return a safe "no rows" SQL instead.
+		dol_syslog("forgeSQLFromUniversalSearchCriteria Filter syntax error - " . $errorstr, LOG_WARNING);
+		return '1 = 2';		// Bad balance of parenthesis: return safe SQL that matches no rows, error in $errorstr
 	}
 
 	// Test the filter syntax
@@ -16166,14 +16200,13 @@ function forgeSQLFromUniversalSearchCriteria($filter, &$errorstr = '', $noand = 
 
 	// If the string result contains something else than '()', the syntax was wrong
 	if (preg_match('/[^\(\)]/', $t)) {
-		$tmperrorstr = 'Bad syntax of the search string';
 		$errorstr = 'Bad syntax of the search string: ' . $filter;
 		if ($noerror) {
 			return '1 = 2';
-		} else {
-			dol_syslog("forgeSQLFromUniversalSearchCriteria Filter error - " . $errorstr, LOG_WARNING);
-			return 'Filter error - ' . $tmperrorstr;		// Bad syntax of the search string, we return an error message or force a SQL not found
 		}
+		// SLY: same as above — never return the literal error string, it breaks the SQL of the page.
+		dol_syslog("forgeSQLFromUniversalSearchCriteria Filter error - " . $errorstr, LOG_WARNING);
+		return '1 = 2';		// Bad syntax: return safe SQL that matches no rows, error in $errorstr
 	}
 
 	global $globalforbiddenfields;	// For use by dolForgeSQLCriteriaCallback()
