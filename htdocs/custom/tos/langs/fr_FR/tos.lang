@@ -1,0 +1,25 @@
+# Dolibarr language file - fr_FR - tos
+# Admin form
+CHARSET=UTF-8
+
+Module432460Desc=Module permettant d'attacher automatiquement vos CGV aux documents PDF (factures, devis, commandes)
+Module432460Name=Conditions générales de vente
+CGV=Conditions générales de vente
+CGVSetup=Configuration des CGV
+ErrorUploadingCGV=Erreur lors du téléchargement des CGV
+CGVUploaded=CGV mises à jour
+SelectCGVFile=Vous pouvez mettre à jour vos CGV en utilisant le formulaire ci-dessous. Seuls les fichiers au format PDF sont acceptés.
+ReadCGVFile=Vous pouvez consulter les CGV utilisées actuellement en cliquant sur le lien ci-dessous.
+Ok=OK
+Cancel=Annuler
+WrongFileExtension=Cette extension de fichier n'est pas autorisée. Merci de ne sélectionner que des fichiers au format PDF
+AddTOSToPDF=Ajouter les CGV au PDF
+ToSOptions=Options
+Name=Paramètre
+Value=Activation
+AutoAddToS=Intégrer automatiquement les CGV à la fin des documents générés
+AddTosOnEachPage=Ajouter automatiquement les CGV sur chaque page du document généré (impressions recto/verso)
+AddTosPropal = Ajouter les CGV aux propositions commerciales
+AddTosOrder = Ajouter les CGV aux commandes
+AddTosInvoice = Ajouter les CGV aux factures
+CGVError = Une erreur est survenue lors de l'envoi du fichier.

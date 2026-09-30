@@ -1,0 +1,169 @@
+Qualification_initiale=Initial qualification
+Premier_entretien=First interview
+Second_entretien=Second interview
+Proposition_contrat=Contract proposal
+Contrat_signe=Contract signed
+
+general=General
+
+
+recru_recherche_avancee=Advanced search
+recru_recherche_avancee_condid=Advanced search of candidates
+recru_supérieur_a=superior to
+recru_result_of_search=Research result
+
+
+recru_postes=Search by job details
+recru_candidatures=Search by candidates details
+
+
+
+#situation_poste
+Recrutementencours=Recruitment in progress
+Recrutementfinalise=Recruitment finalized
+Recrutementarrete=Recruitment stopped
+
+
+etap_candidat = Steps of candidates
+
+
+
+
+
+
+ModuleName=Recruitment
+
+recrutementSetup=Recruitment module setup
+ModuleDescrecrutement=Recruitment management
+recrutement=Recruitment
+offre=Offer
+
+# Postes
+postes=Posts
+poste=Post
+PosteOccupe=Job Title
+lieu=Work place
+email=Email alias
+nb_nouveauemploye=Number of employees expected
+responsable_RH=HR Manager
+responsable_recrutement=Responsible of recruitment
+description_p=Post Description
+employe_recrute=Recruited employees
+documents=Documents
+fichiers=Files
+importer=Import
+finaliserrecru=Finalize recruitment
+arrete=Stop recruiting
+lancer=Start the recruitment
+aucun_fichier=No file
+date_pr_empbouche=Hire date
+
+
+# Candidatures
+candidatures=Candidacies
+candidature=Candidacy
+candidat=Candidate
+sujet=Subject / Candidate
+nom_candidat=Candidat name
+contact=Contact
+email_contact=E-mail
+tel=Phone
+mobile=Mobile
+fonction=Job concerned
+tel=Phone
+appreciation=Appreciation
+apport_par=Provided by
+responsable_candidature=Responsible
+resume=Candidacy resume
+niveau=Educational level
+niveauetud=Educational levels
+etapes=Candidacy step
+etape=Step
+responsable=Responsible
+cree_employe=Create an employee
+relance=Reopen the candidacy
+refuse=Refuse
+analyses=Recruitment statistics
+cree_origine=Create origin
+cree_departement=Create department
+cree_contact=Create contact
+fiche_employe=Employee
+nom_employe=Full Name
+employes=Employees
+situation=Situation
+date_depot=Deposit date of candidacy
+nom=Name
+total=Total
+
+contrat=Contract
+salaire_demande=Salary requested
+salaire_propose=Salary offered
+date_disponible=Availability
+
+# configuration
+configuration=Configuration
+
+#origine 
+origine=Origin
+origines=Origins
+source=Source name
+
+rapports=Reports
+cv=Resumes and Letters
+postes=Post
+type=Type
+date=Date
+url=Url
+fiche=Files
+
+#departement
+departements=Departments
+departement=Department
+label_departement=Department Name
+gestionnaire=Manager
+
+#etiquettes
+
+etiquettes=Tags
+etiquette=Tag
+label_etiquette=Tag name
+color=Color
+etiquettes_candidature = Tags
+
+#menu
+liste_des_postes=List of posts
+add_poste=New post
+
+liste_des_candidatures=List of candidacies
+add_candidature=New candidacy
+Toutes=All
+
+Qualifiant=Qualifying
+Master_specialisé=Specialized Master
+Master_recherche=Research Master
+Doctorat=Ph.D.
+
+Insuffisant=Insufficient
+Satisfaisant=Satisfactory
+Bien=Good
+Très_bien=Very good
+Excellent=Excellent
+
+aucun_resp = No responsible
+responsable_recut = Responsible
+
+gestion_postes = Postes management
+gestion_candidatures = Candidacies management
+
+event_pass=This candidate has moved to the step of
+event_return=This candidate has returned to the step of
+Events_candid=Events
+degrees=Degrees
+majors=Majors
+degree=Degrees
+major=Majors
+degreesmajors=Degrees/Majors
+
+recrutement_cours=Recruitment in progress
+recrutement_finalise=Recruitment finalized
+recrutement_arrete=Recruitment stopped

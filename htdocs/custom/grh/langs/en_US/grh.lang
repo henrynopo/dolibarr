@@ -1,0 +1,1846 @@
+Gestion_RH=HR Management
+Pointage_des_Personnels=Pointing of staffs
+Dossiers_médicaux=Medical records
+Les_avances_salariés=Employee advances
+CNSS_des_salariés=NSSF employees
+Gestion_de_Paie=Payroll management
+Recap_Globale=Global Recap
+Charges_mois=Charges / month
+État_CNSS=NSSF State
+
+DESCRIPTION55087054=Advanced HR Management (Pointing, medical records, NSSF, Payroll ...)
+
+Immatriculation_de_la_CNSS=Registration of NSSF
+Nombre_des_jours_de_congé=Number of days off
+Salaire_de_base=Base salary
+CIN=National ID card
+Déjà_déclaré=Already declared
+Stagaire=Trainee
+Module_Gestion_RH=HR Management Module
+
+
+Salariés=Employees
+Non_Salariés=Not Employees
+Salaire=Salary
+Déclarés=Declared
+Non_Declarés=Not Declared
+Vider_tous_les_champs=Empty all fields
+Imprimer=Print
+Liste_dossiers_médicaux=Medical records list
+Dernier_Certificat_Médical=Last Medical Certificate
+employe=Employee
+Generate_EXCEL=Generate EXCEL
+Date_création_du_dossier=Folder creation date
+Normale=Normal
+Urgence=Emergency
+Actif=Active
+Non_Actif=Not Active
+Sans_prime=Without bonus
+Avec_prime=With bonus
+Salariés_avec_paie=Employees with payroll
+Salariés_sans_paie=Employees without payroll
+Nombre_de_jours=Number of days
+Salaires_déclaries=Salaries declared
+Services_déclarés_à_la_CNSS=Services declared to NSSF
+Salaires_non_déclaries=Salaries not declared
+Services_non_déclarés_à_la_CNSS=Services not declared to NSSF
+Primes=Bonuses
+Gestion_des_Catégories=Category Management
+Liste_des_Catégories=List of Categories
+
+
+
+---------------------------------------------------------------------------------
+
+Module_Gestion_RH=HR Management
+Nombre_des_jours_de_congé=Number of days off
+Salaire_de_base=Base salary
+Déjà_déclaré=Already declared
+Stagaire=Trainee
+PeriodAAAAMM=Time entry period
+Non_Declarés=No Declared
+Déclarés=Declared
+Declarés=Declared
+Vider_tous_les_champs=Empty all fields
+ShowHideWeekend=Show / hide weekends
+apte=Capable
+Apte=Capable
+Inapte=Unfit
+Dernier_Certificat_Médical=Last medical certificate
+Addmedical=Add Medical Record
+observation=Observations
+cat=Category
+consulte=Consultation of monthly times
+TimeSpentPeriod=Entering monthly times
+medical=Medicals Records
+Liste_des_Catégories=List of Categories
+Gestion_des_Catégories=Category Management
+TimeSpent=monthly times
+Names=Names
+certificatm=Medical certificate
+Addcertificatm=Add medical certificate
+Createcertificatm=Add medical certificate
+Nombre_de_jours=Number of days
+risques=Risks
+exmcontrl=Control examinations
+Addexmcontrl=Add control review
+Createexmcontrl=Add control review
+Etat_pointage=Pointing state
+recapsp=Payroll Management
+recaps=Global Recap
+UserToDisplay=Select users
+charge_mois=Charges / Month
+netap=Net to pay
+CNSS=NSSF
+montant_cnss=NSSF Amount
+etatcnss=NSSF state
+avance_utilisateur=Employee advance
+Salariés_avec_paie=Employees with payroll
+Salariés_sans_paie=Employees without payroll
+Salaires_non_déclaries=Undeclared wages
+Salaires_déclaries=Declared wages
+Services_non_déclarés_à_la_CNSS=Undeclared services at the NSSF
+Services_déclarés_à_la_CNSS=Declared services at the NSSF
+Primes=Bonuses
+gere=NSSF of the employees
+Noms=Names
+Avance=Advanced
+Net_à_Payer=Net to pay
+Outgoing=Outgoing
+Total_Net_à_Payer=Total Net to pay
+Somme_de_Total=Sum of Total
+Total_Avance=Total Advanced
+Total_CNSS=Total NSSF
+Total_Nbres_H_=Total Hours
+Nbres_H_=Hours
+Sal_Brut=Gross Sal.
+Total_Sal_Brut=Total Gross Sal.
+Sal_Base=Base Sal.
+Total_Sal_Base=Total Base Sal.
+Taux_H=A. Hourly rate
+Immatriculation_de_la_CNSS=Registration of the NSSF
+Avec_prime=With bonus
+Sans_prime=Without bonus
+bon=Voucher number
+
+
+
+CIN=Identity card
+t.h=T.H
+Total_P__et_Ind=Total P. et Ind
+P_et_Ind=P. et Ind
+
+---------------------------------------------------------------------------------
+
+
+
+
+
+
+
+
+
+
+
+
+
+lrh=HR Management
+grh=HR Management
+Addlrh=Add pointing
+editlrh=Modify pointing
+Createlrh=Insérer le Pointage
+pointmonth=Pointing of staffs
+datep=Date de pointage
+netap=Net to pay
+t.h=A.H
+setting=Paramétrage
+Listref=Liste des Références
+Addref=Add Une Référence
+Createref=Create la Référence
+Deletref=Supprimer
+ref=Référence
+ref=Références
+listtypeengin=Liste des Type Engin
+name=Nom
+Addtypeengin=Add Type Engin
+DeletTypeng=Supprimer
+AddTypeeng=Create Type Engin
+typenegin=Type Engin
+modifytypengin=Modify Type Engin
+typeengin=Type Engin
+DeletTransp=Supprimer
+TimeSpentPeriod=Entering monthly times
+PeriodAAAAMM=Time entry period
+ShowHideWeekend=Show / hide weekends
+UserToDisplay=Select users
+pricefourn=Price Supplier Reception
+fournisseur=Fournisseur
+fournisseuroteur=Fournisseur
+prix=Price
+Deletpricefourn=Supprimer
+Addpricefourn=Add Prix Réception Fournisseur
+Createpricefourn=Add Prix Réception Fournisseur
+Listpricefourn=Liste des Prix Réception Fournisseur
+
+Listppm=Liste des PPM
+Addppm=Add Un PPM
+Createppm=Create le PPM
+Deletref=Supprimer
+ppm=PPM
+montant=Montant
+Notmat=Sans Matricule
+etat_stock=Etat de Stock
+
+	
+listaffectation_place=Liste des lieux d'affectation
+AddAffectPlac=Add un lieu d'affectation
+Addaffectation_place=Add un lieu d'affectation
+affectation_place=Lieu d'affectation
+modifyAffectPlac=Modification lieu d'affectation
+Recap=Recap d'évaluation
+Recapm=État mensuel
+
+listintern=Liste des type commandes internes
+Addintern=Add un type commandes internes
+intern=Type commandes internes
+modifyintern=Modification type commandes internes
+
+lstevent=Customer order list
+AddVent=Add customer order
+vente=Customer order
+CreateVent=Create customer order
+ModifyVent=Modify customer order
+
+Liststock_initial=List initial stock
+Addstock_initial=Add an initial stock
+stock_initial=Initial stock
+Createstock_initial=Create initial stock
+Modifstock_initial=Modify initial stock
+geststok=Stock management
+year=Year
+function=Function
+consulte=Consultation of monthly times
+total=Total
+medical=Medical records
+Addmedical=Add Medical Record
+Createmedical=Create Medical Record	
+CreateMedc=Create Medical Record
+Modifymedical=Modify Medical Record
+datecdm=Creation date
+fk_user=User
+risques=Risks
+daten=Birth date
+adress=Address
+poste=Workplace
+situationfam=Family situation
+nom=Last name
+prenom=First name
+
+antpersnl=Antécédents personnels
+AddAntpersnl=Add Antécédents personnels
+CreateAntpersnl=Create Antécédents personnels
+malades=Maladies
+interviews=Interventions chirurgicales
+accidents=Accidents du travail
+malad_pro=Maladies professionnelles
+habitud=Habitudes toxiques
+
+vacination=Vaccinations
+Addvacination=Add Vaccination
+Createvacination=Create Vaccination
+
+description=Description
+antfamily=Antécédents familiaux
+Addantfamily=Add Antécédents familiaux
+Createantfamily=Create Antécédents familiaux
+
+exmclinic=Examens cliniques
+Addexmclinic=Add Examens cliniques
+Createexmclinic=Create Examens cliniques
+poid=Poids 
+taille=Taille
+vision=Vision
+audition=Audition
+denture=Denture
+peux=Peaux/phanères
+
+apariel=Appareils
+
+neropsy=Neuro-Psychisme
+atcd=ATCD
+aquilibr=Equilibre s.de remberg
+trembl=Tremblement
+tremblls=Tremblement
+refles=Reflesus
+eeg=E.E.G
+Addneropsy=Add Neuro-Psychisme
+Createneropsy=Create Neuro-Psychisme
+
+exmcomp=Examens Complementaires
+Addexmcomp=Add Examens Complementaires
+Createexmcomp=Create Examens Complementaires
+
+exmcontrl=Control examinations
+Addexmcontrl=Add Control examination
+Createexmcontrl=Create Control examination
+dated=Date de début
+datef=Date de fin
+certificatm=Medical certificate
+Addcertificatm=Add Medical certificate
+Createcertificatm=Create Medical certificate
+observation=Observations
+aparielres=Appareils Respiratoire
+Addaparielres=Add Appareils Respiratoire
+Createaparielres=Create Appareils Respiratoire
+examenc=Examen clinique
+examenr=Examen Radiologique
+
+aparielcir=Appareils Circulaire
+Addaparielcir=Add Appareils Circulaire
+Createaparielcir=Create Appareils Circulaire
+coeur=Coeur
+vaisc=Vaisceaux/pouls
+varic=Varices
+ta=T.A
+cong=Gonglion
+otherex=Autres Examens
+egg=E.C.G
+
+aparieldig=Appareils Digestif
+Addaparieldig=Add Appareils Digestif
+Createaparieldig=Create Appareils Digestif
+bouch=Bouche
+amyg=Amygdals
+foie=Foie
+rate=Rate
+hern=Hernies
+
+
+aparielgu=Appareils Gento-Urinaire
+Addaparielgu=Add Appareils Gento-Urinaire
+Createaparielgu=Create Appareils Gento-Urinaire
+labstrix=Labstrix
+
+apariellm=Appareils Loco-Moteur
+Addapariellm=Add Appareils Loco-Moteur
+Createapariellm=Create Appareils Loco-Moteur
+
+aparielend=Appareils Endocrinien
+Addaparielend=Add Appareils Endocrinien
+Createaparielend=Create Appareils Endocrinien
+
+
+
+avance_utilisateur=Employee advances
+avance_utilisateurs=Avance utilisateur
+cnss_utilisateur=NSSF utilisateur
+ref=Références
+ttl_menu=NSSF Utilisateur
+iduser=ID Utilisateur
+date=Date
+mois=Mois
+montant_cnss=Amount NSSF
+add=Add
+adduser=Add
+cancel=Annuler
+edituser=Modify Un utilisateur 
+user=Utilisateur
+ok=Valider
+update=Modify
+edit=Modify
+delete=Supprimer
+confirm=Confirm
+msg_confirm=Want to continue deleting? 
+gere=NSSF employees
+
+motif=Motif
+compte=Compte
+ordres_virements=Ordres Virements
+nbr_ordre=N° Ordre </br>Virement
+comptefournisseur=N° Compte Fournisseur
+datevir=Date de Virement
+
+recapsp=Payroll management
+recaps=Global Recap
+declares=déclares
+asc=à
+etatcnss=NSSF State
+
+charge_mois=Charges / month
+bon=N° Bon
+prix=Price
+quantity=Quantité
+cat=category
+discription=Description
+avances_fournisseur=Avances/report Fournisseur
+dateavir=Date
+dateav=Date
+designation=Désignation
+totalsolde=Total Solde
+versements-solde=Valeur Mat.1iere
+total-versements=Total Versements
+solde=Solde
+
+editsalaire_user=Modify Salaire/THM
+gstsu=Gestion Salaire/THM
+salaire=Salaire
+thm=THM
+salary_base=Salaire de base
+Addsalaire_user=Add Salaire/THM
+Createsalaire_user=Créer
+salaire_user=Gestion Salaire/THM
+
+param_rh=Paramétrage RH
+tender=Appel d'offre
+market=Marché
+refMarket=Réf Marché
+material=Matériel
+purchase=Achat
+reception=Reception
+setting=Paramétrage
+conosm_depens=Consomable & Dépenses
+Gstotillag=Gestion outillage
+Gstintrn=Gestion interne
+Status_Lubri_cons=Etat lubrifiant
+Status_carb_cons=Etat carburant
+stock_const=Stock
+ListOfstock_const=List de stock 
+Addstock_const=Add un stock
+stockadd=Entrée Stock
+Createstock_const=Créer
+updatestock=Modify
+consomationFuelLubriByyear=Consomation de carburant et lubrifiant pour l'année
+depensesByyear=Les dépenses de l'année
+MainTopTitleSetupBtp=Configuration du module BTP
+MainTopTitlebtp=Module de Gestion BTP
+
+total=Total
+machine=Engin
+machineIntern=Engin interne
+machineExtern=Engin externe
+machines=Engins
+ListOfmachine=Liste des engins
+ListOfmachine_intern=Liste des engins internes
+ListOfmachine_extern=Liste des engins externes
+Etat_carb_lubri=Etat carburant/lubrifiant
+type_machine=interne/externe
+Addmachine=Add un engin
+AddmachineIntrn=Add un engin interne
+AddmachineExtrn=Add un engin externe
+machine_cat=Category 
+machine_mark=Marque
+regigster_num=Matricule
+year=Année
+chassis_num=N° Chassis
+counter_type=Type compteur
+avg_consomation=Moyenne de consommation estimée
+location_rate=Tarif de location
+immo_rate=Tarif d'immobilisation
+driver=Conducteur
+const_site=Chantier
+Createmachine=Enregistrer L'engin
+Cancel=Annuler
+Modify=Modify
+Delete=Supprimer
+
+fuel_consoma=Consommation carburant
+fuel=Carburant
+Addfuel_consoma=Add consommation carburant
+
+hours_rate=Tarif de l'heure
+datec=Date
+counter=Compteur
+num=Numéro
+price=Price
+qty=Quantité
+hours_worked=Heures travaillés
+Createfuel_consoma=Enregistrer consommation carburant
+ListOffuel_consoma=Les consommations de carburant
+
+fuel_type=Type carburant
+ListOffuel=Liste des carburants
+Addfuel=Add un carburant
+Createfuel=Enregistrer le carburant
+
+lubricant_consom=Consommation lubrifiant
+Addlubricant_consom=Add une consommation lubrifiant
+Createlubricant_consom=Enregistrer la consommation lubrifiant
+ListOflubricant_consom=Liste des consommations lubrifiant
+
+location=Location
+Addlocation=Add location
+Createlocation=Enregistrer location
+Listlocation=Liste des locations
+ListOflocation=Liste des locations
+
+intervention=Intervention
+interventions=Interventions
+Addintervention=Add intervention
+Createintervention=Enregistrer intervention
+spare_parts=Pièces de rechange
+cause_failure=Cause de la défaillance
+engine_status=Etat de l'engin
+claim_defect_engine=Réclamation de l'engin défectueus
+ListOfintervention=Liste des interventions
+
+intervention_user=Affectation de l'intervention
+Addintervention_user=Add une affectation de l'intervention
+Createintervention_user=Enregistrer l'affectation de l'intervention
+ListOfintervention_user=Liste des affectations des interventions
+
+intervention_systematic=Intervention systématique
+interventions_systematics=Interventions systématiques
+Addintervention_systematic=Add interventions systématique
+Createintervention_systematic=Enregistrer interventions systématique
+maintenance_point=Point de maintenance
+maintenance=Maintenance
+frequency=Fréquence
+ListOfintervention_systematic=Liste des interventions systématiques
+
+receptions=Receptions
+Addreceptions=Add une reception
+Createreceptions=Enregistrer la reception
+purchase_order=Bon d'achat
+delivery_order=Bon de livraison
+ListOfreceptions=Liste des receptions
+
+reception_products=Receptions des produits
+Addreception_products=Add une reception de produit
+Createreception_products=Enregistrer le reception de produit
+ListOfreception_products=Liste des receptions des produits
+discount=Remise
+
+intervention_alerts=Interventions alerts
+Addintervention_alerts=Add une alert d'intervention
+Createintervention_alerts=Enregistrer une alert d'intervention
+time_elapsed=Temps écoulé
+decision=Décision
+kmh_made=Km/heures
+ListOfintervention_alerts=Liste des interventions alerts
+
+
+const_site_diposals=Arrangement chantier
+Addconst_site_diposals=Add arrangement chantier
+const_site_destin=Chantier destinataire
+const_site_sender=Chantier émetteur
+Createconst_site_diposals=Enregistrer arrangement chantier
+ListOfconst_site_diposals=Liste arrangements chantier
+
+tools_move=Mouvement d'outillage
+Addtools_move=Add un mouvement d'outillage
+Createtools_move=Enregistrer le mouvement d'outillage
+ListOftools_move=Liste des mouvements d'outillage
+tools=Outils
+tool=Outil
+
+work_advances=Avancements des travaux
+Addwork_advances=Add un avancement des travaux
+Creatework_advances=Enregistrer l'avancement des travaux
+ListOfwork_advances=Liste des avancements des travaux
+
+td_work=Travaux
+
+work_advances_noslip=Avances des travaux sans borderaux
+Addwork_advances_noslip=Add Avances des travaux sans borderaux
+Creatework_advances_noslip=Enregistrer Avances des travaux sans borderaux
+ListOfwork_advances_noslip=Liste des Avances des travaux sans borderaux
+company=Societé
+supply=Fourniture
+salaries_num=N° Salarié
+works_place=Lieu de Travaux
+
+defect_machine=Engin défectueus
+Adddefect_machine=Add un engin défectueus
+machine_status=Engin status
+Createdefect_machine=Enregistrer l'engin défectueus
+description=Description
+ListOfdefect_machine=Liste des engin défectueux
+
+intern_orders=Demandes internes
+bci=Bon de commande interne
+Addintern_orders=Add une demande interne
+Createintern_orders=Enregistrer la demande interne
+order_cat=Demande catégorie 
+ListOfintern_orders=Liste des demandes internes
+
+exit_spares=Sortie de pièces de rechange
+Addexit_spares=Add une sortie de pièces se rechange
+Createexit_spares=Enregistrer la sortie de pièces de rechange
+ListOfexit_spares=Liste des sorties de pièces de rechange
+
+location_recipe=Recette location
+Addlocation_recipe=Add une recette location
+Createlocation_recipe=Enregistrer la recette location
+client=Client
+bon=Bon
+ListOflocation_recipe=Liste des recettes location
+
+admin_materials=Administration des engins
+Addadmin_materials=Add une administration des engins
+procedure=Procedure
+Createadmin_materials=Enregistrer l'administration des engins
+date_end=Date fin
+ListOfadmin_materials=Liste des administration des engins
+
+note=Note 
+alert=Alert
+
+const_diposals_affect=Affectation des arrangements chantier
+Addconst_diposals_affect=Add une affectation des arrangements chantier
+Createconst_diposals_affect=Enregistrer l'affectation des arrangements chantier
+ListOfconst_diposals_affect=Lists des affectations des arrangement chantier
+
+
+consumptions_supplies=consommation fournitures
+Addconsumptions_supplies=Add une consommation fournitures
+product=Article
+Createconsumptions_supplies=Enregistrer la consommation fournitures
+ListOfconsumptions_supplies=Liste des consommations fournitures
+
+diverse_charges=Charges diverses
+Adddiverse_charges=Add un charge diverse
+Creatediverse_charges=Enregistrer le charge diverse
+ListOfdiverse_charges=Liste des charges diverses
+
+amortization=Amortissement
+Addamortization=Add un amortissement
+date_start=Date de début
+supplier=Fournisseur
+Createamortization=Enregistrer l'amortissement
+tva=TVA
+duration=Durée
+amount=Montant
+ListOfamortization=Liste des Amortissements
+
+even=Pointage
+events=evénements
+Newevent=Nouveau evénement
+gestevent=Gestion des evénements
+lst=Catégories des  Machines  
+Refe=Réference
+Name=Nom d'evénement
+Datec=Date de création
+Decription=Détails
+NoneResult=Aucun Résultats
+AddEvent=Add un evénement
+addmt=Add maintenance
+Createmainenance=Crée un maintenance
+CreateEvant=Create pointing
+Createm=Create une marque
+Cancel=Annuler
+DeletEvent=supprimer
+DEvent=Add a Category 
+DUnit=Add Unite
+DCom=Add un Compteur
+lsEvent=Liste Des Pointages
+CreateE=Create a Category
+CreateT=Create un Type
+CreateU=Create Unité
+Createcom=Create un Compteur
+DEventt=Add un Type
+Createproc=Create procedure
+TitleDeletemt=Supprimer la maintenance
+AddType=Add un Type
+TitleDeleteU=Supprimer le type d'unité
+TitleDeleteC=Supprimer la catégorie
+TitleDeleteT=Supprimer le Type
+TitleDeleteM=Supprimer la marque
+TitleDeleteC=Supprimer la catégorie
+ConfirmDeletemt=Etes vous sûr de supprimer la maintenance?
+ConfirmDeleteM=Etes vous sûr de supprimer la marque?
+ConfirmDeleteC=Etes vous sûr de supprimer ce Catégorie des Machines?
+ConfirmDeleteMark=Etes vous sûr de supprimer la Marque?
+ConfirmDeleteT=Etes vous sûr de supprimer le Type ?
+ConfirmDeleteproc=Etes vous sûr de supprimer un procedure?
+TitleDeleteproc=Supprimer le procedure
+cr=Creation par 
+
+advance_user=Avance utilisateur
+integration=Intégration
+rh=Ressource humaine
+lsm=Marque des Marchines
+addcateg=Add un catégorie
+addmarkm=Add une marque
+addproc=Add un  procedure
+lsp=Liste des procedures
+lsf=Liste de types carburants
+lse=Marque des Motours
+lsc=Type des compteurs
+lsu=Type des unités
+lsmt=Maintenance
+lstmp=Point de Maintenance 
+listtypeprenante=Type de prenante
+lstsh=Parties prenantes
+lsto=Type d'outil
+Type=Type
+DEventt=Add un Type
+Createproc=Create procedure
+Dpre=Add un prenante
+Createpre=Create prenante
+ConfirmDeletepre=Etes vous sûr de supprimer le prenante ?
+TitleDeletepre=Supprimer le prenante
+TitleDeleteCom=Supprimer le Type de Compteur
+ConfirmDeletemCom=Etes vous sûr de supprimer le type De Compteur ?
+
+location_expenses=Dépenses de location 
+Addlocation_expenses=Add un dépense de location
+Createlocation_expenses=Enregistrer dépense de location
+ListOflocation_expenses=Liste des dépenses de location
+fuel_recovery=Réservoir carburant 
+works_nature=Nature du travail
+location_qty=Quantité de location
+tenant=Locataire
+
+TitleDelete=Confirmation de la suppression
+ConfirmDelete=Etes vous sûr de supprimer ?
+rotation_equipment=Rotation des équipements
+Addrotation_equipment=Add une rotation d'équipement
+Createrotation_equipment=Enregistrer la rotation équipement
+ListOfrotation_equipment=Liste des rotations des équipements 
+
+constraction_site=Chantier
+ConstructionSite=Chantier
+ListOfconstraction_site=Liste des chantiers
+CreateConstructionSite=Enregistrer chantier
+AddConstructionSite=Add chantier
+address=Adresse
+adress=Adresse
+
+market=Marché
+tel=Télephone
+head_site=Chef chantier
+pointer=Pointeur
+unit_type=Unité
+
+lubricant=Lubrifiants
+ref=Réference
+designation=Désignation
+
+Addlubricant=Add lubrifiant
+Createlubricant=Enregistrer lubrifiant
+ListOflubricant=Liste des lubrifiants
+lubricants=Lubrifiants
+
+# Settings + Achat + RH
+tenderList=Liste des appels d'offre
+addTender=Add un appel d'offre
+createTender=Create l'appel d'offre
+editTender=Modify l'appel d'offre
+deleteTender=Supprimer un appel d'offre
+OpeningDateEnvolops=Date d'ouverture des plis
+CompletionTime=Délai d'execution
+ConfirmDeleteTender=êtes vous sûr de supprimer cet appel d'offre
+NBTender=(NB: tous les marchés de cet appel d'offre seront supprimés)
+Releases=Sorties
+ListOfReleases=La liste des sorties
+AddRelease=Add une sortie
+CreateRelease=Create une sortie
+DeleteRelease=Supprimer une sortie
+ConfirmDeleteRelease=êtes vous sûr de supprimer sortie
+InterimBail=Caution provisoire
+AddInterimBail=Add une caution provisoire
+ProvAmount=Montant de la caution provisoire
+DateBail=Date de la caution provisoire
+DateWithdrawal=Date de retrait
+NumBon=Bon N°
+CreateInterimBail=Create une caution provisoire
+ConfirmDeleteInterim=
+DeleteInterim=Supprimer la caution provisoire
+ConfirmDeleteInterim=êtes vous sûr de supprimer la caution provisoire
+
+# Market
+addMarket=Add un marché
+Code=Réference marché
+DateOffer=Date d'offre
+ApprovedDate=Date d'approbation
+ServiceOrderDate=Date de commencement
+InitAmount=Montant initial
+FinalAmount=Montant final HT
+FinalAmountTTC=Montant final TTC
+BankCollateral=Garantie bancaire
+DeliveryDate=Date de livraison
+RecoveryDate=Date de rétablissement
+DCount=Décompte
+Advance=Avancement
+AddCountAdvance=Add un décompte/avancement
+SettlementDate=Date de règlement
+CreateCountAdvance=Create un décompte/avancement
+Stage=Stade
+DeleteCountAdvance=Supprimer Décompte/Avancement
+ConfirmDeleteCountAdvance=êtes vous sûr de supprimer décompte/avancement
+Delays=Délais
+ListDelays=Liste des délais
+AddDelay=Add un délai
+Payments=Paiements
+ListPayments=Liste des paiements
+EndDateP=Date de fin
+AddPayment=Add un paiement
+CreatePayment=Create le paiement
+Num=Numéro
+TitleDeletePayment=Supprimer un paiement
+ConfirmDeletePayment=êtes vous sûr de supprimer ce paiement
+Works=Travaux
+AddWork=Add un travail
+CreateWork=Create le travail
+UnitType=Type d'unité
+Yields=Rendements
+Employees=Employees
+Supplies=Fournitures
+Equipments=Equipements
+Coefficients=Coefficients 
+TitleDeleteWork=Supprimer le travail
+ConfirmDeleteWork=êtes vous sûr de supprimer ce travail
+ChargesSupplement=Les charges supplimentaires
+Handling=Traitement
+Transport=Transport
+AddSupply=Add une fourniture
+CreateSupply=Create la fourniture
+TitleDeleteSupply=Supprimer la fourniture
+ConfirmDeleteSupply=êtes vous sûr de supprimer cette fourniture
+
+events=evénements
+Newevent=Nouveau evénement
+gestevent=Gestion des evénements
+lst=Catégories des Machines  
+Refe=Réference
+Refem=Référence marché
+Name=Nom d'evénement
+Datec=Date de création
+Decription=Détails
+NoneResult=Aucun Résultats
+AddEvent=Add un evénement
+addmaintenance=Add maintenance
+Createmt=Create un maintenance
+addmt=Add maintenance
+AddType=Add un Type
+Createmt=Create une maintenance
+CreateEvant=Create pointing
+Createm=Create une marque
+Cancel=Annuler
+DeletEvent=supprimer
+DUnit=Add  Unité 
+DCom=Add un Compteur
+lsEvent=Liste Des Pointages
+CreateE=Create a Category
+CreateT=Create un Type
+CreateU=Create Unité
+Createcom=Create un Compteur
+DEventt=Add un Type
+Createproc=Create procedure
+TitleDeletemt=Supprimer la maintenance
+lstmat=location d'équipement
+TitleDeleteU=Supprimer le type d'unité
+TitleDeleteC=Supprimer la catégorie
+TitleDeleteT=Supprimer le Type
+TitleDeleteM=Supprimer la marque
+TitleDeleteC=Supprimer la catégorie
+ConfirmDeleteU=Etes vous sûr de supprimer le type D' Unité ?
+ConfirmDeletemt=Etes vous sûr de supprimer la maintenance?
+ConfirmDeleteM=Etes vous sûr de supprimer la marque?
+ConfirmDeleteC=Etes vous sûr de supprimer ce Catégorie des Machines?
+ConfirmDeleteMark=Etes vous sûr de supprimer la Marque?
+ConfirmDeleteT=Etes vous sûr de supprimer le Type ?
+ConfirmDeleteproc=Etes vous sûr de supprimer un procedure?
+TitleDeleteproc=Supprimer le procedure
+cr=Creation par 
+lsm=Marque des Marchines
+addcateg=Add un catégorie
+addmarkm=Add une marque
+addproc=Add un  procedure
+lsp=Liste des procedures
+lsf=Liste de  types carburants
+lse=Marque des Motours
+lsc=Type des compteurs
+lsu=Type des unités
+lsmt=Maintenance
+lstmp=Point de Maintenance 
+lspartie_prenante=Parties prenantes
+lsto=Type d'outil
+Type=Type
+DEventt=Add un Type
+Createproc=Create procedure
+Dpre=Add un prenante
+Createpre=Create prenante
+ConfirmDeletepre=Etes vous sûr de supprimer le prenante ?
+TitleDeletepre=Supprimer le prenante
+TitleDeleteCom=Supprimer le Type de Compteur
+ConfirmDeletemCom=Etes vous sûr de supprimer le type De Compteur ?
+ConfirmDeletelo=Etes vous sûr de supprimer location d'equipment?
+TitleDeletelo=Supprimer la location d'equipment
+Createlo=Create location
+lsvt=Vente
+lspv=Ventes des produits
+ajt=Add un produit de vente
+lslv=livraison
+ajl=Add un Livraison
+crlv=crée un Livraison
+lslp=Livraison des produits
+ajtp=ajouter un produit 
+crel=crée un produit de livraison
+ConfirmDeletesup=Etes vous sûr de supprimer ?
+TitleDeletesup=Supprimer
+RH=Resource Humaine
+lsua=Utilisateur avancé
+lsin=l'intégration
+vente=Add Vente
+ajoutetools=Add un outil
+creeoutli=Crée un outil
+defect=Defects
+defects=Defects
+ajoutdefect=Add un Defective
+defect_claims=Reclamation de defective
+defects_claims=Reclamations de defective
+stakeholder=Parties Prenante
+
+user=Utilisateur
+tresorie=Compta/Tréso
+advance_supplier=Avances des fournisseurs
+Addadvance_supplier=Add un avance fournisseur
+Createadvance_supplier=Enregistrer l'avance fournisseur
+ListOfadvance_supplier=Liste des avances des fournisseurs
+due_date=Date d'échéance
+transaction_date=Date de la transaction
+check_num=N° chéque
+bank=Banque
+payment=Paiement
+
+invoice_location_expenses=Factures des dépenses de location
+Addinvoice_location_expenses=Add une facture de dépenses de location
+Createinvoice_location_expenses=Enregistrer la facture de dépenses de location
+ListOfinvoice_location_expenses=Liste des factures des dépenses de location
+invoice=Facture
+ht=HT
+
+invoice_reception=Les factures de reception
+Addinvoice_reception=Add une facture de reception
+Createinvoice_reception=Enregistrer la facture de reception
+ListOfinvoice_reception=Liste des factures des reception
+
+Addlubricant=Add Lubrifiant
+Createlubricant=Enregistrer Lubrifiant
+ListOflubricant=List des Lubrifiants
+lubricants=Lubrifiants
+
+# Tender
+tender=Appel d'offre
+OpeningDateEnvolops=Date d'ouverture des plis
+CompletionTime =Temps du marché
+Releases=Sorties
+InterimBail=Caution provisoire
+DateBail=Date de caution provisoire 
+DateWithdrawal=Date de retrait
+ChargesSupplement=Charges supplément
+NumBon=Numéro
+ApprovedDate=Date d'approbation
+DateOffer=Date d'offre
+ServiceOrderDate	=Date de commencement
+InitAmount			=Montant initiale
+FinalAmount			=Montant finale
+BankCollateral		=Garantie bancaire
+TNote=Remarque
+DCount=Décompte
+Advance=Avancement
+Delays=Délais
+Works=Travaux
+DeliveryDate=Date de livraison
+RecoveryDate=Date de récupération
+SettlementDate=Date de règlement
+Stage=Stade
+EndDateP=Date de fin
+UnitType=Type d'unité
+Supplies=Fournitures
+Metres			=Metres
+Attachments=Attachements
+Supply=Fourniture
+Employees			=Employees
+Equipments			=Equipements
+Yields				=Rendements
+Coefficients		=Coefficients
+Handling=Traitement
+AddSupply=Add une fourniture
+AddMetre=Add un metre
+AddAttachment=Add un attachement
+CreateSupply		=Create la fourniture
+CreateMetre		=Create le Metre
+CreateAttachment		=Create l'attachement
+AddPayment=Add un paiement
+CreatePayment		=Create le paiement
+AddDelay=Add un délai
+CreateDelay			=Create le délai
+AddEmployee=Add un ouvrier
+CreateEmployee		=Create l'ouvrier
+AddCountAdvance		=Add un décompte/avancemnt
+CreateCountAdvance	=Create le décompte/avancemnt
+AddBail				=Add une caution provisoire
+AddHeader			=Add un entête
+AddWorkpart			=Add un pièce de travail
+CreateBail			=Create la caution provisoire
+CreateHeader			=Create entête
+CreateWorkpart			=Create pièce de travail
+AddMarket			=Add un marché
+CreateMarket		=Create le marché
+AddEquipment		=Add un équipement
+CreateEquipment		=Create l'équipement
+AddYield			=Add un rendement
+CreateYield			=Create le rendement
+AddCoefficients		=Add un coefficient
+CreateCoefficients	=Create le coefficient
+AddStakeholder		=Add une partie prenante
+CreateStakeholder	=Create la partie prenante
+AddSocialCharges=Add les charges sociales
+AddSubContracting=Add un sous-traitance
+CreateSubContracting=Create le sous-traitance
+TitleDeleteSupply=Supprimer la fourniture
+TitleDeleteMetre=Supprimer le Metre
+TitleDeleteAttachment=Supprimer l'attachement
+ConfirmDeleteMetre=Etes vous sûr de supprimer cet Metre?
+ConfirmDeleteAttachment=Etes vous sûr de supprimer cet attachement?
+TitleDeletePayment=Supprimer le paiement
+ConfirmDeletePayment=Etes vous sûr de supprimer ce paiement?
+TitleDeleteDelay=Supprimer le délai
+ConfirmDeleteDelay=Etes vous sûr de supprimer ce délai?
+TitleDeleteCountAdvance=Supprimer le décompte/avancement
+ConfirmDeleteCountAdvance=Etes vous sûr de supprimer ce décompte/avancement?
+TitleDeleteBail=Supprimer la caution provisoire
+TitleDeleteWorkpart=Supprimer l
+ConfirmDeleteBail=Etes vous sûr de supprimer cette caution provisoire?
+ConfirmDeleteHeader=Etes vous sûr de supprimer cet entête
+TitleDeleteMarket=Supprimer le marché
+ConfirmDeleteMarket=Etes vous sûr de supprimer ce marché?
+TitleDeleteEmployee	=Supprimer l'ouvrier
+ConfirmDeleteEmployee=Etes vous sûr de supprimer cet ouvrier?
+TitleDeleteEquipment=Supprimer l'équipement
+ConfirmDeleteEquipment=Etes vous sûr de supprimer cet équipement?
+TitleDeleteYield=Supprimer le rendement
+ConfirmDeleteYield=Etes vous sûr de supprimer ce rendement?
+TitleDeleteCoefficient=Supprimer le coefficient
+ConfirmDeleteCoefficient=Etes vous sûr de supprimer ce coefficient?
+TitleDeleteStakeholder=Supprimer la partie prenante
+ConfirmDeleteStakeholder=Etes vous sûr de supprimer cette partie prenante?
+TitleDeleteSocialCharges=Supprimer la charge sociale
+ConfirmDeleteSocialCharges=Etes vous sûr de supprimer cette charge sociale?
+TitleDeleteSubContracting=Supprimer le sous-traitance
+ConfirmDeleteSubContracting=Etes vous sûr de supprimer ce sous-traitance?
+EmployeeNum=Nombre des employees
+UnitCost=Coût unitaire
+Responsible=Responsable
+Equipments=Equipements
+MachineCategory =Catégories des  Machines  
+EquipmentNum=Numéro d'équipement
+Expendable=Consommable
+Yield=Rendement
+TransportDistance	=Distance de transport
+Metres=Metres
+SupplyFee =Frais de la fourniture
+GeneralFee=Frais générale
+Stakeholders=Les parties prenantes
+SocialCharges=Charges sociales
+SubContracting=Sous Traitance
+SubContractingDate	=Date de sous-traitance
+MarketList=Liste des marchés
+PurchaseSale		=Achat/Vente
+Sales=Ventes
+SalesProducts=Ventes des produits
+Delivery=Livraison
+DeliveryProducts=Livraison des produits
+unite_type=Type unité
+ConfirmDeleteU=Etes vous sûr de supprimer le type d'unité ?
+DUnit=Add un type unité 
+CreateU=Crée unité
+outils=L'outils
+ajoutetools=Add outil
+creeoutli=Crée outil
+AddType=Add un type
+type_outil=Type outil
+CreateT=Create un type
+ConfirmDeletepretype=Etes vous sûr de supprimer le type de prenante ?
+TitleDeletepretype=Supprimer le type de prenante
+lststakholder_type=Type de prenante
+AddType_preante=Add un type de prenante
+type_unite=Type d'unité
+list_outils=l'outil
+machine_categorie=Catégorie machine
+rate=Tarif
+liste_pointmaintenance=Liste des points maintenance 
+addPointmaintenance=Add un point maintenance
+Createpoint_maintenance=Crée un point maintenance
+TitleDeletepointmaintenance=Supprimer le point maintenance
+createcateg=Créé un catégorie
+ConfirmDeletepointmaintenance=Etes vous sûr de supprimer le point maintenance?
+ListOfmaintenance=La liste des maintenances
+Lstmach_Mark=La listes des marques des machines
+Createmarque=Create une marque
+lstcateg_machin=La liste des catégories des machines
+listoffuel_type=La liste des types des carburants
+listeOfenginemark=La liste des marques des moteurs
+listeOfcountertype=La liste des types des compteurs  
+addtypecounter=Add un type compteur
+createtypecounter=Créé type compteur
+lstypeunite=La listes des types des unités
+listeoutils=La liste des types d'outils
+listprenante=La liste des prenantes
+listtype_prenante=La liste des types des prenantes
+listerentalequip=La liste des locations des matériels
+ListOfinteg=La liste des intégrations
+Coefficient=Coefficient
+add_integration=Add un intégration
+ListeofAdvanceuser=La liste des avances  des utilisateurs
+dAdvance=Add un avance d' utilisateur
+CAdvance=Créé un avance d'utilisateur
+advance_for=Avancé pour
+made_by=Validé par
+ListOfsale=La liste des ventes
+createsale=Créé un vente
+paidby=Mode réglement
+quote_num=N° Devis
+ref_num=N° Référence
+obser=Observation
+ListOfproductsale=La Liste des produits de vente
+#Product=Produit
+Sale=Vente
+type_discount=Type remise
+discount=Remise
+creat_eproduit_sale=Créé produit vente
+Listofdelivery=La liste des livraisons
+Listofdeliverypro=La liste de livraison des produits
+Sales=Ventes
+SalesProducts=Vente des produits
+delivery=Livraison
+Delivery=Livraison
+DeliveryProducts=Livraison des produits
+det_livr=Détails du livraison
+det_livpro=Détails du livraison de produit
+det_sale=Détails du vente
+det_sale_prod=Détails du vente produit
+list_defect=la liste des défauts
+createdefect=Créé défaut
+detai_defect=Détails du défaut
+list_claim_defect=la liste  Réclamation des défauts
+createdefectclaim=Créé une réclation de défaut
+Adddefectclaim=Add une réclamation défaut
+defects=défaut
+detai_def_claim=Détails de défaut
+Detai_countertype=Détails du type compteur
+detai_eng_mark=Détails du marque moteur
+detai_typefuel=Détails du type carburant
+detai_cate_mach=Détails du catégorie machine
+detai_mach_mark=Détails du marque machine
+detai_mainte=Détails du maintenance
+detai_point_maint=Détails du point maintenance
+detai_rental_equip=Détails du location matériel
+detail_stack=Détails du type prenante
+detai_pre=Détails du prenante
+list_tools=La liste des outils
+detai_tool=Détails d'outil
+detai_type_tool=Détails du type d'outil
+detai_typeunit=Détails du type unité
+rental=Location des matériels
+stakeholderType=Type des prenantes
+det_adv_user=Détails d'avance d'utilisateur
+detai_integ=Détails d'intégration
+workpart=Les pièces de travail
+task=Tâche
+num=Numero
+lenght=Longeur
+length=Longeur
+width=Largeur
+height=Haut
+depth=Epaisseur
+thickness=Profondeur
+deleteworkpart=Sûpprimer un pièce de travail
+ConfirmDeleteworkpart=Etes vous sûr de supprimer cet pièce?
+DCount/Advance=Décompte/Avancement
+Headers				=Entête
+Workparts			=Les pièces de travail 
+oc_cats=Eléments des demandes internes
+oc_cats_items=Catégories des éléments des demandes 
+MarketList=Liste des marchés
+PurchaseSale		=Achat/Vente
+
+Headers				=Entête
+Workparts			=Les pièces de travail 
+MarketList=Liste des marchés
+PurchaseSale		=Achat/Vente
+Sales=Ventes
+SalesProducts=Ventes des produits
+Delivery=Livraison
+DeliveryProducts=Livraison des produits
+rental=Location
+stakeholderType=Types des parties prenantes
+AdvancementNoSlip=Avancement sans bordereau
+Amount=Montant
+CreateMaintenancePoint=Create le point de maintenance
+AddMaintenancePoint=Ajouer un point de maintenance
+Dashboard=Tableau de bord
+Headers				=entêtes
+Workparts			=Les pièces de travail 
+
+Addoc_cats=Add un élément des demandes internes
+Createoc_cats=Enregistrer l'élément des demandes internes
+ListOfoc_cats=Liste des éléments des demandes internes
+
+
+Addoc_cats_items=Add une demande catégorie
+Createoc_cats_items=Enregistrer la demande catégorie
+ListOfoc_cats_items=Liste des demandes catégories
+Tenders=Appels d'offre
+TenderDetails	=Détails des appels d'offre
+Markets=Marchés
+MarketDetails=Détails des marchés
+InterimBails=Cautions provisoires
+Cost=Coût
+ConstructionSites=Chantiers
+ConstructionSitesDetails=Détails des chantiers
+MachineInterns=Engins internes
+MachineExterns=Engins externes
+DefBails=Cautions définitives
+ConstSiteDiposals=Arrangements des chantiers
+ConsumptionsSupplies=Consommations des fournitures
+WorkAdvancesNoslip=Avances des travaux sans borderaux
+Amortization=Amortissement
+SubContractings	=Sous Traitances
+TreasuryDetails=Détails de Compta/Tréso
+RHDetails=Détails des resources humaines
+Integrations=Intégrations
+ToolsDetail=Détails des outils
+ToolsMovements=Mouvements d'outillage
+ToolsTypes=Types d'outillage
+InternMgtDetail=Détails de la gestion des internes
+OrderInternCatsItems=Catégories des elements de la demande 
+ModulesDetails=Détails de modules
+ExpendableDetail=Détails de Consomables/Dépenses
+TotalOfPrincipalModules=Total de modules principaux
+DerniereAppelOffre=Les 5 derniers appels d’offre
+DerniereMarket	=Les 5 derniers marchés
+DerniereChantier=Les 5 derniers chantiers
+DerniereTraveaux=Les 5 derniers travaux
+DerniereEngin=Les 5 derniers engins
+Intern=Interne
+Extern=Externe
+LatestFiveEntries=Dernières 5 entrées
+create_produit_sale=créé un produit vente
+WorksDetails=Détails des travaux
+Statusmarket=Situation des marchés
+Amountmark=Montant de marche 
+work_exec=Traveaux exécutes
+work_res=Travaux restants
+amount_mand=Montant mandater
+rest_mand=Reste mandater
+mount=Mois
+Names=Names
+Qualif=Qualification
+pointage=Pointage personnels
+projetExict=Ce pointage est déja existe 
+nbjour=NB jours
+nbHeurseup=NB H,S
+avance=Avance
+totals=TOTAL GENERAL
+salaryBrut=Salaire brut
+SalaryNet=Salaire net
+SalaryJour=Salaire/Jours
+Signature=Signature
+statusSalary=Situation des salaires 
+Status_Lubri_cons=Situation consommation lubrifiant 
+Punite=P.U
+price_total=Prix Total
+stock=Etat de stock  
+CreateTypeEntree=Enregistrer type d'entrées
+CreateEntree=Enregistrer un entrées
+ajoutetype_entrees=Add un type d'entrées
+typeEntrees=Type d'entrées
+details_type_Entrees=Détails de type d'entrées
+listTypeEntrees=Liste des types d'entrées
+ajoute_entrees=Add un entrée
+list_entrees=List des entrées
+Entrees=Les entrées
+EntreeMarche=Les entrées du marché 
+DetailEntree=Détails des entrées
+ListEntree=Liste des entrées
+Designation=Designation 
+numbon=N° Bon
+
+
+#
+# Page d'exemple
+#
+MenuGMBC=GMBC
+MyPageName=Gestion des marchés
+MainTopTitleSetup=Configuration du module GMBC, Gestion des marchés et bons de commande
+MainTopTitleSetupSentence=Nous allons avoir des configurations pour ce module dans les futures versions
+MainTopTitle=La liste des appels d'offre
+ListOfMarkets=La liste des marchés
+ListOfAO=La liste des appels d'offre
+AOs=Appel d'offre
+MarketDetail=Détails du marché
+AODetail=Détails d'appel d'offre
+QCDetail=Détails de la qualification et classification
+New=Nouveau
+List=Liste
+NotActiveModSC=Le module de la gestion des marchés est desactive
+StartDate=Date du début
+EndDate=Date de fin prévisionnelle
+AddMarket=Add un nouveau marché
+AddAO=Add un nouveau appel d'offre
+AddQC=Add une qualification/classification
+CreateMarket=Create le marché
+CreateAO=Create l'appel d'offre
+CreateQC=Create la qualification/classification
+Budget=Estimation du coût des prestations (Budget)
+BudgetM=Budget
+VisitDate=Date de visite des lieux
+EntrepriseQC=Qualification et de classification des entreprises
+EntrepriseQCE=Q/C des entreprises
+Subject=Objet
+RefMarket=Ref marché
+RefAO=N°
+DileveredDate=Délivré le
+ExpiredDate=Expire le
+MonthsPeriod=Durré en mois
+Definitive=Definitif 
+Sector=Secteur
+Qualification=Qualification
+Class=Classe
+CreatedAt=Créé le
+marketCreatedAuto=Le marché a été créé avec succès
+marketDeleted=Le marché a été supprimé avec succès
+marketArchived=Le marché a été archivé avec succès
+ThirdPartyMarket=Maître de l'ouvrage
+City=Ville
+Certificates=Attestations
+Archived=Archivé
+NotApproved=Non-Apprové
+NoneResult=Aucun résultat
+marketActivated=Le marché a été activé avec succès
+MarketFile=Fiche marché
+MarketRef=Num du marché
+MarketLabel=l'Objet du marché
+MarketDate=Date du marché
+MarketAmount=Budget du marché
+QualificationType1=Equipement/Transport/Logistique
+QualificationType2=Agricule/Peche maritime
+MarcheNormal=marché normale
+MarcheCadre=marché cadre
+EstimatedAmountTitle=Les informations du montant estimé
+EndDateProvisional=Date fin prévisionnelle
+ReleaseDate=Date de lancement
+OpeningDate=Date d'ouverture
+ByAveraging=Par moyenne de
+Recovered=Récupéré
+
+#Validation
+errorNoBudget=Veuillez saisir un budget
+errorNoUser=Veuillez selectionner un utilisateur
+errorNoBank=Veuillez selectionner un banque
+errorNoQc=Veuillez selectionner un qualification/classification
+alreadyExist=Un appel d'offre est déjà existé avec meme N° de ref
+errorNoRef=Veuillez saisir un N° de ref
+TitleDeleteMarket=Supprimer le marché
+ConfirmDeleteMarket=Etes vous sûr de supprimer ce marché?
+TitleDeleteQC=Supprimer la qualificatoin et classification des entreprises
+ConfirmDeleteQC=Etes vous sûr de supprimer cette qualificatoin et classification?
+TitleDeleteComp=Supprimer les concurrents
+ConfirmDeleteComp=Etes vous sûr de supprimer ce concurrent?
+TitleDeleteMonitoring=Supprimer les suivis
+ConfirmDeleteMonitoring=Etes vous sûr de supprimer ce suivi?
+TitleDeleteApproval=Supprimer l'approbation
+ConfirmDeleteApproval=Etes vous sûr de supprimer cette approbation
+MarketNError=Veuillez saisir le numéro du marché
+MarketLError=Veuillez saisir le libellé du marché
+MarketDError=Veuillez saisir la date du marché
+TitleDeleteNotif=Supprimer la notification
+ConfirmDeleteNotif=Etes vous sûr de supprimer cette notification
+TitleDeleteCert=Supprimer l'attestation
+ConfirmDeleteCert=Etes vous sûr de supprimer cette attestation
+TitleDeletePayementM=Supprimer le paiement
+ConfirmDeletePayementM=Etes vous sûr de supprimer ce paiement
+TitleDeleteDelay=Supprimer le délai
+ConfirmDeleteDelay=Etes vous sûr de supprimer ce délai
+TitleDeleteDocument=Supprimer le document
+ConfirmDeleteDocument=Etes vous sûr de supprimer ce document
+SelectMarketRange=Sélectionner votre tranche
+CreateMarketRange=Create une tranche
+NoendDateMissed=Veuillez saisir la date réel de fin du marché
+
+#Competitors
+ListOfCompetitors=La liste des concurrents
+Competitors=Concurrents
+CompetitorName=Nom de concurrent
+Winner=Attributaire
+AddCompetitor=Add un concurrent
+CreateCompetitor=Create le concurrent
+
+#Monitoring
+ListOfMonitoring=La liste des suivis
+Monitoring=Suivis
+AddMonitoring=Add un suivi
+CreateMonitoring=Create le suivi
+MonitoringLetterDemand=Lettre de demande de produire les pièces du dossier administratif n°
+MonitoringDelayJustify=Délai de justification des prix
+MonitoringResponseCompagnyNum=Réponse de la société n°
+MonitoringDate=Du
+MonitoringObserv=OBSERVATIONS
+CreatedBy=Créé par
+OBSERVATIONS=Observations
+
+#approval
+ListOfApproval=Les informations de l'approbation
+Approval=Approbation
+AddApproval=Add une approbation
+CreateApproval=Enregistrer l'approbation
+ApprovalDateAt=Le
+ApprovalAmountHT=Montant hors TVA
+ApprovalAmountTva=Montant de la TVA (20 %%)
+ApprovalAmountTTC=Montant TVA comprise
+ApprovalDateSigMarket=Lieu / Date signature marche
+ApprovalDateApprov=Lieu / Date d'pprobation
+ApprovalDateNumVisa=Num et Date de visa
+Approved=Approuvé
+ApprovalBailDate=Date dépôt à la banque
+ApprovalBailNum=Numéro de la caution
+ApprovalBailAmount=Montant de la caution
+
+#Notifications
+ListOfNotifications=Liste des notifications
+NotifDetail=Détails de la notification
+NotifDate=Date de la notification
+CreateNotif=Create une notification
+AddNotif=Add une notification
+NotificationsPhase=Phase notification
+
+#Demendes
+demandes=Demandes
+demandesList=Liste des demandes
+CreateDemande=Créer
+CreatedFor=Adresser vers
+dateta=Date d'établissement
+dates=Date de signature
+TitleDeleteDemendeM=Supprimer le demande 
+ConfirmDeleteDemendeM=Etes vous sûr de supprimer ce demande
+provisional=Caution provisoire
+final=Caution définitif
+backGrante=Retenue de garantie
+dateBackGrante=Date de retenue de garantie
+declaration=Declaration sur l'honneur
+objetdeclar=Objet de déclaration
+engagement=Acte d'engagement
+couverture=Les couvertures
+generiate=Générer
+
+#Bails
+Bails=Cautions
+BailsDetail=Détails de la cautions
+CreateBail=Create une caution
+AddBail=Add une caution
+BailDate=Date de la caution
+DefinitiveBail=Caution définitive
+Definit=définitive
+AddDefinitiveBail=Add une caution définitive
+
+# Certificates
+Certificates=Les attestations
+CertificatesList=Liste des attestations
+CertificatesDetail=Détail de l'attestation
+AddCertificates=Add les attestations
+
+# ExecutionPhase
+ExecutionFile=Fiche d'execution
+ExecutionPhase=Phase execution
+GaranteedRetention=Retenue de la garanti
+Manual=Caution bancaire
+Auto=A partir des décomptes
+DelaySection=Section délai
+GRSection=Section de retenue de la garanti
+CommenceDate=Date de commencement
+ExecutionDelay=Délai d'exécution
+RG=Caution de la retenue de garanti
+MTRG=Montant de retenue de la garanti (Plafonnée 7%%)
+AttachmentNum=N° attachement
+DecNum=N° décompte
+RGMT=Montant RG
+
+# DelayManagement
+DelayManagement=Gestion de délai
+DelayManagementDetail=Détail de délai
+ResumptionDate=Date de reprise
+AttachedFile=Fichier joint
+CreateDelay=Create un délai
+TotalDelay=Total délai consumé (j)
+TotalDelayRemained=Total délai restant (j)
+TotalDelayOver=Dépassement délai jusqu'à aujourd'huit (j)
+totalDays=Total des jours
+NumOfStopDays=Nombre des jours des arrêts
+CreateExceedingFile=Create un fichier de dépassement
+ExceedingFile=Fichier dépassement
+ExceedingDate=Date dépassement
+StoppedDate=Date d'arrêt
+TotalMarkeyPeriod=La durée globale du marché (provisionnelle)
+
+# PaymentManagement
+PaymentManagement=Payment Management
+PaymentManagementDetail=Détail de la gestion de paiement
+AttachNum=Attachement N°
+AttachDate=Date d'attachement
+AmountPay=Montant décompte
+DepositAmount=Montant acompte
+AmountPenalty=Montant de la pénalité
+AmountRevision=Montant de la révision des prix
+CumulativeTotal=Total cumulatif
+Attachment=Attachement
+AttachAmount=Montant d'attachement hors taxe
+BillingNum=Facture N°
+BillingDate=Date de la facture
+Billing=Facture
+AttachDateHT=Montant HT
+AttachDateTTC=Montant TTC
+TotalAmountTtc=Total montant TTC
+AmountTtc=Montant TTC
+DownloadSituationFile=Télécharger la situation financiere
+DepositDate=Date de retrait à la banque
+SigDate=Date de la signature
+CreatePayment=Create un paiement
+
+#Documents
+MarketDocuments=Documents marché
+MarketDocumentsManagement=Gestion des documents du marché
+AddNewDocument=Add un nouveau document
+Remarks=Remarques
+DocumentTypes=Types des documents
+
+# Types
+PvImplantation=PV d'mplantation
+TechnicalMemory=Mémoire technique
+OS			=OS
+PvSiteMonitoring=PV de suivi de chantier
+ReportEndWork=Rapport fin travaux
+DailyReport=Rapport journaliers
+CasingCertificates=Attestations de tubage
+CertificateOfOrigin=Certificat d'origine
+PurchaseInvoices=Factures
+TechnicalFile=Fiches techniques
+
+# Recap
+RecapMarket=Recap marché
+Piezometer=Piézomètre
+Wells=Puits
+ReconnaissancesSurvey=Sondage de reconnaissances
+ArchiveMarket=Archiver le marché
+Still=En cours
+RecapMainTitle=La gestion des pieces manquantes au dossier
+RecapDefaultTitle=Les pieces par défaut
+RecapNewTitle=Les nouvelles pieces rentrés
+MissedPiecesPhrase=Les cases non cochées sont les pieces manquantes
+RealEndDate=Date réel de fin du marché
+
+#Management packing slip
+ManagementPackingSlip=Bordereau d'envoi du marché
+PackingSlip=Bordereau d'envoi
+ListOfmanagementpackingslip=Liste des bordereaux d'envoi
+AddPackingSlip=Add un bordereau d'envoi
+ModifyPackingSlip=Modify le bordereau d'envoi
+CreatePackingSlip=Create le bordereau d'envoi
+TitleDeletePackingSlip=Supprimer le bordereau d'envoi
+ConfirmDeletePackingSlip=Etes vous sûr de supprimer ce bordereau d'envoi
+DownloadPackingSlip=Télécharger le bordereau d'envoi
+MarektSlip=Bordereau de marché
+
+# Provisional Bail
+ProvisionalBail=Caution provisoire
+ProvAmount=Montant de la caution provisoire
+ProvDate  =Date de la caution provisoire
+Provisional=Provisoire
+ReturnedAt=Retournée le
+AddProvisionalbail=Add la caution provisoire
+CreateProvisionalbail=Create la caution provisoire
+
+# Purchase Order
+ListOfPurchaseOrder=La liste des bons de commande
+ListOfPurchaseOrderBC=La liste des BCs
+PurchaseOrders=Bons de commande
+PurchaseOrderFile=Fiche de BC
+PONum=BC num
+CreateBC=Create un bon de commande
+BCDetail=Détail du BC
+BCDateEtab=Date d'établissement BC
+BCInfoConsLetter=Les infos de la lettre de consultation
+CreationDate=Date de création
+CantCreateBC=Vous n'avez pas les droits de Create un bon de commande
+EditBC=Modify le bon de commande
+
+# Recap BC
+RecapBC=Recap BC
+
+# ManagementPackingSlipBC
+ManagementPackingSlipBC=Bordereau d'envoi de BC
+BCDocuments=Documents de BC
+Amountht=Montant Hors Taxe
+
+SousTr=Sous traitance
+# Purchase Order
+ListOfPurchaseOrder=La liste des bons de commande
+ListOfPurchaseOrderBC=La liste des BCs
+PurchaseOrders=Bons de commande
+PurchaseOrderFile=Fiche de BC
+PONum=Contract num
+CreateBC=Create un bon de commande
+Detailsous
+BCDetail=Détail du contrat
+BCDateEtab=Date d'établissement contrat
+BCInfoConsLetter=Les infos de la lettre de consultation
+CreationDate=Date de création
+CantCreateBC=Vous n'avez pas les droi
+ts de Create un bon de commande
+EditBC=Modify le bon de commande
+AmountTtc=Montant
+CreateCont=Create un contrat de Sous-Traitance
+DtProvi=Date de fin prévisionnelle
+City=Ville
+ThirdPartyMarket=Maître de l'ouvrage
+ThirdPartyMarketPrinc=Maître de l'ouvrage principale
+Subject=Objet
+DetailSous_trai=Détail de sous traitance
+EditCont=Modify
+ListOfContract=	Sous traitance
+ContractFile=Fiche de sous-traitance
+BordreCont=Contrat
+Addcontract=Add contrat
+DetailCont=Détail de contrat
+Rssoc=Responsable de société
+MO=Maître d'ouvrage principale
+DownloadContract=Télécharger le contrat
+PriceDocuments=Bordereau de prix
+AddBordereau=Add un bordereau de prix
+SubjectBDPE=Objet BPDE
+DateBDPE=Date BPDE
+marketNum=Marché N°
+AmountTTC=Montant TTC
+typeAvance=Type d'avance
+CreateTypeAvance=Enregistrer type d'avance
+CreateAvance=Enregistrer un avance
+ajoutetype_avance=Add un type d'avance
+
+SousTr=Sous traitance
+details_type_avance=Détails de type d'avance
+listTypeAvance=Liste des types d'avance
+Avance=Les avances
+ajoute_avance=ajouter un avance
+
+SubContracting=Sous Traitance
+SoustriatanceFile=Fiche sous traitance
+SubContractingDate	=Date de sous-traitance
+ContDateEtab=Date d'établissement contrat
+ListAvance=Liste des avances 
+CrBordre=Créé un bordereau
+DetailAvance=Détail d'avance
+
+groupementFile=Fiche de Groupement
+ListOfgroup=Liste de Groupement
+Societe=Societé
+Addg=Add un Groupement
+Addgroup=Add un Groupement
+Marche=Marché
+contract=Contrat
+compt=Compte
+soc=Société
+contact=Contact
+chef=Vous êtes Chef ou Non 
+Contract=Contrat
+contactofgroup=Contact de Groupement
+Detailgroup=Détail de Groupement
+Détail de contract=Détail de Contrat
+lot=Lots
+Market=Marché
+groupement=Groupement
+maitreo=Maîtrise d'oeuvre
+DF=Devis & Facture
+infoDF=Les infos de la Devis & Facture
+AddDF=Add un devis & Facture
+doctrait=Les Document de Sous Traitance
+Document=Documents
+AddD=Add un Document
+infoD=Les infos de documents
+Responsablmao=Responsable de Maîtrise d'oeuvre
+Adddoc=Add un document
+subject=Objet
+numberh=Nombre d'heures	
+modpaie=Mode de paiment
+assum=Maîtrise d'oeuvre assume la responsabilité de son équipe
+# Salaries Contrats
+# Copyright (C) 2015 Yassine Belkaid <y.belkaid@nextconcept.ma>
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
+#
+# Générique
+#
+
+# Module label 'ModuleXXXName'
+# (where XXX is value of numeric property 'numero' of module)
+Module800000Name = Employee contracts
+# Module description 'ModuleXXXDesc'
+# (where XXX is value of numeric property 'numero' of module)
+Module800000Desc = This module lets you create contracts for your salaries
+
+#
+# Page d'administration
+#
+MyModuleSetup = Configuration du module contrats des salariés
+Settings = Réglages
+MyModuleSetupPage = Page de réglage de contrats des salariés
+
+#
+# Page À propos
+#
+About = À propos
+MyModuleAbout = À propos de contrats des salariés
+MyModuleAboutPage = Page à propos de contrats des salariés
+MainTopTitleSetupCS  = Configuration du module CS, Gestion des contrats des salariés
+MainTopTitleSetupSentenceCS = Nous allons avoir des configurations pour ce module dans les futures versions
+MainTopTitleCS  = Gestion des contrats des salariés
+
+#
+# Page d'exemple
+#
+MyPageName = Salary's contracts
+contrat_salarie = Salary contract
+ListOfSalaries = Contracts management
+MenuAddSC = 
+New = new
+List = List
+NotActiveModSC = Salary's contracts module is disabled
+Error = Error
+Ref = Ref
+
+
+
+
+
+
+
+
+DateCreate = Creation's date
+Salary = Salary
+Type= Type
+HiringDate = Hiring date
+Search = Search
+RemoveFilter = Remove filtre
+AddSalarieContract = Add new contract
+Show = Display
+Card = File
+Document = Document
+ReturnSC = Return
+TitleDeleteSC=  Delete the contract
+ConfirmDeleteSC= Are you sure you want to delete the contract?
+TitleCancelSC= Cancel the contract
+ConfirmCancelSC= Are you sure you want to cancel the contract?
+User = User
+DescSC = Description
+OtherInfoSC = Other informations
+CreatedByCP = Created by
+SalarySignatureDateSC = Salary's signature
+ManagerSignatureDateSC = Director's signature
+DeclarationPriorToHiringSC = Declaration prior to hiring
+MedicalVisitSC= Medical visit
+UpdateButtonSC 		= Update
+EditSC 				= Modify
+DeleteSC 			= Delete
+ErrorUserViewSC		= You are not authorized to read this contract
+ErrorIDFicheSC		= An error happened, the contract does not exist
+ErrorCantDeleteSC	= Error, you are not authorized to delete the contract
+CantCreateSC 		= Error, you are not authorized to t create a contract
+MenuAddSC			= Create a contract
+ErrorTypeSc			= You have to choose a type for your contract
+SendRequestSC		= Create a contract
+JobContract			= Contract of work
+ContractDetail		= Details of contract
+ModifyContract		= Modify contract
+EndDate 			= End date
+
+# validation
+NoHiringDate = You must select a hiring date
+
+# Types 
+IndefiniteDurationContract = IDC
+FixedTermContract = FTC
+LearningContract = Learning contract
+TrainingContract = Training contract
+ANAPEC = ANAPEC Contract
+ProfessionalContract = Professional contract
+
+
+
+
+
+# attestations
+MainTopTitleSetupCER  = Configuration du module attestations, Gestion des attestations des salariés
+MainTopTitleSetupSentenceCER = Nous allons avoir des configurations pour ce module dans les futures versions
+MainTopTitleCER 	 = Gestion des attestations des salariés
+ListOfCertificates= Liste des attestations
+ListOfCertificatesOfSalaries= Les attestations de salaire
+ListOfCertificatesOfWork=Les attestations de travail
+ListOfCertificatesOfTraining= Les attestations de stage
+Cancel = Annuler
+Approving = Approbateur
+Beneficiary = Bénéficiaire
+CertType = Type de certificat
+Downloading = Téléchargement
+Status = Statut
+DraftCP=Brouillon
+ToReviewCP=En attente d'approbation
+ApprovedCP=Approuvé
+CancelCP=Annulée
+RefuseCP=Refusée
+Create=Add
+DemandSalaryCert=Demander une attestation de salaire
+DemandWorkCert=Demander une attestation de travail
+FieldRequired = Veuillez remplir le champ %s
+TitleValidCS=Approuver la demande de l'attestation de salaire
+ConfirmValidCS=Êtes-vous sûr de vouloir approuver la demande de l'attestation de salaire ?
+TitleValidCW=Approuver la demande de l'attestation de travail
+ConfirmValidCW=Êtes-vous sûr de vouloir approuver la demande de l'attestation de travail ?
+TitleValidCT=Approuver la demande de l'attestation de stage
+ConfirmValidCT=Êtes-vous sûr de vouloir approuver la demande de l'attestation de stage ?
+DateValid=Date d'approbation
+TitleRefuseCS=Refuser la demande de l'attestation de travail
+ConfirmRefuseCS=Êtes-vous sûr de vouloir refuser la demande de l'attestation de travail ?
+TitleCancelCS=Annuler la demande de l'attestation de travail
+ConfirmCancelCS=Êtes-vous sûr de vouloir annuler la demande de l'attestation de travail ?
+DemandTrainingCert=Demander une attestation de stage
+ErrorAlreadyExist=L'attestation est déjà demandée
+From = du
+To = au
+TrainingCertletter = Je soussigné, <strong>%s</strong>, agissant en qualité de gérant de la société %s, atteste par la présente que <strong>%s</strong>, titulaire de la CIN N° <strong>%s</strong>, 
+TrainingCertletterRest = stagiaire de l'établissement <strong>%s</strong> option <u>« %s »</u>, a effectué avec assiduité un stage de fin de formation dans notre société %s.<br />
+La présente attestation est délivrée à l'intéressé, sur sa demande, pour servir et valoir ce que de droit.
+Signed = Signe
+Le = Le
+
+Export_Excel=Export Excel
+Addmedical=Ajouter Dossier médical
+TOTAL_DU_MONTANT=TOTAL DU MONTANT
+TOTAL_GENERAL=TOTAL GENERAL
+etat_pointage=etat_pointage
+etat_medical=etat_medical
+charge_mois_=Charges_Month
+Imprimer=Imprimer
+Not=Non
+Salary=Salaire
+
+Createmedical=Créer Dossier médical	
+CreateMedc=Créer Dossier médical
+Modifymedical=Modifier Dossier médical
+
+confirm=Confirm
+TitleDelete=Confirm
+msg_confirm=Are you sure you want to delete this ? 
+ConfirmDelete=Are you sure you want to delete this ? 

@@ -1,0 +1,30 @@
+# LANG PICKER MODULE - en_US
+#
+# Copyright (C) 2018 AXel
+
+#
+# Permissions
+#
+Permission443001 = Use Language Picker
+
+#
+# Generic
+#
+LangPicker = Language Picker
+LangPickerDesc = Add a dropdown list to dolibarr menu to switch language quickly
+Language = Language
+LangCode = Language Code
+SelectLanguage = Select a language
+Position = Position
+Up = Up
+Down = Down
+ConfirmDeleteLang = Are you sure that you want to delete this language?
+AddLangSuccess = Language added successfully!
+DeleteLangSuccess = Language deleted successfully!
+GeneralSettings = General Settings
+LanguageSettings = Language Settings
+HideLangPicker = Hide language picker from top menu
+LangPickerPosition = Position from the left or right end (in pixel)
+LoginPageSettings = Login Page Settings
+AddToLoginPage = Add to login page (the language list will contain all the available languages in Dolibarr)
+DefaultLangOnLoginPage = Default language on login page (language to use by default when no language is selected)

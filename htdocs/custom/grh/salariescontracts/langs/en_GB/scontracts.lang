@@ -1,0 +1,82 @@
+# Module label 'ModuleXXXName'
+# (where XXX is value of numeric property 'numero' of module)
+Module800000Name = Salary's contracts
+# Module description 'ModuleXXXDesc'
+# (where XXX is value of numeric property 'numero' of module)
+Module800000Desc = This module lets you create contracts for your salaries 
+
+#
+# Page d'administration
+#
+MyModuleSetup = Configuration of salary's contracts module
+Settings = Réglages
+MyModuleSetupPage = Settings for salary's contracts module
+
+#
+# Page À propos
+#
+About = About
+MyModuleAbout 				= About salary's contracts
+MyModuleAboutPage 			= About salary's contracts page
+MainTopTitleSetupCS  		= Configuration the ECM module, Employees contract management
+MainTopTitleSetupSentenceCS = We will have configurations for this module in future releases
+MainTopTitleCS  			= Employees contract management
+
+#
+# Page d'exemple
+#
+MyPageName = Salary's contracts
+ListOfSalaries = List of salaries
+New = New
+List = List
+NotActiveModSC = Salary's contracts module is disabled
+Error = Error
+Ref = Ref
+DateCreate = Creation's date
+Salary = Salary
+Type= Type
+HiringDate = Hiring date
+Search = Search
+RemoveFilter = Remove filtre
+AddSalarieContract = Add new contract
+Show = Display
+Card = File
+Document = Document
+ReturnSC = Return
+TitleDeleteSC=  Delete the contract
+ConfirmDeleteSC= Are you sure you want to delete the contract?
+TitleCancelSC= Cancel the contract
+ConfirmCancelSC= Are you sure you want to cancel the contract?
+User = User
+DescSC = Description
+OtherInfoSC = Other informations
+CreatedByCP = Created by
+SalarySignatureDateSC = Salary's signature
+ManagerSignatureDateSC = Director's signature
+DeclarationPriorToHiringSC = Declaration prior to hiring
+MedicalVisitSC 		= Medical visit
+UpdateButtonSC 		= Update
+EditSC 				= Modify
+DeleteSC 			= Delete
+ErrorUserViewSC		= You are not authorized to read this contract
+ErrorIDFicheSC		= An error happened, the contract does not exist
+ErrorCantDeleteSC	= Error, you are not authorized to delete the contract
+CantCreateSC 		= Error, you are not authorized to t create a contract
+MenuAddSC			= Create a contract
+ErrorTypeSc			= You have to choose a type for your contract
+SendRequestSC		= Create a contract
+JobContract			= Contract of work
+ContractDetail		= Details of contract
+ModifyContract		= Modify contract
+EndDate 			= End date
+
+# validation
+NoHiringDate = You must select a hiring date
+
+# Types 
+IndefiniteDurationContract = IDC
+FixedTermContract = FTC
+LearningContract = Learning contract
+TrainingContract = Training contract
+ANAPEC = ANAPEC Contract
+ProfessionalContract = Professional contract

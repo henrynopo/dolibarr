@@ -1,0 +1,126 @@
+[18-Dec-2022 09:16:03 Asia/Singapore] PHP Warning:  mysqli::__construct(): (08004/1040): Too many connections in /home/slyfoodc/public_html/dolibarr/core/db/mysqli.class.php on line 216
+[18-Dec-2022 09:16:03 Asia/Singapore] PHP Stack trace:
+[18-Dec-2022 09:16:03 Asia/Singapore] PHP   1. {main}() /home/slyfoodc/public_html/dolibarr/custom/recrutement/js/recrutement.js.php:0
+[18-Dec-2022 09:16:03 Asia/Singapore] PHP   2. include() /home/slyfoodc/public_html/dolibarr/custom/recrutement/js/recrutement.js.php:30
+[18-Dec-2022 09:16:03 Asia/Singapore] PHP   3. require_once() /home/slyfoodc/public_html/dolibarr/main.inc.php:302
+[18-Dec-2022 09:16:03 Asia/Singapore] PHP   4. getDoliDBInstance($type = 'mysqli', $host = 'localhost', $user = 'slyfoodc_doli744', $pass = 'QdBK9#28Rtn(', $name = 'slyfoodc_doli744', $port = '3306') /home/slyfoodc/public_html/dolibarr/master.inc.php:138
+[18-Dec-2022 09:16:03 Asia/Singapore] PHP   5. DoliDBMysqli->__construct($type = 'mysqli', $host = 'localhost', $user = 'slyfoodc_doli744', $pass = 'QdBK9#28Rtn(', $name = 'slyfoodc_doli744', $port = '3306') /home/slyfoodc/public_html/dolibarr/core/lib/functions.lib.php:84
+[18-Dec-2022 09:16:03 Asia/Singapore] PHP   6. DoliDBMysqli->connect($host = 'localhost', $login = 'slyfoodc_doli744', $passwd = 'QdBK9#28Rtn(', $name = '', $port = '3306') /home/slyfoodc/public_html/dolibarr/core/db/mysqli.class.php:93
+[18-Dec-2022 09:16:03 Asia/Singapore] PHP   7. mysqli->__construct($host = 'localhost', $user = 'slyfoodc_doli744', $password = 'QdBK9#28Rtn(', $database = '', $port = '3306') /home/slyfoodc/public_html/dolibarr/core/db/mysqli.class.php:216
+[18-Dec-2022 09:19:37 Asia/Singapore] PHP Warning:  mysqli::__construct(): (08004/1040): Too many connections in /home/slyfoodc/public_html/dolibarr/core/db/mysqli.class.php on line 216
+[18-Dec-2022 09:19:37 Asia/Singapore] PHP Stack trace:
+[18-Dec-2022 09:19:37 Asia/Singapore] PHP   1. {main}() /home/slyfoodc/public_html/dolibarr/custom/recrutement/js/recrutement.js.php:0
+[18-Dec-2022 09:19:37 Asia/Singapore] PHP   2. include() /home/slyfoodc/public_html/dolibarr/custom/recrutement/js/recrutement.js.php:30
+[18-Dec-2022 09:19:37 Asia/Singapore] PHP   3. require_once() /home/slyfoodc/public_html/dolibarr/main.inc.php:302
+[18-Dec-2022 09:19:37 Asia/Singapore] PHP   4. getDoliDBInstance($type = 'mysqli', $host = 'localhost', $user = 'slyfoodc_doli744', $pass = 'QdBK9#28Rtn(', $name = 'slyfoodc_doli744', $port = '3306') /home/slyfoodc/public_html/dolibarr/master.inc.php:138
+[18-Dec-2022 09:19:37 Asia/Singapore] PHP   5. DoliDBMysqli->__construct($type = 'mysqli', $host = 'localhost', $user = 'slyfoodc_doli744', $pass = 'QdBK9#28Rtn(', $name = 'slyfoodc_doli744', $port = '3306') /home/slyfoodc/public_html/dolibarr/core/lib/functions.lib.php:84
+[18-Dec-2022 09:19:37 Asia/Singapore] PHP   6. DoliDBMysqli->connect($host = 'localhost', $login = 'slyfoodc_doli744', $passwd = 'QdBK9#28Rtn(', $name = '', $port = '3306') /home/slyfoodc/public_html/dolibarr/core/db/mysqli.class.php:93
+[18-Dec-2022 09:19:37 Asia/Singapore] PHP   7. mysqli->__construct($host = 'localhost', $user = 'slyfoodc_doli744', $password = 'QdBK9#28Rtn(', $database = '', $port = '3306') /home/slyfoodc/public_html/dolibarr/core/db/mysqli.class.php:216
+[18-Dec-2022 09:30:47 Asia/Singapore] PHP Warning:  mysqli::__construct(): (08004/1040): Too many connections in /home/slyfoodc/public_html/dolibarr/core/db/mysqli.class.php on line 216
+[18-Dec-2022 09:30:47 Asia/Singapore] PHP Stack trace:
+[18-Dec-2022 09:30:47 Asia/Singapore] PHP   1. {main}() /home/slyfoodc/public_html/dolibarr/custom/recrutement/js/recrutement.js.php:0
+[18-Dec-2022 09:30:47 Asia/Singapore] PHP   2. include() /home/slyfoodc/public_html/dolibarr/custom/recrutement/js/recrutement.js.php:30
+[18-Dec-2022 09:30:47 Asia/Singapore] PHP   3. require_once() /home/slyfoodc/public_html/dolibarr/main.inc.php:302
+[18-Dec-2022 09:30:47 Asia/Singapore] PHP   4. getDoliDBInstance($type = 'mysqli', $host = 'localhost', $user = 'slyfoodc_doli744', $pass = 'QdBK9#28Rtn(', $name = 'slyfoodc_doli744', $port = '3306') /home/slyfoodc/public_html/dolibarr/master.inc.php:138
+[18-Dec-2022 09:30:47 Asia/Singapore] PHP   5. DoliDBMysqli->__construct($type = 'mysqli', $host = 'localhost', $user = 'slyfoodc_doli744', $pass = 'QdBK9#28Rtn(', $name = 'slyfoodc_doli744', $port = '3306') /home/slyfoodc/public_html/dolibarr/core/lib/functions.lib.php:84
+[18-Dec-2022 09:30:47 Asia/Singapore] PHP   6. DoliDBMysqli->connect($host = 'localhost', $login = 'slyfoodc_doli744', $passwd = 'QdBK9#28Rtn(', $name = '', $port = '3306') /home/slyfoodc/public_html/dolibarr/core/db/mysqli.class.php:93
+[18-Dec-2022 09:30:47 Asia/Singapore] PHP   7. mysqli->__construct($host = 'localhost', $user = 'slyfoodc_doli744', $password = 'QdBK9#28Rtn(', $database = '', $port = '3306') /home/slyfoodc/public_html/dolibarr/core/db/mysqli.class.php:216
+[18-Dec-2022 09:30:50 Asia/Singapore] PHP Warning:  mysqli::__construct(): (08004/1040): Too many connections in /home/slyfoodc/public_html/dolibarr/core/db/mysqli.class.php on line 216
+[18-Dec-2022 09:30:50 Asia/Singapore] PHP Stack trace:
+[18-Dec-2022 09:30:50 Asia/Singapore] PHP   1. {main}() /home/slyfoodc/public_html/dolibarr/custom/recrutement/js/recrutement.js.php:0
+[18-Dec-2022 09:30:50 Asia/Singapore] PHP   2. include() /home/slyfoodc/public_html/dolibarr/custom/recrutement/js/recrutement.js.php:30
+[18-Dec-2022 09:30:50 Asia/Singapore] PHP   3. require_once() /home/slyfoodc/public_html/dolibarr/main.inc.php:302
+[18-Dec-2022 09:30:50 Asia/Singapore] PHP   4. getDoliDBInstance($type = 'mysqli', $host = 'localhost', $user = 'slyfoodc_doli744', $pass = 'QdBK9#28Rtn(', $name = 'slyfoodc_doli744', $port = '3306') /home/slyfoodc/public_html/dolibarr/master.inc.php:138
+[18-Dec-2022 09:30:50 Asia/Singapore] PHP   5. DoliDBMysqli->__construct($type = 'mysqli', $host = 'localhost', $user = 'slyfoodc_doli744', $pass = 'QdBK9#28Rtn(', $name = 'slyfoodc_doli744', $port = '3306') /home/slyfoodc/public_html/dolibarr/core/lib/functions.lib.php:84
+[18-Dec-2022 09:30:50 Asia/Singapore] PHP   6. DoliDBMysqli->connect($host = 'localhost', $login = 'slyfoodc_doli744', $passwd = 'QdBK9#28Rtn(', $name = '', $port = '3306') /home/slyfoodc/public_html/dolibarr/core/db/mysqli.class.php:93
+[18-Dec-2022 09:30:50 Asia/Singapore] PHP   7. mysqli->__construct($host = 'localhost', $user = 'slyfoodc_doli744', $password = 'QdBK9#28Rtn(', $database = '', $port = '3306') /home/slyfoodc/public_html/dolibarr/core/db/mysqli.class.php:216
+[18-Dec-2022 09:34:06 Asia/Singapore] PHP Warning:  mysqli::__construct(): (08004/1040): Too many connections in /home/slyfoodc/public_html/dolibarr/core/db/mysqli.class.php on line 216
+[18-Dec-2022 09:34:06 Asia/Singapore] PHP Stack trace:
+[18-Dec-2022 09:34:06 Asia/Singapore] PHP   1. {main}() /home/slyfoodc/public_html/dolibarr/custom/recrutement/js/recrutement.js.php:0
+[18-Dec-2022 09:34:06 Asia/Singapore] PHP   2. include() /home/slyfoodc/public_html/dolibarr/custom/recrutement/js/recrutement.js.php:30
+[18-Dec-2022 09:34:06 Asia/Singapore] PHP   3. require_once() /home/slyfoodc/public_html/dolibarr/main.inc.php:302
+[18-Dec-2022 09:34:06 Asia/Singapore] PHP   4. getDoliDBInstance($type = 'mysqli', $host = 'localhost', $user = 'slyfoodc_doli744', $pass = 'QdBK9#28Rtn(', $name = 'slyfoodc_doli744', $port = '3306') /home/slyfoodc/public_html/dolibarr/master.inc.php:138
+[18-Dec-2022 09:34:06 Asia/Singapore] PHP   5. DoliDBMysqli->__construct($type = 'mysqli', $host = 'localhost', $user = 'slyfoodc_doli744', $pass = 'QdBK9#28Rtn(', $name = 'slyfoodc_doli744', $port = '3306') /home/slyfoodc/public_html/dolibarr/core/lib/functions.lib.php:84
+[18-Dec-2022 09:34:06 Asia/Singapore] PHP   6. DoliDBMysqli->connect($host = 'localhost', $login = 'slyfoodc_doli744', $passwd = 'QdBK9#28Rtn(', $name = '', $port = '3306') /home/slyfoodc/public_html/dolibarr/core/db/mysqli.class.php:93
+[18-Dec-2022 09:34:06 Asia/Singapore] PHP   7. mysqli->__construct($host = 'localhost', $user = 'slyfoodc_doli744', $password = 'QdBK9#28Rtn(', $database = '', $port = '3306') /home/slyfoodc/public_html/dolibarr/core/db/mysqli.class.php:216
+[18-Dec-2022 09:34:42 Asia/Singapore] PHP Warning:  mysqli::__construct(): (08004/1040): Too many connections in /home/slyfoodc/public_html/dolibarr/core/db/mysqli.class.php on line 216
+[18-Dec-2022 09:34:42 Asia/Singapore] PHP Stack trace:
+[18-Dec-2022 09:34:42 Asia/Singapore] PHP   1. {main}() /home/slyfoodc/public_html/dolibarr/custom/recrutement/js/recrutement.js.php:0
+[18-Dec-2022 09:34:42 Asia/Singapore] PHP   2. include() /home/slyfoodc/public_html/dolibarr/custom/recrutement/js/recrutement.js.php:30
+[18-Dec-2022 09:34:42 Asia/Singapore] PHP   3. require_once() /home/slyfoodc/public_html/dolibarr/main.inc.php:302
+[18-Dec-2022 09:34:42 Asia/Singapore] PHP   4. getDoliDBInstance($type = 'mysqli', $host = 'localhost', $user = 'slyfoodc_doli744', $pass = 'QdBK9#28Rtn(', $name = 'slyfoodc_doli744', $port = '3306') /home/slyfoodc/public_html/dolibarr/master.inc.php:138
+[18-Dec-2022 09:34:42 Asia/Singapore] PHP   5. DoliDBMysqli->__construct($type = 'mysqli', $host = 'localhost', $user = 'slyfoodc_doli744', $pass = 'QdBK9#28Rtn(', $name = 'slyfoodc_doli744', $port = '3306') /home/slyfoodc/public_html/dolibarr/core/lib/functions.lib.php:84
+[18-Dec-2022 09:34:42 Asia/Singapore] PHP   6. DoliDBMysqli->connect($host = 'localhost', $login = 'slyfoodc_doli744', $passwd = 'QdBK9#28Rtn(', $name = '', $port = '3306') /home/slyfoodc/public_html/dolibarr/core/db/mysqli.class.php:93
+[18-Dec-2022 09:34:42 Asia/Singapore] PHP   7. mysqli->__construct($host = 'localhost', $user = 'slyfoodc_doli744', $password = 'QdBK9#28Rtn(', $database = '', $port = '3306') /home/slyfoodc/public_html/dolibarr/core/db/mysqli.class.php:216
+[18-Dec-2022 09:34:43 Asia/Singapore] PHP Warning:  mysqli::__construct(): (08004/1040): Too many connections in /home/slyfoodc/public_html/dolibarr/core/db/mysqli.class.php on line 216
+[18-Dec-2022 09:34:43 Asia/Singapore] PHP Stack trace:
+[18-Dec-2022 09:34:43 Asia/Singapore] PHP   1. {main}() /home/slyfoodc/public_html/dolibarr/custom/recrutement/js/recrutement.js.php:0
+[18-Dec-2022 09:34:43 Asia/Singapore] PHP   2. include() /home/slyfoodc/public_html/dolibarr/custom/recrutement/js/recrutement.js.php:30
+[18-Dec-2022 09:34:43 Asia/Singapore] PHP   3. require_once() /home/slyfoodc/public_html/dolibarr/main.inc.php:302
+[18-Dec-2022 09:34:43 Asia/Singapore] PHP   4. getDoliDBInstance($type = 'mysqli', $host = 'localhost', $user = 'slyfoodc_doli744', $pass = 'QdBK9#28Rtn(', $name = 'slyfoodc_doli744', $port = '3306') /home/slyfoodc/public_html/dolibarr/master.inc.php:138
+[18-Dec-2022 09:34:43 Asia/Singapore] PHP   5. DoliDBMysqli->__construct($type = 'mysqli', $host = 'localhost', $user = 'slyfoodc_doli744', $pass = 'QdBK9#28Rtn(', $name = 'slyfoodc_doli744', $port = '3306') /home/slyfoodc/public_html/dolibarr/core/lib/functions.lib.php:84
+[18-Dec-2022 09:34:43 Asia/Singapore] PHP   6. DoliDBMysqli->connect($host = 'localhost', $login = 'slyfoodc_doli744', $passwd = 'QdBK9#28Rtn(', $name = '', $port = '3306') /home/slyfoodc/public_html/dolibarr/core/db/mysqli.class.php:93
+[18-Dec-2022 09:34:43 Asia/Singapore] PHP   7. mysqli->__construct($host = 'localhost', $user = 'slyfoodc_doli744', $password = 'QdBK9#28Rtn(', $database = '', $port = '3306') /home/slyfoodc/public_html/dolibarr/core/db/mysqli.class.php:216
+[18-Dec-2022 09:34:54 Asia/Singapore] PHP Warning:  mysqli::__construct(): (08004/1040): Too many connections in /home/slyfoodc/public_html/dolibarr/core/db/mysqli.class.php on line 216
+[18-Dec-2022 09:34:54 Asia/Singapore] PHP Stack trace:
+[18-Dec-2022 09:34:54 Asia/Singapore] PHP   1. {main}() /home/slyfoodc/public_html/dolibarr/custom/recrutement/js/recrutement.js.php:0
+[18-Dec-2022 09:34:54 Asia/Singapore] PHP   2. include() /home/slyfoodc/public_html/dolibarr/custom/recrutement/js/recrutement.js.php:30
+[18-Dec-2022 09:34:54 Asia/Singapore] PHP   3. require_once() /home/slyfoodc/public_html/dolibarr/main.inc.php:302
+[18-Dec-2022 09:34:54 Asia/Singapore] PHP   4. getDoliDBInstance($type = 'mysqli', $host = 'localhost', $user = 'slyfoodc_doli744', $pass = 'QdBK9#28Rtn(', $name = 'slyfoodc_doli744', $port = '3306') /home/slyfoodc/public_html/dolibarr/master.inc.php:138
+[18-Dec-2022 09:34:54 Asia/Singapore] PHP   5. DoliDBMysqli->__construct($type = 'mysqli', $host = 'localhost', $user = 'slyfoodc_doli744', $pass = 'QdBK9#28Rtn(', $name = 'slyfoodc_doli744', $port = '3306') /home/slyfoodc/public_html/dolibarr/core/lib/functions.lib.php:84
+[18-Dec-2022 09:34:54 Asia/Singapore] PHP   6. DoliDBMysqli->connect($host = 'localhost', $login = 'slyfoodc_doli744', $passwd = 'QdBK9#28Rtn(', $name = '', $port = '3306') /home/slyfoodc/public_html/dolibarr/core/db/mysqli.class.php:93
+[18-Dec-2022 09:34:54 Asia/Singapore] PHP   7. mysqli->__construct($host = 'localhost', $user = 'slyfoodc_doli744', $password = 'QdBK9#28Rtn(', $database = '', $port = '3306') /home/slyfoodc/public_html/dolibarr/core/db/mysqli.class.php:216
+[18-Dec-2022 09:36:16 Asia/Singapore] PHP Warning:  mysqli::__construct(): (08004/1040): Too many connections in /home/slyfoodc/public_html/dolibarr/core/db/mysqli.class.php on line 216
+[18-Dec-2022 09:36:16 Asia/Singapore] PHP Stack trace:
+[18-Dec-2022 09:36:16 Asia/Singapore] PHP   1. {main}() /home/slyfoodc/public_html/dolibarr/custom/recrutement/js/recrutement.js.php:0
+[18-Dec-2022 09:36:16 Asia/Singapore] PHP   2. include() /home/slyfoodc/public_html/dolibarr/custom/recrutement/js/recrutement.js.php:30
+[18-Dec-2022 09:36:16 Asia/Singapore] PHP   3. require_once() /home/slyfoodc/public_html/dolibarr/main.inc.php:302
+[18-Dec-2022 09:36:16 Asia/Singapore] PHP   4. getDoliDBInstance($type = 'mysqli', $host = 'localhost', $user = 'slyfoodc_doli744', $pass = 'QdBK9#28Rtn(', $name = 'slyfoodc_doli744', $port = '3306') /home/slyfoodc/public_html/dolibarr/master.inc.php:138
+[18-Dec-2022 09:36:16 Asia/Singapore] PHP   5. DoliDBMysqli->__construct($type = 'mysqli', $host = 'localhost', $user = 'slyfoodc_doli744', $pass = 'QdBK9#28Rtn(', $name = 'slyfoodc_doli744', $port = '3306') /home/slyfoodc/public_html/dolibarr/core/lib/functions.lib.php:84
+[18-Dec-2022 09:36:16 Asia/Singapore] PHP   6. DoliDBMysqli->connect($host = 'localhost', $login = 'slyfoodc_doli744', $passwd = 'QdBK9#28Rtn(', $name = '', $port = '3306') /home/slyfoodc/public_html/dolibarr/core/db/mysqli.class.php:93
+[18-Dec-2022 09:36:16 Asia/Singapore] PHP   7. mysqli->__construct($host = 'localhost', $user = 'slyfoodc_doli744', $password = 'QdBK9#28Rtn(', $database = '', $port = '3306') /home/slyfoodc/public_html/dolibarr/core/db/mysqli.class.php:216
+[18-Dec-2022 09:42:32 Asia/Singapore] PHP Warning:  mysqli::__construct(): (08004/1040): Too many connections in /home/slyfoodc/public_html/dolibarr/core/db/mysqli.class.php on line 216
+[18-Dec-2022 09:42:32 Asia/Singapore] PHP Stack trace:
+[18-Dec-2022 09:42:32 Asia/Singapore] PHP   1. {main}() /home/slyfoodc/public_html/dolibarr/custom/recrutement/js/recrutement.js.php:0
+[18-Dec-2022 09:42:32 Asia/Singapore] PHP   2. include() /home/slyfoodc/public_html/dolibarr/custom/recrutement/js/recrutement.js.php:30
+[18-Dec-2022 09:42:32 Asia/Singapore] PHP   3. require_once() /home/slyfoodc/public_html/dolibarr/main.inc.php:302
+[18-Dec-2022 09:42:32 Asia/Singapore] PHP   4. getDoliDBInstance($type = 'mysqli', $host = 'localhost', $user = 'slyfoodc_doli744', $pass = 'QdBK9#28Rtn(', $name = 'slyfoodc_doli744', $port = '3306') /home/slyfoodc/public_html/dolibarr/master.inc.php:138
+[18-Dec-2022 09:42:32 Asia/Singapore] PHP   5. DoliDBMysqli->__construct($type = 'mysqli', $host = 'localhost', $user = 'slyfoodc_doli744', $pass = 'QdBK9#28Rtn(', $name = 'slyfoodc_doli744', $port = '3306') /home/slyfoodc/public_html/dolibarr/core/lib/functions.lib.php:84
+[18-Dec-2022 09:42:32 Asia/Singapore] PHP   6. DoliDBMysqli->connect($host = 'localhost', $login = 'slyfoodc_doli744', $passwd = 'QdBK9#28Rtn(', $name = '', $port = '3306') /home/slyfoodc/public_html/dolibarr/core/db/mysqli.class.php:93
+[18-Dec-2022 09:42:32 Asia/Singapore] PHP   7. mysqli->__construct($host = 'localhost', $user = 'slyfoodc_doli744', $password = 'QdBK9#28Rtn(', $database = '', $port = '3306') /home/slyfoodc/public_html/dolibarr/core/db/mysqli.class.php:216
+[18-Dec-2022 09:52:04 Asia/Singapore] PHP Warning:  mysqli::__construct(): (08004/1040): Too many connections in /home/slyfoodc/public_html/dolibarr/core/db/mysqli.class.php on line 216
+[18-Dec-2022 09:52:04 Asia/Singapore] PHP Stack trace:
+[18-Dec-2022 09:52:04 Asia/Singapore] PHP   1. {main}() /home/slyfoodc/public_html/dolibarr/custom/recrutement/js/recrutement.js.php:0
+[18-Dec-2022 09:52:04 Asia/Singapore] PHP   2. include() /home/slyfoodc/public_html/dolibarr/custom/recrutement/js/recrutement.js.php:30
+[18-Dec-2022 09:52:04 Asia/Singapore] PHP   3. require_once() /home/slyfoodc/public_html/dolibarr/main.inc.php:302
+[18-Dec-2022 09:52:04 Asia/Singapore] PHP   4. getDoliDBInstance($type = 'mysqli', $host = 'localhost', $user = 'slyfoodc_doli744', $pass = 'QdBK9#28Rtn(', $name = 'slyfoodc_doli744', $port = '3306') /home/slyfoodc/public_html/dolibarr/master.inc.php:138
+[18-Dec-2022 09:52:04 Asia/Singapore] PHP   5. DoliDBMysqli->__construct($type = 'mysqli', $host = 'localhost', $user = 'slyfoodc_doli744', $pass = 'QdBK9#28Rtn(', $name = 'slyfoodc_doli744', $port = '3306') /home/slyfoodc/public_html/dolibarr/core/lib/functions.lib.php:84
+[18-Dec-2022 09:52:04 Asia/Singapore] PHP   6. DoliDBMysqli->connect($host = 'localhost', $login = 'slyfoodc_doli744', $passwd = 'QdBK9#28Rtn(', $name = '', $port = '3306') /home/slyfoodc/public_html/dolibarr/core/db/mysqli.class.php:93
+[18-Dec-2022 09:52:04 Asia/Singapore] PHP   7. mysqli->__construct($host = 'localhost', $user = 'slyfoodc_doli744', $password = 'QdBK9#28Rtn(', $database = '', $port = '3306') /home/slyfoodc/public_html/dolibarr/core/db/mysqli.class.php:216
+[19-Dec-2022 00:49:30 Asia/Singapore] PHP Warning:  mysqli::__construct(): (08004/1040): Too many connections in /home/slyfoodc/public_html/dolibarr/core/db/mysqli.class.php on line 216
+[19-Dec-2022 00:49:30 Asia/Singapore] PHP Stack trace:
+[19-Dec-2022 00:49:30 Asia/Singapore] PHP   1. {main}() /home/slyfoodc/public_html/dolibarr/custom/recrutement/js/recrutement.js.php:0
+[19-Dec-2022 00:49:30 Asia/Singapore] PHP   2. include() /home/slyfoodc/public_html/dolibarr/custom/recrutement/js/recrutement.js.php:30
+[19-Dec-2022 00:49:30 Asia/Singapore] PHP   3. require_once() /home/slyfoodc/public_html/dolibarr/main.inc.php:302
+[19-Dec-2022 00:49:30 Asia/Singapore] PHP   4. getDoliDBInstance($type = 'mysqli', $host = 'localhost', $user = 'slyfoodc_doli744', $pass = 'QdBK9#28Rtn(', $name = 'slyfoodc_doli744', $port = '3306') /home/slyfoodc/public_html/dolibarr/master.inc.php:138
+[19-Dec-2022 00:49:30 Asia/Singapore] PHP   5. DoliDBMysqli->__construct($type = 'mysqli', $host = 'localhost', $user = 'slyfoodc_doli744', $pass = 'QdBK9#28Rtn(', $name = 'slyfoodc_doli744', $port = '3306') /home/slyfoodc/public_html/dolibarr/core/lib/functions.lib.php:84
+[19-Dec-2022 00:49:30 Asia/Singapore] PHP   6. DoliDBMysqli->connect($host = 'localhost', $login = 'slyfoodc_doli744', $passwd = 'QdBK9#28Rtn(', $name = '', $port = '3306') /home/slyfoodc/public_html/dolibarr/core/db/mysqli.class.php:93
+[19-Dec-2022 00:49:30 Asia/Singapore] PHP   7. mysqli->__construct($host = 'localhost', $user = 'slyfoodc_doli744', $password = 'QdBK9#28Rtn(', $database = '', $port = '3306') /home/slyfoodc/public_html/dolibarr/core/db/mysqli.class.php:216
+[19-Dec-2022 00:53:58 Asia/Singapore] PHP Warning:  mysqli::__construct(): (08004/1040): Too many connections in /home/slyfoodc/public_html/dolibarr/core/db/mysqli.class.php on line 216
+[19-Dec-2022 00:53:58 Asia/Singapore] PHP Stack trace:
+[19-Dec-2022 00:53:58 Asia/Singapore] PHP   1. {main}() /home/slyfoodc/public_html/dolibarr/custom/recrutement/js/recrutement.js.php:0
+[19-Dec-2022 00:53:58 Asia/Singapore] PHP   2. include() /home/slyfoodc/public_html/dolibarr/custom/recrutement/js/recrutement.js.php:30
+[19-Dec-2022 00:53:58 Asia/Singapore] PHP   3. require_once() /home/slyfoodc/public_html/dolibarr/main.inc.php:302
+[19-Dec-2022 00:53:58 Asia/Singapore] PHP   4. getDoliDBInstance($type = 'mysqli', $host = 'localhost', $user = 'slyfoodc_doli744', $pass = 'QdBK9#28Rtn(', $name = 'slyfoodc_doli744', $port = '3306') /home/slyfoodc/public_html/dolibarr/master.inc.php:138
+[19-Dec-2022 00:53:58 Asia/Singapore] PHP   5. DoliDBMysqli->__construct($type = 'mysqli', $host = 'localhost', $user = 'slyfoodc_doli744', $pass = 'QdBK9#28Rtn(', $name = 'slyfoodc_doli744', $port = '3306') /home/slyfoodc/public_html/dolibarr/core/lib/functions.lib.php:84
+[19-Dec-2022 00:53:58 Asia/Singapore] PHP   6. DoliDBMysqli->connect($host = 'localhost', $login = 'slyfoodc_doli744', $passwd = 'QdBK9#28Rtn(', $name = '', $port = '3306') /home/slyfoodc/public_html/dolibarr/core/db/mysqli.class.php:93
+[19-Dec-2022 00:53:58 Asia/Singapore] PHP   7. mysqli->__construct($host = 'localhost', $user = 'slyfoodc_doli744', $password = 'QdBK9#28Rtn(', $database = '', $port = '3306') /home/slyfoodc/public_html/dolibarr/core/db/mysqli.class.php:216
+[20-Dec-2022 14:01:02 Asia/Singapore] PHP Warning:  mysqli::__construct(): (08004/1040): Too many connections in /home/slyfoodc/public_html/dolibarr/core/db/mysqli.class.php on line 216
+[20-Dec-2022 14:01:02 Asia/Singapore] PHP Stack trace:
+[20-Dec-2022 14:01:02 Asia/Singapore] PHP   1. {main}() /home/slyfoodc/public_html/dolibarr/custom/recrutement/js/recrutement.js.php:0
+[20-Dec-2022 14:01:02 Asia/Singapore] PHP   2. include() /home/slyfoodc/public_html/dolibarr/custom/recrutement/js/recrutement.js.php:30
+[20-Dec-2022 14:01:02 Asia/Singapore] PHP   3. require_once() /home/slyfoodc/public_html/dolibarr/main.inc.php:302
+[20-Dec-2022 14:01:02 Asia/Singapore] PHP   4. getDoliDBInstance($type = 'mysqli', $host = 'localhost', $user = 'slyfoodc_doli744', $pass = 'QdBK9#28Rtn(', $name = 'slyfoodc_doli744', $port = '3306') /home/slyfoodc/public_html/dolibarr/master.inc.php:138
+[20-Dec-2022 14:01:02 Asia/Singapore] PHP   5. DoliDBMysqli->__construct($type = 'mysqli', $host = 'localhost', $user = 'slyfoodc_doli744', $pass = 'QdBK9#28Rtn(', $name = 'slyfoodc_doli744', $port = '3306') /home/slyfoodc/public_html/dolibarr/core/lib/functions.lib.php:84
+[20-Dec-2022 14:01:02 Asia/Singapore] PHP   6. DoliDBMysqli->connect($host = 'localhost', $login = 'slyfoodc_doli744', $passwd = 'QdBK9#28Rtn(', $name = '', $port = '3306') /home/slyfoodc/public_html/dolibarr/core/db/mysqli.class.php:93
+[20-Dec-2022 14:01:02 Asia/Singapore] PHP   7. mysqli->__construct($host = 'localhost', $user = 'slyfoodc_doli744', $password = 'QdBK9#28Rtn(', $database = '', $port = '3306') /home/slyfoodc/public_html/dolibarr/core/db/mysqli.class.php:216
