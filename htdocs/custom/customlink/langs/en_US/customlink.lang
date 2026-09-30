@@ -1,0 +1,129 @@
+# Dolibarr language file - en_US - customlink
+CHARSET=UTF-8
+
+## ADMIN INFOS
+##ADMIN
+NothingToSetup=Activate the module to access the configuration page
+GeneralSetup=General setup
+PatasTools=Patas-m tools
+PatasToolsNews=Find here the information from patas-monkey.com (requires an internet connection)
+PatasMonkeyPresent=This module is a creation of the PataS-Monkey, a documentation of it is available on our site
+MoreModulesLink=You can find all our developments on dolistore
+SettingIsOnToolsMenu=The module does not require any particular configuration.<br/> Its features are accessible from the main menu 'Tools Patas-M'.
+BackToModuleList=Back to the modules list
+NewVersionAviable=A new version of the module is available
+NumberVersion=Version
+MonthVersion=Month of publication
+ChangesVersion=Main changes made
+
+##ABOUT
+About=About
+Slogan=Development, support and training for Dolibarr
+LienModules=Our modules
+LienServices=Our services
+LienDoc=Our documentation
+LienDolistore=Find our other modules
+Changelog=Module change
+SupportModuleInformation=Technical informations
+SupportModuleInformationDesc=This information is useful and may be asked if you meet a bug in the operation of the module.
+
+DolibarrVersion=Dolibarr version
+ModuleVersion=Module version
+PHPVersion=PHP version
+DatabaseVersion=Database version
+WebServerVersion=Web server version
+
+##EXTRAFIELDS
+Extrafield=Additional fields
+
+InfoCustomLinkModules=Advanced management of links between elements
+CustomlinkSetup=Customlink module configuration
+CustomLink=Customlink
+CreateLink=New link
+CreateCustomLink=New connection
+CustomLinkArea=Customlink area
+SearchLink=Search for a link
+SearchTag=Search for a tag
+TagLink=Affected tag
+SearchContact=Search for contact
+SearchVentilation=Search for ventilation
+ListOfLinks=List of links
+CreateTag=New tag
+ListOfTags=List of tags
+Target=Destination
+ListOfContacts=Related contacts
+ExternalContact=External contacts
+ListOfUsers=Linked users
+NbOfLink=Number
+NbOfTag=Number of tags
+UpdateLink=Edit
+DeleteLink=To delete
+SourceRef=Original reference
+TargetRef=Reference linked
+AddNewLink=Add a new link
+AddNewTag=Add a new tag
+JoinElement=Join
+ElementType=Element
+AssociatedElement=Associated elements
+TypeOfAssociation=Association type
+TypeOfLink=Ventilation type
+RefOfLink=Reference link
+FournishBill=Invoice
+CustomerBill=Customer invoice
+FactoryOF=Factory manufacturing
+invoice_supplier=Invoice
+order_supplier=Control supplier
+propal=Commercial proposition
+DateVentilation=Ventilation date
+DateBuildOF=Manufacturing
+commande=Customer order
+facture=Customer invoice
+InvoiceDivision=Ventilation
+CustomerBillAdd=Customer invoice to reach
+FournishBillAdd=Supplier invoice to reach
+ListOfVentiledBillsInput=List of incoming ventilated invoices
+ListOfVentiledBillsOutput=Outgoing ventilation list
+DictOfSocieteContact=Type of corporate contacts
+MarginOnVentilation=Ventilated additional costs
+ListOfVentilations=Supplier ventilation
+AddNewVentilation=Creation of a new ventilation
+LastNewLinks=Latest links added
+LastNewTags=Latest added tags
+factureBrief=Fact.customer
+supplier_proposal=Price request
+invoice_supplierBrief=Fact.Four.
+factoryBrief=Factory of
+shipping=Dispatch
+project_task=Task
+TicketSup=Ticket
+
+MembersListOfTiers=Third party members
+ElementTags=Elements tags
+LinkedSociety=Related company (s)
+ExternalBills=Associated customer invoices
+ExternalSupplierBills=Associated supplier invoices
+ErrorRefNotFound=Reference to associate not found %s
+
+Shipping=Dispatch
+desc=Functionality
+Value=Selection
+NumberVersion=Version
+MonthVersion=Month of publishing
+ChangesVersion=Main changes in the version
+CreateCustomTag=New tag
+Join=Save
+BackToModuleList=Back to the modules list
+CustomlinkGeneralSetting=general settings
+
+## Feature toggles (setup)
+CUSTOMLINK_FeatureToggles=Feature toggles
+CUSTOMLINK_EnableTagFeature=Enable Tag feature
+CUSTOMLINK_EnableLinkFeature=Enable Link feature
+CUSTOMLINK_EnableTagFeatureDesc=Allow creating and managing tags on elements (labels).
+CUSTOMLINK_EnableLinkFeatureDesc=Allow creating and managing links between elements.
+CUSTOMLINK_FeatureDisabledInSetup=This feature is disabled in module setup.
+CUSTOMLINK_AllowedLinkTypes=Allowed link target types
+CUSTOMLINK_AllowedLinkTypesDesc=Select which element types can be chosen when adding a link. Leave all unchecked to allow all types.
+CUSTOMLINK_NoElementTypes=No element types available in database.
+CUSTOMLINK_LinkNotAllowedByRules=This link is not allowed by the current rules (e.g. only one PO per SO, one SO per shipment).
+Parameter=Parameter

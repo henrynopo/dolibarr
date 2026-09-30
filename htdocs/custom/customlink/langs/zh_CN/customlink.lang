@@ -1,0 +1,129 @@
+# Dolibarr language file - zh_CN (简体中文) - customlink
+CHARSET=UTF-8
+
+## ADMIN INFOS
+##ADMIN
+NothingToSetup=请先启用模块以访问配置页
+GeneralSetup=常规设置
+PatasTools=Patas-m 工具
+PatasToolsNews=此处可查看 patas-monkey.com 的信息（需联网）
+PatasMonkeyPresent=本模块由 PataS-Monkey 开发，文档见其官网
+MoreModulesLink=可在 dolistore 找到我们更多模块
+SettingIsOnToolsMenu=本模块无需额外配置。<br/> 功能可从主菜单「Tools Patas-M」进入。
+BackToModuleList=返回模块列表
+NewVersionAviable=有新版本可用
+NumberVersion=版本
+MonthVersion=发布日期
+ChangesVersion=主要变更
+
+##ABOUT
+About=关于
+Slogan=Dolibarr 开发、支持与培训
+LienModules=我们的模块
+LienServices=我们的服务
+LienDoc=我们的文档
+LienDolistore=查找我们其他模块
+Changelog=模块更新日志
+SupportModuleInformation=技术信息
+SupportModuleInformationDesc=遇到问题时可能需要提供上述信息。
+
+DolibarrVersion=Dolibarr 版本
+ModuleVersion=模块版本
+PHPVersion=PHP 版本
+DatabaseVersion=数据库版本
+WebServerVersion=Web 服务器版本
+
+##EXTRAFIELDS
+Extrafield=附加字段
+
+InfoCustomLinkModules=元素间链接与标签的高级管理
+CustomlinkSetup=Customlink 模块配置
+CustomLink=自定义链接
+CreateLink=新建链接
+CreateCustomLink=新建关联
+CustomLinkArea=自定义链接区域
+SearchLink=搜索链接
+SearchTag=搜索标签
+TagLink=所属标签
+SearchContact=搜索联系人
+SearchVentilation=搜索分摊
+ListOfLinks=链接列表
+CreateTag=新建标签
+ListOfTags=标签列表
+Target=目标
+ListOfContacts=相关联系人
+ExternalContact=外部联系人
+ListOfUsers=关联用户
+NbOfLink=数量
+NbOfTag=标签数量
+UpdateLink=编辑
+DeleteLink=删除
+SourceRef=原始参考
+TargetRef=关联参考
+AddNewLink=添加新链接
+AddNewTag=添加新标签
+JoinElement=关联
+ElementType=元素类型
+AssociatedElement=关联元素
+TypeOfAssociation=关联类型
+TypeOfLink=分摊类型
+RefOfLink=链接参考
+FournishBill=发票
+CustomerBill=客户发票
+FactoryOF=生产订单
+invoice_supplier=供应商发票
+order_supplier=采购订单
+propal=商业报价
+DateVentilation=分摊日期
+DateBuildOF=生产
+commande=销售订单
+facture=客户发票
+InvoiceDivision=分摊
+CustomerBillAdd=待开客户发票
+FournishBillAdd=待开供应商发票
+ListOfVentiledBillsInput=已分摊进项发票列表
+ListOfVentiledBillsOutput=已分摊出项列表
+DictOfSocieteContact=公司联系人类型
+MarginOnVentilation=分摊附加成本
+ListOfVentilations=供应商分摊
+AddNewVentilation=新建分摊
+LastNewLinks=最近添加的链接
+LastNewTags=最近添加的标签
+factureBrief=客户发票
+supplier_proposal=询价单
+invoice_supplierBrief=供应商发票
+factoryBrief=生产
+shipping=发运
+project_task=项目任务
+TicketSup=工单
+
+MembersListOfTiers=第三方成员
+ElementTags=元素标签
+LinkedSociety=关联公司
+ExternalBills=关联客户发票
+ExternalSupplierBills=关联供应商发票
+ErrorRefNotFound=未找到要关联的参考 %s
+
+Shipping=发运
+desc=功能
+Value=选择
+NumberVersion=版本
+MonthVersion=发布日期
+ChangesVersion=版本主要变更
+CreateCustomTag=新建标签
+Join=保存
+BackToModuleList=返回模块列表
+CustomlinkGeneralSetting=常规设置
+
+## Feature toggles (setup)
+CUSTOMLINK_FeatureToggles=功能开关
+CUSTOMLINK_EnableTagFeature=启用标签功能
+CUSTOMLINK_EnableLinkFeature=启用链接功能
+CUSTOMLINK_EnableTagFeatureDesc=允许在元素上创建和管理标签。
+CUSTOMLINK_EnableLinkFeatureDesc=允许在元素之间创建和管理链接。
+CUSTOMLINK_FeatureDisabledInSetup=该功能已在模块设置中关闭。
+CUSTOMLINK_AllowedLinkTypes=允许的链接目标类型
+CUSTOMLINK_AllowedLinkTypesDesc=选择在添加链接时可选的对象类型。全部不勾选表示允许所有类型。
+CUSTOMLINK_NoElementTypes=数据库中无可用对象类型。
+CUSTOMLINK_LinkNotAllowedByRules=当前规则不允许此关联（例如：每个销售订单仅能关联一个采购订单，每个发货单仅能关联一个销售订单和一张发票）。
+Parameter=参数
