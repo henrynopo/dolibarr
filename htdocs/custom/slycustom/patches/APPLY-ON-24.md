@@ -204,3 +204,65 @@ git apply --ignore-whitespace htdocs/custom/slycustom/patches/sly24.0-langs.patc
 - `fourn/facture/card.php`：付款条件 `filtertype=1`（两处）
 
 **已核实为官方吸收、无需补回的假丢失**：commande/index.php 与 compta/index.php 的多币种金额列（官方原生 multicurrency 版）、fourn/commande/card.php 的 `$defaultlang` PDF 语言与 filtertype 下拉、`showdocuments` 传参、`form_conditions_reglement` filtertype（官方版已带）。
+
+---
+
+## 五、SLY24.0.1 分支实际应用记录（2026-09-30 升级）
+
+本次升级基线：upstream tag `24.0.1`（commit `b7958385f00`），分支 `SLY24.0.1`。
+
+工作方式：在 `../dolibarr-SLY24` 新建 worktree → 干净 24.0.1 工作树 → 按上文第二节顺序应用全部 17 个 patch → 迁移 20 个 SLY 自研模块。
+
+### 5.1 应用批次与 commit hash
+
+| 批 | commit | 内容 | 改动数 |
+|---|---|---|---|
+| A | `7ed0319693a` | sly24.0-core + sly24.0-menu-parent-match | 21 文件 / +1056 / -152 |
+| B | `dc59edbcaaa` | sly24.0-compta-multicurrency + sly24.0-remx | 10 文件 / +1507 / -782 |
+| C | `65cfe5237ed` | sly24.0-commande + sly24.0-fourn-linkedobject + sly24.0-comm-propal-linkedobject | 14 文件 / +858 / -297 |
+| D | `e70c9bb0aa5` | sly24.0-admin + sly24.0-api + sly24.0-misc-cron-other + sly24.0-other-modules | 43 文件 / +940 / -397 |
+| E | `6e915c0a0a9` | sly24.0-bank-treso + sly24.0-invoice-list-source-order-position + sly24.0-supplier-invoice-list-source-order-position + sly24.0-facture-pdf-fallback + sly24.0-accountancy-sfrs + sly24.0-langs | 15 文件 / +966 / -29 |
+
+**17 个 patch 全部 `--check --ignore-whitespace` 干净通过**，**php -l 抽检全过**。
+唯一警告：compta-multicurrency.patch 与 langs 补丁的少数行有 trailing whitespace / CRLF，对应用与语法检查无影响。
+
+### 5.2 与「§四 冲突裁决记录」一致性的实际验证
+
+从干净 24.0.1 出发，`git apply --check --ignore-whitespace` 全部 17 个 patch 均无冲突，
+证明 §四 记录的「32 文件 123 冲突块」全部已在生成 24 版 patch 时人工裁决干净，**`--check` 阶段零冲突 = 上游 tag 24.0.1 与 sly24.0-*.patch 系列当前一致**。
+
+§四的「3way 静默丢失补回」共 7 处（commande/card.php、commande/list.php、cron/list.php、
+core/lib/functions.lib.php、core/tpl/object_discounts.tpl.php、
+html.form.class.php::form_remise_dispo()、fourn/commande/card.php、
+fourn/facture/card.php）——已在 24 版 patch 内全部保留（抽检 git diff 24.0.1..HEAD 对应位置
+均可命中相关 `// SLY` 注释与多币种块）。
+
+### 5.3 SLY 自研模块迁移
+
+| 阶段 | commit | 模块 | 必修 |
+|---|---|---|---|
+| 低风险 | `47757afe1f9` | docsemployes, ecv, grh, langpicker, listincsv, previewdocuments, recrutement, rubis, tos, totp2fa | — |
+| 中风险 | `670838ef2ff` | changetiers, customlink, mydoli, strongauth, sgpayroll, odooconnector | strongauth 需 `composer install` |
+| 高风险 | `78d112ea204` | embeddedbookkeeping, supplierorderfromorder, sfrs_reports | supplierorderfromorder/cbn.php:860 + ordercustomer.php:1673 `'s.fournisseur = 1'` → `'(s.fournisseur:=:1)'` |
+| slycustom | `b38f50fb28c` | slycustom 2.2.19 → 2.3.0（need_dolibarr_version 14 → 24） | — |
+
+### 5.4 仓库基础设施调整
+
+- `htdocs/custom/.gitignore`：从 SLY22.0.4 复制白名单版本（v24 上游 `/*` + `!README.md` + `!index.html` 会忽略全部 SLY 模块）
+- 全部 20 个 custom 模块入口已被 git 追踪
+
+### 5.5 tag 与推送
+
+- tag: `SLY24.0.1`（annotated）
+- 推送目标：fork `henrynopo/dolibarr`
+- SLY22.0.4 分支保持不变，d-test22 / 生产 22 部署不受影响
+
+### 5.6 d-test24 验证待办（仅代码层面升级完成，部署验证为下一阶段）
+
+1. `conf/conf.php` 加 `$dolibarr_main_restrict_eval_methods`（含 `isset/empty/array_sum` 等）
+2. Setup → Other Setup 加 `MAIN_STATISTICS_IN_MENU=1` 和 `MAIN_CURRENCY_SYMBOL_BEFORE_VALUE=1`
+3. 启用 slycustom 模块（need_dolibarr_version=24.0 校验）
+4. slycustom 设置页 → Sync PDF models / Sync menu icons / Sync boxes
+5. supplierorderfromorder 必修后 CBN/PO-from-SO 页面不再白屏
+6. sfrs_reports 多币种列显示非 NULL（依赖 sly24.0-accountancy-sfrs.patch hook）
+7. shipment ETA/ATD 计算列在 en_SG 语言下显示数字而非错误文本
