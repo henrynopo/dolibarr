@@ -1,0 +1,114 @@
+# EmbeddedBookkeeping module - English
+# Copyright (C) 2026
+
+ModuleEmbeddedBookkeepingName=EmbeddedBookkeeping
+ModuleEmbeddedBookkeepingDesc=Record bookkeeping entries directly from invoice cards (Xero/Odoo style), with optional AI account suggestion. Reuses llx_accounting_bookkeeping entirely — no schema changes, no core modifications. Compatible with Dolibarr 14.0 .. 22.0.x.
+EmbeddedBookkeepingDescriptionLong=EmbeddedBookkeeping adds two buttons to customer and supplier invoice cards: "Record bookkeeping" (manual debit/credit entry) and "AI suggest entries" (LLM-assisted account pick). Both flows share a confirmation modal and produce a single balanced journal entry (one piece_num, two bookkeeping rows). AI provider can be the native Dolibarr ai module (chatgpt/groq/mistral/custom) or a direct Anthropic Claude Messages API call. All output is human-confirmed; nothing is auto-posted on invoice validation.
+Module500200Name=EmbeddedBookkeeping
+Module500200Desc=Record bookkeeping entries directly from invoice cards (Xero/Odoo style), with optional AI account suggestion. Compatible with Dolibarr 14.0 .. 22.0.x.
+
+# Buttons
+EBKRecordBookkeeping=Record bookkeeping
+EBKAiSuggestEntries=AI suggest entries
+EBKAlreadyBookkeepingShort=Bookkeeping posted
+EBKAiSuggestShort=AI suggest
+
+# Modal
+EBKConfirmTitle=Confirm bookkeeping entry
+EBKDebitAccount=Debit account
+EBKCreditAccount=Credit account
+EBKAmount=Amount (TTC)
+EBKLabel=Operation label
+EBKCurrency=Currency
+EBKConfirmSave=Save
+
+# Outcomes
+EBKBookkeepingCreated=Bookkeeping entry #%s recorded.
+EBKAlreadyBookkeeping=Bookkeeping already posted for this invoice. Open it from Accounting → Bookkeeping → list.
+
+# Tab (1.1.0)
+EBKTabTitle=Accounting entries
+EBKTabButton=Bookkeeping
+EBKTabViewBookkeeping=View bookkeeping
+EBKTabLineAccount=Account per invoice line
+EBKTabAccountStatusBound=Bound
+EBKTabAccountStatusSuggested=Suggested
+EBKTabAccountStatusMissing=Missing
+EBKTabUnboundWarning=Some lines have no accounting account (neither bound in ventilation nor derivable from product/defaults). They must be set manually in the entry below, or bound first in Accounting → Ventilation.
+EBKTabEntryPreview=Journal entry
+EBKTabAccountingDate=Accounting date
+EBKTabDateDocument=Document date
+EBKTabDateDue=Payment due date
+EBKTabDateToday=Today
+EBKTabDateValid=Validation date
+EBKTabDateApprove=Approval date
+EBKTabDatePayment=Payment date
+EBKTabDateIncotermShipment=Recognition date - Incoterm %s (shipment)
+EBKTabDateIncotermDelivery=Recognition date - Incoterm %s (delivery)
+EBKTabDateIncotermShipmentShort=Incoterm shipment date
+EBKTabDateIncotermDeliveryShort=Incoterm delivery date
+EBKTabDateSource=Source invoice date
+EBKSetupDateCustomer=Default accounting date - customer invoices
+EBKSetupDateSupplier=Default accounting date - supplier invoices
+EBKSetupDateExpense=Default accounting date - expense reports
+EBKSetupDateDeposit=Default accounting date - deposit invoices
+EBKSetupDateCreditNote=Default accounting date - credit notes
+EBKSetupDateReplacement=Default accounting date - replacement invoices
+EBKTabTotals=Totals
+EBKTabRecordEntry=Record entry
+EBKTabAiPrefill=AI prefill
+EBKTabAiUnavailable=AI provider not configured — manual entry works without it.
+EBKTabStatusNotEligible=This document is not eligible for bookkeeping (only validated or paid documents are).
+EBKTabNoWritePermission=You don't have permission to record bookkeeping entries.
+EBKTabSituationBlocked=Situation invoices with lines below 100% are not supported by this tab (partial amounts). Use the core Accounting journals instead.
+EBKTabPostedEntries=Posted entries
+EBKTabPieceNum=Piece
+EBKRoundingAdjusted=A rounding residual was folded onto the last line to keep the entry balanced — please review the amounts.
+EBKEntryNotBalanced=The entry is not balanced (debit total must equal credit total).
+EBKPieceNumMismatch=Rows were written under different piece numbers; the write was rolled back. Check the ACCOUNTANCY_ENABLE_FKDOCDET constant.
+EBKNotEnoughRowsForBookkeeping=An entry needs at least one debit and one credit line.
+EBKDuplicateRowForBookkeeping=Two lines share the same account and label; make each line label unique.
+
+# Permissions
+EBKRightRead=Read bookkeeping entries / see buttons on invoice cards
+EBKRightWrite=Create bookkeeping entries from invoice cards
+EBKRightAiSuggest=Request AI account suggestions
+EBKRightAdmin=Configure EmbeddedBookkeeping (provider, keys, prompts)
+
+# Setup page
+EBKSetupTitle=EmbeddedBookkeeping setup
+EBKSetupTabGeneral=General
+EBKSetupTabProvider=Provider & AI
+EBKJournalSales=Sales journal code (customer invoices)
+EBKJournalPurchases=Purchases journal code (supplier invoices)
+EBKJournalExpense=Expense journal code (expense reports)
+EBKAiProvider=AI provider
+EBKAiProviderTooltip=disabled = no AI; ai_module = use the native Dolibarr ai module (chatgpt/groq/mistral/custom) — requires the ai module enabled and configured; claude = direct Anthropic Claude Messages API using EMBEDDEDBOOKKEEPING_ANTHROPIC_KEY.
+EBKAiProviderDisabled=Disabled
+EBKAiProviderAiModule=Dolibarr ai module (recommended)
+EBKAiProviderClaude=Anthropic Claude (direct API)
+EBKAnthropicKey=Anthropic API key
+EBKAnthropicKeyTooltip=Stored encrypted (the same way Dolibarr encrypts _KEY constants). Leave blank to keep the existing value.
+EBKKeyAlreadySet=••• already set • leave blank to keep ••
+EBKAiClaudeModel=Claude model name
+EBKAiDebug=Debug mode (echo prompt)
+EBKAiDebugTooltip=When on, the AJAX endpoint returns a debug block (provider id, server ts). Admin only.
+EBKAiMaxLines=Max lines per suggestion
+EBKAiConfidenceThreshold=Low-confidence threshold
+EBKAiPromptOverrides=System prompt overrides
+EBKAiPromptEn=English prompt override
+EBKAiPromptZh=Chinese prompt override
+
+# AI flow
+EBKAiNoProvider=No AI suggestions available. Check the provider setup.
+EBKAiLoading=Asking AI…
+
+# Errors
+ErrorBadDocTypeForBookkeeping=Invalid document type for bookkeeping.
+ErrorBadFkDocForBookkeeping=Document id mismatch (possible IDOR attempt; rejected).
+ErrorBadAccountForBookkeeping=Both debit and credit accounts must be set.
+ErrorBadAmountForBookkeeping=Amount must be positive.
+ErrorSameDebitCreditForBookkeeping=Debit and credit accounts must differ.
+ErrorBadJournalForBookkeeping=Could not resolve a journal code.
+ErrorCannotAllocatePieceNum=Could not allocate piece_num; bookkeeping table is unreachable.
+EBKCreateFailed=Failed to create bookkeeping entry.

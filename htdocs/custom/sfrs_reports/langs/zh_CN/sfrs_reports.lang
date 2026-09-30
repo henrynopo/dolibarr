@@ -1,0 +1,180 @@
+# SFRS Reports module - Chinese
+# Copyright (C) 2026 Henry Guo <hbg@hbg.sg>
+
+# Module
+Module501200Name = SFRS 财务报表
+Module501200Desc = 新加坡会计准则（SFRS）财务报表：资产负债表、损益表、现金流量表。支持 FRS / SFRS(I) / SFRS for Small Entities 三套框架，集成 GST 9%。
+
+# Permissions
+SFRSReportsRead = 查看 SFRS 财务报表
+SFRSReportsExport = 导出 SFRS 报表为 PDF
+SFRSReportsSetup = 配置 SFRS 模块
+
+# Menu
+SFRSReports = SFRS 财务报表
+SFRSReportsHome = SFRS 财务报表
+SFRSReportsHomeDesc = 生成符合新加坡会计准则（SFRS）的资产负债表、损益表和现金流量表。
+SFRSReportsQuickAccess = SFRS 报表快捷访问
+SFRSSetup = SFRS 配置
+SFRSBalanceSheet = 资产负债表
+SFRSBalanceSheetDesc = 财务状况表 — 特定日期的资产、负债和权益。
+SFRSProfitLoss = 损益表
+SFRSProfitLossDesc = 综合收益表 — 期间内的收入和费用。
+SFRSCashFlow = 现金流量表
+SFRSCashFlowDesc = 按经营、投资、融资活动分类的现金变动。
+
+# Forms
+Framework = SFRS 框架
+FrameworkFRS = FRS — 非上市公司默认
+FrameworkSFRSI = SFRS(I) — 与 IFRS 对齐，SGX 上市公司强制
+FrameworkSFRSForSE = SFRS for Small Entities — 符合条件的小型企业简化版
+CashFlowMethod = 现金流量表编制方法
+DirectMethod = 直接法
+IndirectMethod = 间接法
+FRS7AllowsBothMethods = FRS 7 允许两种方法，结果应能对账。
+PresentationCurrency = 呈报货币
+CompanyUEN = 公司 UEN
+GSTStandardRate = GST 标准税率 (%)
+CurrentConfiguration = 当前配置
+Period = 期间
+PeriodStart = 期间开始
+PeriodEnd = 期间结束
+AsOfDate = 截至日期
+BalanceDate = 资产负债表日期
+Method = 方法
+UEN = UEN
+ISO4217 = ISO 4217
+Save = 保存
+SetupSaved = 配置已保存
+
+# Data import
+SingaporeChartOfAccounts = 新加坡会计科目表
+SingaporeChartOfAccountsAlreadyLoaded = 新加坡会计科目表已加载。
+SingaporeChartOfAccountsNotLoadedForEntity = 本 entity 尚未加载新加坡会计科目表。重新启用模块即可导入。
+ImportSingaporeChartOfAccountsDesc = 导入新加坡 SFRS 会计科目表（约 200 个科目），包括固定资产、无形资产、存货、应收款、GST（9%）、应付款、借款、权益、收入、销售成本、运营费用、所得税。
+WillImport200Accounts = 将创建约 200 个科目行。已存在的 SFRS-BASE 科目不会重复创建。
+ImportNow = 立即导入
+ConfirmImport = 确认导入？
+
+SfrsCategories = SFRS 报表分类
+SfrsCategoriesAlreadyLoaded = SFRS 报表分类已加载。
+SfrsCategoriesNotLoadedForEntity = 本 entity 尚未加载 SFRS 报表分类。重新启用模块即可导入。
+ImportSfrsCategoriesDesc = 导入将会计科目映射到资产负债表、损益表、现金流量表行的报表分类。
+SingaporeChartOfAccountsImported = 新加坡会计科目表导入成功。
+ErrorImportingSgCoA = 导入新加坡会计科目表出错
+SfrsCategoriesImported = SFRS 报表分类导入成功。
+ErrorImportingSfrsCategories = 导入 SFRS 报表分类出错
+
+# 集成状态（Setup 页面）
+AccountsLoaded = 会计科目已加载
+CategoriesLoaded = 报表分类已加载
+DolibarrIntegrationStatus = Dolibarr 集成状态
+DolibarrConstant = Dolibarr 常量
+CurrentValue = 当前值
+ExpectedSFRSValue = 期望的 SFRS 值
+Status = 状态
+OK = 正常
+Empty = 空
+Custom = 自定义
+ReApplyDefaultAccounts = 重新应用默认账户绑定
+ConfirmReBinding = 仅为空的常量重新应用 SFRS 账户绑定。继续？
+DefaultAccountsRebound = 默认账户绑定已更新
+NewBindings = 个新绑定
+GSTRatesRegistration = SG GST 税率注册
+AccountSell = 销项税账户
+AccountBuy = 进项税账户
+Active = 启用
+ReRegisterGSTRates = 重新注册 SG GST 税率
+GSTRatesReRegistered = SG GST 税率已重新注册
+
+# 多币种呈报
+ReportingCurrency = 呈报币种
+FunctionalCurrencyOnly = 仅本位币
+AllCurrenciesSummed = 所有币种（合计）
+CurrencyOnly = 仅
+
+# 多币种汇率设置
+SFRSMCSettings = 多币种汇率换算设置
+SFRSMCSettingsDesc = 配置多币种财务报表的汇率方法和汇兑损益科目（符合 IAS 21 / SFRS 21）。
+BSRateMethod = 资产负债表汇率方法
+PLRateMethod = 损益表汇率方法
+CFRateMethod = 现金流量表汇率方法
+ClosingRate = 期末汇率
+AverageRate = 平均汇率（期间）
+HistoricalRate = 记账汇率（交易日期）
+FixedRate = 固定汇率
+FixedRateValue = 固定汇率表（按币种）
+FXGainAccount = 汇兑收益科目
+FXLossAccount = 汇兑损失科目
+FXGainLossAccount = 汇兑换算差异科目
+RateSource = 汇率来源
+RateSourceDolibarr = Dolibarr 原生汇率表
+RateApplied = 已应用汇率
+FXTranslationDiff = 汇兑换算差异
+FXTranslationDiffExplained = 因汇率变动（交易日至期末汇率）产生的差异
+ExchangeRateNotFound = 未找到 %s 在 %s 的汇率
+ExchangeRateFallback = 使用备用汇率：%s
+UsedWhenFixedMethodSelected = 每行一条 币种=汇率（如 USD=1.35），仅在选择固定汇率方法时使用；未列出的币种回退到汇率表
+FixedRateLinesSkipped = 已忽略无效的固定汇率行：%s
+FXGainAccountExample = 例如 7010 汇兑收益
+FXLossAccountExample = 例如 7110 汇兑损失
+
+# 模块钩子刷新
+ModuleHooks = 模块钩子列表（MAIN_MODULE_SFRSREPORTS_HOOKS）
+RefreshModuleHooks = 刷新模块钩子
+ModuleHooksRefreshed = 模块钩子列表已刷新
+
+# Report display
+Code = 编码
+Label = 项目
+Amount = 金额
+Generate = 生成
+Open = 打开
+Diff = 差额
+
+# Validation
+BSBalanced = 资产负债表平衡：资产合计 = 负债 + 权益合计。
+BSDoesNotBalance = 资产负债表不平衡
+BSReportNote = 新加坡公司须依据《公司法》第 201 条及 FRS 1 / SFRS(I) 1-1 / SFRS for Small Entities 编制财务报表。
+PLReportNote = 净利润/(亏损) 与同期资产负债表中留存收益变动额勾稽。
+CFReportNote = 直接法与间接法应能对账至相同的现金净变动额（FRS 7）。
+
+# Chart compatibility
+ChartMismatchWarning = 警告：当前启用的会计科目表为 "%s"，而 SFRS 报表分类区间基于 "SFRS-BASE" 科目表，金额可能不完整或为零。
+
+# Journals
+AccountingJournalsStatus = 会计账簿
+JournalsMissingForEntity = 当前实体缺少以下账簿类型：%s。请先禁用再重新启用模块以重建。
+
+# FX revaluation journal (SFRS 21)
+FXRevaluationSection = 汇兑重估凭证（OD 账簿）
+FXRevaluationDate = 重估日期（期末）
+GenerateFXRevaluation = 生成汇兑重估凭证
+ConfirmGenerateFXRevaluation = 将按期末汇率对未结多币种应收/应付发票生成记账凭证。是否继续
+FXRevaluationGenerated = 汇兑重估凭证已生成（%s 条账簿行）
+FXRevaluationNothingToDo = 没有需要重估的未结多币种应收/应付款
+FXRevaluationAlreadyExists = %s 的汇兑重估凭证已存在
+FXRevaluationLabel = 截至 %s 的未实现汇兑重估
+FXRevaluationNote = 扫描未结多币种客户/供应商发票，按期末汇率重折算并生成一张汇总 OD 记账凭证（SFRS 21 / IAS 21）。差异计入上方配置的汇兑损益科目。每个日期仅可生成一张；如需冲回某期，请在账簿中删除对应的 FXREV 凭证。
+
+# AR / AP 账龄报表
+SFRSARAging = 应收账龄
+SFRSAPAging = 应付账龄
+SFRSARAgingReport = 应收账龄报表（Aged Receivables）
+SFRSAPAgingReport = 应付账龄报表（Aged Payables）
+SFRSARAgingReportDesc = 按第三方汇总的未结客户发票账龄分布
+SFRSAPAgingReportDesc = 按第三方汇总的未结供应商发票账龄分布
+ReportType = 报表类型
+AsOfDate = 截止日期
+Thirdparty = 第三方
+OpenAmount = 未结金额
+OpenAmountOriginal = 原币金额
+BucketCurrent = 未到期
+Bucket1to30 = 1-30 天
+Bucket31to60 = 31-60 天
+Bucket61to90 = 61-90 天
+BucketOver90 = 超 90 天
+AgingTotal = 账龄合计
+BookkeepingBalance = 账簿余额（%s）
+AgingDifferenceNote = 账龄合计来自未结业务单据；账簿余额为整个控制科目区间的余额。两者差异来自汇兑重估凭证（FXREV）、手工凭证及发票子账簿之外的记账，属正常现象。
+AgingReportNote = 金额以列报货币计。"原币金额"列显示发票币种的未结部分（比例法）。截止日期之后开票、或目前已结清的发票不计入。
