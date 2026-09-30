@@ -1,0 +1,180 @@
+# SFRS Reports module
+# Copyright (C) 2026 Henry Guo <hbg@hbg.sg>
+
+# Module
+Module501200Name = SFRS Financial Reports
+Module501200Desc = Singapore Financial Reporting Standards (SFRS) financial reports: Balance Sheet, Profit & Loss, Cash Flow Statement. Supports FRS / SFRS(I) / SFRS for Small Entities frameworks with GST 9% support.
+
+# Permissions
+SFRSReportsRead = Read SFRS financial reports
+SFRSReportsExport = Export SFRS reports as PDF
+SFRSReportsSetup = Configure SFRS module
+
+# Menu
+SFRSReports = SFRS Reports
+SFRSReportsHome = SFRS Financial Reports
+SFRSReportsHomeDesc = Generate Balance Sheet, Profit and Loss, and Cash Flow Statement compliant with Singapore Financial Reporting Standards (SFRS).
+SFRSReportsQuickAccess = SFRS Reports
+SFRSSetup = SFRS Setup
+SFRSBalanceSheet = Balance Sheet
+SFRSBalanceSheetDesc = Statement of Financial Position — assets, liabilities and equity as at a specific date.
+SFRSProfitLoss = Profit and Loss
+SFRSProfitLossDesc = Statement of Comprehensive Income — revenue and expenses over a period.
+SFRSCashFlow = Cash Flow Statement
+SFRSCashFlowDesc = Cash movements classified by operating, investing and financing activities.
+
+# Forms
+Framework = SFRS Framework
+FrameworkFRS = FRS — default for non-listed Singapore companies
+FrameworkSFRSI = SFRS(I) — IFRS-aligned, mandatory for SGX-listed entities
+FrameworkSFRSForSE = SFRS for Small Entities — simplified for qualifying small businesses
+CashFlowMethod = Cash Flow Method
+DirectMethod = Direct method
+IndirectMethod = Indirect method
+FRS7AllowsBothMethods = FRS 7 allows both methods; results must reconcile.
+PresentationCurrency = Presentation currency
+CompanyUEN = Company UEN
+GSTStandardRate = GST standard rate (%)
+CurrentConfiguration = Current Configuration
+Period = Period
+PeriodStart = Period start
+PeriodEnd = Period end
+AsOfDate = As of date
+BalanceDate = Balance date
+Method = Method
+UEN = UEN
+ISO4217 = ISO 4217
+Save = Save
+SetupSaved = Configuration saved
+
+# Data import
+SingaporeChartOfAccounts = Singapore Chart of Accounts
+SingaporeChartOfAccountsAlreadyLoaded = Singapore chart of accounts is already loaded.
+SingaporeChartOfAccountsNotLoadedForEntity = Singapore chart of accounts is NOT loaded for this entity. Re-enable the module to import.
+ImportSingaporeChartOfAccountsDesc = Imports the Singapore SFRS chart of accounts (~200 accounts) including PPE, Intangibles, Inventory, Receivables, GST (9%), Payables, Loans, Equity, Revenue, Cost of Sales, Operating Expenses, Income Tax.
+WillImport200Accounts = This will create approximately 200 account rows. Existing SFRS-BASE accounts will not be duplicated.
+ImportNow = Import now
+ConfirmImport = Continue with import?
+
+SfrsCategories = SFRS Report Categories
+SfrsCategoriesAlreadyLoaded = SFRS report categories are already loaded.
+SfrsCategoriesNotLoadedForEntity = SFRS report categories are NOT loaded for this entity. Re-enable the module to import.
+ImportSfrsCategoriesDesc = Imports the report categories that map chart of accounts rows to Balance Sheet, Profit & Loss, and Cash Flow Statement lines.
+SingaporeChartOfAccountsImported = Singapore chart of accounts imported successfully.
+ErrorImportingSgCoA = Error importing Singapore chart of accounts
+SfrsCategoriesImported = SFRS report categories imported successfully.
+ErrorImportingSfrsCategories = Error importing SFRS report categories
+
+# Integration status (Setup page)
+AccountsLoaded = account rows loaded
+CategoriesLoaded = report category rows loaded
+DolibarrIntegrationStatus = Dolibarr Integration Status
+DolibarrConstant = Dolibarr constant
+CurrentValue = Current value
+ExpectedSFRSValue = Expected SFRS value
+Status = Status
+OK = OK
+Empty = Empty
+Custom = Custom
+ReApplyDefaultAccounts = Re-apply default account bindings
+ConfirmReBinding = Re-apply default account bindings for empty constants only. Continue?
+DefaultAccountsRebound = Default account bindings updated
+NewBindings = new bindings
+GSTRatesRegistration = SG GST rates registration
+AccountSell = Output account
+AccountBuy = Input account
+Active = Active
+ReRegisterGSTRates = Re-register SG GST rates
+GSTRatesReRegistered = SG GST rates re-registered
+
+# Multi-currency reporting
+ReportingCurrency = Reporting currency
+FunctionalCurrencyOnly = Functional currency only
+AllCurrenciesSummed = All currencies (summed)
+CurrencyOnly = Only
+
+# Multi-currency exchange rate settings
+SFRSMCSettings = Multi-currency FX Settings
+SFRSMCSettingsDesc = Configure exchange rate methods and FX gain/loss accounts for multi-currency financial statements (IAS 21 / SFRS 21 compliant).
+BSRateMethod = Balance Sheet exchange rate method
+PLRateMethod = Profit & Loss exchange rate method
+CFRateMethod = Cash Flow exchange rate method
+ClosingRate = Closing rate (at period end)
+AverageRate = Average rate (for the period)
+HistoricalRate = Historical rate (at transaction date)
+FixedRate = Fixed rate
+FixedRateValue = Fixed rates (per currency)
+FXGainAccount = FX gain account
+FXLossAccount = FX loss account
+FXGainLossAccount = FX translation difference account
+RateSource = Exchange rate source
+RateSourceDolibarr = Dolibarr native rate table
+RateApplied = Rate applied
+FXTranslationDiff = FX translation difference
+FXTranslationDiffExplained = Difference due to exchange rate changes between transaction date and closing rate
+ExchangeRateNotFound = Exchange rate not found for %s as of %s
+ExchangeRateFallback = Using fallback rate: %s
+UsedWhenFixedMethodSelected = one CODE=RATE per line, e.g. USD=1.35 — used only when Fixed rate method is selected; currencies not listed fall back to the rate table
+FixedRateLinesSkipped = Invalid fixed-rate lines ignored: %s
+FXGainAccountExample = e.g. 7010 Exchange gain
+FXLossAccountExample = e.g. 7110 Exchange loss
+
+# Module hooks refresh
+ModuleHooks = Module hooks (MAIN_MODULE_SFRSREPORTS_HOOKS)
+RefreshModuleHooks = Refresh module hooks
+ModuleHooksRefreshed = Module hooks list refreshed
+
+# Report display
+Code = Code
+Label = Label
+Amount = Amount
+Generate = Generate
+Open = Open
+Diff = Difference
+
+# Validation
+BSBalanced = Balance Sheet balances: Total Assets equals Total Equity + Liabilities.
+BSDoesNotBalance = Balance Sheet does NOT balance
+BSReportNote = Singapore companies are required to file financial statements under Section 201 of the Companies Act, using FRS 1, SFRS(I) 1-1, or SFRS for Small Entities.
+PLReportNote = Net profit / (loss) ties to the change in retained earnings on the Balance Sheet over the same period.
+CFReportNote = Both direct and indirect methods should reconcile to the same Net Change in Cash (FRS 7).
+
+# Chart compatibility
+ChartMismatchWarning = Warning: the active chart of accounts is "%s", but the SFRS report categories assume the "SFRS-BASE" chart. Amounts may be incomplete or zero.
+
+# Journals
+AccountingJournalsStatus = Accounting journals
+JournalsMissingForEntity = Missing journal natures for this entity: %s. Disable and re-enable the module to re-create them.
+
+# FX revaluation journal (SFRS 21)
+FXRevaluationSection = FX revaluation journal (OD)
+FXRevaluationDate = Revaluation date (period end)
+GenerateFXRevaluation = Generate FX revaluation entry
+ConfirmGenerateFXRevaluation = This posts a journal entry for open multicurrency customer/supplier invoices at the closing rate. Continue
+FXRevaluationGenerated = FX revaluation entry created (%s bookkeeping lines)
+FXRevaluationNothingToDo = No open multicurrency receivables/payables to revalue
+FXRevaluationAlreadyExists = An FX revaluation entry already exists for %s
+FXRevaluationLabel = Unrealised FX revaluation as of %s
+FXRevaluationNote = Scans open multicurrency customer and supplier invoices and posts ONE aggregated OD journal entry retranslating them at the closing rate (SFRS 21 / IAS 21). Differences go to the FX gain/loss accounts configured above. One entry per date; to reverse a period, delete the FXREV piece in the journal.
+
+# AR / AP aging reports
+SFRSARAging = AR Aging
+SFRSAPAging = AP Aging
+SFRSARAgingReport = AR Aging Report (Aged Receivables)
+SFRSAPAgingReport = AP Aging Report (Aged Payables)
+SFRSARAgingReportDesc = Open customer invoices bucketed by age, per third party
+SFRSAPAgingReportDesc = Open supplier invoices bucketed by age, per third party
+ReportType = Report type
+AsOfDate = As of date
+Thirdparty = Third party
+OpenAmount = Outstanding
+OpenAmountOriginal = Original currency
+BucketCurrent = Current
+Bucket1to30 = 1-30 days
+Bucket31to60 = 31-60 days
+Bucket61to90 = 61-90 days
+BucketOver90 = Over 90 days
+AgingTotal = Aging total
+BookkeepingBalance = Ledger balance %s
+AgingDifferenceNote = The aging total is computed from open business documents; the ledger balance covers the whole control-account range. Differences are expected from FX revaluation entries (FXREV), manual journal entries and postings outside the invoice subledger.
+AgingReportNote = Amounts are in the presentation currency. The "Original currency" column shows the open part in the invoice currency (proportional method). Invoices still open today but issued after the as-of date, or fully settled by now, are excluded.
