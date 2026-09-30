@@ -1,0 +1,372 @@
+# SLY Custom 模块 - 简体中文
+# Copyright (C) 2025 SLY
+
+ModuleSLYCustomName=SLY 定制
+ModuleSLYCustomDesc=SLY：客户发票/销售订单与形式发票/发货与装箱单/供应商采购单与发票等 PDF、ShipsGo 定时同步、工具菜单导出与订单搜索、销售条款 PDF 附加、列表与首页多币种及菜单与产品标签等 Hook；兼容 14.0/22.0，22.0 按需应用 patches 下补丁。
+ModuleSlyCustomName=SLY 定制
+ModuleSlyCustomDesc=SLY：客户发票/销售订单与形式发票/发货与装箱单/供应商采购单与发票等 PDF、ShipsGo 定时同步、Wise 收款核对（webhook+对账单匹配）、工具菜单导出与订单搜索、销售条款 PDF 附加、列表与首页多币种及菜单与产品标签等 Hook；兼容 14.0/22.0，22.0 按需应用 patches 下补丁。
+Module500100Name=SLY 定制
+Module500100Desc=SLY：客户发票/销售订单与形式发票/发货与装箱单/供应商采购单与发票等 PDF、ShipsGo 定时同步、工具菜单导出与订单搜索、销售条款 PDF 附加、列表与首页多币种及菜单与产品标签等 Hook；兼容 14.0/22.0，22.0 按需应用 patches 下补丁。
+SLYCustomSetup=SLY 定制设置
+SLYCustomDescription=关于本模块
+SLYCustomDescriptionLong=本模块集中提供 SLY 在 Dolibarr 14.0 与 22.0 上的定制：多类 SLY PDF 模板（客户发票、销售订单/形式发票、发货单与装箱单、供应商采购订单、供应商发票含借记通知单等）、可选 ShipsGo 运单状态同步（计划任务）、Wise 收款核对（balances#credit webhook + 对账单 SO 匹配 + 人工确认）、工具菜单下 SLY 导出（销售/采购/发货/发票明细及一站式）、Search Order、仪表盘可选替代 widget（最近动态、生日；多币种发票类 widget 已改回使用官方）、类 Rubis 的销售条款 PDF 附加及订单生成文档选项，以及在卡片页/列表/首页等处的 Hook（来源订单列、订单与财务首页多币种、将 Shipment 归入商业菜单、产品 extrafield 显示名、供应商与付款相关列表等）。22.0 上部分能力仍依赖少量 core 补丁，见 patches/APPLY-ON-22.md 与 patches/PATCHES-BY-MODULE.md。
+SLYExports=导出
+API_KEY_SHIPSGO=ShipsGo API 密钥
+API_KEY_SHIPSGOTooltip=ShipsGo 的 API 密钥（启用 Multicompany 时按公司/entity 分别保存）。留空则该公司不启用 ShipsGo。
+SHIPSGO_WEBHOOK_SECRET=ShipsGo Webhook 共享密钥
+SHIPSGO_WEBHOOK_SECRETTooltip=用于校验 ShipsGo 推送 webhook 的 HMAC-SHA256 共享密钥（校 header X-Shipsgo-Webhook-Signature）。按公司/entity 分别保存；建议使用足够长的随机值，需要轮换时直接修改并重新在 ShipsGo 注册 webhook。
+SHIPSGO_WEBHOOK_URL=ShipsGo Webhook URL
+SHIPSGO_WEBHOOK_URL_TOOLTIP=把该 URL 填到 ShipsGo 后台（或点击"注册"按钮）。每个 multicompany entity 都需要单独注册一个订阅。
+SHIPSGO_WEBHOOK_REGISTER=在 ShipsGo 注册 webhook
+SHIPSGO_WEBHOOK_REGISTERED=已在 ShipsGo 成功注册 webhook。
+SHIPSGO_WEBHOOK_REGISTER_FAILED=在 ShipsGo 注册 webhook 失败。
+SHIPSGO_WEBHOOK_GENERATE_SECRET=自动生成密钥
+SHIPSGO_WEBHOOK_SECRET_GENERATED=已生成新的 ShipsGo webhook 密钥（64 位随机十六进制）。如 ShipsGo 后台已配置旧密钥，请同步更新。
+SHIPSGO_WEBHOOK_GENERATE_CONFIRM=重新生成会使 ShipsGo 后台已配置的旧密钥立即失效（推送将全部校验失败），生成后需在 ShipsGo 后台同步更新。确定继续？
+SLYCUSTOM_SHIPPING_ENABLE_UNVALIDATE=启用发货单反确认
+SLYCUSTOM_SHIPPING_ENABLE_UNVALIDATETooltip=允许用户将已确认的发货单反确认（设回草稿）。
+SLYCUSTOM_DASHBOARD_BOXES=仪表盘 Widget
+SLYCUSTOM_DASHBOARD_BOXES_DESC=SLY Custom 当前注册 2 个可选替代 widget：最近动态、生日（第三阶段已移除多币种发票类替代 box，改由官方 widget 负责多币种）。可在仪表盘设置中停用原版并启用 SLY 版本（列表中 note 为 SLY）。
+SLYCUSTOM_GO_TO_DASHBOARD_SETUP=前往仪表盘设置
+SLYCUSTOM_SYNC_BOXES=同步 SLY boxes
+SLYCUSTOM_SYNC_BOXES_TOOLTIP=若仪表盘设置中看不到 SLY widget，请点击此按钮将其注册到数据库（例如在添加 boxes 之前启用模块的情况）。
+SLYCUSTOM_BOXES_SYNCED=SLY boxes 已成功同步。你可以在仪表盘设置中添加它们。
+# 发货 PDF 文档大标题（模板内会转为大写）
+SLYPackingListPDFTitle=装箱单
+SLYCUSTOM_PDF_TEMPLATES_SECTION=PDF 模板（发票 / 装箱单）
+SLYCUSTOM_SYNC_PDF_MODELS=同步 PDF 模板到列表
+SLYCUSTOM_SYNC_PDF_MODELS_TOOLTIP=将 SLY 发票与装箱单模板注册到系统，使其出现在「默认 PDF 模板」下拉中（设置 → 发票 / 发货）。若下拉中看不到模板，可点击一次。
+SLYCUSTOM_PDF_MODELS_SYNCED=PDF 模板（sly_invoice、sly_packinglist）已同步，应已出现在默认模板下拉中。
+SLYCUSTOM_MENU_ICONS=菜单图标
+SLYCUSTOM_SYNC_MENU_ICONS=同步菜单图标
+SLYCUSTOM_SYNC_MENU_ICONS_TOOLTIP=更新左侧菜单中「搜索订单」与「导出」的图标。启用模块后若图标缺失，可点击一次。
+SLYCUSTOM_MENU_ICONS_SYNCED=菜单图标已同步。刷新工具或商业页面即可看到图标。
+UpdateShips=更新 ShipsGo 状态
+ShipmentUpdated=发货状态已成功更新
+ShipsGoMissingInfo=缺少 ShipsGo 信息
+ShipsGoShipmentCreated=发货单已创建
+UnvalidateShipment=反确认发货单
+ConfirmUnvalidateShipment=确定要将发货单 %s 设回草稿吗？
+SourceOrder=来源订单
+SourcePurchaseOrder=来源采购订单
+SaleRepresentativesOfThirdParty=第三方销售代表
+SalesPerson=销售人员
+PurchasePerson=采购联系人
+SearchOrder=搜索订单
+SLYExportTabGroupDetails=明细导出（销售单 / 发货 / 采购单行报表）
+SLYExportTabGroupCashflow=待收待付与定金检查
+SLYExportMenuInvoices=发票与发货
+SLYExportMenuPaymentsPlanning=收付款计划
+SLYExportMenuLineDetail=明细行导出
+SLYExportMenuCashflow=导出 — 待收待付与定金
+SLYExportMenu=SLY 导出
+SearchCriteria=筛选条件
+SLYExportAllInOne=一站式
+SLYExportSODetails=销售订单明细
+SLYExportSOInvoiceDetails=销售发票明细
+SLYExportShipmentDetails=发货明细
+SLYExportPODetails=采购订单明细
+SLYExportPOInvoiceDetails=采购发票明细
+SLYExportSOInvoiceReceivable=SO 发票待收清单
+SLYExportPOInvoicePayable=PO 发票待付清单
+SLYExportSODepositInvoiceMissing=SO 定金发票缺失
+SLYDepositInvoiceMissingBanner=按付款条款应有定金发票，但目前仍有 %s 个销售订单未关联已确认（已校验）的定金发票。
+SLYDepositInvoiceMissingBannerLink=打开定金缺失清单
+SLYDepositInvoiceMissingAlertShort=条款要求定金，但该 SO 尚未关联已确认（已校验）的定金发票。
+SLYExportPODepositInvoiceMissing=PO 定金发票缺失
+SLYPoDepositInvoiceMissingBanner=按付款条款应有供应商定金发票，但目前仍有 %s 个采购订单未关联已确认（已校验）的定金发票。
+SLYPoDepositInvoiceMissingBannerLink=打开 PO 定金缺失清单
+SLYPoDepositInvoiceMissingAlertShort=条款要求定金，但该 PO 尚未关联已确认（已校验）的供应商定金发票。
+DepositInvoice=定金发票
+MultipleOrdersFound=找到多条订单
+OrderContact=订单联系人
+InvoiceContact=发票联系人
+ShipmentContact=发货联系人
+consignee=收货人
+consigneeshipping=收货人
+consigneebilling=付汇人
+Purchaser=采购人员
+FollowUpPurchaser=跟进采购人员
+Prepayment=预付款
+Document=票据信息
+GST=消费税
+TotalVATSG=GST 总计
+# SLY ALL-in-One 校验 UI
+SLYAllInOneCheckHeader=一站式：下载前校验
+SLYAllInOneCheckTitle=下载前校验结果（逐一显示）
+SLYAllInOneCheckHelp=请根据下列“失败条件”修正关联关系/联系人数量。修正完成后再点击“开始下载”。
+SLYAllInOnePassedNone=通过（无）
+SLYAllInOneConfirmStart=确认无误，开始下载
+SLYAllInOneHasErrors=检测到失败条件，请先修正后再重试。
+SLYAllInOneValidationFailed=一站式校验未通过
+SLYAllInOneRule_SQL_ERROR=SQL 错误
+SLYAllInOneRule_SO_PoCntGt1=关联 PO 超过 1 个
+SLYAllInOneRule_SO_SalespersonNe1=关联 Salesperson 不是 1 个
+SLYAllInOneRule_SO_BillToCntGt1=关联 Bill_To（consignee invoice）超过 1 个
+SLYAllInOneRule_SO_ShipmentCntGt1=关联超过 1 个 shipment
+SLYAllInOneRule_SO_ConsigneeShipContactCntGt1=关联 Customer shipping contact（consignee shipment）超过 1 个
+SLYAllInOneRule_SOInv_SoCntGt1=关联 SO 超过 1 个
+SLYAllInOneRule_SOInv_ShipmentCntGt1=Shipment 多于 1 个
+SLYAllInOneRule_SOInv_BillToCntGt1=关联 Bill_To（consignee invoice）超过 1 个
+SLYAllInOneRule_Shipment_SoCntNe1=关联 SO 不是 1 个
+SLYAllInOneRule_Shipment_BillToCntGt1=关联 Bill_To（consignee invoice）超过 1 个
+SLYAllInOneRule_Shipment_CustomerShipContactCntGt1=Customer shipping contact（consignee shipment）超过 1 个
+SLYAllInOneRule_Shipment_InvoiceCntGt1=关联的 Invoice 多于 1 个
+SLYAllInOneRule_PO_SoCntGt1=关联 SO 超过 1 个
+SLYAllInOneRule_PO_PurchasePersonCntNe1=关联 purchase person 不是 1 个
+SLYAllInOneRule_POInv_PoCntGt1=关联 PO 超过 1 个
+SLYAllInOnePreparingDownloadFor=准备下载： 
+SLYAllInOneAllDownloadsInitiated=已全部触发下载。
+Downloading=正在下载
+# SLY Debit Note（我们发给供应商的借记通知单，仅手动生成）
+SLYDebitNoteModel=SLY Debit Note
+SLYDebitNoteModelDesc=发给供应商的借记通知单。请勿设为默认模板；仅在需要向供应商发送时手动生成 PDF。（平时多为供应商提供 credit note 给我们。）
+# SLY 采购订单 PDF 模版
+SLYSupplierOrderModelDesc=SLY 采购订单 PDF 模版（可定制）。
+
+# 设置页标签
+SLYCUSTOM_GENERAL_OPTIONS=常规选项
+SLYCUSTOM_TAB_GENERAL=常规
+SLYCUSTOM_TAB_PDF=PDF 模板
+SLYCUSTOM_TAB_BOXES=仪表盘
+SLYCUSTOM_TAB_CGV=销售条款
+SLYCUSTOM_TAB_RUBIS=销售条款
+
+# 销售条款（原 Rubis 升级版）
+SLYCUSTOM_RUBIS_UPGRADE_DESC=本功能为原 Rubis 模块的升级版本，用于在订单（及可选发票）PDF 末尾附加销售条款 PDF。下方选项与原 Rubis 的「销售条款(CGV)」设置一致，可在本页上传、替换或删除默认及分语言的条款文件。
+SLYCUSTOM_CGV_SECTION=销售条款
+SLYCUSTOM_CGV_DESC=上传 PDF 作为订单（及可选发票）PDF 的通用条款附件。单语言：documents/mycompany/terms/terms.pdf；多语言：documents/mycompany/terms/<语言>/terms.pdf（如 en_US、zh_CN）。
+SLYCUSTOM_CGV_OPTIONS_NOTE=以下每行对应原 Rubis 的条款文件：默认（单语言）即全局一份 PDF；分语言即各语言单独 PDF（如中文、英文），生成订单/发票 PDF 时按客户语言自动附加对应条款。
+SLYCUSTOM_CGV_FILE=文件
+SLYCUSTOM_CGV_ACTIONS=操作
+SLYCUSTOM_CGV_CURRENT_FILE=现有文件
+SLYCUSTOM_CGV_DEFAULT=默认（单语言）
+SLYCUSTOM_CGV_PATH=路径
+SLYCUSTOM_CGV_LANG=销售条款（%s）
+SLYCUSTOM_CGV_UPLOAD=上传
+SLYCUSTOM_CGV_REPLACE=替换
+SLYCUSTOM_CGV_UPLOAD_FOR_LANG=按语言上传销售条款
+SLYCUSTOM_CGV_UPLOADED=销售条款 PDF 已上传。
+SLYCUSTOM_CGV_DELETED=销售条款 PDF 已删除。
+SLYCUSTOM_CGV_CONFIRM_DELETE=确定删除该销售条款文件？
+SLYCUSTOM_TERMS_MIGRATE=迁移为 terms.pdf
+SLYCUSTOM_TERMS_OLD_PATH=旧路径
+SLYCUSTOM_TERMS_MIGRATED=已迁移为新名称（terms.pdf）。
+SLYCUSTOM_TERMS_DEFAULT_SET=默认条款模版已更新。
+SLYCUSTOM_TERMS_DEFAULT_TEMPLATE=默认模版
+SLYCUSTOM_TERMS_SET_DEFAULT=设为默认
+SLYCUSTOM_CGV_FILENAME_OPTIONAL=可选：保存为此文件名（如 terms_contract.pdf），留空则使用 terms.pdf
+SLYCUSTOM_TERMS_UPLOAD_MODE=上传方式
+SLYCUSTOM_TERMS_SAVE_AS_NEW=另存为新版本
+SLYCUSTOM_TERMS_OVERWRITE=覆盖已有版本
+SLYCUSTOM_TERMS_FILENAME_REMARK=文件备注名（如 terms_contract.pdf）
+SLYCUSTOM_TERMS_OVERWRITE_SELECT=选择要覆盖的文件
+SLYCUSTOM_TERMS_NO_FILE_TO_OVERWRITE=当前语言下没有可覆盖的文件。
+SLYCUSTOM_TERMS_FILENAME_REQUIRED=请输入新版本的文件名（如 terms_contract.pdf）。
+SLYCUSTOM_TERMS_UPLOAD_CHOOSE_MODE=请选择「另存为新版本」并填写文件名，或选择「覆盖已有版本」并选择文件。
+SLYCUSTOM_ADD_TERMS_LABEL=在 PDF 中加入销售条款
+SLYCUSTOM_ADD_TERMS_HINT=根据所选语言使用对应默认条款 PDF
+SLYCUSTOM_TERMS_NO_TEMPLATE=当前语言暂无销售条款模版
+SLYCUSTOM_TERMS_SELECT_TEMPLATE=模版
+
+# 共用（如销售条款上传 — 选择语言）
+SelectLanguage=选择语言
+
+# 覆盖产品/服务海关字段标签（SLY 使用厂号）
+CustomsCode=厂号
+CustomCode=厂号
+CustomsCodeHelp=厂号/工厂代码（SLY 对海关名称的覆盖）。
+
+# 第三方注册资本货币（与公司会计货币可独立）
+CapitalCurrency=注册资本货币
+
+# Wise 收款集成
+SLYCUSTOM_TAB_WISE=Wise 收款
+WISE_STATUS_SECTION=Wise 集成状态
+SLYCUSTOM_WISE_SECTION=Wise 连接与匹配设置
+WISE_WEBHOOK_URL=Webhook 接收地址
+WISE_API_TOKEN=Wise API 令牌
+WISE_API_TOKENTooltip=在 Wise 设置 > Developer tools > API tokens 创建的令牌。按公司/entity 分别保存。用于拉取对账单（付款参考号），后续也用于创建转账。
+WISE_PROFILE_ID=Wise profile id
+WISE_PROFILE_IDTooltip=Wise 配置文件的数字 id。令牌有效时可通过"测试连接"按钮自动填入。
+WISE_SIGNATURE_KEY=Webhook 验签公钥
+WISE_SIGNATURE_KEY_FOUND=已启用验签（verification_key.pem 已就位）
+WISE_SIGNATURE_KEY_MISSING=引导模式：请将订阅公钥保存到 DOL_DATA_ROOT/wise_webhook/verification_key.pem 以启用强制验签（当前未签名请求会被接受并记录警告）
+WISE_QUEUE_STATUS=待核对收款队列
+WISE_SO_REF_PATTERN=SO 编号提取正则
+WISE_SO_REF_PATTERNTooltip=可选的手工覆盖。生效优先级：本字段 > 从 SO 编号掩码自动派生（销售订单设置 > 订单编号，如 COMMANDE_SAPHIR_MASK）> 内置默认。留空即保持自动。
+WISE_PAYMENT_MODE=付款方式
+WISE_PAYMENT_MODETooltip=由 Wise 收款生成的 Dolibarr 付款所使用的付款方式（默认 VIR = 银行转账）。
+WISE_BANK_ACCOUNT_DEFAULT=默认银行账户
+WISE_BANK_ACCOUNT_DEFAULTTooltip=当币种映射未命中时，付款银行流水写入的银行账户。
+WISE_BANK_MAPPING_CUR=%s 银行账户
+WISE_BANK_MAPPING_CURTooltip=与 Wise %s 余额对应的 Dolibarr 银行账户；确认入账的收款将写入该账户。
+WISE_TEST_CONNECTION=测试连接
+WISE_TEST_OK=连接成功。Profiles：
+WISE_TEST_KO=连接失败。
+WISE_TOKEN_NOT_SET=尚未配置 Wise API 令牌。
+WISE_SO_REF_PATTERN_EFFECTIVE=当前生效的 SO 提取正则
+WISE_SO_REF_SOURCE_MANUAL=来源：手工覆盖
+WISE_SO_REF_SOURCE_MASK=来源：由订单编号掩码自动派生
+WISE_SO_REF_SOURCE_DEFAULT=来源：内置默认（未找到编号掩码）
+WISE_SAVE_SIGNATURE_KEY=拉取并保存验签公钥
+WISE_SIGNATURE_KEY_SAVED=公钥已保存，Webhook 验签已启用。
+WISE_SIGNATURE_KEY_NOT_FOUND=订阅接口返回中未找到公钥。
+WISE_SIGNATURE_KEY_WRITE_FAILED=无法写入公钥文件：
+WISE_FLOW_STATUS=流程状态
+WISE_FLOW_STATUSTooltip=收纳入账：把 Wise 入账排队到核对列表。付款准备：从供应商发票生成 Wise 转账草稿（在 Wise 后台人工注资付款）。
+WISE_FLOW_INCOMING=收纳入账（Webhook 核对）
+WISE_FLOW_OUTGOING=付款准备（API 转账）
+WISE_INCOMING_ENABLED=启用收纳入账
+WISE_INCOMING_ENABLEDTooltip=开启后，balances#credit 推送会进入核对队列（NEW 状态）等待补明细和人工确认；关闭时原始事件仍会记录，但不进队列。
+WISE_OUTGOING_ENABLED=启用付款准备
+WISE_OUTGOING_ENABLEDTooltip=开启后，供应商发票卡片提供 Wise 转账准备（经 API 创建草稿，在 Wise 后台人工注资付款）。自动回写状态需另订阅 transfers#state-change。
+SLYCUSTOM_TAB_SHIPSGO=ShipsGo 物流
+SLYCUSTOM_SHIPSGO_SECTION=ShipsGo 连接设置
+WISE_WEBHOOK_IPCHECK=Webhook 来源 IP 白名单
+WISE_WEBHOOK_IPCHECKTooltip=拒绝来源 IP 不在 Wise 出口网段（45.129.54.0/24、45.129.55.0/24，见 docs.wise.com）的推送。在拿到验签公钥前的过渡加固；与验签同时开启时叠加生效。
+WISE_IPCHECK_ACTIVE=来源 IP 白名单已启用（过渡保护）。
+WISE_SIGNATURE_KEYTooltip=Wise 为每条订阅自动生成的公钥。在 Wise 设置 > Developer tools > Webhooks 的订阅详情页寻找，保存到 DOL_DATA_ROOT/wise_webhook/verification_key.pem（订阅 API 可达时也可用拉取按钮）。
+
+# Wise 收款核对页
+SLYWiseReconcile=Wise 收款核对
+WiseReconcileTitle=Wise 收款核对
+WiseCreditDetail=入账明细
+WiseAllocate=分摊金额
+WiseConfirmRecord=确认并生成付款
+WiseIgnore=忽略此笔收款
+WiseReenrich=重新拉取对账单明细
+WiseNoCandidate=未找到候选发票。可在发票卡片手工记付款，或忽略此笔收款。
+WiseMatchedSOs=匹配到的销售订单
+WiseLowConfidence=仅金额匹配——请仔细核对
+WiseRecordedAs=已生成为付款
+WiseIgnoredOk=已标记为忽略。
+WiseEnrichedOk=对账单明细已刷新。
+WiseEnrichedPending=对账单尚不可用，将自动重试。
+WiseEnrichedKo=拉取对账单明细失败（检查 token/profile 或查看日志）。
+WiseStatusNew=待处理
+WiseStatusEnriched=待核对
+WiseStatusRecorded=已入账
+WiseStatusIgnored=已忽略
+WiseErrAlloc=分摊金额无效或缺失。
+WiseErrNotOpen=所选发票不存在或不是未结状态。
+WiseErrCurrency=收款与所选发票币种不符。
+WiseErrOverAlloc=分摊金额超过发票未付余额。
+WiseErrOverCredit=分摊合计超过实际收款金额。
+WiseErrCreate=付款创建失败（见系统日志）。
+WiseErrAlready=此笔收款已入账。
+
+# Wise 付款准备（流向 A）
+WisePayViaWise=通过 Wise 付款
+WiseTransferStatus=Wise 转账
+WisePrepareTitle=Wise 付款准备
+WiseTransferSummary=将发送的内容
+WiseSourceCurrency=付款余额币种
+WiseReferenceSent=发给供应商的参考号
+WiseReferenceSentTooltip=优先级：供应商自己的订单号（关联采购单 ref_supplier）> 供应商发票号 > 我们的发票号。绝不用我们内部 PO 号。
+WiseRefFromVendorOrder=来自供应商订单号
+WiseRefFromVendorInvoice=来自供应商发票号
+WiseRefFromOurRef=来自我们的发票号（兜底）
+WiseNoIban=供应商没有 IBAN 银行账户
+WiseCreateTransfer=创建转账（未注资）
+WisePrepareConfirm=为未付余额创建一笔未注资的 Wise 转账？只有你在 Wise 后台人工注资后才会真正付款。
+WiseTransferCreated=未注资转账 #%s 已创建。请到 Wise 后台人工注资付款（5 个工作日后未注资自动取消）。
+WiseTransferFailed=Wise 转账创建失败：
+WiseTransferRefreshed=Wise 状态已刷新：
+WiseAwaitingFunding=转账已创建，等待在 Wise 后台人工注资。
+WiseRefreshState=刷新 Wise 状态
+WiseRecordSupplierPayment=立即记录供应商付款
+WiseOutgoingDisabled=付款流程已停用（WISE_OUTGOING_ENABLED=0）
+
+# Core patch tool (admin/patches.php)
+SlyPatchTool=SLY 核心补丁
+SlyPatchToolOpen=打开补丁工具
+SlyPatchToolEntryTooltip=在浏览器中把 SLY core 定制（sly24.0-*.patch 系列）应用到官方 Dolibarr 文件，实时显示状态并自动备份原文件。
+SlyPatchToolIntro=引擎：%s。每个补丁用反向试运行检测：「已应用」= 反向补丁可干净应用。每次应用前会把涉及的文件备份到 documents/slycustom/patch-backups/。
+SlyPatchVersionWarning=本补丁系列仅适用于 Dolibarr 24.x——当前版本为 %s。使用本工具前请先为当前版本重新生成补丁。
+SlyPatchNoEngine=服务器上 git 和 patch 命令均不可用——无法从浏览器应用补丁。
+SlyPatchApplyAll=应用全部补丁（%s）
+SlyPatchApplyAllConfirmText=将所有未应用的 SLY 核心补丁应用到 Dolibarr 核心文件？原文件会备份到 documents/slycustom/patch-backups/。
+SlyPatchRescan=重新扫描状态
+SlyPatchStatusCacheNote=状态快照为 %s 秒前（10 分钟内免重扫，保护共享主机限流）——点右侧按钮强制刷新。
+PatchApplied=已应用
+PatchNotApplied=未应用
+PatchConflict=冲突
+PatchApplyDoneMsg=补丁已应用。若启用了 OPcache 请先清理（重启 php-fpm），然后执行冒烟测试。
+PatchApplyErrorMsg=至少一个补丁应用失败。请检查日志，必要时从备份恢复，并联系集成商。
+SlyPatchDescCore=全局：货币符号前置（MAIN_CURRENCY_SYMBOL_BEFORE_VALUE）、dol_eval 防护、forgeSQL 安全回退、box 与列表合计多币种
+SlyPatchDescMenuParentMatch=左侧菜单：父节点只取第一个匹配（Tools 下 SLY 导出三级菜单）
+SlyPatchDescCompta=客户发票/付款多币种：按有效余额判定已付、付款表格原币列、杂项付款银行币种
+SlyPatchDescRemx=全局折扣：多币种多路拆分（含外币拆分）+ afterSplitDiscount 钩子
+SlyPatchDescCommande=销售订单：草稿改客户、加行外币价折算、付款条件过滤、关联对象多币种、按日期字段统计
+SlyPatchDescFourn=供应商发票/订单：关联对象多币种、付款页来源订单列、换供应商付款默认值、预填链
+SlyPatchDescCommPropal=报价单：关联对象多币种
+SlyPatchDescAdmin=后台界面：debugbar、字典错误输出、邮件模板图标
+SlyPatchDescApi=REST API：生产缓存目录、禁用用户可调 API、文档/上传简化、CORS
+SlyPatchDescMiscCron=Cron 列表实体预过滤、发货/捐赠小修正
+SlyPatchDescOtherModules=会员/联系人/合同/贷款（多阶段还款）/薪资/第三方（注册资本币种）/供应商报价/发货/安装/主题
+SlyPatchDescBankTreso=银行待处理事项：多币种列与余额对齐
+SlyPatchDescInvoiceListPos=客户发票列表：来源订单列紧跟编号（数据由 slycustom 钩子提供）
+SlyPatchDescSupplierInvoiceListPos=供应商发票列表：来源订单列紧跟编号（数据由 slycustom 钩子提供）
+SlyPatchDescFacturePdf=发票类：扩展字段计算键初始化防护 + 旧 PDF 模板回退
+SlyPatchDescAccountancySfrs=记账：多币种列 + bookkeepingCreateBefore 钩子（SFRS 报表）
+SlyPatchDescLangs=语言包：SLY 翻译（en_US、fr_FR、zh_CN）
+
+# SLY 24.0 remx 拆分弹窗（sly24.0-remx.patch 引用但 Dolibarr 官方语言包未提供）
+SplitDiscountOptionsAndAmounts=拆分选项与金额
+RemxSplitLocalCurrency=按本币（公司币种）
+RemxSplitOriginalCurrency=按原币（发票币种）
+SplitInto=拆分数目
+LastPartCalculatedAutomatically=（末位自动计算）
+
+# SLY 补丁工具：智能重置 — 只还原冲突补丁实际改动的文件，然后应用全部 17 个补丁
+# 「智能」= 自动挑最便宜的数据源：本地 git 24.0.1 > 自动从 github.com 下载
+# （缓存到 documents/slycustom/downloads/）> 用户上传
+SlyPatchResetConflictFilesAndApply=还原冲突文件 + 应用全部补丁
+# 红色重置按钮正下方那行提示
+SlyPatchResetAllFailed=批量还原失败：上方日志中有 FAILED 行。
+
+# 每行独立的操作按钮（每个补丁一行表单）
+SlyPatchActions=操作
+SlyPatchApplyOne=应用
+SlyPatchResetOne=重置
+SlyPatchRestoreOne=恢复
+SlyPatchApplyOneConfirmText=立即将 %s 应用到 DOL_DOCUMENT_ROOT？（会先备份所有受影响文件，重定向后日志会显示在页面顶部。）
+SlyPatchResetOneConfirmText=从该补丁的逐项备份中还原 %s 并重新应用？（纯本地拷贝 — 不走网络/git。逐项备份在首次成功应用时建立。）
+SlyPatchResetLocalFailed=以下补丁没有逐项备份，无法本地回退：%s。逐项备份仅 slycustom ≥ 2.2.2 后首次成功 Apply 时建立。恢复路径：① 干净 24.0.1 上重新 Apply 一次；② 从 prod 复制 documents/slycustom/patch-backups/per-patch/<name>/ 过来；③ 全新 clone 24.0.1 + 重新启用 slycustom 后 Apply 一次建立备份。
+SlyPatchResetConflictConfirmText=从逐项备份还原全部冲突文件（其他文件不动）后，重新 Apply 全部 17 个补丁。继续？
+SlyPatchRestoreOneConfirmText=从该补丁的逐项备份中还原 %s？（到此为止 — 不重新应用。该行之后会显示"未应用"。）
+SlyPatchPerRowHint=每行都有独立的 Apply / Reset / Restore 按钮。Reset 只回滚并重新应用这一项补丁（用逐项备份）；Restore 只拷回备份、不重新应用；Apply 执行一次干净的正向 apply。
+SlyPatchActionApplyAll=应用全部补丁（Apply all）
+SlyPatchActionApplyAllHint=按依赖顺序正向应用 sly24.0-* 系列。自动把每个被触发的文件备份到逐项备份 + pack 层。开始时自动建一份 bundle 快照。
+SlyPatchActionCreateBundle=创建 Bundle（Create bundle）
+SlyPatchActionCreateBundleHint=把全部 17 patch 触碰的文件 union 后打包成一份 tar.gz。用于风险改动前的手动恢复点。
+SlyPatchActionRestoreBundle=从 Bundle 还原（Restore from bundle）
+SlyPatchActionRestoreBundleHint=一键回到 pre-applyall 状态。处理 cross-patch 文件重叠——per-patch restore 对共享文件给出错误的中段状态。
+SlyPatchActionResetConflict=还原冲突文件 + 应用全部（Reset conflicting files + apply all）
+SlyPatchActionResetConflictHint=对 status=Conflict 的补丁，把它们的 target files 从逐项备份 cp 回后再 Apply 全部 17 个。其他文件完全不动。
+SlyPatchActionUploadBundle=上传 Bundle tar.gz 还原（兜底）
+SlyPatchActionUploadBundleHint=补丁冲突时的兜底恢复。用干净 24.0.1 树按下面的清单打包一个 bundle 上传——工具解压、cp 回 htdocs，并按 patch 拆分（重新）建立逐项备份：已有备份会被上传内容覆盖。无网络、无 git、无下载。
+SlyPatchDownloadTargetList=下载 target file 清单
+SlyPatchUploadBundleConfirmText=上传的 tar.gz 将覆盖 DOL_DOCUMENT_ROOT 下 17 个 patch 触碰的所有目标文件（仅限清单内的目标文件，其他文件不动），并覆盖重建逐项备份（现有备份文件会被替换）。请确保这份 bundle 是从干净的 24.0.1 工作树打包的。继续？
+SlyPatchNoBackupNotice=有 %s 个冲突补丁缺少逐项备份——上方"上传 Bundle"卡是唯一的恢复路径。
+SlyPatchConflictDiagIntro=%s 处于冲突状态。引擎（git/patch）的原始报错如下（这是判断冲突根因的第一手信息，例如行尾 CRLF、git safe.directory 权限、上下文不匹配等）：
+SlyPatchUploadBundleOk=Bundle 已还原 — %s 个文件写入 DOL_DOCUMENT_ROOT，并为 %s 个 patch 建立逐项备份。
+SlyPatchUploadBundleOkReseeded=Bundle 已还原 — %s 个文件写入 DOL_DOCUMENT_ROOT，并覆盖重建 %s 个已有逐项备份文件（污染备份已被清除）。
+SlyPatchUploadBundleFailed=Bundle 上传失败：%s
+
+# 打包备份：每个 patch 一次成功 Apply 后自动生成单一 tar.gz（该 patch 影响的所有原始文件），
+# 位于 documents/slycustom/patch-backups/packs/。可用于下载 / 跨环境上传 / 批量恢复。
+SlyPatchPacksSummary=已建立打包备份：%d 个 tar.gz，合计 %d KB，存放于 documents/slycustom/patch-backups/packs/（每次成功 Apply 自动生成；预览用 tar -tzf）。
+SlyPatchDownloadPack=下载 pack
+SlyPatchRestoreFromPack=从 pack 恢复
+SlyPatchRestoreFromPackConfirmText=从 %s 这个 tar.gz 解出所有原始文件到 DOL_DOCUMENT_ROOT？（预览可用 tar -tzf documents/slycustom/patch-backups/packs/%s；完成后该行回到"未应用"。）
+
+# Bundle（跨 patch 统一打包）：所有 sly24 patch 影响的文件 union 打成单个 tar.gz，专为
+# 多 patch 触碰同一文件时的一键回退设计（每次 Apply all 自动建立；可手动「创建 Bundle」）。
+SlyPatchBundleLatest=最近 Bundle：%s（%s 建立）
+SlyPatchBundleNone=尚未建立 Bundle——点下方「创建 Bundle」打包全部受 patch 影响的文件，或先 Apply all 一次由系统自动建立。
+SlyPatchCreateBundle=创建 Bundle
+SlyPatchRestoreBundle=从 Bundle 恢复
+SlyPatchCreateBundleConfirmText=把所有 sly24 patch 影响的文件（去重 union）打包成单个 tar.gz？（独立于 Apply all 流程——不 apply 任何 patch，只快照当前状态。）
+SlyPatchRestoreBundleConfirmText=从最新 Bundle（%s）解出全部原始文件到 DOL_DOCUMENT_ROOT？（一键回到 Apply all 之前的状态，专为多 patch 触碰同一文件的回退而设计。）

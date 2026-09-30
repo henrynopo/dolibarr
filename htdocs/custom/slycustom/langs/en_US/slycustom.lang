@@ -1,0 +1,377 @@
+# SLY Custom module - English
+# Copyright (C) 2025 SLY
+
+ModuleSLYCustomName=SLY Custom
+ModuleSLYCustomDesc=SLY: PDF templates (invoice, sales order, proforma, shipment, supplier PO/invoice), ShipsGo cron, Tools exports & Search Order, terms PDF append, hooks (multicurrency on lists/index, Shipment menu layout, product labels, order doc options, remx split discount with patch). Dolibarr 14.0 / 22.0; optional core patches per patches/APPLY-ON-22.md.
+ModuleSlyCustomName=SLY Custom
+ModuleSlyCustomDesc=SLY: PDF templates (invoice, sales order, proforma, shipment, supplier PO/invoice), ShipsGo sync, Wise incoming payments (webhook reconciliation), Tools exports & Search Order, terms PDF append, hooks (multicurrency on lists/index, Shipment menu layout, product labels, order doc options, remx split discount with patch). Dolibarr 14.0 / 22.0; optional core patches per patches/APPLY-ON-22.md.
+Module500100Name=SLY Custom
+Module500100Desc=SLY: PDF templates (invoice, sales order, proforma, shipment, supplier PO/invoice), ShipsGo cron, Tools exports & Search Order, terms PDF append, hooks (multicurrency on lists/index, Shipment menu layout, product labels, order doc options, remx split discount with patch). Dolibarr 14.0 / 22.0; optional core patches per patches/APPLY-ON-22.md.
+SLYCustomSetup=SLY Custom Setup
+SLYCustomDescription=About this module
+SLYCustomDescriptionLong=SLY Custom bundles company-specific behaviour for Dolibarr 14.0 and 22.0: SLY PDF models (customer invoice, sales orders and proformas, shipments/packing lists, supplier orders, supplier invoices including debit note), optional ShipsGo API status sync (scheduled job), Wise incoming-payment reconciliation (balances#credit webhook, statement-based SO matching, manual confirm), SLY export pages under Tools (SO/PO/shipment/invoice detail exports and all-in-one), Search Order, replacement dashboard widgets (last actions, birthdays—multicurrency invoice boxes now use core), Rubis-style terms PDF append and order document options, and hooks across cards/lists (source order columns, multicurrency amounts on order/invoice home, Shipment under Commerce menu, product extrafield labels, supplier flows, payment lists, etc.). On 22.0 some features still need small core patches—see patches/APPLY-ON-22.md and patches/PATCHES-BY-MODULE.md.
+SLYExports=Exports
+API_KEY_SHIPSGO=ShipsGo API Key
+API_KEY_SHIPSGOTooltip=API key for ShipsGo integration (stored per company / entity when Multicompany is enabled). Leave empty to disable ShipsGo for this company.
+SHIPSGO_WEBHOOK_SECRET=ShipsGo Webhook Secret
+SHIPSGO_WEBHOOK_SECRETTooltip=HMAC-SHA256 shared secret used to verify incoming ShipsGo webhook deliveries (header X-Shipsgo-Webhook-Signature). Stored per company / entity. Use a long random value; rotate by changing it and re-registering the webhook with ShipsGo.
+SHIPSGO_WEBHOOK_URL=ShipsGo Webhook URL
+SHIPSGO_WEBHOOK_URL_TOOLTIP=Configure this URL in the ShipsGo dashboard (or click Register) for the corresponding entity. Each multicompany entity must have its own subscription.
+SHIPSGO_WEBHOOK_REGISTER=Register webhook with ShipsGo
+SHIPSGO_WEBHOOK_REGISTERED=Webhook successfully registered with ShipsGo.
+SHIPSGO_WEBHOOK_REGISTER_FAILED=Failed to register webhook with ShipsGo.
+SHIPSGO_WEBHOOK_GENERATE_SECRET=Generate secret
+SHIPSGO_WEBHOOK_SECRET_GENERATED=New ShipsGo webhook secret generated (64-char random hex). If an old secret is configured in the ShipsGo dashboard, update it there too.
+SHIPSGO_WEBHOOK_GENERATE_CONFIRM=Regenerating immediately invalidates the old secret already configured in the ShipsGo dashboard (all deliveries will fail signature check). You must update it there afterwards. Continue?
+SLYCUSTOM_SHIPPING_ENABLE_UNVALIDATE=Enable shipment unvalidate
+SLYCUSTOM_SHIPPING_ENABLE_UNVALIDATETooltip=Allow users to unvalidate (set back to draft) confirmed shipments.
+SLYCUSTOM_DASHBOARD_BOXES=Dashboard Widgets
+SLYCUSTOM_DASHBOARD_BOXES_DESC=SLY Custom registers two optional replacement widgets: last actions and birthdays (Phase 3: multicurrency invoice/order dashboard boxes were removed in favour of core). In Dashboard setup, disable the originals if you prefer and enable the SLY ones (note in list: SLY).
+SLYCUSTOM_GO_TO_DASHBOARD_SETUP=Go to Dashboard setup
+SLYCUSTOM_SYNC_BOXES=Sync SLY boxes
+SLYCUSTOM_SYNC_BOXES_TOOLTIP=If the SLY widgets do not appear in the dashboard setup, click this to register them into the database (e.g. after enabling the module before boxes were added).
+SLYCUSTOM_BOXES_SYNCED=SLY boxes successfully synced. You can now add them in Dashboard setup.
+# Shipment PDF document title (shown uppercase on packing list PDFs)
+SLYPackingListPDFTitle=Packing list
+SLYCUSTOM_PDF_TEMPLATES_SECTION=PDF templates (invoice / packing list)
+SLYCUSTOM_SYNC_PDF_MODELS=Sync PDF templates to list
+SLYCUSTOM_SYNC_PDF_MODELS_TOOLTIP=Register SLY invoice and packing list templates so they appear in the default PDF template dropdown (Setup → Invoices / Sendings). Run once if templates are missing.
+SLYCUSTOM_PDF_MODELS_SYNCED=PDF templates (sly_invoice, sly_packinglist) synced. They should now appear in default template dropdowns.
+SLYCUSTOM_MENU_ICONS=Menu icons
+SLYCUSTOM_SYNC_MENU_ICONS=Sync menu icons
+SLYCUSTOM_SYNC_MENU_ICONS_TOOLTIP=Update icons for "Search Order" and "Exports" in the left menu. Click if icons are missing after enabling the module.
+SLYCUSTOM_MENU_ICONS_SYNCED=Menu icons synced. Refresh the Tools or Commerce page to see the icons.
+UpdateShips=Update ShipsGo status
+ShipmentUpdated=Shipment status updated successfully
+ShipsGoMissingInfo=Missing ShipsGo info
+ShipsGoShipmentCreated=Shipment created
+UnvalidateShipment=Unvalidate shipment
+ConfirmUnvalidateShipment=Are you sure you want to unvalidate shipment %s?
+SourceOrder=Source order
+SourcePurchaseOrder=Source purchase order
+SaleRepresentativesOfThirdParty=Salesperson
+SalesPerson=SalesPerson
+PurchasePerson=Purchase Person
+SearchOrder=Search Order
+SLYExportTabGroupDetails=Line-detail exports (SO / PO / shipment)
+SLYExportTabGroupCashflow=AR / AP & deposit compliance
+SLYExportMenuInvoices=Invoices & Shipment
+SLYExportMenuPaymentsPlanning=Payments planning
+SLYExportMenuLineDetail=Line-detail exports
+SLYExportMenuCashflow=Export — AR/AP & deposits
+SLYExportMenu=SLY Export
+SearchCriteria=Search criteria
+SLYExportAllInOne=ALL-in-One
+SLYExportSODetails=SO Details
+SLYExportSOInvoiceDetails=SO Invoice Details
+SLYExportShipmentDetails=Shipment Details
+SLYExportPODetails=PO Details
+SLYExportPOInvoiceDetails=PO Invoice Details
+SLYExportSOInvoiceReceivable=SO Invoice Receivable
+SLYExportPOInvoicePayable=PO Invoice Payable
+SLYExportSODepositInvoiceMissing=SO deposit invoice missing
+SLYDepositInvoiceMissingBanner=According to payment terms, %s sales order(s) require a deposit invoice but no validated deposit invoice is linked yet.
+SLYDepositInvoiceMissingBannerLink=Open missing-deposit list
+SLYDepositInvoiceMissingAlertShort=Deposit required by payment terms; no validated deposit invoice linked to this SO.
+SLYExportPODepositInvoiceMissing=PO deposit invoice missing
+SLYPoDepositInvoiceMissingBanner=According to payment terms, %s purchase order(s) require a supplier deposit invoice but no validated deposit invoice is linked yet.
+SLYPoDepositInvoiceMissingBannerLink=Open missing supplier-deposit list
+SLYPoDepositInvoiceMissingAlertShort=Deposit required by payment terms; no validated supplier deposit invoice linked to this PO.
+DepositInvoice=Deposit Invoice
+MultipleOrdersFound=Multiple orders found
+OrderContact=Order contact
+InvoiceContact=Invoice contact
+ShipmentContact=Shipment contact
+consignee=Consignee
+consigneeshipping=Ship-to
+consigneebilling=Bill-To
+Purchaser=Purchaser
+FollowUpPurchaser=Follow-up purchaser(s)
+Prepayment=Prepayment
+Document=Document
+GST=GST
+TotalVATSG=Total GST
+# SLY ALL-in-One validation UI
+SLYAllInOneCheckHeader=ALL-in-One pre-download validation
+SLYAllInOneCheckTitle=Pre-download validation results (shown one by one)
+SLYAllInOneCheckHelp=Please fix the failing conditions (relations / contact counts). Then click “Start download”.
+SLYAllInOnePassedNone=Passed (none)
+SLYAllInOneConfirmStart=No validation errors found. Start download
+SLYAllInOneHasErrors=Failing conditions were found. Please fix them and retry.
+SLYAllInOneValidationFailed=ALL-in-One validation failed
+SLYAllInOneRule_SQL_ERROR=SQL Error
+SLYAllInOneRule_SO_PoCntGt1=More than 1 linked PO
+SLYAllInOneRule_SO_SalespersonNe1=Salesperson count is not 1
+SLYAllInOneRule_SO_BillToCntGt1=More than 1 Bill_To (consignee invoice)
+SLYAllInOneRule_SO_ShipmentCntGt1=More than 1 linked shipment
+SLYAllInOneRule_SO_ConsigneeShipContactCntGt1=More than 1 Customer shipping contact (consignee shipment)
+SLYAllInOneRule_SOInv_SoCntGt1=More than 1 linked SO
+SLYAllInOneRule_SOInv_ShipmentCntGt1=More than 1 shipment
+SLYAllInOneRule_SOInv_BillToCntGt1=More than 1 Bill_To (consignee invoice)
+SLYAllInOneRule_Shipment_SoCntNe1=SO linked count is not 1
+SLYAllInOneRule_Shipment_BillToCntGt1=More than 1 Bill_To (consignee invoice)
+SLYAllInOneRule_Shipment_CustomerShipContactCntGt1=More than 1 Customer shipping contact (consignee shipment)
+SLYAllInOneRule_Shipment_InvoiceCntGt1=More than 1 linked invoice
+SLYAllInOneRule_PO_SoCntGt1=More than 1 linked SO
+SLYAllInOneRule_PO_PurchasePersonCntNe1=Purchase person count is not 1
+SLYAllInOneRule_POInv_PoCntGt1=More than 1 linked PO
+SLYAllInOnePreparingDownloadFor=Preparing download for: 
+SLYAllInOneAllDownloadsInitiated=All downloads have been initiated.
+Downloading=Downloading
+# SLY Debit Note (supplier invoice PDF template - we send to supplier, manual generation only)
+SLYDebitNoteModel=SLY Debit Note
+SLYDebitNoteModelDesc=Debit note sent to supplier. Do not set as default; generate PDF manually when sending to supplier. (Normally we receive credit notes from suppliers.)
+# SLY Supplier order (purchase order PDF template)
+SLYSupplierOrderModelDesc=SLY purchase order PDF template (customisable).
+
+# Setup tabs
+SLYCUSTOM_GENERAL_OPTIONS=General options
+SLYCUSTOM_TAB_GENERAL=General
+SLYCUSTOM_TAB_PDF=PDF templates
+SLYCUSTOM_TAB_BOXES=Dashboard
+SLYCUSTOM_TAB_CGV=Terms & conditions
+SLYCUSTOM_TAB_RUBIS=Terms & conditions
+
+# Terms & conditions (upgraded from Rubis module)
+SLYCUSTOM_RUBIS_UPGRADE_DESC=This is the upgraded version of the original Rubis module. It appends Terms & conditions PDFs to order (and optionally invoice) PDFs. The options below match the original Rubis "Terms (CGV)" settings; you can upload, replace or delete default and per-language term files here.
+SLYCUSTOM_CGV_SECTION=Terms & conditions
+SLYCUSTOM_CGV_DESC=Upload PDF files to append as general terms to order (and optionally invoice) PDFs. Single file: documents/mycompany/terms/terms.pdf. With multi-language: documents/mycompany/terms/<lang>/terms.pdf (e.g. en_US, zh_CN).
+SLYCUSTOM_CGV_OPTIONS_NOTE=Each row below corresponds to the original Rubis term files: "Default" = one PDF for all languages; "Terms for <lang>" = one PDF per language (e.g. Chinese, English). The correct file is appended to order/invoice PDFs based on the document language.
+SLYCUSTOM_CGV_FILE=File
+SLYCUSTOM_CGV_ACTIONS=Actions
+SLYCUSTOM_CGV_CURRENT_FILE=Current file
+SLYCUSTOM_CGV_DEFAULT=Default (single language)
+SLYCUSTOM_CGV_PATH=path
+SLYCUSTOM_CGV_LANG=Terms for %s
+SLYCUSTOM_CGV_UPLOAD=Upload
+SLYCUSTOM_CGV_REPLACE=Replace
+SLYCUSTOM_CGV_UPLOAD_FOR_LANG=Upload terms PDF for language
+SLYCUSTOM_CGV_UPLOADED=Terms PDF uploaded successfully.
+SLYCUSTOM_CGV_DELETED=Terms PDF deleted.
+SLYCUSTOM_CGV_CONFIRM_DELETE=Delete this terms file?
+SLYCUSTOM_TERMS_MIGRATE=Migrate to terms.pdf
+SLYCUSTOM_TERMS_OLD_PATH=old path
+SLYCUSTOM_TERMS_MIGRATED=File migrated to new name (terms.pdf).
+SLYCUSTOM_TERMS_DEFAULT_SET=Default terms template updated.
+SLYCUSTOM_TERMS_DEFAULT_TEMPLATE=Default template
+SLYCUSTOM_TERMS_SET_DEFAULT=Set as default
+SLYCUSTOM_CGV_FILENAME_OPTIONAL=Optional: save as this filename (e.g. terms_contract.pdf). Leave empty for terms.pdf
+SLYCUSTOM_TERMS_UPLOAD_MODE=Upload mode
+SLYCUSTOM_TERMS_SAVE_AS_NEW=Save as new version
+SLYCUSTOM_TERMS_OVERWRITE=Overwrite existing version
+SLYCUSTOM_TERMS_FILENAME_REMARK=File name (e.g. terms_contract.pdf)
+SLYCUSTOM_TERMS_OVERWRITE_SELECT=Select file to overwrite
+SLYCUSTOM_TERMS_NO_FILE_TO_OVERWRITE=No existing file to overwrite for this language.
+SLYCUSTOM_TERMS_FILENAME_REQUIRED=Enter a file name for the new version (e.g. terms_contract.pdf).
+SLYCUSTOM_TERMS_UPLOAD_CHOOSE_MODE=Choose "Save as new version" and enter a file name, or "Overwrite" and select a file.
+SLYCUSTOM_ADD_TERMS_LABEL=Include sales terms
+SLYCUSTOM_ADD_TERMS_HINT=Uses default terms PDF for the selected language
+SLYCUSTOM_TERMS_NO_TEMPLATE=No sales terms template for this language
+SLYCUSTOM_TERMS_SELECT_TEMPLATE=Template
+
+# Shared (e.g. terms upload — select language)
+SelectLanguage=Select a language
+
+# Override product/service customs field label (Plant No. in SLY)
+CustomsCode=Plant No.
+CustomCode=Plant No.
+CustomsCodeHelp=Plant number / factory code (SLY override of customs nomenclature).
+
+# Third party Capital (registered capital) - independent currency
+CapitalCurrency=Capital currency
+
+# Wise incoming payments integration
+SLYCUSTOM_TAB_WISE=Wise
+WISE_STATUS_SECTION=Wise integration status
+SLYCUSTOM_WISE_SECTION=Wise connection and matching
+WISE_WEBHOOK_URL=Webhook receiver URL
+WISE_API_TOKEN=Wise API token
+WISE_API_TOKENTooltip=Token created in Wise Settings > Developer tools > API tokens. Stored per company/entity. Used to pull balance statements (payment references) and, later, to create transfers.
+WISE_PROFILE_ID=Wise profile id
+WISE_PROFILE_IDTooltip=Numeric id of the Wise profile. Auto-filled by the "Test connection" button when the token is valid.
+WISE_SIGNATURE_KEY=Webhook signature key
+WISE_SIGNATURE_KEY_FOUND=Verification enabled (verification_key.pem found)
+WISE_SIGNATURE_KEY_MISSING=Bootstrap mode: save the subscription public key to DOL_DATA_ROOT/wise_webhook/verification_key.pem to enforce signature verification (unsigned deliveries are currently accepted with a warning)
+WISE_QUEUE_STATUS=Incoming payments queue
+WISE_SO_REF_PATTERN=SO reference extraction pattern
+WISE_SO_REF_PATTERNTooltip=Optional manual override. Effective pattern resolution: this field > derived from the order numbering mask (Sales Orders setup > Orders numbering, e.g. COMMANDE_SAPHIR_MASK) > built-in default. Leave empty to stay automatic.
+WISE_PAYMENT_MODE=Payment mode
+WISE_PAYMENT_MODETooltip=Dolibarr payment mode recorded on payments created from Wise credits (default VIR = bank transfer).
+WISE_BANK_ACCOUNT_DEFAULT=Default bank account
+WISE_BANK_ACCOUNT_DEFAULTTooltip=Bank account used for the payment bank line when no per-currency mapping matches.
+WISE_BANK_MAPPING_CUR=%s bank account
+WISE_BANK_MAPPING_CURTooltip=Dolibarr bank account that mirrors the Wise %s balance; recorded credits are written to this account.
+WISE_TEST_CONNECTION=Test connection
+WISE_TEST_OK=Connection OK. Profiles:
+WISE_TEST_KO=Connection failed.
+WISE_TOKEN_NOT_SET=No Wise API token configured.
+WISE_SO_REF_PATTERN_EFFECTIVE=Effective SO extraction pattern
+WISE_SO_REF_SOURCE_MANUAL=Source: manual override
+WISE_SO_REF_SOURCE_MASK=Source: derived from order numbering mask
+WISE_SO_REF_SOURCE_DEFAULT=Source: built-in default (no mask found)
+WISE_SAVE_SIGNATURE_KEY=Fetch and save signature key
+WISE_SIGNATURE_KEY_SAVED=Signature key saved. Webhook verification is now enforced.
+WISE_SIGNATURE_KEY_NOT_FOUND=No signature key found in the subscriptions response.
+WISE_SIGNATURE_KEY_WRITE_FAILED=Could not write the signature key file:
+WISE_FLOW_STATUS=Flow status
+WISE_FLOW_STATUSTooltip=Incoming: queue Wise credits into the reconcile list. Outgoing: prepare Wise transfers from supplier invoices (await manual funding in Wise).
+WISE_FLOW_INCOMING=Incoming (webhook reconciliation)
+WISE_FLOW_OUTGOING=Outgoing (API payment preparation)
+WISE_INCOMING_ENABLED=Enable incoming payments
+WISE_INCOMING_ENABLEDTooltip=When ON, balances#credit webhook deliveries are queued into the reconcile list (NEW status) for enrichment and manual confirmation. The raw events are still stored when OFF.
+WISE_OUTGOING_ENABLED=Enable outgoing payment preparation
+WISE_OUTGOING_ENABLEDTooltip=When ON, supplier invoices expose Wise transfer preparation (draft transfer created via API, funded manually in the Wise dashboard). Requires the transfers#state-change subscription for automatic status write-back.
+SLYCUSTOM_TAB_SHIPSGO=ShipsGo
+SLYCUSTOM_SHIPSGO_SECTION=ShipsGo connection
+WISE_WEBHOOK_IPCHECK=Webhook source IP allowlist
+WISE_WEBHOOK_IPCHECKTooltip=Reject webhook deliveries whose source IP is outside the Wise egress networks (45.129.54.0/24, 45.129.55.0/24 per docs.wise.com). Interim hardening while the signature public key is not available; combines with signature verification when both are on.
+WISE_IPCHECK_ACTIVE=Source IP allowlist active (interim protection).
+WISE_SIGNATURE_KEYTooltip=The subscription public key Wise generates automatically. Look for it on the subscription detail page in Wise Settings > Developer tools > Webhooks, then save it to DOL_DATA_ROOT/wise_webhook/verification_key.pem (or use the fetch button when the subscriptions API is reachable).
+
+# Wise reconcile page
+SLYWiseReconcile=Wise reconcile
+WiseReconcileTitle=Wise incoming payments
+WiseCreditDetail=Credit detail
+WiseAllocate=Allocate
+WiseConfirmRecord=Confirm and record payment
+WiseIgnore=Ignore this credit
+WiseReenrich=Re-fetch statement details
+WiseNoCandidate=No invoice candidate found. Record the payment manually from the invoice card, or ignore this credit.
+WiseMatchedSOs=Matched sales orders
+WiseLowConfidence=Amount-only match - review carefully
+WiseRecordedAs=Recorded as payment
+WiseIgnoredOk=Credit marked as ignored.
+WiseEnrichedOk=Statement details refreshed.
+WiseEnrichedPending=Statement not available yet, will retry.
+WiseEnrichedKo=Could not fetch statement details (check token/profile or see log).
+WiseStatusNew=Pending
+WiseStatusEnriched=Ready to review
+WiseStatusRecorded=Recorded
+WiseStatusIgnored=Ignored
+WiseErrAlloc=Invalid or missing allocation amounts.
+WiseErrNotOpen=Selected invoice not found or not open.
+WiseErrCurrency=Currency mismatch between credit and selected invoice.
+WiseErrOverAlloc=Allocation exceeds the invoice remaining amount.
+WiseErrOverCredit=Allocations exceed the received amount.
+WiseErrCreate=Payment creation failed (see system log).
+WiseErrAlready=This credit is already recorded.
+
+# Wise outgoing (transfer preparation)
+WisePayViaWise=Pay via Wise
+WiseTransferStatus=Wise transfer
+WisePrepareTitle=Wise payment preparation
+WiseTransferSummary=What will be sent
+WiseSourceCurrency=Paid from balance
+WiseReferenceSent=Reference sent to vendor
+WiseReferenceSentTooltip=Priority: vendor's own order reference (linked PO ref_supplier) > vendor's invoice number > our invoice ref. Never our internal PO ref.
+WiseRefFromVendorOrder=from vendor order reference
+WiseRefFromVendorInvoice=from vendor invoice number
+WiseRefFromOurRef=from our invoice ref (fallback)
+WiseNoIban=Supplier has no IBAN bank account
+WiseCreateTransfer=Create transfer (unfunded)
+WisePrepareConfirm=Create an unfunded Wise transfer for the remaining amount? Payment only happens after you fund it manually in Wise.
+WiseTransferCreated=Unfunded Wise transfer #%s created. Fund it manually in the Wise dashboard (auto-cancels after 5 business days).
+WiseTransferFailed=Wise transfer creation failed:
+WiseTransferRefreshed=Wise state refreshed:
+WiseAwaitingFunding=Transfer created, awaiting manual funding in the Wise dashboard.
+WiseRefreshState=Refresh Wise state
+WiseRecordSupplierPayment=Record supplier payment now
+WiseOutgoingDisabled=Outgoing flow disabled (WISE_OUTGOING_ENABLED=0)
+
+# Core patch tool (admin/patches.php)
+SlyPatchTool=SLY Core Patches
+SlyPatchToolOpen=Open patch tool
+SlyPatchToolEntryTooltip=Apply the SLY core customisations (sly24.0-*.patch series) to the official Dolibarr files from the browser, with live status and automatic file backups.
+SlyPatchToolIntro=Engine: %s. Each patch is checked with a reverse dry-run: "Applied" means the reverse patch applies cleanly. Every apply first backs up the touched files into documents/slycustom/patch-backups/.
+SlyPatchVersionWarning=This patch series targets Dolibarr 24.x only — current version is %s. Regenerate the patches for your version before using this tool.
+SlyPatchNoEngine=Neither git nor the patch command is available on this server — cannot apply patches from the browser.
+SlyPatchApplyAll=Apply all patches (%s)
+SlyPatchApplyAllConfirmText=Apply all not-yet-applied SLY core patches to the Dolibarr core files? Originals are backed up under documents/slycustom/patch-backups/.
+SlyPatchRescan=Rescan status
+SlyPatchStatusCacheNote=Status snapshot is %s second(s) old (cached up to 10 min to spare the shared host) — the button forces a fresh scan.
+PatchApplied=Applied
+PatchNotApplied=Not applied
+PatchConflict=Conflict
+PatchApplyDoneMsg=Patches applied. Clear the OPcache (restart php-fpm) if one is active, then run your smoke tests.
+PatchApplyErrorMsg=At least one patch failed to apply. Check the log, restore from the backup if needed, and contact your integrator.
+SlyPatchDescCore=Global: currency symbol before value (MAIN_CURRENCY_SYMBOL_BEFORE_VALUE), dol_eval guards, forgeSQL safe fallback, boxes and list totals multicurrency
+SlyPatchDescMenuParentMatch=Left menu: parent entry takes the first match only (SLY Export third-level menus under Tools)
+SlyPatchDescCompta=Customer invoices/payments multicurrency: paid classification by effective balance, payment table original-currency column, various payments bank currency
+SlyPatchDescRemx=Global discounts: multicurrency N-way split (incl. foreign currency) + afterSplitDiscount hook
+SlyPatchDescCommande=Sales orders: draft customer change, add-line foreign price derivation, payment terms filter, linkedobject multicurrency, date-field statistics
+SlyPatchDescFourn=Supplier invoices/orders: linkedobject multicurrency, payment page source order column, vendor-switch payment defaults, prefill chain
+SlyPatchDescCommPropal=Proposals: linkedobject multicurrency
+SlyPatchDescAdmin=Admin UI: debugbar, dict error output, mail templates icons
+SlyPatchDescApi=REST API: production cache dir, disabled-user access, document/upload simplification, CORS
+SlyPatchDescMiscCron=Cron list entity prefilter, delivery/don small fixes
+SlyPatchDescOtherModules=Adherents/contact/contract/loan (multi-phase schedule)/salaries/thirdparty (capital currency)/supplier proposals/shipments/install/theme
+SlyPatchDescBankTreso=Bank upcoming entries: multicurrency column and balance alignment
+SlyPatchDescInvoiceListPos=Customer invoice list: Source order column right after Ref (data from slycustom hook)
+SlyPatchDescSupplierInvoiceListPos=Supplier invoice list: Source order column right after Ref (data from slycustom hook)
+SlyPatchDescFacturePdf=Invoice class: extrafield computed-keys init guard + legacy PDF template fallback
+SlyPatchDescAccountancySfrs=Bookkeeping: multicurrency columns + bookkeepingCreateBefore hook (SFRS Reports)
+SlyPatchDescLangs=Language packs: SLY translations (en_US, fr_FR, zh_CN)
+
+# SLY 24.0 remx split popup (lang keys referenced by sly24.0-remx.patch but absent from official Dolibarr lang files)
+SplitDiscountOptionsAndAmounts=Split options and amounts
+RemxSplitLocalCurrency=In company currency
+RemxSplitOriginalCurrency=In original (invoice) currency
+SplitInto=Split into
+LastPartCalculatedAutomatically=(last part is auto-calculated)
+
+# SLY patch tool: smart reset that only restores the files touched by conflicting
+# patches, then applies all 17 over the freshly re-baselined tree. "Smart" means
+# it picks the cheapest available source: local git 24.0.1 > auto-download from
+# github.com (cached at documents/slycustom/downloads/) > optional user upload.
+SlyPatchResetConflictFilesAndApply=Reset conflicting files + apply all
+# The line of hint text shown right under the red reset button.
+SlyPatchResetAllFailed=Bulk reset failed: see the FAILED lines in the log above.
+
+# Per-row action buttons (one form per patch row in the table).
+SlyPatchActions=Actions
+SlyPatchApplyOne=Apply
+SlyPatchResetOne=Reset
+SlyPatchRestoreOne=Restore
+SlyPatchApplyOneConfirmText=Apply %s to your DOL_DOCUMENT_ROOT now? (Backs up every touched file first; logs at the top of the page after redirect.)
+SlyPatchResetOneConfirmText=Restore %s from its per-patch backup and re-apply? (Local copy only — no network/git. The per-patch backup was created on the first successful apply.)
+SlyPatchResetLocalFailed=No per-patch backup exists for: %s — local rollback is unavailable. Per-patch backups are only created by slycustom ≥ 2.2.2 on the first successful Apply of each patch. Recovery paths: (1) re-Apply on a clean 24.0.1 tree to rebuild the backup; (2) copy the missing per-patch backup directories from prod to documents/slycustom/patch-backups/per-patch/<name>/; (3) fresh git clone of official 24.0.1, re-enable slycustom, and Apply the affected patches once to populate the backups.
+SlyPatchResetConflictConfirmText=Restore every file touched by the conflicting patches from its per-patch backup (every other file stays untouched), then re-Apply all 17 patches. Continue?
+SlyPatchRestoreOneConfirmText=Restore %s from its per-patch backup? (Stops there — does not re-apply. After this the row shows "not applied".)
+SlyPatchPerRowHint=Each row has its own Apply / Reset / Restore buttons. Reset rolls back only that one patch (using its per-patch backup) and re-applies; Restore just copies the backup back without re-applying; Apply runs a clean forward apply.
+SlyPatchActionApplyAll=Apply all patches
+SlyPatchActionApplyAllHint=Forward-apply the sly24.0-* series in dependency order. Every touched file is auto-backed up into the per-patch backup + pack layer. A pre-applyall bundle snapshot is taken first.
+SlyPatchActionCreateBundle=Create bundle
+SlyPatchActionCreateBundleHint=Snapshot the union of all 17 patch targets into one tar.gz. Use as a manual restore point before risky drift edits.
+SlyPatchActionRestoreBundle=Restore from bundle
+SlyPatchActionRestoreBundleHint=One-tar.gz rollback to the pre-applyall state. Resolves cross-patch overlap (per-patch restore yields a wrong intermediate state for files touched by more than one patch).
+SlyPatchActionResetConflict=Reset conflicting files + apply all
+SlyPatchActionResetConflictHint=For status=Conflict patches: restore their target files from the per-patch backup, then re-Apply all 17. Every other file stays untouched.
+SlyPatchActionUploadBundle=Upload bundle tar.gz (recovery path)
+SlyPatchActionUploadBundleHint=Last-resort recovery for conflict states. Build a clean 24.0.1 tar.gz off-host from the target list below, then upload it — the tool extracts, copies into htdocs, and (re)seeds per-patch backups: existing backup files are overwritten with the uploaded content. No network, no git, no download.
+SlyPatchDownloadTargetList=Download target file list
+SlyPatchUploadBundleConfirmText=The uploaded tar.gz will overwrite every target file listed by the 17 patches (only those files; everything else in htdocs is left untouched) and overwrite-rebuild the per-patch backup layer (existing backup files are replaced). Make sure the bundle was built from a pristine 24.0.1 working tree. Continue?
+SlyPatchNoBackupNotice=%s conflict patch(es) have no per-patch backup — the "Upload bundle" card above is the only recovery path.
+SlyPatchConflictDiagIntro=%s is in conflict. The engine's (git/patch) raw error output follows — this is the primary evidence for the root cause (CRLF line endings, git safe.directory permissions, context mismatch, ...):
+SlyPatchUploadBundleOk=Bundle ingested — %s file(s) written into DOL_DOCUMENT_ROOT, per-patch backup seeded for %s patch(es).
+SlyPatchUploadBundleOkReseeded=Bundle ingested — %s file(s) written into DOL_DOCUMENT_ROOT, %s existing per-patch backup file(s) overwritten (poisoned backups displaced).
+SlyPatchUploadBundleFailed=Bundle upload failed: %s
+
+# Pack layer: every successful Apply auto-creates one tar.gz holding every
+# pristine file that patch would touch, under
+# documents/slycustom/patch-backups/packs/. Supports download / cross-env
+# upload / one-click bulk restore.
+SlyPatchPacksSummary=Packs on disk: %d tar.gz file(s), %d KB total, in documents/slycustom/patch-backups/packs/ (auto-created on every successful Apply; inspect with tar -tzf).
+SlyPatchDownloadPack=Download pack
+SlyPatchRestoreFromPack=Restore from pack
+SlyPatchRestoreFromPackConfirmText=Extract every file from %s back into DOL_DOCUMENT_ROOT? (Inspect with: tar -tzf documents/slycustom/patch-backups/packs/%s; the row lands back on "not applied" when done.)
+
+# Bundle (cross-patch unified pack): the union of every sly24 patch target
+# in one tar.gz, designed for one-tar.gz rollback when multiple patches
+# touch the same file. Built automatically at the start of every applyall;
+# can also be triggered manually via "Create bundle".
+SlyPatchBundleLatest=Latest bundle: %s (built %s)
+SlyPatchBundleNone=No bundle yet — click "Create bundle" below to snapshot every patch-touched file, or run Apply all once to auto-create it.
+SlyPatchCreateBundle=Create bundle
+SlyPatchRestoreBundle=Restore from bundle
+SlyPatchCreateBundleConfirmText=Bundle every file touched by any sly24 patch (deduped union) into one tar.gz? (Independent from Apply all — no patch is applied, just a snapshot of the current state.)
+SlyPatchRestoreBundleConfirmText=Extract every file from the latest bundle (%s) back into DOL_DOCUMENT_ROOT? (One-tar.gz rollback to the pre-applyall state — designed for the case when multiple patches touch the same file.)

@@ -1,0 +1,65 @@
+diff --git a/htdocs/accountancy/class/bookkeeping.class.php b/htdocs/accountancy/class/bookkeeping.class.php
+index 3f09411ae60..ec2815cbb7b 100644
+--- a/htdocs/accountancy/class/bookkeeping.class.php
++++ b/htdocs/accountancy/class/bookkeeping.class.php
+@@ -414,6 +414,20 @@ class BookKeeping extends CommonObject
+ 
+ 				$now = dol_now();
+ 
++				// SFRS Reports: let external modules enrich this BookKeeping line before the
++				// INSERT is built (typically to fill multicurrency_amount / multicurrency_code
++				// from the originating invoice / payment / bank row). The hook mutates $this
++				// in place so the values below land in the INSERT naturally.
++				// $hookmanager is the global Dolibarr HookManager set in main.inc.php; absent
++				// (e.g. when BookKeeping is used from CLI or before main.inc.php runs) we no-op.
++				if (isset($hookmanager) && is_object($hookmanager)) {
++					$hook_parameters = array(
++						'object' => $this,
++						'context' => 'bookkeeping.create',
++					);
++					$hookmanager->executeHooks('bookkeepingCreateBefore', $hook_parameters, $this, $action);
++				}
++
+ 				$sql = "INSERT INTO ".$this->db->prefix().$this->table_element." (";
+ 				$sql .= "doc_date";
+ 				$sql .= ", date_lim_reglement";
+@@ -438,6 +452,9 @@ class BookKeeping extends CommonObject
+ 				$sql .= ", piece_num";
+ 				$sql .= ", ref";
+ 				$sql .= ', entity';
++				// SFRS Reports: multicurrency columns. Both nullable in llx_accounting_bookkeeping.
++				$sql .= ', multicurrency_amount';
++				$sql .= ', multicurrency_code';
+ 				$sql .= ") VALUES (";
+ 				$sql .= "'".$this->db->idate($this->doc_date)."'";
+ 				$sql .= ", ".(isDolTms($this->date_lim_reglement) ? "'".$this->db->idate($this->date_lim_reglement)."'" : 'NULL');
+@@ -462,6 +479,8 @@ class BookKeeping extends CommonObject
+ 				$sql .= ", ".((int) $this->piece_num);
+ 				$sql .= ", '".$this->db->escape($this->ref)."'";
+ 				$sql .= ", ".(!isset($this->entity) ? ((int) $conf->entity) : ((int) $this->entity));
++				$sql .= ", ".(isset($this->multicurrency_amount) && $this->multicurrency_amount !== null && $this->multicurrency_amount !== '' ? (float) $this->multicurrency_amount : 'NULL');
++				$sql .= ", ".(!empty($this->multicurrency_code) ? "'".$this->db->escape($this->multicurrency_code)."'" : 'NULL');
+ 				$sql .= ")";
+ 
+ 				$resql = $this->db->query($sql);
+@@ -779,7 +798,10 @@ class BookKeeping extends CommonObject
+ 		$sql .= 'journal_label,';
+ 		$sql .= 'piece_num,';
+ 		$sql .= 'ref,';
+-		$sql .= 'entity';
++		$sql .= 'entity,';
++		// SFRS Reports: multicurrency columns. Both nullable in llx_accounting_bookkeeping.
++		$sql .= 'multicurrency_amount,';
++		$sql .= 'multicurrency_code';
+ 		$sql .= ') VALUES (';
+ 		$sql .= ' '.(isDolTms($this->doc_date) ? "'".$this->db->idate($this->doc_date)."'" : 'NULL').',';
+ 		$sql .= ' '.(isDolTms($this->date_lim_reglement) ? "'".$this->db->idate($this->date_lim_reglement)."'" : 'NULL').',';
+@@ -804,6 +826,8 @@ class BookKeeping extends CommonObject
+ 		$sql .= ' '.(empty($this->piece_num) ? 'NULL' : $this->db->escape((string) $this->piece_num)).',';
+ 		$sql .= ' '.(empty($this->ref) ? "''" : "'".$this->db->escape($this->ref)."'").',';
+ 		$sql .= ' '.(!isset($this->entity) ? ((int) $conf->entity) : ((int) $this->entity));
++		$sql .= ', '.(isset($this->multicurrency_amount) && $this->multicurrency_amount !== null && $this->multicurrency_amount !== '' ? (float) $this->multicurrency_amount : 'NULL');
++		$sql .= ', '.(!empty($this->multicurrency_code) ? "'".$this->db->escape($this->multicurrency_code)."'" : 'NULL');
+ 		$sql .= ')';
+ 
+ 		$this->db->begin();

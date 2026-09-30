@@ -1,0 +1,5 @@
+# sly24.0-*.patch must stay LF: a CRLF patch breaks `git apply` on Linux
+# (every hunk / filename header carries a trailing CR). Overrides this
+# repo's core.autocrlf=true, which would otherwise check the files out
+# with CRLF on Windows again.
+*.patch text eol=lf

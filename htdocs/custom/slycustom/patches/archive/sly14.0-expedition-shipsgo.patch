@@ -1,0 +1,1172 @@
+diff --git a/htdocs/expedition/card.php b/htdocs/expedition/card.php
+index 6dbcc538397..567a5f4a606 100644
+--- a/htdocs/expedition/card.php
++++ b/htdocs/expedition/card.php
+@@ -37,6 +37,7 @@
+ require '../main.inc.php';
+ require_once DOL_DOCUMENT_ROOT.'/core/class/html.formfile.class.php';
+ require_once DOL_DOCUMENT_ROOT.'/expedition/class/expedition.class.php';
++require_once DOL_DOCUMENT_ROOT.'/expedition/class/ShipsGo_API.class.php';
+ require_once DOL_DOCUMENT_ROOT.'/product/class/html.formproduct.class.php';
+ require_once DOL_DOCUMENT_ROOT.'/core/lib/product.lib.php';
+ require_once DOL_DOCUMENT_ROOT.'/core/lib/sendings.lib.php';
+@@ -317,7 +318,7 @@ if (empty($reshook)) {
+ 
+ 		//var_dump($batch_line[2]);
+ 
+-		if ($totalqty > 0 || !empty($conf->global->SHIPMENT_GETS_ALL_ORDER_PRODUCTS)) {		// There is at least one thing to ship
++		if ($totalqty > 0) {		// There is at least one thing to ship
+ 			//var_dump($_POST);exit;
+ 			for ($i = 0; $i < $num; $i++) {
+ 				$qty = "qtyl".$i;
+@@ -327,7 +328,7 @@ if (empty($reshook)) {
+ 						//shipment from multiple stock locations
+ 						$nbstockline = count($stockLine[$i]);
+ 						for ($j = 0; $j < $nbstockline; $j++) {
+-							if ($stockLine[$i][$j]['qty'] > 0 || ($stockLine[$i][$j]['qty'] == 0 && !empty($conf->global->SHIPMENT_GETS_ALL_ORDER_PRODUCTS))) {
++							if ($stockLine[$i][$j]['qty'] > 0) {
+ 								$ret = $object->addline($stockLine[$i][$j]['warehouse_id'], $stockLine[$i][$j]['ix_l'], $stockLine[$i][$j]['qty'], $array_options[$i]);
+ 								if ($ret < 0) {
+ 									setEventMessages($object->error, $object->errors, 'errors');
+@@ -336,7 +337,7 @@ if (empty($reshook)) {
+ 							}
+ 						}
+ 					} else {
+-						if (GETPOST($qty, 'int') > 0 || (GETPOST($qty, 'int') == 0 && !empty($conf->global->SHIPMENT_GETS_ALL_ORDER_PRODUCTS))) {
++						if (GETPOST($qty, 'int') > 0 || (GETPOST($qty, 'int') == 0 && $conf->global->SHIPMENT_GETS_ALL_ORDER_PRODUCTS)) {
+ 							$ent = "entl".$i;
+ 							$idl = "idl".$i;
+ 							$entrepot_id = is_numeric(GETPOST($ent, 'int')) ?GETPOST($ent, 'int') : GETPOST('entrepot_id', 'int');
+@@ -410,9 +411,32 @@ if (empty($reshook)) {
+ 		|| (!empty($conf->global->MAIN_USE_ADVANCED_PERMS) && !empty($user->rights->expedition->shipping_advance->validate)))
+ 	) {
+ 		$object->fetch_thirdparty();
+-
+ 		$result = $object->valid($user);
+ 
++		//ShipsGo Posting Container Info
++		$shipsGo = new ShipsGo_API($conf->global->API_KEY_SHIPSGO);
++		$ContainerNumber = $object->tracking_number;
++		$blno = $object->array_options['options_blno'];
++		$object->fetchObjectLinked();
++		$so_ref = end($object->linkedObjects['commande'])->ref;
++		$object->fetch_delivery_methods();		
++		$ShippingLine = $object->meths[$object->shipping_method_id];
++		$email = !empty($user->email) ? $user->email : '';
++		$Referance = $so_ref.' / '.$object->ref;
++		if (!empty($ContainerNumber) && !empty($ShippingLine) && !empty($Referance) && empty($object->array_options['options_requestid'])) {
++			if (!empty($blno)) {
++				$ship_result = $shipsGo->PostContainerInfoWithBl($ContainerNumber, $blno, $ShippingLine, $email, $Referance);
++			} else {
++				$ship_result = $shipsGo->PostContainerInfo($ContainerNumber, $ShippingLine, $email, $Referance);
++			}
++
++			$updatesql = "UPDATE ".MAIN_DB_PREFIX."expedition_extrafields SET";
++			$updatesql .= " requestid = ".$ship_result['RequestId'];
++			$updatesql .= ", updatedtime = '".date('Y-m-d H:i:s', dol_now())."'";
++			$updatesql .= " WHERE fk_object = ".$object->id;
++			$db->query($updatesql);
++		}
++		
+ 		if ($result < 0) {
+ 			setEventMessages($object->error, $object->errors, 'errors');
+ 		} else {
+@@ -465,6 +489,11 @@ if (empty($reshook)) {
+ 		//		setEventMessages($object->error, $object->errors, 'errors');
+ 		//	}
+ 		//}
++	} elseif ($action == 'confirm_modif' && $confirm == 'yes' && $user->rights->expedition->creer &&$user->rights->expedition->shipping_advance->validate) { //SLY 2021.8.24
++		$result = $object->setStatut(0);
++		if ($result < 0) {
++			setEventMessages($object->error, $object->errors, 'errors');
++		}
+ 	} elseif ($action == 'setdate_livraison' && $user->rights->expedition->creer) {
+ 		//print "x ".$_POST['liv_month'].", ".$_POST['liv_day'].", ".$_POST['liv_year'];
+ 		$datedelivery = dol_mktime(GETPOST('liv_hour', 'int'), GETPOST('liv_min', 'int'), 0, GETPOST('liv_month', 'int'), GETPOST('liv_day', 'int'), GETPOST('liv_year', 'int'));
+@@ -500,8 +529,8 @@ if (empty($reshook)) {
+ 			$object->trueWidth = trim(GETPOST('trueWidth', 'int'));
+ 		}
+ 		if ($action == 'settrueHeight') {
+-						$object->trueHeight = trim(GETPOST('trueHeight', 'int'));
+-						$object->size_units = GETPOST('size_units', 'int');
++			$object->trueHeight = trim(GETPOST('trueHeight', 'int'));
++			$object->size_units = GETPOST('size_units', 'int');
+ 		}
+ 		if ($action == 'settrueDepth') {
+ 			$object->trueDepth = trim(GETPOST('trueDepth', 'int'));
+@@ -540,7 +569,6 @@ if (empty($reshook)) {
+ 		$object->fetch($id);
+ 		$lines = $object->lines;
+ 		$line = new ExpeditionLigne($db);
+-		$line->fk_expedition = $object->id;
+ 
+ 		$num_prod = count($lines);
+ 		for ($i = 0; $i < $num_prod; $i++) {
+@@ -581,9 +609,7 @@ if (empty($reshook)) {
+ 		$num_prod = count($lines);
+ 		for ($i = 0; $i < $num_prod; $i++) {
+ 			if ($lines[$i]->id == $line_id) {		// we have found line to update
+-				$update_done = false;
+ 				$line = new ExpeditionLigne($db);
+-				$line->fk_expedition = $object->id;
+ 
+ 				// Extrafields Lines
+ 				$line->array_options = $extrafields->getOptionalsFromPost($object->table_element_line);
+@@ -622,8 +648,6 @@ if (empty($reshook)) {
+ 								if ($line->update($user) < 0) {
+ 									setEventMessages($line->error, $line->errors, 'errors');
+ 									$error++;
+-								} else {
+-									$update_done=true;
+ 								}
+ 							} else {
+ 								setEventMessages($lotStock->error, $lotStock->errors, 'errors');
+@@ -666,8 +690,6 @@ if (empty($reshook)) {
+ 									if ($line->update($user) < 0) {
+ 										setEventMessages($line->error, $line->errors, 'errors');
+ 										$error++;
+-									} else {
+-										$update_done=true;
+ 									}
+ 								} else {
+ 									setEventMessages($line->error, $line->errors, 'errors');
+@@ -685,8 +707,6 @@ if (empty($reshook)) {
+ 								if ($object->create_line_batch($line, $line->array_options) < 0) {
+ 									setEventMessages($object->error, $object->errors, 'errors');
+ 									$error++;
+-								} else {
+-									$update_done=true;
+ 								}
+ 							}
+ 						} else {
+@@ -724,8 +744,6 @@ if (empty($reshook)) {
+ 										if ($line->update($user) < 0) {
+ 											setEventMessages($line->error, $line->errors, 'errors');
+ 											$error++;
+-										} else {
+-											$update_done=true;
+ 										}
+ 									}
+ 									unset($_POST[$stockLocation]);
+@@ -740,8 +758,6 @@ if (empty($reshook)) {
+ 							if ($line->update($user) < 0) {
+ 								setEventMessages($line->error, $line->errors, 'errors');
+ 								$error++;
+-							} else {
+-								$update_done=true;
+ 							}
+ 							unset($_POST[$qty]);
+ 						}
+@@ -754,17 +770,10 @@ if (empty($reshook)) {
+ 						if ($line->update($user) < 0) {
+ 							setEventMessages($line->error, $line->errors, 'errors');
+ 							$error++;
+-						} else {
+-							$update_done=true;
+ 						}
+ 						unset($_POST[$qty]);
+ 					}
+ 				}
+-
+-				if (empty($update_done)) {
+-					$line->id = $lines[$i]->id;
+-					$line->insertExtraFields();
+-				}
+ 			}
+ 		}
+ 
+@@ -1173,10 +1182,17 @@ if ($action == 'create') {
+ 						print "</td>\n";
+ 					}
+ 
++					// unit of order
++					$unit_order = '';
++					if ($conf->global->PRODUCT_USE_UNITS) {
++						$unit_order = measuringUnitString($line->fk_unit);
++					}
++
+ 					// Qty
++					$unit_order = measuringUnitString($line->fk_unit);
+ 					print '<td class="center">'.$line->qty;
+ 					print '<input name="qtyasked'.$indiceAsked.'" id="qtyasked'.$indiceAsked.'" type="hidden" value="'.$line->qty.'">';
+-					print '</td>';
++					print ' '.$unit_order.'</td>';
+ 					$qtyProdCom = $line->qty;
+ 
+ 					// Qty already shipped
+@@ -1184,7 +1200,7 @@ if ($action == 'create') {
+ 					$quantityDelivered = $object->expeditions[$line->id];
+ 					print $quantityDelivered;
+ 					print '<input name="qtydelivered'.$indiceAsked.'" id="qtydelivered'.$indiceAsked.'" type="hidden" value="'.$quantityDelivered.'">';
+-					print '</td>';
++					print ' '.$unit_order.'</td>';
+ 
+ 					// Qty to ship
+ 					$quantityAsked = $line->qty;
+@@ -1214,7 +1230,6 @@ if ($action == 'create') {
+ 								print '<input name="qtyl'.$indiceAsked.'" id="qtyl'.$indiceAsked.'" class="qtyl center" type="text" size="4" value="'.$deliverableQty.'">';
+ 							} else {
+ 								if (! empty($conf->global->SHIPMENT_GETS_ALL_ORDER_PRODUCTS)) {
+-									print '<input name="idl'.$indiceAsked.'" type="hidden" value="'.$line->id.'">';
+ 									print '<input name="qtyl'.$indiceAsked.'" id="qtyl'.$indiceAsked.'" type="hidden" value="0">';
+ 								}
+ 
+@@ -1465,10 +1480,6 @@ if ($action == 'create') {
+ 							}
+ 
+ 							foreach ($product->stock_warehouse as $warehouse_id => $stock_warehouse) {
+-								if (!empty($warehousePicking) && !in_array($warehouse_id, $warehousePicking)) {
+-									// if a warehouse was selected by user, picking is limited to this warehouse and his children.
+-									continue;
+-								}
+ 								$tmpwarehouseObject->fetch($warehouse_id);
+ 								if (($stock_warehouse->real > 0) && (count($stock_warehouse->detail_batch))) {
+ 									foreach ($stock_warehouse->detail_batch as $dbatch) {
+@@ -1684,6 +1695,64 @@ if ($action == 'create') {
+ 		if ($action == 'cancel') {
+ 			$formconfirm = $form->formconfirm($_SERVER['PHP_SELF'].'?id='.$object->id, $langs->trans('CancelSending'), $langs->trans("ConfirmCancelSending", $object->ref), 'confirm_cancel', '', 0, 1);
+ 		}
++		// Confirm modification (back to draft status).
++		if ($action == 'modif') {
++			$formconfirm = $form->formconfirm($_SERVER['PHP_SELF'].'?id='.$object->id, $langs->trans('UnvalidateShipment'), $langs->trans("ConfirmUnvalidateShipment", $object->ref), 'confirm_modif', '', 0, 1);
++		}
++		// Update ShipsGo Status
++		if ($action == 'updateships') {
++			$ContainerNumber = $object->tracking_number;
++			$blno = $object->array_options['options_blno'];
++			$shipsGo = new ShipsGo_API($conf->global->API_KEY_SHIPSGO);
++			if (empty($object->array_options['options_requestid']) && (date($object->array_options['options_eta']) - dol_now()) > 864000) {
++				$object->fetchObjectLinked();
++				$so_ref = end($object->linkedObjects['commande'])->ref;
++				$object->fetch_delivery_methods();
++				$ShippingLine = $object->meths[$object->shipping_method_id];
++				$email = !empty($user->email) ? $user->email : '';
++				$Referance = $so_ref.' / '.$object->ref;
++				if (!empty($ContainerNumber) && !empty($ShippingLine) && !empty($Referance)) {
++					if (!empty($blno)) {
++						$ship_result = $shipsGo->PostContainerInfoWithBl($ContainerNumber, $blno, $ShippingLine, $email, $Referance);
++					} else {
++						$ship_result = $shipsGo->PostContainerInfo($ContainerNumber, $ShippingLine, $email, $Referance);
++					}
++					$object->array_options['options_updatedtime'] = dol_now();
++
++					$updatesql = "UPDATE ".MAIN_DB_PREFIX."expedition_extrafields SET";
++					$updatesql .= " requestid = ".$ship_result['RequestId'];
++					$updatesql .= ", updatedtime = '".date('Y-m-d H:i:s', $object->array_options['options_updatedtime'])."'";
++					$updatesql .= " WHERE fk_object = ".$object->id;
++					$db->query($updatesql);
++				}
++			} else if ($object->array_options['options_sailingstatusid'] != 3 && $object->array_options['options_sailingstatusid'] != 4) {
++				$ship_status = $shipsGo->GetContainerInfo($ContainerNumber)[0];	
++				if ($ship_status['Message'] == 'Success') {
++					$object->array_options['options_sailingstatusid']  = $ship_status['SailingStatusId'];
++					$object->array_options['options_pol'] = $ship_status['Pol'];
++					$object->array_options['options_atd'] = strtotime(str_replace('/', '-', $ship_status['DepartureDate']));
++					$object->array_options['options_pod'] = $ship_status['Pod'];
++					$object->array_options['options_ata'] = strtotime(str_replace('/', '-', $ship_status['ArrivalDate']));
++					$object->array_options['options_livemapurl'] = $ship_status['LiveMapUrl'];
++					$object->array_options['options_updatedtime'] = dol_now();
++
++					$updatesql = "UPDATE ".MAIN_DB_PREFIX."expedition_extrafields SET";
++					$updatesql .= " sailingstatusid = ".$ship_status['SailingStatusId'];
++					$updatesql .= ", pol = '".$ship_status['Pol']."'";
++					if (!empty($ship_status['DepartureDate'])) {
++						$updatesql .= ", atd = '".date('Y-m-d', strtotime(str_replace('/', '-', $ship_status['DepartureDate'])))."'";
++					}
++					$updatesql .= ", pod = '".$ship_status['Pod']."'";
++					if (!empty($ship_status['ArrivalDate'])) {
++						$updatesql .= ", ata = '".date('Y-m-d', strtotime(str_replace('/', '-', $ship_status['ArrivalDate'])))."'";						
++					}
++					$updatesql .= ", livemapurl = '".$ship_status['LiveMapUrl']."'";
++					$updatesql .= ", updatedtime = '".date('Y-m-d H:i:s', $object->array_options['options_updatedtime'])."'";
++					$updatesql .= " WHERE fk_object = ".$object->id;
++					$db->query($updatesql);
++				}
++			}
++		}
+ 
+ 		// Call Hook formConfirm
+ 		$parameters = array('formConfirm' => $formconfirm);
+@@ -1796,7 +1865,7 @@ if ($action == 'create') {
+ 		print $langs->trans('DateDeliveryPlanned');
+ 		print '</td>';
+ 
+-		if ($action != 'editdate_livraison') {
++		if ($action != 'editdate_livraison' && $object->statut == 0) {
+ 			print '<td class="right"><a class="editfielda" href="'.$_SERVER["PHP_SELF"].'?action=editdate_livraison&amp;id='.$object->id.'">'.img_edit($langs->trans('SetDeliveryDate'), 1).'</a></td>';
+ 		}
+ 		print '</tr></table>';
+@@ -1816,7 +1885,7 @@ if ($action == 'create') {
+ 
+ 		// Weight
+ 		print '<tr><td>';
+-		print $form->editfieldkey("Weight", 'trueWeight', $object->trueWeight, $object, $user->rights->expedition->creer);
++		print $form->editfieldkey("Weight", 'trueWeight', $object->trueWeight, $object, ($user->rights->expedition->creer && $object->statut == 0));
+ 		print '</td><td colspan="3">';
+ 
+ 		if ($action == 'edittrueWeight') {
+@@ -1847,13 +1916,13 @@ if ($action == 'create') {
+ 		print '</td></tr>';
+ 
+ 		// Width
+-		print '<tr><td>'.$form->editfieldkey("Width", 'trueWidth', $object->trueWidth, $object, $user->rights->expedition->creer).'</td><td colspan="3">';
++		print '<tr><td>'.$form->editfieldkey("Width", 'trueWidth', $object->trueWidth, $object, $user->rights->expedition->creer && $object->statut == 0).'</td><td colspan="3">';
+ 		print $form->editfieldval("Width", 'trueWidth', $object->trueWidth, $object, $user->rights->expedition->creer);
+ 		print ($object->trueWidth && $object->width_units != '') ? ' '.measuringUnitString(0, "size", $object->width_units) : '';
+ 		print '</td></tr>';
+ 
+ 		// Height
+-		print '<tr><td>'.$form->editfieldkey("Height", 'trueHeight', $object->trueHeight, $object, $user->rights->expedition->creer).'</td><td colspan="3">';
++		print '<tr><td>'.$form->editfieldkey("Height", 'trueHeight', $object->trueHeight, $object, $user->rights->expedition->creer && $object->statut == 0).'</td><td colspan="3">';
+ 		if ($action == 'edittrueHeight') {
+ 			print '<form name="settrueHeight" action="'.$_SERVER["PHP_SELF"].'" method="post">';
+ 			print '<input name="action" value="settrueHeight" type="hidden">';
+@@ -1872,7 +1941,7 @@ if ($action == 'create') {
+ 		print '</td></tr>';
+ 
+ 		// Depth
+-		print '<tr><td>'.$form->editfieldkey("Depth", 'trueDepth', $object->trueDepth, $object, $user->rights->expedition->creer).'</td><td colspan="3">';
++		print '<tr><td>'.$form->editfieldkey("Depth", 'trueDepth', $object->trueDepth, $object, $user->rights->expedition->creer && $object->statut == 0).'</td><td colspan="3">';
+ 		print $form->editfieldval("Depth", 'trueDepth', $object->trueDepth, $object, $user->rights->expedition->creer);
+ 		print ($object->trueDepth && $object->depth_units != '') ? ' '.measuringUnitString(0, "size", $object->depth_units) : '';
+ 		print '</td></tr>';
+@@ -1909,26 +1978,13 @@ if ($action == 'create') {
+ 		print "</td>\n";
+ 		print '</tr>';
+ 
+-		// Other attributes
+-		$cols = 2;
+-		include DOL_DOCUMENT_ROOT.'/core/tpl/extrafields_view.tpl.php';
+-
+-		print '</table>';
+-
+-		print '</div>';
+-		print '<div class="fichehalfright">';
+-		print '<div class="ficheaddleft">';
+-		print '<div class="underbanner clearboth"></div>';
+-
+-		print '<table class="border centpercent tableforfield">';
+-
+ 		// Sending method
+ 		print '<tr><td height="10">';
+ 		print '<table class="nobordernopadding" width="100%"><tr><td>';
+ 		print $langs->trans('SendingMethod');
+ 		print '</td>';
+ 
+-		if ($action != 'editshipping_method_id') {
++		if ($action != 'editshipping_method_id' && $object->statut == 0) {
+ 			print '<td class="right"><a class="editfielda" href="'.$_SERVER["PHP_SELF"].'?action=editshipping_method_id&amp;id='.$object->id.'">'.img_edit($langs->trans('SetSendingMethod'), 1).'</a></td>';
+ 		}
+ 		print '</tr></table>';
+@@ -1955,7 +2011,7 @@ if ($action == 'create') {
+ 		print '</tr>';
+ 
+ 		// Tracking Number
+-		print '<tr><td class="titlefield">'.$form->editfieldkey("TrackingNumber", 'tracking_number', $object->tracking_number, $object, $user->rights->expedition->creer).'</td><td colspan="3">';
++		print '<tr><td class="titlefield">'.$form->editfieldkey("TrackingNumber", 'tracking_number', $object->tracking_number, $object, ($user->rights->expedition->creer && $object->statut == 0)).'</td><td colspan="3">';
+ 		print $form->editfieldval("TrackingNumber", 'tracking_number', $object->tracking_url, $object, $user->rights->expedition->creer, 'safehtmlstring', $object->tracking_number);
+ 		print '</td></tr>';
+ 
+@@ -1965,7 +2021,7 @@ if ($action == 'create') {
+ 			print '<table width="100%" class="nobordernopadding"><tr><td>';
+ 			print $langs->trans('IncotermLabel');
+ 			print '<td><td class="right">';
+-			if ($user->rights->expedition->creer) {
++			if ($user->rights->expedition->creer && $object->statut == 0) {
+ 				print '<a class="editfielda" href="'.DOL_URL_ROOT.'/expedition/card.php?id='.$object->id.'&action=editincoterm">'.img_edit().'</a>';
+ 			} else {
+ 				print '&nbsp;';
+@@ -1980,6 +2036,25 @@ if ($action == 'create') {
+ 			}
+ 			print '</td></tr>';
+ 		}
++		print '</table>';
++
++		// Update ShipsGo Status
++		if ($object->statut > 0 && $user->rights->expedition->creer && $user->rights->expedition->shipping_advance->validate) {
++			print '<div class="tabsAction">';
++			print '<a class="butAction" href="'.$_SERVER["PHP_SELF"].'?id='.$object->id.'&amp;action=updateships">'.$langs->trans("UpdateShips").'</a>';
++			print '</div>';
++		}
++		print '</div>';
++
++		print '<div class="fichehalfright">';
++		print '<div class="ficheaddleft">';
++		print '<div class="underbanner clearboth"></div>';
++
++		print '<table class="border centpercent tableforfield">';
++
++		// Other attributes
++		$cols = 2;
++		include DOL_DOCUMENT_ROOT.'/core/tpl/extrafields_view.tpl.php';
+ 
+ 		// Other attributes
+ 		$parameters = array('colspan' => ' colspan="3"', 'cols' => '3');
+@@ -2086,7 +2161,7 @@ if ($action == 'create') {
+ 		// Get list of products already sent for same source object into $alreadysent
+ 		$alreadysent = array();
+ 		if ($origin && $origin_id > 0) {
+-			$sql = "SELECT obj.rowid, obj.fk_product, obj.label, obj.description, obj.product_type as fk_product_type, obj.qty as qty_asked, obj.date_start, obj.date_end";
++			$sql = "SELECT obj.rowid, obj.fk_product, obj.label, obj.description, obj.product_type as fk_product_type, obj.qty as qty_asked, obj.fk_unit, obj.date_start, obj.date_end";
+ 			$sql .= ", ed.rowid as shipmentline_id, ed.qty as qty_shipped, ed.fk_expedition as expedition_id, ed.fk_origin_line, ed.fk_entrepot";
+ 			$sql .= ", e.rowid as shipment_id, e.ref as shipment_ref, e.date_creation, e.date_valid, e.date_delivery, e.date_expedition";
+ 			//if ($conf->delivery_note->enabled) $sql .= ", l.rowid as livraison_id, l.ref as livraison_ref, l.date_delivery, ld.qty as qty_received";
+@@ -2164,7 +2239,7 @@ if ($action == 'create') {
+ 					$product_static->status = $lines[$i]->product_tosell;
+ 					$product_static->status_buy = $lines[$i]->product_tobuy;
+ 					$product_static->status_batch = $lines[$i]->product_tobatch;
+-
++					
+ 					$product_static->weight = $lines[$i]->weight;
+ 					$product_static->weight_units = $lines[$i]->weight_units;
+ 					$product_static->length = $lines[$i]->length;
+@@ -2206,8 +2281,13 @@ if ($action == 'create') {
+ 					print "</td>\n";
+ 				}
+ 
++				$unit_order = '';
++				if ($conf->global->PRODUCT_USE_UNITS) {
++					$unit_order = measuringUnitString($lines[$i]->fk_unit);
++				}
++
+ 				// Qty ordered
+-				print '<td class="center linecolqty">'.$lines[$i]->qty_asked.'</td>';
++				print '<td class="center linecolqty">'.$lines[$i]->qty_asked.' '.$unit_order.'</td>';
+ 
+ 				// Qty in other shipments (with shipment and warehouse used)
+ 				if ($origin && $origin_id > 0) {
+@@ -2226,7 +2306,7 @@ if ($action == 'create') {
+ 								}
+ 								$shipment_static->fetch($shipmentline_var['shipment_id']);
+ 								print $shipment_static->getNomUrl(1);
+-								print ' - '.$shipmentline_var['qty_shipped'];
++								print ' - '.$shipmentline_var['qty_shipped'].' '.$unit_order;
+ 								$htmltext = $langs->trans("DateValidation").' : '.(empty($shipmentline_var['date_valid']) ? $langs->trans("Draft") : dol_print_date($shipmentline_var['date_valid'], 'dayhour'));
+ 								if (!empty($conf->stock->enabled) && $shipmentline_var['warehouse'] > 0) {
+ 									$warehousestatic->fetch($shipmentline_var['warehouse']);
+@@ -2248,7 +2328,7 @@ if ($action == 'create') {
+ 						foreach ($lines[$i]->detail_batch as $detail_batch) {
+ 							print '<tr>';
+ 							// Qty to ship or shipped
+-							print '<td><input class="qtyl" name="qtyl'.$detail_batch->fk_expeditiondet.'_'.$detail_batch->id.'" id="qtyl'.$line_id.'_'.$detail_batch->id.'" type="text" size="4" value="'.$detail_batch->qty.'"></td>';
++							print '<td><input class="qtyl" name="qtyl'.$detail_batch->fk_expeditiondet.'_'.$detail_batch->id.'" id="qtyl'.$line_id.'_'.$detail_batch->id.'" type="text" size="4" value="'.$detail_batch->qty.'">' .$unit_order.'</td>';
+ 							// Batch number managment
+ 							if ($lines[$i]->entrepot_id == 0) {
+ 								// only show lot numbers from src warehouse when shipping from multiple warehouses
+@@ -2297,7 +2377,7 @@ if ($action == 'create') {
+ 							print '<!-- case edit 5 -->';
+ 							print '<tr>';
+ 							// Qty to ship or shipped
+-							print '<td><input class="qtyl" name="qtyl'.$line_id.'" id="qtyl'.$line_id.'" type="text" size="4" value="'.$lines[$i]->qty_shipped.'"></td>';
++							print '<td><input class="qtyl" name="qtyl'.$line_id.'" id="qtyl'.$line_id.'" type="text" size="4" value="'.$lines[$i]->qty_shipped.'">' .$unit_order.'</td>';
+ 							// Warehouse source
+ 							print '<td></td>';
+ 							// Batch number managment
+@@ -2308,7 +2388,7 @@ if ($action == 'create') {
+ 						print '<!-- case edit 6 -->';
+ 						print '<tr>';
+ 						// Qty to ship or shipped
+-						print '<td><input class="qtyl" name="qtyl'.$line_id.'" id="qtyl'.$line_id.'" type="text" size="4" value="'.$lines[$i]->qty_shipped.'"></td>';
++						print '<td><input class="qtyl" name="qtyl'.$line_id.'" id="qtyl'.$line_id.'" type="text" size="4" value="'.$lines[$i]->qty_shipped.'">' .$unit_order.'</td>';
+ 						// Warehouse source
+ 						print '<td></td>';
+ 						// Batch number managment
+@@ -2319,7 +2399,7 @@ if ($action == 'create') {
+ 					print '</table></td>';
+ 				} else {
+ 					// Qty to ship or shipped
+-					print '<td class="linecolqtytoship center">'.$lines[$i]->qty_shipped.'</td>';
++					print '<td class="linecolqtytoship center">'.$lines[$i]->qty_shipped.' '.$unit_order.'</td>';
+ 
+ 					// Warehouse source
+ 					if (!empty($conf->stock->enabled)) {
+@@ -2477,7 +2557,7 @@ if ($action == 'create') {
+ 
+ 			// TODO add alternative status
+ 			// 0=draft, 1=validated, 2=billed, we miss a status "delivered" (only available on order)
+-			if ($object->statut == Expedition::STATUS_CLOSED && $user->rights->expedition->creer) {
++			if ($object->statut == Expedition::STATUS_CLOSED && $object->billed && $user->rights->expedition->creer) {
+ 				if (!empty($conf->facture->enabled) && !empty($conf->global->WORKFLOW_BILL_ON_SHIPMENT)) {  // Quand l'option est on, il faut avoir le bouton en plus et non en remplacement du Close ?
+ 					print '<a class="butAction" href="'.$_SERVER["PHP_SELF"].'?id='.$object->id.'&amp;action=reopen">'.$langs->trans("ClassifyUnbilled").'</a>';
+ 				} else {
+@@ -2485,6 +2565,11 @@ if ($action == 'create') {
+ 				}
+ 			}
+ 
++			// Modify
++			if (($object->statut == Expedition::STATUS_VALIDATED || ($object->statut == Expedition::STATUS_CLOSED && !$object->billed)) && $user->rights->expedition->creer && $user->rights->expedition->shipping_advance->validate) {
++				print '<a class="butAction" href="'.$_SERVER["PHP_SELF"].'?id='.$object->id.'&amp;action=modif">'.$langs->trans("Modify").'</a>';
++			}
++
+ 			// Send
+ 			if (empty($user->socid)) {
+ 				if ($object->statut > 0) {
+@@ -2511,11 +2596,11 @@ if ($action == 'create') {
+ 				print '<a class="butAction" href="'.$_SERVER["PHP_SELF"].'?id='.$object->id.'&amp;action=create_delivery">'.$langs->trans("CreateDeliveryOrder").'</a>';
+ 			}
+ 			// Close
+-			if ($object->statut == Expedition::STATUS_VALIDATED) {
+-				if ($user->rights->expedition->creer && $object->statut > 0 && !$object->billed) {
++			if ($object->statut == Expedition::STATUS_VALIDATED || ($object->statut == Expedition::STATUS_CLOSED && !$object->billed)) {
++				if ($user->rights->expedition->creer && $object->statut > 0 && (($object->statut == Expedition::STATUS_VALIDATED && $object->billed) || !$object->billed)) {
+ 					$label = "Close"; $paramaction = 'classifyclosed'; // = Transferred/Received
+ 					// Label here should be "Close" or "ClassifyBilled" if we decided to make bill on shipments instead of orders
+-					if (!empty($conf->facture->enabled) && !empty($conf->global->WORKFLOW_BILL_ON_SHIPMENT)) {  // Quand l'option est on, il faut avoir le bouton en plus et non en remplacement du Close ?
++					if (!empty($conf->facture->enabled) && !empty($conf->global->WORKFLOW_BILL_ON_SHIPMENT) && !$object->billed) {  // Quand l'option est on, il faut avoir le bouton en plus et non en remplacement du Close ?
+ 						$label = "ClassifyBilled";
+ 						$paramaction = 'classifybilled';
+ 					}
+diff --git a/htdocs/expedition/class/ShipsGo_API.class.php b/htdocs/expedition/class/ShipsGo_API.class.php
+new file mode 100644
+index 00000000000..0b9ed95dfbd
+--- /dev/null
++++ b/htdocs/expedition/class/ShipsGo_API.class.php
+@@ -0,0 +1,128 @@
++<?php
++
++
++class ShipsGo_API
++{
++	
++	private $authCode = '';
++	
++	public function __construct( String $authCode )
++	{
++		$this -> authCode = $authCode;
++	}
++
++	private function getData( String $urlExt, Array $postData = array() )
++	{
++		$ch = curl_init();
++		curl_setopt( $ch, CURLOPT_SSL_VERIFYPEER, 1 );
++		curl_setopt( $ch, CURLOPT_URL, 'https://shipsgo.com/api/ContainerService/' . $urlExt );
++		curl_setopt( $ch, CURLOPT_RETURNTRANSFER, true );
++		curl_setopt( $ch, CURLOPT_HTTPAUTH, CURLAUTH_ANY );
++		curl_setopt( $ch, CURLOPT_TIMEOUT, 10 );
++
++		if( !empty( $postData ) )
++		{
++			curl_setopt( $ch, CURLOPT_POST, true );
++			curl_setopt( $ch, CURLOPT_POSTFIELDS, http_build_query( $postData ) );
++		}
++
++		curl_setopt( $ch, CURLOPT_HTTPHEADER, array( 'Accept: text/json' ) );
++
++		$response = curl_exec( $ch );
++		curl_close( $ch );
++
++		if( preg_match( '/<p>HTTP Error 400\. The request is badly formed\.<\/p>/', $response ) )
++		{
++			$response = array( 'Message' => 'Bad Request' );
++		}else
++		{
++			$response = json_decode($response, true);
++			
++			if( !is_array( $response ) )
++			{
++				$requestId = $response;
++				$response = array( 'RequestId' => $requestId );
++			}else
++			{
++				if( isset( $response['Message'] ) )
++				{
++					$messageArray = explode( "\n", $response['Message'] );
++
++					if( count( $messageArray ) > 1 )
++					{
++						unset( $messageArray[( count( $messageArray ) - 1 )] );
++						$response['Message'] = $messageArray;
++					}
++				}
++			}
++		}
++
++		if( !is_array( $response ) ){ $response = array( 'Message' => 'Something Went Wrong.' ); }
++
++		return $response;
++
++	}
++	
++	public function GetShippingLineList()
++	{
++		return $this -> getData( 'GetShippingLineList' );
++	}
++
++	public function GetContainerInfo( $searchParam )
++	{
++		return $this -> getData( 'GetContainerInfo/?authCode=' . $this -> authCode . '&requestId=' . $searchParam );
++	}
++
++	public function PostContainerInfo( String $containerNumber, String $shippingLine, $emails = '', String $referenceNo = '' )
++	{
++		$postData = array(
++			'authCode' 			=> $this -> authCode,
++			'containerNumber'	=> $containerNumber,
++			'shippingLine' 		=> $shippingLine
++		);
++
++		if( $emails == '' && $referenceNo == '' )
++		{
++			return $this -> getData( 'PostContainerInfo', $postData );
++		}else
++		{
++			$postData['emailAddress'] = ( is_array( $emails ) ) ? implode( ',', $emails ) : str_replace( ' ', '', $emails );
++			$postData['referenceNo'] = $referenceNo;
++
++			return $this -> getData( 'PostCustomContainerForm', $postData );
++		}
++	}
++
++	public function PostContainerInfoWithBl( String $containerNumber, $blReference, String $shippingLine, $emails = '', String $referenceNo = '' )
++	{
++		$postData = array(
++			'authCode' 			=> $this -> authCode,
++			'containerNumber'	=> $containerNumber,
++			'shippingLine' 		=> $shippingLine,
++			'containersCount' 	=> '',
++		);
++
++		if( is_array( $blReference ) )
++		{
++			$postData['blContainersRef'] = $blReference[0];
++			$postData['containersCount'] = ( isset( $blReference[1] ) ) ? $blReference[1] : '';
++		}else
++		{
++			$postData['blContainersRef'] = $blReference;
++		}
++
++		if( $emails == '' && $referenceNo == '' )
++		{
++			return $this -> getData( 'PostContainerInfoWithBl', $postData );
++		}else
++		{
++			$postData['emailAddress'] = ( is_array( $emails ) ) ? implode( ',', $emails ) : str_replace( ' ', '', $emails );
++			$postData['referenceNo'] = $referenceNo;
++
++			return $this -> getData( 'PostCustomContainerFormWithBl', $postData );
++		}
++	}
++	
++}
++
++?>
+\ No newline at end of file
+diff --git a/htdocs/expedition/class/ShipsGo_Update.class.php b/htdocs/expedition/class/ShipsGo_Update.class.php
+new file mode 100644
+index 00000000000..68d82920811
+--- /dev/null
++++ b/htdocs/expedition/class/ShipsGo_Update.class.php
+@@ -0,0 +1,99 @@
++<?php
++
++require_once DOL_DOCUMENT_ROOT."/expedition/class/ShipsGo_API.class.php";
++require_once DOL_DOCUMENT_ROOT."/core/class/commonobject.class.php"; 
++
++/**
++ *		Class to update ShipsGo Shipment Status
++ */
++class ShipmentStatus
++{
++
++	/**
++	 *	Constructor
++	 *
++	 *  @param	DoliDB	$db		Database handler
++	 */
++	public $db;
++	public $output; // Used by Cron method to return message
++	public $result; // Used by Cron method to return data
++
++	public function __construct($db)
++	{
++		$this->db = $db;
++	}
++
++	/**
++	 *  Purge files into directory of data files.
++	 *  CAN BE A CRON TASK
++	 *
++	 *  @return	int						   0 if OK, < 0 if KO (this function is used also by cron so only 0 is OK)
++	 *  @nbtoupdate							number of rows to update for each run
++	 */
++	public function updateships($nbtoupdate = 20) 
++	{
++		global $conf;
++
++		$time = dol_now();
++
++		$sql = 'SELECT a.rowid, a.tracking_number FROM '.MAIN_DB_PREFIX.'expedition_extrafields AS b';
++		$sql .= ' INNER JOIN '.MAIN_DB_PREFIX.'expedition AS a';
++		$sql .= ' ON b.fk_object = a.rowid';
++		$sql .= ' WHERE (('.$time.' - unix_timestamp(b.updatedtime) >= 86400)';
++		$sql .= ' AND ((b.SailingStatusID <> 3) AND (b.SailingStatusID <> 4)))';
++		$sql .= ' OR ((b.SailingStatusID IS NULL) AND (a.fk_statut > 0))';
++		$sql .= ' ORDER BY b.ata, b.updatedtime ASC';
++
++		$resql = $this->db->query($sql);
++		$count = 0;
++		$error = 0;
++		
++		if ($resql) {
++			$num = $this->db->num_rows($resql);
++			$nbtoupdate = $num < $nbtoupdate ? $num : $nbtoupdate;
++			$i = 0;
++
++			$shipsGotmp = new ShipsGo_API($conf->global->API_KEY_SHIPSGO);
++
++			while($i++ < $nbtoupdate) {	
++				$line = $this->db->fetch_object($resql);
++				$ship_status = $shipsGotmp->GetContainerInfo($line->tracking_number);
++				if (!empty($ship_status['Message'])) {
++					$error++;
++					continue;
++				} elseif ($ship_status[0]['Message'] == 'Success') {
++					$updatesql = "UPDATE ".MAIN_DB_PREFIX."expedition_extrafields SET";
++					$updatesql .= " sailingstatusid = ".$ship_status[0]['SailingStatusId'];
++					$updatesql .= ", pol = '".$ship_status[0]['Pol']."'";
++					if (!empty($ship_status[0]['DepartureDate'])) {
++						$updatesql .= ", atd = '".date('Y-m-d', strtotime(str_replace('/', '-', $ship_status[0]['DepartureDate'])))."'";
++					}
++					$updatesql .= ", pod = '".$ship_status[0]['Pod']."'";
++					if (!empty($ship_status[0]['ArrivalDate'])) {
++						$updatesql .= ", ata = '".date('Y-m-d', strtotime(str_replace('/', '-', $ship_status[0]['ArrivalDate'])))."'";						
++					}
++					$updatesql .= ", livemapurl = '".$ship_status[0]['LiveMapUrl']."'";
++					$updatesql .= ", updatedtime = '".date('Y-m-d H:i:s', dol_now())."'";
++					$updatesql .= " WHERE fk_object = ".$line->rowid;
++
++					$this->db->begin();
++					$result = $this->db->query($updatesql);
++					if ($result) {
++						$this->db->commit();
++						$count++;
++					} else {
++						$this->db->rollback();
++						$error++;
++					}
++				} else {
++					$error++;
++					continue;
++				}
++			}
++		}
++		$this->output = "Updated: ".$count." shipments. Errors: ".$error.".";
++		return 0; // This function can be called by cron so must return 0 if OK
++	}
++}
++
++?>
+\ No newline at end of file
+diff --git a/htdocs/expedition/class/api_shipments.class.php b/htdocs/expedition/class/api_shipments.class.php
+index 2a4b6765b4e..9bc3715ed61 100644
+--- a/htdocs/expedition/class/api_shipments.class.php
++++ b/htdocs/expedition/class/api_shipments.class.php
+@@ -172,6 +172,7 @@ class Shipments extends DolibarrApi
+ 				$obj = $this->db->fetch_object($result);
+ 				$shipment_static = new Expedition($this->db);
+ 				if ($shipment_static->fetch($obj->rowid)) {
++					$shipment_static->fetchObjectLinked();
+ 					$obj_ret[] = $this->_cleanObjectDatas($shipment_static);
+ 				}
+ 				$i++;
+diff --git a/htdocs/expedition/class/expedition.class.php b/htdocs/expedition/class/expedition.class.php
+index eb0a5999f29..91138a52c06 100644
+--- a/htdocs/expedition/class/expedition.class.php
++++ b/htdocs/expedition/class/expedition.class.php
+@@ -370,15 +370,13 @@ class Expedition extends CommonObject
+ 				// Insert of lines
+ 				$num = count($this->lines);
+ 				for ($i = 0; $i < $num; $i++) {
+-					if (empty($this->lines[$i]->product_type) || !empty($conf->global->STOCK_SUPPORTS_SERVICES)) {
+-						if (!isset($this->lines[$i]->detail_batch)) {	// no batch management
+-							if ($this->create_line($this->lines[$i]->entrepot_id, $this->lines[$i]->origin_line_id, $this->lines[$i]->qty, $this->lines[$i]->rang, $this->lines[$i]->array_options) <= 0) {
+-								$error++;
+-							}
+-						} else {	// with batch management
+-							if ($this->create_line_batch($this->lines[$i], $this->lines[$i]->array_options) <= 0) {
+-								$error++;
+-							}
++					if (!isset($this->lines[$i]->detail_batch)) {	// no batch management
++						if ($this->create_line($this->lines[$i]->entrepot_id, $this->lines[$i]->origin_line_id, $this->lines[$i]->qty, $this->lines[$i]->rang, $this->lines[$i]->array_options) <= 0) {
++							$error++;
++						}
++					} else {	// with batch management
++						if ($this->create_line_batch($this->lines[$i], $this->lines[$i]->array_options) <= 0) {
++							$error++;
+ 						}
+ 					}
+ 				}
+@@ -699,6 +697,8 @@ class Expedition extends CommonObject
+ 		// Define new ref
+ 		if (!$error && (preg_match('/^[\(]?PROV/i', $this->ref) || empty($this->ref))) { // empty should not happened, but when it occurs, the test save life
+ 			$numref = $this->getNextNumRef($soc);
++		} elseif (!$error && substr($this->ref, 0, 2) == "SH") {
++			$numref = $this->ref;
+ 		} else {
+ 			$numref = "EXP".$this->id;
+ 		}
+@@ -918,7 +918,6 @@ class Expedition extends CommonObject
+ 
+ 		// Copy the rang of the order line to the expedition line
+ 		$line->rang = $orderline->rang;
+-		$line->product_type = $orderline->product_type;
+ 
+ 		if (!empty($conf->stock->enabled) && !empty($orderline->fk_product)) {
+ 			$fk_product = $orderline->fk_product;
+@@ -971,8 +970,6 @@ class Expedition extends CommonObject
+ 		}
+ 
+ 		$this->lines[$num] = $line;
+-
+-		return 1;
+ 	}
+ 
+ 	// phpcs:disable PEAR.NamingConventions.ValidFunctionName.ScopeNotCamelCaps
+@@ -2607,12 +2604,6 @@ class ExpeditionLigne extends CommonObjectLine
+ 	 */
+ 	public $product_desc;
+ 
+-	/**
+-	 * Type of the product. 0 for product, 1 for service
+-	 * @var int
+-	 */
+-	public $product_type = 0;
+-
+ 	/**
+ 	 * @var int rang of line
+ 	 */
+diff --git a/htdocs/expedition/list.php b/htdocs/expedition/list.php
+index 03238eef3a2..a409f51ea80 100644
+--- a/htdocs/expedition/list.php
++++ b/htdocs/expedition/list.php
+@@ -28,12 +28,15 @@
+ 
+ require '../main.inc.php';
+ require_once DOL_DOCUMENT_ROOT.'/expedition/class/expedition.class.php';
++require_once DOL_DOCUMENT_ROOT.'/expedition/class/ShipsGo_API.class.php';
++require_once DOL_DOCUMENT_ROOT.'/core/class/extrafields.class.php';
+ require_once DOL_DOCUMENT_ROOT.'/core/class/html.formfile.class.php';
+ require_once DOL_DOCUMENT_ROOT.'/core/class/html.formother.class.php';
+ require_once DOL_DOCUMENT_ROOT.'/core/class/html.formcompany.class.php';
+ require_once DOL_DOCUMENT_ROOT.'/core/lib/date.lib.php';
+ require_once DOL_DOCUMENT_ROOT.'/core/lib/company.lib.php';
+ require_once DOL_DOCUMENT_ROOT.'/core/lib/product.lib.php';
++require_once DOL_DOCUMENT_ROOT.'/commande/class/commande.class.php';
+ 
+ // Load translation files required by the page
+ $langs->loadLangs(array("sendings", "deliveries", 'companies', 'bills', 'products'));
+@@ -53,9 +56,9 @@ if ($user->socid) {
+ 	$socid = $user->socid;
+ }
+ $result = restrictedArea($user, 'expedition', $expeditionid, '');
+-
+ $search_ref_exp = GETPOST("search_ref_exp", 'alpha');
+ $search_ref_liv = GETPOST('search_ref_liv', 'alpha');
++$search_reforder = GETPOST('search_reforder', 'alpha');
+ $search_ref_customer = GETPOST('search_ref_customer', 'alpha');
+ $search_company = GETPOST("search_company", 'alpha');
+ $search_tracking = GETPOST("search_tracking", 'alpha');
+@@ -124,6 +127,7 @@ if (empty($user->socid)) {
+ $checkedtypetiers = 0;
+ $arrayfields = array(
+ 	'e.ref'=>array('label'=>$langs->trans("Ref"), 'checked'=>1),
++	'c.ref'=>array('label'=>$langs->trans("Order"), 'checked'=>1),
+ 	'e.ref_customer'=>array('label'=>$langs->trans("RefCustomer"), 'checked'=>1),
+ 	's.nom'=>array('label'=>$langs->trans("ThirdParty"), 'checked'=>1),
+ 	's.town'=>array('label'=>$langs->trans("Town"), 'checked'=>1),
+@@ -157,10 +161,44 @@ $error = 0;
+ if (GETPOST('cancel', 'alpha')) {
+ 	$action = 'list'; $massaction = '';
+ }
+-if (!GETPOST('confirmmassaction', 'alpha') && $massaction != 'presend' && $massaction != 'confirm_presend') {
++if (!GETPOST('confirmmassaction', 'alpha') && $massaction != 'presend' && $massaction != 'confirm_presend' && $massaction != 'updateships') {
+ 	$massaction = '';
+ }
+ 
++if ($massaction === 'updateships') {
++	$objecttmp = new Expedition($db);
++	$shipsGotmp = new ShipsGo_API($conf->global->API_KEY_SHIPSGO);
++	$error = 0;
++	$i = 0;
++	foreach ($toselect as $checked) {
++		$result = $objecttmp->fetch($toselect[$i]);
++		if ($result > 0) {
++			$ContainerNumber = $objecttmp->tracking_number;
++			if ($objecttmp->array_options['options_sailingstatusid'] != 3 && $objecttmp->array_options['options_sailingstatusid'] != 4) {
++				$ship_status = $shipsGotmp->GetContainerInfo($ContainerNumber)[0];
++				if ($ship_status['Message'] == 'Success') {
++					$updatesql = "UPDATE ".MAIN_DB_PREFIX."expedition_extrafields SET";
++					$updatesql .= " sailingstatusid = ".$ship_status['SailingStatusId'];
++					$updatesql .= ", pol = '".$ship_status['Pol']."'";
++					if (!empty($ship_status['DepartureDate'])) {
++						$updatesql .= ", atd = '".date('Y-m-d', strtotime(str_replace('/', '-', $ship_status['DepartureDate'])))."'";
++					}
++					$updatesql .= ", pod = '".$ship_status['Pod']."'";
++					if (!empty($ship_status['ArrivalDate'])) {
++						$updatesql .= ", ata = '".date('Y-m-d', strtotime(str_replace('/', '-', $ship_status['ArrivalDate'])))."'";						
++					}
++					$updatesql .= ", livemapurl = '".$ship_status['LiveMapUrl']."'";
++					$updatesql .= ", updatedtime = '".date('Y-m-d H:i:s', dol_now())."'";
++					$updatesql .= " WHERE fk_object = ".$toselect[$i];
++					$db->query($updatesql);
++				}
++			}
++		}
++		$i++;
++	}
++}
++
++
+ $parameters = array('socid'=>$socid);
+ $reshook = $hookmanager->executeHooks('doActions', $parameters, $object, $action); // Note that $action and $object may have been modified by some hooks
+ if ($reshook < 0) {
+@@ -177,6 +215,7 @@ if (GETPOST('button_removefilter_x', 'alpha') || GETPOST('button_removefilter.x'
+ 	$search_product_category = '';
+ 	$search_ref_exp = '';
+ 	$search_ref_liv = '';
++	$search_reforder = '';
+ 	$search_ref_customer = '';
+ 	$search_company = '';
+ 	$search_town = '';
+@@ -220,6 +259,7 @@ $formfile = new FormFile($db);
+ $companystatic = new Societe($db);
+ $formcompany = new FormCompany($db);
+ $shipment = new Expedition($db);
++$order = new Commande($db);
+ 
+ $helpurl = 'EN:Module_Shipments|FR:Module_Exp&eacute;ditions|ES:M&oacute;dulo_Expediciones';
+ llxHeader('', $langs->trans('ListOfSendings'), $helpurl);
+@@ -238,6 +278,7 @@ $sql .= " u.login";
+ if (($search_categ_cus > 0) || ($search_categ_cus == -2)) {
+ 	$sql .= ", cc.fk_categorie, cc.fk_soc";
+ }
++$sql .= ", c.rowid as orderid, c.ref as reforder";
+ // Add fields from extrafields
+ if (!empty($extrafields->attributes[$object->table_element]['label'])) {
+ 	foreach ($extrafields->attributes[$object->table_element]['label'] as $key => $val) {
+@@ -272,6 +313,8 @@ $sql .= ' LEFT JOIN '.MAIN_DB_PREFIX.'user as u ON e.fk_user_author = u.rowid';
+ if ($search_user > 0) {		// Get link to order to get the order id in eesource.fk_source
+ 	$sql .= " LEFT JOIN ".MAIN_DB_PREFIX."element_element as eesource ON eesource.fk_target = e.rowid AND eesource.targettype = 'shipping' AND eesource.sourcetype = 'commande'";
+ }
++$sql .= " LEFT JOIN ".MAIN_DB_PREFIX."element_element as eecommande ON (e.rowid = eecommande.fk_target AND eecommande.sourcetype = 'commande' AND eecommande.targettype = 'shipping')";
++$sql .= " LEFT JOIN ".MAIN_DB_PREFIX."commande as c on (c.rowid = eecommande.fk_source)";
+ // We'll need this table joined to the select in order to filter by sale
+ if ($search_sale > 0 || (!$user->rights->societe->client->voir && !$socid)) {
+ 	$sql .= ", ".MAIN_DB_PREFIX."societe_commerciaux as sc";
+@@ -303,6 +346,9 @@ if ($socid) {
+ if ($search_status <> '' && $search_status >= 0) {
+ 	$sql .= " AND e.fk_statut = ".((int) $search_status);
+ }
++if ($search_reforder != '') {
++	$sql .= natural_search('c.ref', $search_reforder);
++}
+ if ($search_ref_customer != '') {
+ 	$sql .= natural_search('e.ref_customer', $search_ref_customer);
+ }
+@@ -421,6 +467,9 @@ if ($search_ref_exp) {
+ if ($search_ref_liv) {
+ 	$param .= "&search_ref_liv=".urlencode($search_ref_liv);
+ }
++if ($search_reforder) {
++	$param .= "&search_reforder=".urlencode($search_reforder);
++}
+ if ($search_ref_customer) {
+ 	$param .= "&search_ref_customer=".urlencode($search_ref_customer);
+ }
+@@ -481,6 +530,7 @@ $arrayofmassactions = array(
+ 	'builddoc' => img_picto('', 'pdf', 'class="pictofixedwidth"').$langs->trans("PDFMerge"),
+ 	//'classifyclose'=>$langs->trans("Close"), TODO massive close shipment ie: when truck is charged
+ 	'presend'  => img_picto('', 'email', 'class="pictofixedwidth"').$langs->trans("SendByMail"),
++	'updateships' => img_picto('', 'calendar', 'class="pictofixedwidth"').$langs->trans("UpdateShips"),
+ );
+ if (in_array($massaction, array('presend'))) {
+ 	$arrayofmassactions = array();
+@@ -546,7 +596,7 @@ if (!empty($conf->categorie->enabled) && $user->rights->categorie->lire && ($use
+ 	$moreforfilter .= img_picto($tmptitle, 'category');
+ 	//$cate_arbo = $form->select_all_categories(Categorie::TYPE_PRODUCT, null, 'parent', null, null, 1);
+ 	//$moreforfilter .= $form->selectarray('search_product_category', $cate_arbo, $search_product_category, 1, 0, 0, '', 0, 0, 0, 0, 'maxwidth300', 1);
+-	$moreforfilter .= $formother->select_categories(Categorie::TYPE_PRODUCT, $search_product_category, 'search_product_category', 1, $tmptitle);
++	$moreforfilter .= $formother->select_categories(Categorie::TYPE_PRODUCT, $search_product_category, 'parent', 1, $tmptitle);
+ 
+ 	$moreforfilter .= '</div>';
+ }
+@@ -589,6 +639,12 @@ if (!empty($arrayfields['e.ref']['checked'])) {
+ 	print '<input class="flat" size="6" type="text" name="search_ref_exp" value="'.$search_ref_exp.'">';
+ 	print '</td>';
+ }
++// Ref Order
++if (!empty($arrayfields['c.ref']['checked'])) {
++	print '<td class="liste_titre">';
++	print '<input class="flat" size="6" type="text" name="search_reforder" value="'.$search_reforder.'">';
++	print '</td>';
++}
+ // Ref customer
+ if (!empty($arrayfields['e.ref_customer']['checked'])) {
+ 	print '<td class="liste_titre">';
+@@ -707,6 +763,9 @@ print '<tr class="liste_titre">';
+ if (!empty($arrayfields['e.ref']['checked'])) {
+ 	print_liste_field_titre($arrayfields['e.ref']['label'], $_SERVER["PHP_SELF"], "e.ref", "", $param, '', $sortfield, $sortorder);
+ }
++if (!empty($arrayfields['c.ref']['checked'])) {
++	print_liste_field_titre($arrayfields['c.ref']['label'], $_SERVER["PHP_SELF"], "c.ref", "", $param, '', $sortfield, $sortorder);
++}
+ if (!empty($arrayfields['e.ref_customer']['checked'])) {
+ 	print_liste_field_titre($arrayfields['e.ref_customer']['label'], $_SERVER["PHP_SELF"], "e.ref_customer", "", $param, '', $sortfield, $sortorder);
+ }
+@@ -772,6 +831,8 @@ while ($i < min($num, $limit)) {
+ 
+ 	$shipment->id = $obj->rowid;
+ 	$shipment->ref = $obj->ref;
++	$order->id = $obj->orderid;
++	$order->ref = $obj->reforder;
+ 
+ 	$companystatic->id = $obj->socid;
+ 	$companystatic->ref = $obj->name;
+@@ -785,7 +846,23 @@ while ($i < min($num, $limit)) {
+ 	// Ref
+ 	if (!empty($arrayfields['e.ref']['checked'])) {
+ 		print '<td class="nowraponall">';
++		// Picto + Ref
+ 		print $shipment->getNomUrl(1);
++		// Other picto tool
++		$filename = dol_sanitizeFileName($object->ref);
++		$filedir = $conf->expedition->dir_output."/sending/".dol_sanitizeFileName($object->ref);
++		print $formfile->getDocumentsLink('expedition', $filename, $filedir);
++		
++		print "</td>\n";
++		if (!$i) {
++			$totalarray['nbfield']++;
++		}
++	}
++
++	// Ref Order
++	if (!empty($arrayfields['c.ref']['checked'])) {
++		print "<td>";
++		print $order->getNomUrl(1, 'commande');
+ 		print "</td>\n";
+ 		if (!$i) {
+ 			$totalarray['nbfield']++;
+diff --git a/htdocs/expedition/shipment.php b/htdocs/expedition/shipment.php
+index 15ffab13634..f9714039016 100644
+--- a/htdocs/expedition/shipment.php
++++ b/htdocs/expedition/shipment.php
+@@ -613,19 +613,21 @@ if ($id > 0 || !empty($ref)) {
+ 		 *  Lines or orders with quantity shipped and remain to ship
+ 		 *  Note: Qty shipped are already available into $object->expeditions[fk_product]
+ 		 */
+-		print '<table id="tablelines" class="noborder noshadow" width="100%">';
++		print '<table class="noborder noshadow" width="100%">';
+ 
+ 		$sql = "SELECT cd.rowid, cd.fk_product, cd.product_type as type, cd.label, cd.description,";
+ 		$sql .= " cd.price, cd.tva_tx, cd.subprice,";
+-		$sql .= " cd.qty,";
++		$sql .= " cd.qty, cd.fk_unit,";
+ 		$sql .= ' cd.date_start,';
+ 		$sql .= ' cd.date_end,';
+ 		$sql .= ' cd.special_code,';
+ 		$sql .= ' p.rowid as prodid, p.label as product_label, p.entity, p.ref, p.fk_product_type as product_type, p.description as product_desc,';
+ 		$sql .= ' p.weight, p.weight_units, p.length, p.length_units, p.width, p.width_units, p.height, p.height_units,';
+ 		$sql .= ' p.surface, p.surface_units, p.volume, p.volume_units';
++		$sql .= ', u.short_label as unit_order';
+ 		$sql .= " FROM ".MAIN_DB_PREFIX."commandedet as cd";
+ 		$sql .= " LEFT JOIN ".MAIN_DB_PREFIX."product as p ON cd.fk_product = p.rowid";
++		$sql .= " LEFT JOIN ".MAIN_DB_PREFIX."c_units as u ON cd.fk_unit = u.rowid";
+ 		$sql .= " WHERE cd.fk_commande = ".((int) $object->id);
+ 		$sql .= " ORDER BY cd.rang, cd.rowid";
+ 
+@@ -635,19 +637,18 @@ if ($id > 0 || !empty($ref)) {
+ 		if ($resql) {
+ 			$num = $db->num_rows($resql);
+ 			$i = 0;
+-			print '<thead>';
++
+ 			print '<tr class="liste_titre">';
+-			print '<th>'.$langs->trans("Description").'</th>';
+-			print '<th class="center">'.$langs->trans("QtyOrdered").'</th>';
+-			print '<th class="center">'.$langs->trans("QtyShipped").'</th>';
+-			print '<th class="center">'.$langs->trans("KeepToShip").'</th>';
++			print '<td>'.$langs->trans("Description").'</td>';
++			print '<td class="center">'.$langs->trans("QtyOrdered").'</td>';
++			print '<td class="center">'.$langs->trans("QtyShipped").'</td>';
++			print '<td class="center">'.$langs->trans("KeepToShip").'</td>';
+ 			if (!empty($conf->stock->enabled)) {
+-				print '<th class="center">'.$langs->trans("RealStock").'</th>';
++				print '<td class="center">'.$langs->trans("RealStock").'</td>';
+ 			} else {
+-				print '<th>&nbsp;</th>';
++				print '<td>&nbsp;</td>';
+ 			}
+ 			print "</tr>\n";
+-			print '</thead>';
+ 
+ 			$toBeShipped = array();
+ 			$toBeShippedTotal = 0;
+@@ -762,7 +763,7 @@ if ($id > 0 || !empty($ref)) {
+ 					}
+ 
+ 					// Qty ordered
+-					print '<td class="center">'.$objp->qty.'</td>';
++					print '<td class="center">'.$objp->qty.' '.$objp->unit_order.'</td>';
+ 
+ 					// Qty already shipped
+ 					$qtyProdCom = $objp->qty;
+@@ -770,7 +771,7 @@ if ($id > 0 || !empty($ref)) {
+ 					// Nb of sending products for this line of order
+ 					$qtyAlreadyShipped = (!empty($object->expeditions[$objp->rowid]) ? $object->expeditions[$objp->rowid] : 0);
+ 					print $qtyAlreadyShipped;
+-					print '</td>';
++					print ' '.$objp->unit_order.'</td>';
+ 
+ 					// Qty remains to ship
+ 					print '<td class="center">';
+@@ -781,7 +782,7 @@ if ($id > 0 || !empty($ref)) {
+ 					} else {
+ 						print '0 ('.$langs->trans("Service").')';
+ 					}
+-					print '</td>';
++					print ' '.$objp->unit_order.'</td>';
+ 
+ 					if ($objp->fk_product > 0) {
+ 						$product = new Product($db);
+diff --git a/htdocs/expedition/tpl/linkedobjectblock.tpl.php b/htdocs/expedition/tpl/linkedobjectblock.tpl.php
+index 8c2b03ef085..85876255645 100644
+--- a/htdocs/expedition/tpl/linkedobjectblock.tpl.php
++++ b/htdocs/expedition/tpl/linkedobjectblock.tpl.php
+@@ -35,6 +35,9 @@ $linkedObjectBlock = $GLOBALS['linkedObjectBlock'];
+ $langs->load("sendings");
+ 
+ $total = 0;
++if (!empty($conf->multicurrency->enabled)) {
++	$multicurrency_total = 0;
++}
+ $ilink = 0;
+ foreach ($linkedObjectBlock as $key => $objectlink) {
+ 	$ilink++;
+@@ -47,12 +50,16 @@ foreach ($linkedObjectBlock as $key => $objectlink) {
+ 	<tr class="<?php echo $trclass; ?>">
+ 		<td><?php echo $langs->trans("Shipment"); ?></td>
+ 		<td><?php echo $objectlink->getNomUrl(1); ?></td>
+-		<td><?php echo $objectlink->ref_customer; ?></td>
++		<td></td>
+ 		<td class="center"><?php echo dol_print_date($objectlink->date_delivery, 'day'); ?></td>
+ 		<td class="right"><?php
+ 		if ($user->rights->expedition->lire) {
++			if (!empty($conf->multicurrency->enabled) && !empty($objectlink->multicurrency_code) && ($conf->currency!=$objectlink->multicurrency_code)) {
++				$multicurrency_total = $multicurrency_total + $objectlink->multicurrency_total_ht;
++				echo $objectlink->multicurrency_code.' '.price($objectlink->multicurrency_total_ht).'<br>';
++			}
+ 			$total = $total + $objectlink->total_ht;
+-			echo price($objectlink->total_ht);
++			echo $conf->currency.' '.price($objectlink->total_ht);
+ 		} ?></td>
+ 		<td class="right"><?php echo $objectlink->getLibStatut(3); ?></td>
+ 		<td class="right">
+@@ -74,7 +81,7 @@ if (count($linkedObjectBlock) > 1) {
+ 		<td></td>
+ 		<td class="center"></td>
+ 		<td class="center"></td>
+-		<td class="right"><?php echo price($total); ?></td>
++		<td class="right"><?php echo $conf->currency.' '.price($total); ?></td>
+ 		<td class="right"></td>
+ 		<td class="right"></td>
+ 	</tr>

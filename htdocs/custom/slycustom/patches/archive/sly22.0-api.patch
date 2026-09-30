@@ -1,0 +1,215 @@
+diff --git a/htdocs/api/class/api.class.php b/htdocs/api/class/api.class.php
+index c6f7499f65c..bafd4d07ae7 100644
+--- a/htdocs/api/class/api.class.php
++++ b/htdocs/api/class/api.class.php
+@@ -61,17 +61,6 @@ class DolibarrApi
+ 
+ 		$production_mode = getDolGlobalBool('API_PRODUCTION_MODE');
+ 
+-		if ($production_mode) {
+-			// Create the directory Defaults::$cacheDirectory if it does not exist. If dir does not exist, using production_mode generates an error 500.
+-			include_once DOL_DOCUMENT_ROOT.'/core/lib/files.lib.php';
+-			if (!dol_is_dir(Defaults::$cacheDirectory)) {
+-				dol_mkdir(Defaults::$cacheDirectory, DOL_DATA_ROOT);
+-			}
+-			if (getDolGlobalString('MAIN_API_DEBUG')) {
+-				dol_syslog("Debug API construct::cacheDirectory=".Defaults::$cacheDirectory, LOG_DEBUG, 0, '_api');
+-			}
+-		}
+-
+ 		$this->r = new Restler($production_mode, $refreshCache);
+ 
+ 		$urlwithouturlroot = preg_replace('/'.preg_quote(DOL_URL_ROOT, '/').'$/i', '', trim($dolibarr_main_url_root));
+diff --git a/htdocs/api/class/api_access.class.php b/htdocs/api/class/api_access.class.php
+index 77c0257d359..1558cf5c3ed 100644
+--- a/htdocs/api/class/api_access.class.php
++++ b/htdocs/api/class/api_access.class.php
+@@ -1,7 +1,6 @@
+ <?php
+ /* Copyright (C) 2015   Jean-François Ferry     <jfefe@aternatik.fr>
+  * Copyright (C) 2016	Laurent Destailleur		<eldy@users.sourceforge.net>
+- * Copyright (C) 2023	Ferran Marcet			<fmarcet@2byte.es>
+  * Copyright (C) 2024-2025	MDW					<mdeweerd@users.noreply.github.com>
+  *
+  * This program is free software; you can redistribute it and/or modify
+@@ -232,14 +231,6 @@ class DolibarrApiAccess implements iAuthenticate
+ 				throw new RestException(401, $genericmessageerroruser);
+ 			}
+ 
+-			// Check if user status is enabled
+-			if ($fuser->status != $fuser::STATUS_ENABLED) {
+-				// Status is disabled
+-				dol_syslog("functions_isallowed::check_user_api_key Authentication KO for '".$login."': The user has been disabled", LOG_NOTICE);
+-				sleep(1); // Anti brute force protection. Must be same delay when user and password are not valid.
+-				throw new RestException(401, $genericmessageerroruser);
+-			}
+-
+ 			// Check if session was unvalidated by a password change
+ 			if (($fuser->flagdelsessionsbefore && !empty($_SESSION["dol_logindate"]) && $fuser->flagdelsessionsbefore > $_SESSION["dol_logindate"])) {
+ 				// Session is no more valid
+diff --git a/htdocs/api/class/api_documents.class.php b/htdocs/api/class/api_documents.class.php
+index 18c40adb3de..bf29a64ae49 100644
+--- a/htdocs/api/class/api_documents.class.php
++++ b/htdocs/api/class/api_documents.class.php
+@@ -637,11 +637,6 @@ class Documents extends DolibarrApi
+ 			throw new RestException(500, 'Modulepart '.$modulepart.' not implemented yet.');
+ 		}
+ 
+-		$objectType = $modulepart;
+-		if (! empty($object->id) && ! empty($object->table_element)) {
+-			$objectType = $object->table_element;
+-		}
+-
+ 		$filearray = dol_dir_list($upload_dir, $type, $recursive, '', '(\.meta|_preview.*\.png)$', $sortfield, (strtolower($sortorder) == 'desc' ? SORT_DESC : SORT_ASC), 1);
+ 		$countarray = count($filearray);
+ 		$filearray = array_slice($filearray, $limit * $page, $limit);
+@@ -651,26 +646,11 @@ class Documents extends DolibarrApi
+ 			if (($object->id) > 0 && !empty($modulepart)) {
+ 				require_once DOL_DOCUMENT_ROOT.'/ecm/class/ecmfiles.class.php';
+ 				$ecmfile = new EcmFiles($this->db);
+-				$result = $ecmfile->fetchAll('', '', 0, 0, array('t.src_object_type' => $objectType, 't.src_object_id' => $object->id));
++				$result = $ecmfile->fetchAll('', '', 0, 0, array('t.src_object_type' => $modulepart, 't.src_object_id' => $object->id));
+ 				if ($result < 0) {
+ 					throw new RestException(503, 'Error when retrieve ecm list : '.$this->db->lasterror());
+ 				} elseif (is_array($ecmfile->lines) && count($ecmfile->lines) > 0) {
+-					$count = count($filearray);
+-					for ($i = 0 ; $i < $count ; $i++) {
+-						foreach ($ecmfile->lines as $line) {
+-							unset($line->db);
+-							if ($filearray[$i]['name'] == $line->filename) {
+-								// Next line converts EcmFilesLine properties to array
+-								$filearray[$i] = array_merge($filearray[$i], (array) $line);
+-							}
+-						}
+-						if (isset($line->filename)) $filearray[$i]['content-type'] = dol_mimetype($line->filename);
+-						$arraycontenttype = explode(",", $content_type);
+-						if (!empty($content_type) && isset($line->filename) && !in_array(dol_mimetype($line->filename), $arraycontenttype)) {
+-							unset($filearray[$i]);
+-							$countarray -= 1;
+-						}
+-					}
++					$filearray['ecmfiles_infos'] = $ecmfile->lines;
+ 				}
+ 			}
+ 		}
+@@ -960,75 +940,15 @@ class Documents extends DolibarrApi
+ 			throw new RestException(500, "Failed to open file '".$destfiletmp."' for write");
+ 		}
+ 
+-		$disablevirusscan = 0;
+-		$src_file = $destfiletmp;
+-		$dest_file = $destfile;
+-
+-		// Security:
+-		// If we need to make a virus scan
+-		if (empty($disablevirusscan) && file_exists($src_file)) {
+-			$checkvirusarray = dolCheckVirus($src_file, $dest_file);
+-			if (count($checkvirusarray)) {
+-				dol_syslog('Files.lib::dol_move_uploaded_file File "'.$src_file.'" (target name "'.$dest_file.'") KO with antivirus: errors='.implode(',', $checkvirusarray), LOG_WARNING);
+-				throw new RestException(500, 'ErrorFileIsInfectedWithAVirus: '.implode(',', $checkvirusarray));
+-			}
+-		}
+-
+-		// Security:
+-		// Disallow file with some extensions. We rename them.
+-		// Because if we put the documents directory into a directory inside web root (very bad), this allows to execute on demand arbitrary code.
+-		if (isAFileWithExecutableContent($dest_file) && !getDolGlobalString('MAIN_DOCUMENT_IS_OUTSIDE_WEBROOT_SO_NOEXE_NOT_REQUIRED')) {
+-			// $upload_dir ends with a slash, so be must be sure the medias dir to compare to ends with slash too.
+-			$publicmediasdirwithslash = $conf->medias->multidir_output[$conf->entity];
+-			if (!preg_match('/\/$/', $publicmediasdirwithslash)) {
+-				$publicmediasdirwithslash .= '/';
+-			}
+-
+-			if (strpos($upload_dir, $publicmediasdirwithslash) !== 0 || !getDolGlobalInt("MAIN_DOCUMENT_DISABLE_NOEXE_IN_MEDIAS_DIR")) {	// We never add .noexe on files into media directory
+-				$dest_file .= '.noexe';
+-			}
+-		}
+-
+-		// Security:
+-		// We refuse cache files/dirs, upload using .. and pipes into filenames.
+-		if (preg_match('/^\./', basename($src_file)) || preg_match('/\.\./', $src_file) || preg_match('/[<>|]/', $src_file)) {
+-			dol_syslog("Refused to deliver file ".$src_file, LOG_WARNING);
+-			throw new RestException(500, "Refused to deliver file ".$src_file);
+-		}
+-
+-		// Security:
+-		// We refuse cache files/dirs, upload using .. and pipes into filenames.
+-		if (preg_match('/^\./', basename($dest_file)) || preg_match('/\.\./', $dest_file) || preg_match('/[<>|]/', $dest_file)) {
+-			dol_syslog("Refused to deliver file ".$dest_file, LOG_WARNING);
+-			throw new RestException(500, "Refused to deliver file ".$dest_file);
+-		}
+-
+-		$moreinfo = array('note_private' => 'File uploaded using API /documents from IP '.getUserRemoteIP());
+-		if (!empty($object) && is_object($object) && $object->id > 0) {
+-			$moreinfo['src_object_type'] = $object->table_element;
+-			$moreinfo['src_object_id'] = $object->id;
+-		}
+-		if (!empty($array_options)) {
+-			$moreinfo = array_merge($moreinfo, ["array_options" => $array_options]);
+-		}
+-		if (!empty($position)) {
+-			$moreinfo = array_merge($moreinfo, ["position" => $position]);
+-		}
+-		if (!empty($cover)) {
+-			$moreinfo = array_merge($moreinfo, ["cover" => $cover]);
+-		}
+-		$moreinfo['gen_or_uploaded'] = 'api';
+-
+-		// Move the temporary file at its final emplacement
+-		$result = dol_move($destfiletmp, $dest_file, '0', $overwriteifexists, 1, 1, $moreinfo);
++		$result = dol_move($destfiletmp, $destfile, '0', $overwriteifexists, 0);
+ 		if (!$result) {
+-			throw new RestException(500, "Failed to move file into '".$dest_file."'");
++			throw new RestException(500, "Failed to move file into '".$destfile."'");
+ 		}
+ 
+ 		if (is_object($object) && $generateThumbs) {
+ 			require_once DOL_DOCUMENT_ROOT.'/core/lib/files.lib.php';
+-			if (image_format_supported($dest_file)) {
+-				$object->addThumbs($dest_file);
++			if (image_format_supported($destfile)) {
++				$object->addThumbs($destfile);
+ 			}
+ 		}
+ 
+diff --git a/htdocs/api/index.php b/htdocs/api/index.php
+index 3f0edace5c2..51a3097a0e5 100644
+--- a/htdocs/api/index.php
++++ b/htdocs/api/index.php
+@@ -59,27 +59,12 @@ if (!empty($_SERVER['HTTP_DOLAPIENTITY'])) {
+ 	define("DOLENTITY", (int) $_SERVER['HTTP_DOLAPIENTITY']);
+ }
+ 
+-// Response for preflight requests (used by browser when into a CORS context)
+-if (!empty($_SERVER['REQUEST_METHOD']) && $_SERVER['REQUEST_METHOD'] == 'OPTIONS' && !empty($_SERVER['HTTP_ACCESS_CONTROL_REQUEST_HEADERS'])) {
+-	header('Access-Control-Allow-Origin: *');
+-	header('Access-Control-Allow-Methods: GET, POST, PUT, DELETE');
+-	header('Access-Control-Allow-Headers: Content-Type, Authorization, api_key, DOLAPIKEY');
+-	http_response_code(204);
+-	exit;
+-}
+-
+ // When we request url to get the json file, we accept Cross site so we can include the descriptor into an external tool.
+ if (preg_match('/\/explorer\/swagger\.json/', $_SERVER["PHP_SELF"])) {
+ 	header('Access-Control-Allow-Origin: *');
+ 	header('Access-Control-Allow-Methods: GET, POST, PUT, DELETE');
+ 	header('Access-Control-Allow-Headers: Content-Type, Authorization, api_key, DOLAPIKEY');
+ }
+-// When we request url to get an API, we accept Cross site so we can make js API call inside another website
+-if (preg_match('/\/api\/index\.php/', $_SERVER["PHP_SELF"])) {
+-	header('Access-Control-Allow-Origin: *');
+-	header('Access-Control-Allow-Methods: GET, POST, PUT, DELETE');
+-	header('Access-Control-Allow-Headers: Content-Type, Authorization, api_key, DOLAPIKEY');
+-}
+ header('X-Frame-Options: SAMEORIGIN');
+ 
+ 
+@@ -369,7 +354,7 @@ if (!empty($reg[1]) && ($reg[1] != 'explorer' || ($reg[2] != '/swagger.json' &&
+ 
+ 		foreach ($listofendpoints as $endpointrule) {
+ 			$tmparray = explode(':', $endpointrule);
+-			if (($classfile == $tmparray[0] || $classfile.'api' == $tmparray[0]) && $tmparray[1] == 1) {
++			if ($classfile == $tmparray[0] && $tmparray[1] == 1) {
+ 				$endpointisallowed = true;
+ 				break;
+ 			}
