@@ -1,0 +1,139 @@
+
+
+div.mainmenu.docsemployes {
+    background-image: url(../../docsemployes/img/docsemployes.png);
+    background-size: 19px;
+}
+
+
+.card_docsemploys table td:first-child{
+	width: 20%;
+}
+.card_docsemploys ul{
+	padding-left: 0px !important;
+}
+
+.card_docsemploys #wrapper_doc ul{
+    list-style: none;
+}
+.card_docsemploys #wrapper_doc ul li{
+    height: 80px;
+    display: inline-block;
+    padding: 2px;
+    position: relative;
+}
+.card_docsemploys #wrapper_doc ul li img{
+    width: auto;
+    height: 80px;
+    max-height: 80px;
+    border: solid 1px #ccc;
+    background: #fff;
+}
+
+.card_docsemploys #wrapper_doc ul li:hover{
+
+    cursor: pointer;
+}
+.card_docsemploys .name_file{
+    color: green;
+    font-size: 12px;
+}
+
+.card_docsemploys #lightbox {
+    position:fixed; /* keeps the lightbox window in the current viewport */
+    top:0; 
+    left:0; 
+    width:100%; 
+    height:100%; 
+    background-color: rgba(0,0,0,0.5);
+    text-align:center;
+    padding-top: 3%;
+}
+.card_docsemploys #lightbox p {
+    text-align:right; 
+    color:#fff; 
+    margin-right:20px; 
+    font-size: 2em;
+    font-weight: bold;
+    cursor: pointer;
+    font-family: cursive;
+}
+.card_docsemploys #lightbox img {
+    box-shadow:0 0 25px #111;
+    -webkit-box-shadow:0 0 25px #111;
+    -moz-box-shadow:0 0 25px #111;
+    max-width:800px;
+    max-height: 520px;
+    background: #fff;
+}
+
+#wrapper_doc ul li span {
+    position: absolute;
+    height: 80px;
+    width: 80px;
+    bottom: 0;
+    top: 0;
+    right: 0;
+    text-align: center;
+    line-height: 7;
+    border: solid 1px #b94949;
+    background: #dc5656;
+    color: #fff;
+    font-size: 11px;
+    display: none;
+}
+
+#wrapper_doc ul{
+    list-style: none;
+}
+#wrapper_doc ul li{
+    display: inline-block;
+    padding: 2px;
+    position: relative;
+    vertical-align: bottom !important;
+}
+#wrapper_doc ul li img{
+    height: 80px;
+    width: 80px;
+    border: solid 1px #ccc;
+    background: #fff;
+}
+
+#wrapper_doc ul li span:hover{
+    background: #a44242;
+}
+#wrapper_doc ul li:hover span{
+    display: block;
+}
+
+.test_sendmail {
+    float: left;
+    text-align: center;
+    padding-top: 6px;
+    width: auto; 
+    text-align: left;
+}
+.other_destinataire input{
+    width: 300px;
+}
+.other_destinataire{
+    display: none;
+}
+.deleteallfils {
+    background: rgb(225, 231, 225);
+    box-shadow: 0px 0px 3px 1px rgba(50, 50, 50, 0.4), 0px 0px 0px rgba(60,60,60,0.1);
+    color: #444 !important;
+    font-weight: bold !important;
+    padding: 5px;
+    border-radius: 3px;
+    float: right;
+}
+
+.deleteallfils:hover{
+    text-decoration: none;
+    cursor: pointer;
+}
+
+input#photoinput {
+    float: left;
+}

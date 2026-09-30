@@ -1,0 +1,93 @@
+ModuleName677720099=Employee documents
+ModuleDesc677720088=Manage employee-related documents such as certificates, assessment reports, passports ...
+BackToModuleList=Retour à la liste des modules
+
+docsemployesSetup=Employee documents configuration Module name
+
+docsemployes=Employee documents
+type_document =Types des documents
+# DROITS
+Permission_label=Permission label
+
+# MENU
+Liste_des_docsemployes=List of documents 
+Ajouter_un_docsemployes=Add an employee document
+
+Liste_des_type_document=List of types
+Ajouter_un_type_document=Add type
+
+Nom=Nom
+email=Email
+# CARD
+msgconfirmdelet=Are you sure you want to continue deleting?
+issuedate= Creation date
+expirydate= Expiration date
+fk_type_document= Type of Document
+fk_user= Employee
+Employe= Employee
+number=Number
+numberdoc=Number
+fichier=Attached files
+description =Description
+
+file=Files
+files=Files
+photo=Pictures
+
+tab_docsemploye=Employee documents
+
+
+Before_Validity_Date=Before the validity date
+Send_Mail_Before=Send email
+
+docsemployescheckDocsMails=Envoyer des alertes d'expiration par email
+
+StepToFollowParcInterventionEmail=Steps to get email sending to work
+ActivateTravauxPlanifModule=Activate the module <b> "Scheduled jobs" </b>
+
+Gotothe=Browse to
+ConfigurationPageTravPlan=Scheduled job management setup
+GenerateKeySecurity=and generate the security key
+
+VerifyThatEmailSentInYourPlateform=Test the sending of email in your Dolibarr platform <b> "Configuration - Emails" </b>
+
+CopyTheLinkBelowToTheFile=Add the line below in the configuration file
+
+TheLinkTheFileToMakeInYourServerToBeExecute=Configure a <b> scheduled task </b> on your server to run the following link
+
+Everydays=everyday
+
+docsemployescheckDocsMails=Send expiration alerts by email
+SendMailEvryDayBefore=Send the email every day since __NBRDAYS__ days before the validity date
+SendMailEvryDayAfter=Send email every day after the expiration date
+
+
+
+
+parcautomobilecheckInterventionsMails=Send dovument alerts by email
+Before_Validity_Date=Before the validity date
+Send_Mail_Before=Send email
+StepToFollowParcInterventionEmail=Steps to get email sending to work
+ActivateTravauxPlanifModule=Activate the module <b> "Scheduled jobs" </b>
+
+
+PSSecurityKeyNotGenerated=Before proceeding to step (3.) you must generate the security key
+StepThreeNotYet=Step (3.) not yet processed
+DesacAndActivModule=Please <b> Deactivate </b> then <b> Activate </b> the module
+essence=Essence
+diesel=Diesel
+lpg=LPG
+electric=Electrique
+hybrid=Hybride
+test_sendmail_docs=Activate the validity of the expiration date
+destinataire=Destinataire
+otherdestinataire=Other recipients
+
+nodertermin=Not determined
+
+deleteAll=Delete all files
+
+
+
+Send_Mail_To=Send emails to
+Expiration_of_documents=Expiration of documents
