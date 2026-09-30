@@ -1,0 +1,114 @@
+# EmbeddedBookkeeping 模块 - 简体中文
+# Copyright (C) 2026
+
+ModuleEmbeddedBookkeepingName=嵌入式记账
+ModuleEmbeddedBookkeepingDesc=在每张发票卡片直接录入会计分录（类 Xero/Odoo），可选 AI 账户建议。完全复用 llx_accounting_bookkeeping 表，无 schema 变更、不修改核心。兼容 Dolibarr 14.0 .. 22.0.x。
+EmbeddedBookkeepingDescriptionLong=嵌入式记账在客户发票和供应商发票卡片上增加两个按钮：「记录分录」（手工借贷分录）与「AI 建议账户」（LLM 辅助选科目）。两条路径共用同一个确认弹窗，最终落盘一笔借贷平衡的分录（同一 piece_num，两行）。AI 服务可选 Dolibarr 原生 ai 模块（chatgpt/groq/mistral/custom）或直接调用 Anthropic Claude Messages API。**所有写入均需人工确认**，不在 validate 触发器中自动入账。
+Module500200Name=嵌入式记账
+Module500200Desc=在每张发票卡片直接录入会计分录（类 Xero/Odoo），可选 AI 账户建议。兼容 Dolibarr 14.0 .. 22.0.x。
+
+# 按钮
+EBKRecordBookkeeping=记录分录
+EBKAiSuggestEntries=AI 建议账户
+EBKAlreadyBookkeepingShort=已记账
+EBKAiSuggestShort=AI 建议
+
+# 弹窗
+EBKConfirmTitle=确认会计分录
+EBKDebitAccount=借方账户
+EBKCreditAccount=贷方账户
+EBKAmount=金额（含税）
+EBKLabel=业务描述
+EBKCurrency=币种
+EBKConfirmSave=保存
+
+# 结果
+EBKBookkeepingCreated=分录 #%s 已写入。
+EBKAlreadyBookkeeping=该发票已记账，请在「会计 → 记账簿 → 列表」中查看或修改。
+
+# Tab（1.1.0）
+EBKTabTitle=会计分录
+EBKTabButton=记账
+EBKTabViewBookkeeping=查看分录
+EBKTabLineAccount=每行发票行的会计科目
+EBKTabAccountStatusBound=已绑定
+EBKTabAccountStatusSuggested=建议
+EBKTabAccountStatusMissing=缺失
+EBKTabUnboundWarning=部分行没有会计科目（既未在往来科目绑定，也无法从产品/默认科目推导）。请在下方分录中手工指定，或先到「会计 → 往来科目」绑定。
+EBKTabEntryPreview=记账分录
+EBKTabAccountingDate=记账日期
+EBKTabDateDocument=单据日期
+EBKTabDateDue=付款期限
+EBKTabDateToday=今天
+EBKTabDateValid=核准日期
+EBKTabDateApprove=批准日期
+EBKTabDatePayment=付款日期
+EBKTabDateIncotermShipment=确认日 - Incoterm %s（装运转移）
+EBKTabDateIncotermDelivery=确认日 - Incoterm %s（交付转移）
+EBKTabDateIncotermShipmentShort=Incoterm 发货转移日
+EBKTabDateIncotermDeliveryShort=Incoterm 交付转移日
+EBKTabDateSource=原发票日期
+EBKSetupDateCustomer=默认记账日期 - 客户发票
+EBKSetupDateSupplier=默认记账日期 - 供应商发票
+EBKSetupDateExpense=默认记账日期 - 费用报销单
+EBKSetupDateDeposit=默认记账日期 - 定金发票
+EBKSetupDateCreditNote=默认记账日期 - 贷记单
+EBKSetupDateReplacement=默认记账日期 - 替换发票
+EBKTabTotals=合计
+EBKTabRecordEntry=记录分录
+EBKTabAiPrefill=AI 预填
+EBKTabAiUnavailable=AI 未配置——手工分录不受影响。
+EBKTabStatusNotEligible=该单据当前状态不可记账（仅已审核或已付款单据）。
+EBKTabNoWritePermission=您没有写入分录的权限。
+EBKTabSituationBlocked=完成度低于 100% 的分期开票本 Tab 暂不支持（金额为部分值），请使用核心会计日记账。
+EBKTabPostedEntries=已过账分录
+EBKTabPieceNum=凭证号
+EBKRoundingAdjusted=舍入残差已并入最后一行以保持借贷平衡，请核对金额。
+EBKEntryNotBalanced=分录不平衡（借方合计必须等于贷方合计）。
+EBKPieceNumMismatch=各行被写到了不同凭证号下，写入已回滚。请检查 ACCOUNTANCY_ENABLE_FKDOCDET 常量。
+EBKNotEnoughRowsForBookkeeping=分录至少需要一条借方行和一条贷方行。
+EBKDuplicateRowForBookkeeping=两行使用了相同科目与标签；请让每行标签唯一。
+
+# 权限
+EBKRightRead=读取分录 / 在发票卡片显示按钮
+EBKRightWrite=从发票卡片新建分录
+EBKRightAiSuggest=请求 AI 建议账户
+EBKRightAdmin=配置嵌入式记账（Provider、Key、Prompt）
+
+# 配置页
+EBKSetupTitle=嵌入式记账 配置
+EBKSetupTabGeneral=通用
+EBKSetupTabProvider=AI 服务
+EBKJournalSales=销售日记账代码（客户发票）
+EBKJournalPurchases=采购日记账代码（供应商发票）
+EBKJournalExpense=费用日记账代码（报销单）
+EBKAiProvider=AI 服务
+EBKAiProviderTooltip=disabled = 不启用 AI；ai_module = 复用 Dolibarr 原生 ai 模块（chatgpt/groq/mistral/custom），需 ai 模块已启用并配置；claude = 直接调用 Anthropic Claude Messages API，密钥读 EMBEDDEDBOOKKEEPING_ANTHROPIC_KEY。
+EBKAiProviderDisabled=关闭
+EBKAiProviderAiModule=Dolibarr ai 模块（推荐）
+EBKAiProviderClaude=Anthropic Claude（直接 API）
+EBKAnthropicKey=Anthropic API 密钥
+EBKAnthropicKeyTooltip=加密存储（Dolibarr 对 _KEY 后缀常量的标准加密方式）。留空保留原值。
+EBKKeyAlreadySet=••• 已设置 • 留空保留 ••
+EBKAiClaudeModel=Claude 模型名
+EBKAiDebug=调试模式（回显 prompt）
+EBKAiDebugTooltip=勾选后 AJAX 端点会回显调试块（provider、服务器时间戳）。仅 admin 生效。
+EBKAiMaxLines=每次建议的最大行数
+EBKAiConfidenceThreshold=低置信度阈值
+EBKAiPromptOverrides=系统 Prompt 覆盖
+EBKAiPromptEn=英文 Prompt 覆盖
+EBKAiPromptZh=中文 Prompt 覆盖
+
+# AI 流程
+EBKAiNoProvider=AI 没有给出建议，请检查 Provider 配置。
+EBKAiLoading=正在请求 AI…
+
+# 错误
+ErrorBadDocTypeForBookkeeping=单据类型不合法，无法记账。
+ErrorBadFkDocForBookkeeping=单据 ID 不匹配（疑似 IDOR，已拒绝）。
+ErrorBadAccountForBookkeeping=借贷账户必须同时填写。
+ErrorBadAmountForBookkeeping=金额必须为正数。
+ErrorSameDebitCreditForBookkeeping=借贷账户必须不同。
+ErrorBadJournalForBookkeeping=无法解析日记账代码。
+ErrorCannotAllocatePieceNum=无法分配 piece_num；记账簿表不可达。
+EBKCreateFailed=写入分录失败。
