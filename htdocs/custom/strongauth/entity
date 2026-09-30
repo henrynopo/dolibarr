@@ -1,0 +1,28 @@
+class/factor/Factor_BackupCode.class.php:52:                     . " AND entity = ".(int) $db->entity);
+class/factor/Factor_BackupCode.class.php:66:                     .(int) $db->entity
+class/factor/Factor_BackupCode.class.php:106:             . " AND entity = ".(int) $db->entity;
+class/factor/Factor_BackupCode.class.php:149:             . " AND entity = ".(int) $db->entity;
+class/factor/Factor_TOTP.class.php:183:                 .(int) $this->db()->entity
+class/factor/Factor_TOTP.class.php:207:             . " AND entity = ".(int) $this->db()->entity;
+class/factor/Factor_TOTP.class.php:229:             . " AND entity = ".(int) $this->db()->entity
+class/factor/Factor_TOTP.class.php:244:             . " AND entity = ".(int) $this->db()->entity);
+class/factor/Factor_WebAuthn.class.php:198:             .(int) $this->db()->entity.")";
+class/factor/Factor_WebAuthn.class.php:301:             . " AND entity = ".(int) $this->db()->entity
+class/factor/Factor_WebAuthn.class.php:315:             . " AND entity = ".(int) $this->db()->entity;
+class/provider/Provider_OIDCBase.class.php:255:             .(int) $db->entity.")";
+class/provider/Provider_OIDCBase.class.php:314:             . " AND entity IN (0, ".(int) $db->entity.")";
+class/provider/Provider_OIDCBase.class.php:351:             .(int) $db->entity.","
+class/provider/Provider_OIDCBase.class.php:376:             . " AND entity = ".(int) $db->entity;
+class/provider/Provider_OIDCBase.class.php:399:             .(int) $db->entity.")";
+class/StrongAuth_Audit.class.php:49:                 .(int) $db->entity
+class/StrongAuth_DeviceTrust.class.php:57:             .(int) $db->entity.")";
+class/StrongAuth_DeviceTrust.class.php:81:             . " AND entity = ".(int) $db->entity
+class/StrongAuth_Lockout.class.php:59:                         . " VALUES (".$userId.", 1, '".$now."', NULL, ".(int) $db->entity.")");
+class/StrongAuth_Lockout.class.php:96:                 . " AND entity = ".(int) $db->entity);
+class/StrongAuth_Lockout.class.php:110:                 . " AND entity = ".(int) $db->entity);
+class/StrongAuth_Lockout.class.php:128:                         ." AND entity = ".(int) $db->entity);
+class/StrongAuth_Orchestrator.class.php:140:             . " AND entity = ".(int) $this->db->entity
+class/StrongAuth_Orchestrator.class.php:153:             . " AND entity = ".(int) $this->db->entity
+class/StrongAuth_Orchestrator.class.php:167:             . " AND entity = ".(int) $this->db->entity
+class/StrongAuth_Orchestrator.class.php:180:             . " AND entity = ".(int) $this->db->entity
+class/StrongAuth_ProviderRegistry.class.php:97:             . " WHERE entity = ".(int) $db->entity

@@ -1,0 +1,214 @@
+# Copyright (C) 2026 HaoSG Group
+#
+# English (US) language strings for StrongAuth.
+#
+# Convention: keys are prefixed with StrongAuth*. Display texts are short
+# and self-contained; longer explanations belong on the docs site.
+
+# Module descriptor (used in module admin list)
+StrongAuthDescription             =Strong authentication — RFC 6238 TOTP (AES-256-GCM at rest), platform-agnostic WebAuthn Passkey (Windows Hello / iCloud Keychain / Google Password Manager) for internal users, and SSO via Entra ID / Google Workspace / OIDC through Dolibarr's native login pipeline. Internal-domain users are IdP-only; global cross-entity lockout; append-only audit log for SIEM.
+StrongAuthSetup                    =StrongAuth Setup
+StrongAuthSetupSaved              =StrongAuth settings saved.
+StrongAuthSetupTitle               =StrongAuth — Two-factor authentication
+StrongAuthAuditTitle               =StrongAuth — Audit log
+StrongAuthManageTitle              =StrongAuth — Authentication for %s
+
+# Admin setup page sections
+StrongAuthSectionGeneral           =General
+StrongAuthSectionLockout           =Account lockout
+StrongAuthSectionBackupCodes       =Backup codes
+StrongAuthSectionPasskey           =Passkey (WebAuthn)
+StrongAuthSectionMaintenance       =Maintenance
+StrongAuthSectionSso               =Single sign-on (SSO)
+
+# SSO provider configuration
+StrongAuthSsoConfigureProviders    =Configure SSO providers →
+StrongAuthIdpSetupTitle            =StrongAuth — SSO providers
+StrongAuthIdpSetupIntro            =Each row below holds one OIDC provider's settings. Only corporate directories are accepted (Entra ID, Google Workspace, self-hosted OIDC); Apple sign-in is not supported. Client secrets are encrypted at rest with the same master key as TOTP secrets.
+StrongAuthIdpSaved                 =Provider saved.
+StrongAuthIdpWarnTenant            =Entra tenant is empty or set to a multi-tenant alias (common/consumers/organizations): ANY personal Microsoft account can reach this app. Use your dedicated directory tenant ID for corporate logins.
+StrongAuthIdpDeleted               =Provider deleted.
+StrongAuthIdpTestOk                =Discovery OK. issuer=%s  authz=%s
+StrongAuthIdpTestFailed            =Discovery failed: %s
+StrongAuthIdpDeleteConfirm         =Delete this provider configuration?
+StrongAuthIdpAddNew                =Add new provider
+StrongAuthIdpEditRow               =Edit provider
+StrongAuthIdpNoneYet               =No SSO provider configured yet — pick one below to start the wizard.
+StrongAuthIdpChooseProvider        =Set up single sign-on
+StrongAuthIdpStartSetup            =Start setup
+StrongAuthIdpStep1                 =Step 1: register the app at your provider
+StrongAuthIdpStep2                 =Step 2: paste the issued credentials
+StrongAuthIdpOpenPortal            =Open provider portal ↗
+StrongAuthIdpRedirectUriLabel      =Redirect URI — copy this exact value into the provider's app registration
+StrongAuthCopied                   =Copied ✓
+StrongAuthCopy                     =Copy
+StrongAuthIdpEntraGuide            =In Azure Portal → "App registrations" → "New registration": any name; supported account types = "Accounts in this organizational directory only"; platform = Web with the redirect URI below; then copy "Application (client) ID" and "Directory (tenant) ID", and under "Certificates & secrets" create a client secret and copy its VALUE.
+StrongAuthIdpEntraS1               =Open the Entra admin center (button below) → Identity → Applications → App registrations → "New registration". Requires Global Administrator or Application Administrator role.
+StrongAuthIdpEntraS2               =Name: anything (e.g. "Dolibarr SSO"). Supported account types: "Accounts in this organizational directory only". Register.
+StrongAuthIdpEntraS3               =In the app's "Authentication" section → Add platform → Web → paste the Redirect URI shown below.
+StrongAuthIdpEntraS4               =In "Overview", copy the "Application (client) ID" and "Directory (tenant) ID" — you will paste them in Step 2.
+StrongAuthIdpEntraS5               =In "Certificates & secrets" → New client secret → copy the secret VALUE immediately (it is shown only once).
+StrongAuthIdpGoogleS1              =Open Google Cloud Console (button below) → APIs & Services → OAuth consent screen: User type = Internal, fill app name and your Workspace email. Save.
+StrongAuthIdpGoogleS2              =Credentials → "Create credentials" → "OAuth client ID" → Application type: Web application.
+StrongAuthIdpGoogleS3              =Under "Authorized redirect URIs" → Add URI → paste the Redirect URI shown below. Create.
+StrongAuthIdpGoogleS4              =Copy the Client ID and Client secret shown after creation — you will paste them in Step 2.
+StrongAuthIdpOidcS1                =Create a confidential OIDC client on your identity provider (Keycloak / Authentik / Okta ...) with the Redirect URI shown below and a client secret.
+StrongAuthIdpOidcS2                =Copy the issuer URL, client ID and client secret for Step 2.
+StrongAuthIdpGoogleGuide           =In Google Cloud Console → APIs & Services → Credentials (configure the OAuth consent screen first, User type = Internal): "Create credentials" → "OAuth client ID" → Web application → add the redirect URI below; then copy the Client ID and Client secret.
+StrongAuthIdpOidcGuide             =Create an OIDC client on your identity provider (Keycloak, Authentik, Okta, ...) with the redirect URI below, confidential client with a client secret. You only need the issuer URL plus the client credentials.
+StrongAuthIdpTenantId              =Directory (tenant) ID
+StrongAuthIdpTenantIdHelp          =From the Entra app "Overview" page. Never use "common"/"consumers" — they admit personal Microsoft accounts.
+StrongAuthIdpWorkspaceDomain       =Workspace domain
+StrongAuthIdpWorkspaceDomainHelp   =Your Google Workspace primary domain (e.g. haosg.com) — pins the hd claim so personal Google accounts are refused.
+StrongAuthIdpIssuerHelp            =Base URL of the IdP realm/application; .well-known/openid-configuration is discovered automatically.
+StrongAuthIdpSecretHelp            =The client secret VALUE (not its ID) — stored encrypted.
+StrongAuthIdpLabelField            =Display label (optional)
+StrongAuthIdpLabelHelp             =Shown on the login-page button; defaults to the provider name.
+StrongAuthIdpAutoProvision         =Auto-create unknown users
+StrongAuthIdpAutoProvisionHelp     =First SSO login with an unknown email creates the Dolibarr user automatically (with a disabled local password). Off: only pre-existing emails can sign in.
+StrongAuthProvider                 =Provider
+StrongAuthClientId                 =Client ID
+StrongAuthIssuer                   =Issuer
+StrongAuthEnabled                  =Enabled
+StrongAuthEdit                     =Edit
+StrongAuthTest                     =Test
+StrongAuthLeaveBlankToKeep         =leave blank to keep existing value
+StrongAuthLoginRequired            =Please log in to manage StrongAuth.
+StrongAuthBackToUserCard           =← Back to user card
+
+# Passkey enrollment page
+StrongAuthEnrollPasskeyTitle       =Register a passkey
+StrongAuthEnrollPasskeyIntro       =Passkeys let you sign in with Windows Hello, Touch ID/Face ID, or your Google password manager — no 6-digit code needed. Works across Microsoft, Apple, and Google platforms.
+StrongAuthEnrollPasskeyButton      =Register a passkey
+StrongAuthPasskeyStatusPrompt      =Follow your browser prompt to create a passkey…
+StrongAuthPasskeyStatusEnrolled    =Passkey registered. You can sign in with it next time.
+
+# IdP binding management (user-facing)
+StrongAuthIdpLinkTitle             =External sign-in providers
+StrongAuthIdpLinkIntro             =Link your account to one or more SSO providers. Each provider can only be linked once; you may unlink at any time.
+StrongAuthIdpLinkAction            =Link
+StrongAuthIdpLinkNoneConfigured    =No SSO provider is enabled yet. Ask the administrator to finish the provider setup (StrongAuth setup → SSO providers).
+StrongAuthIdpExistingBindings      =Currently linked providers
+StrongAuthIdpNoBindings            =No SSO bindings yet.
+StrongAuthIdpUnlink                =Unlink
+StrongAuthIdpUnlinked              =Provider unlinked.
+StrongAuthSubject                  =Subject
+StrongAuthBoundAt                  =Bound
+StrongAuthLastUsed                 =Last used
+
+# SSO callback errors
+StrongAuthSsoFailedTitle           =Sign-in with %s failed
+StrongAuthSsoFailedBody            =The identity provider did not return a valid session. Please try again or contact an administrator.
+StrongAuthBackToLogin              =← Back to sign-in
+
+# Admin setup — labels and help
+StrongAuthIssuerNameHelp           =Issuer label embedded in TOTP QR codes (default: Dolibarr)
+StrongAuthInternalDomainsHelp      =Comma-separated email domains that must use an external IdP (e.g. M365/Entra ID). Users with these domains bypass local password and TOTP requirements.
+StrongAuthRequire2FALocalHelp      =Force TOTP second factor on every local-password login (recommended for external users).
+StrongAuthRequire2FAIdpHelp        =Require a second factor from the IdP itself in addition to StrongAuth-managed factors (e.g. Microsoft Authenticator step-up).
+StrongAuthMaxFailedHelp            =Number of consecutive failed 2FA attempts before the account is temporarily locked (1–50)
+StrongAuthLockoutDurationHelp      =Lockout duration in seconds (60–86400). Default 900 = 15 minutes.
+StrongAuthBackupCountHelp          =Backup codes generated per enrollment (1–50). Default 10.
+StrongAuthDeviceTrustLocalHelp     =Allow users to mark a browser as trusted for 30 days (skips TOTP on that device). Off by default.
+StrongAuthAdminBreakglassHelp      =Admin break-glass: Dolibarr admins may bypass the IdP-only rule with the local password. Keep ON until SSO is fully verified; turning it OFF enforces M365-only for admins too — an IdP outage then locks admins out (recovery: clear STRONGAUTH_INTERNAL_DOMAINS in the database).
+StrongAuthAllowWebAuthnHelp        =Passkey as an extra step-up factor for internal-domain users, on top of the IdP's own MFA (also needs "Require a second factor from the IdP" = ON). Leave OFF when internal users are IdP-only — the IdP MFA already is their second factor.
+StrongAuthWebAuthnRpIdHelp         =WebAuthn relying-party ID. Defaults to the HTTP_HOST; override only when running behind a proxy that mangles the host header.
+
+# Admin setup — deployment warnings
+StrongAuthWarnComposerMissing      =Composer dependencies are not installed. Run `composer install` inside custom/strongauth/ — TOTP/SSO/Passkey libraries are required at runtime.
+StrongAuthWarnAuthMethod           =SSO cookie login is inactive: add "strongauth_sso" to the authentication method (Home ▸ Setup ▸ Security, e.g. "strongauth_sso,dolibarr").
+StrongAuthAuthModeButton           =Enable SSO authentication method now
+StrongAuthAuthModeConfirm          =This rewrites conf/conf.php to prepend "strongauth_sso" to $dolibarr_main_authentication (a timestamped backup is kept next to it). Continue?
+StrongAuthAuthModeEnabled          =Authentication method updated — strongauth_sso is now active (backup: %s).
+StrongAuthAuthModeAlreadySet       =Authentication method already contains strongauth_sso.
+StrongAuthAuthModeNotWritable      =conf/conf.php is not writable by the web server — edit it manually and set $dolibarr_main_authentication='strongauth_sso,dolibarr';
+StrongAuthAuthModeBackupFailed     =Could not back up conf/conf.php — no changes were made.
+StrongAuthAuthModeWriteFailed      =Writing conf/conf.php failed — the original was restored from the backup.
+StrongAuthWarnEntitiesMissing      =SECURITY: StrongAuth is not enabled in these multicompany entities — users logging into them have NO second factor: %s. Switch to each entity and enable the module there.
+StrongAuthWarnTablesMissing        =Database tables missing: %s. Disable then RE-ENABLE the module (setup ▸ modules) — creation runs automatically and is safe to repeat.
+StrongAuthCreateTablesButton       =Create missing database tables now
+StrongAuthTablesCreated            =Schema OK — %s CREATE TABLE statements executed (existing tables untouched).
+StrongAuthTablesErrors             =SQL errors while creating tables:
+StrongAuthTablesNoSqlDir           =The sql/ directory was not found inside the module — re-upload the full module folder.
+StrongAuthWarnInternalNoIdp        =Internal domains are configured but no SSO provider is enabled. Internal-domain users are refused password login by policy — without an IdP they CANNOT log in at all. Enable a provider below or clear the internal domains list.
+
+# Login page extras
+StrongAuthTrustDevice30d           =Trust this device for 30 days
+StrongAuthUsePasswordInstead       =Sign in with username & password ↓
+
+# Maintenance actions
+StrongAuthAuditLog                 =Audit log
+StrongAuthCodeRev                  =Code revision
+StrongAuthViewAudit                =View audit log
+StrongAuthRotateKey                =Rotate AES-256-GCM master key
+StrongAuthRotateKeyButton          =Generate new key + re-encrypt all secrets
+StrongAuthRotateKeyConfirm         =This will re-encrypt all TOTP secrets and backup-code hashes with a new key. Continue?
+StrongAuthKeyRotated               =Key rotated. New key id: %s, rows re-encrypted: %d
+StrongAuthKeyRotateFailed          =Key rotation failed
+
+# Factor labels
+StrongAuthFactorTOTP             =One-time code (Authenticator app)
+StrongAuthFactorBackupCode         =Backup codes
+StrongAuthFactorPasskey            =Passkey
+
+# Status / actions
+StrongAuthStatus                   =Status
+StrongAuthActions                  =Actions
+StrongAuthEnrolled                 =Enrolled
+StrongAuthNotEnrolled              =Not enrolled
+StrongAuthUnused                   =Unused
+StrongAuthEnroll                   =Set up
+StrongAuthReEnroll                 =Re-enroll
+StrongAuthDisable                  =Disable
+StrongAuthRegenerate               =Regenerate
+StrongAuthManage                   =Manage
+StrongAuthUseEntraIdInstead        =Please sign in with your Microsoft 365 account (button below).
+
+# Manage page
+StrongAuthPasswordRequired         =Please confirm your password to continue
+StrongAuthConfirmYourPassword      =Confirm your password
+StrongAuthDisableConfirm           =Disable TOTP? This removes your Authenticator factor. You will need to re-enroll.
+StrongAuthRegenConfirm             =Regenerate backup codes? Existing unused codes will be invalidated.
+StrongAuthNewBackupCodes           =New backup codes
+StrongAuthShownOnce                =Shown once — copy them now.
+StrongAuthTotpDisabled             =Authenticator disabled
+
+# Passkey not available
+StrongAuthPasskeyNotAvailable      =Passkey is not available for this account.
+StrongAuthPasskeyDevices          =Registered passkeys
+StrongAuthPasskeyDeleteConfirm    =Delete this passkey? The device holding it will no longer be able to sign in with it.
+StrongAuthPasskeyDeleted          =Passkey deleted.
+
+# Enrollment wizard
+StrongAuthEnrollTitle              =Set up your one-time code
+StrongAuthEnrollStep1Intro         =Scan this QR code with Microsoft Authenticator, Google Authenticator, or any RFC 6238-compatible app.
+StrongAuthEnrollSecretManual       =Or enter the secret manually:
+StrongAuthEnrollConfirmPrompt      =Enter the 6-digit code shown in your app to confirm setup:
+StrongAuthEnrollVerify             =Verify
+StrongAuthEnrollInvalidCode        =Invalid or expired code. Please try again.
+StrongAuthEnrollBack               =Back to QR code
+StrongAuthEnrollTotpSaved          =Authenticator registered.
+StrongAuthEnrollBackupCodesHeader  =Backup codes
+StrongAuthEnrollBackupCodesWarning =Each code can be used once if you lose your device. Store them securely — you will not see them again.
+StrongAuthEnrollAckSave             =I have saved my backup codes
+StrongAuthEnrollFinish             =Finish
+StrongAuthEnrollDone               =Two-factor setup complete.
+
+# Login page (2FA prompt)
+StrongAuth6DigitPlaceholder        =6-digit code or backup code
+StrongAuthUsePasskeyToContinue     =Use the Passkey button below to continue.
+StrongAuth2FAFailed                =Invalid code. Please try again.
+StrongAuth2FALocked                =Too many failed attempts. Your account is temporarily locked. Please try again later or contact an administrator.
+StrongAuthBackupCodeLabel          =Backup code
+StrongAuthTOTPLabel                =Authenticator code
+StrongAuthChooseMethod             =Choose a second-factor method
+StrongAuthMethodLabel              =Authentication
+StrongAuthBackupCodes              =backup codes
+
+# Audit log
+StrongAuthAuditIntro               =All StrongAuth-related authentication events. Use filters to narrow the view; export via SIEM integration.
+StrongAuthEvent                    =Event
+StrongAuthMethod                   =Method
+StrongAuthAuditExport              =Export CSV
+
+# totp2fa migration script

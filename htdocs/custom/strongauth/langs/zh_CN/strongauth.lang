@@ -1,0 +1,194 @@
+# Copyright (C) 2026 HaoSG Group
+#
+# 简体中文翻译。键名与 en_US 严格一致。
+
+StrongAuthSetup                    =StrongAuth 配置
+StrongAuthSetupSaved              =StrongAuth 配置已保存。
+StrongAuthSetupTitle               =StrongAuth — 双因素认证
+StrongAuthAuditTitle               =StrongAuth — 审计日志
+StrongAuthManageTitle              =StrongAuth — %s 的认证方式
+
+StrongAuthSectionGeneral           =常规
+StrongAuthSectionLockout           =账户锁定
+StrongAuthSectionBackupCodes       =备用码
+StrongAuthSectionPasskey           =Passkey（WebAuthn）
+StrongAuthSectionMaintenance       =维护
+StrongAuthSectionSso               =单点登录（SSO）
+
+StrongAuthSsoConfigureProviders    =配置 SSO 提供商 →
+StrongAuthIdpSetupTitle            =StrongAuth — SSO 提供商
+StrongAuthIdpSetupIntro            =下方每行对应一个 OIDC 提供商配置。仅接受企业目录（Entra ID、Google Workspace、自托管 OIDC）；不支持 Apple 登录。Client secret 与 TOTP 密钥共用同一把 AES 主密钥加密落盘。
+StrongAuthIdpSaved                 =提供商配置已保存。
+StrongAuthIdpWarnTenant            =Entra 租户为空或使用了多租户别名（common/consumers/organizations）：任何个人微软账号都能访问此应用。企业登录请使用专属目录租户 ID。
+StrongAuthIdpDeleted               =提供商配置已删除。
+StrongAuthIdpTestOk                =Discovery 成功。issuer=%s  authz=%s
+StrongAuthIdpTestFailed            =Discovery 失败：%s
+StrongAuthIdpDeleteConfirm         =确认删除该提供商配置？
+StrongAuthIdpAddNew                =新增提供商
+StrongAuthIdpEditRow               =编辑提供商
+StrongAuthIdpNoneYet               =尚未配置任何 SSO 提供商 —— 在下方选择一个开始向导。
+StrongAuthIdpChooseProvider        =配置单点登录
+StrongAuthIdpStartSetup            =开始配置
+StrongAuthIdpStep1                 =第 1 步：在提供商门户注册应用
+StrongAuthIdpStep2                 =第 2 步：粘贴颁发的凭据
+StrongAuthIdpOpenPortal            =打开提供商控制台 ↗
+StrongAuthIdpRedirectUriLabel      =重定向 URI —— 把这个值原样复制到提供商的应用注册里
+StrongAuthCopied                   =已复制 ✓
+StrongAuthCopy                     =复制
+StrongAuthIdpEntraGuide            =Azure 门户 → "应用注册" → "新注册"：名称任意；受支持的账户类型选"仅此组织目录中的账户"；平台选 Web 并粘贴下方重定向 URI；注册后复制"应用程序(客户端) ID"和"目录(租户) ID"；再到"证书和密码"新建客户端密码并复制其"值"。
+StrongAuthIdpEntraS1               =打开 Entra 管理中心（下方按钮）→ 标识 → 应用程序 → 应用注册 → "新注册"。需要全局管理员或应用程序管理员角色。
+StrongAuthIdpEntraS2               =名称任意（如 "Dolibarr SSO"）；受支持的账户类型选"仅此组织目录中的账户"；点"注册"。
+StrongAuthIdpEntraS3               =在应用的"身份验证"→"添加平台"→"Web"→ 粘贴下方显示的重定向 URI。
+StrongAuthIdpEntraS4               =在"概述"页复制"应用程序(客户端) ID"和"目录(租户) ID"——第 2 步要粘贴。
+StrongAuthIdpEntraS5               =在"证书和密码"→"新客户端密码"→ 立即复制密码的"值"（只显示这一次）。
+StrongAuthIdpGoogleS1              =打开 Google Cloud 控制台（下方按钮）→ API 和服务 → OAuth 同意屏幕：用户类型选"内部"，填应用名和 Workspace 邮箱，保存。
+StrongAuthIdpGoogleS2              =凭据 →"创建凭据"→"OAuth 客户端 ID"→ 应用类型选"Web 应用"。
+StrongAuthIdpGoogleS3              =在"已获授权的重定向 URI"→"添加 URI"→ 粘贴下方显示的重定向 URI，点创建。
+StrongAuthIdpGoogleS4              =创建后复制客户端 ID 和客户端密钥——第 2 步要粘贴。
+StrongAuthIdpOidcS1                =在你的身份提供商（Keycloak / Authentik / Okta 等）上创建机密 OIDC 客户端，重定向 URI 填下方地址，并生成客户端密码。
+StrongAuthIdpOidcS2                =复制 Issuer 地址、客户端 ID 和密码，第 2 步粘贴。
+StrongAuthIdpGoogleGuide           =Google Cloud 控制台 → API 和服务 → 凭据（先配置 OAuth 同意屏幕，用户类型选"内部"）："创建凭据" → "OAuth 客户端 ID" → Web 应用 → 添加下方重定向 URI；然后复制客户端 ID 和客户端密钥。
+StrongAuthIdpOidcGuide             =在你的身份提供商（Keycloak、Authentik、Okta 等）上创建一个机密 OIDC 客户端，重定向 URI 填下方地址；只需 Issuer 地址和客户端凭据。
+StrongAuthIdpTenantId              =目录（租户）ID
+StrongAuthIdpTenantIdHelp          =在 Entra 应用"概述"页复制。切勿填 common/consumers —— 会放行个人微软账号。
+StrongAuthIdpWorkspaceDomain       =Workspace 域名
+StrongAuthIdpWorkspaceDomainHelp   =Google Workspace 主域名（如 haosg.com）—— 钉扎 hd 声明，拒绝个人 Google 账号。
+StrongAuthIdpIssuerHelp            =IdP 域名/应用的基地址；将自动发现 .well-known/openid-configuration。
+StrongAuthIdpSecretHelp            =客户端密码的"值"（不是密码 ID）—— 加密存储。
+StrongAuthIdpLabelField            =显示名称（可选）
+StrongAuthIdpLabelHelp             =登录页按钮上显示的文字；默认为提供商名称。
+StrongAuthIdpAutoProvision         =自动创建未知用户
+StrongAuthIdpAutoProvisionHelp     =未知邮箱首次 SSO 登录时自动创建 Dolibarr 用户（本地密码禁用）。关闭：仅允许已存在的邮箱登录。
+StrongAuthProvider                 =提供商
+StrongAuthClientId                 =Client ID
+StrongAuthIssuer                   =Issuer
+StrongAuthEnabled                  =已启用
+StrongAuthEdit                     =编辑
+StrongAuthTest                     =测试
+StrongAuthLeaveBlankToKeep         =留空表示保持原值
+StrongAuthLoginRequired            =请先登录后再管理 StrongAuth。
+StrongAuthBackToUserCard           =← 返回用户卡片
+
+StrongAuthEnrollPasskeyTitle       =注册 Passkey
+StrongAuthEnrollPasskeyIntro       =Passkey 允许你使用 Windows Hello、Touch ID/Face ID 或 Google 密码管理器登录 — 无需输入 6 位验证码。兼容微软、苹果、谷歌三大平台。
+StrongAuthEnrollPasskeyButton      =注册 Passkey
+StrongAuthPasskeyStatusPrompt      =请按浏览器提示创建 Passkey…
+StrongAuthPasskeyStatusEnrolled    =Passkey 已注册。下次登录可直接使用。
+
+StrongAuthIdpLinkTitle             =外部登录提供商
+StrongAuthIdpLinkIntro             =将账户绑定到一个或多个 SSO 提供商。每个提供商只能绑定一次，可随时解绑。
+StrongAuthIdpLinkAction            =绑定
+StrongAuthIdpLinkNoneConfigured    =尚未启用任何 SSO 提供商。请联系管理员完成提供商配置（StrongAuth 设置 → SSO 提供商）。
+StrongAuthIdpExistingBindings      =已绑定的提供商
+StrongAuthIdpNoBindings            =尚未绑定任何 SSO 提供商。
+StrongAuthIdpUnlink                =解绑
+StrongAuthIdpUnlinked              =提供商已解绑。
+StrongAuthSubject                  =Subject
+StrongAuthBoundAt                  =绑定时间
+StrongAuthLastUsed                 =最近使用
+
+StrongAuthSsoFailedTitle           =使用 %s 登录失败
+StrongAuthSsoFailedBody            =身份提供商未能返回有效的会话。请重试或联系管理员。
+StrongAuthBackToLogin              =← 返回登录
+
+StrongAuthIssuerNameHelp           =写入 TOTP 二维码的发行方名称（默认：Dolibarr）
+StrongAuthInternalDomainsHelp      =邮箱后缀列表（英文逗号分隔）。这些域名下的用户必须使用外部 IdP（如 M365/Entra ID）登录，跳过本地密码和 TOTP 校验。
+StrongAuthRequire2FALocalHelp      =对本地密码登录强制启用 TOTP 第二因子（强烈建议对外部用户开启）。
+StrongAuthRequire2FAIdpHelp        =在 IdP 自身已经要求 MFA 的基础上，再增加 StrongAuth 管理的因子（例如 Microsoft Authenticator step-up）。
+StrongAuthMaxFailedHelp            =连续失败多少次后临时锁定账户（1–50）
+StrongAuthLockoutDurationHelp      =锁定时长（秒，60–86400）。默认 900 = 15 分钟。
+StrongAuthBackupCountHelp          =每次注册生成的备用码数量（1–50）。默认 10。
+StrongAuthDeviceTrustLocalHelp     =允许用户在浏览器上标记"信任 30 天"，在该设备上跳过 TOTP。默认关闭。
+StrongAuthAdminBreakglassHelp      =管理员逃生通道：Dolibarr 管理员可用本地密码绕过"仅限 IdP 登录"。在 SSO 充分验证前保持开启；关闭后管理员也强制仅 M365 登录——届时 IdP 故障将锁死管理员（自救方法：清空数据库中的 STRONGAUTH_INTERNAL_DOMAINS）。
+StrongAuthAllowWebAuthnHelp        =内部域用户的 Passkey 额外加验因子（在 IdP 自身 MFA 之上，需同时开启"IdP 登录附加验证"）。内部用户仅限 IdP 登录时应保持关闭 —— IdP 的 MFA 已是第二因子。
+StrongAuthWebAuthnRpIdHelp         =WebAuthn relying-party ID。默认为当前 HTTP_HOST；仅在反代会重写 Host 头时需要覆盖。
+
+StrongAuthWarnComposerMissing      =Composer 依赖未安装。请在 custom/strongauth/ 目录内执行 `composer install` —— TOTP/SSO/Passkey 运行时必需。
+StrongAuthWarnAuthMethod           =SSO Cookie 登录未启用：请在认证方式中加入 strongauth_sso（例如 strongauth_sso,dolibarr）。
+StrongAuthAuthModeButton           =一键启用 SSO 认证方式
+StrongAuthAuthModeConfirm          =将改写 conf/conf.php，在 $dolibarr_main_authentication 前加入 strongauth_sso（同时保留带时间戳的备份文件）。继续吗？
+StrongAuthAuthModeEnabled          =认证方式已更新 —— strongauth_sso 已生效（备份：%s）。
+StrongAuthAuthModeAlreadySet       =认证方式已包含 strongauth_sso。
+StrongAuthAuthModeNotWritable      =conf/conf.php 对 Web 服务器不可写 —— 请手动编辑并设置 $dolibarr_main_authentication='strongauth_sso,dolibarr';
+StrongAuthAuthModeBackupFailed     =无法备份 conf/conf.php —— 未做任何修改。
+StrongAuthAuthModeWriteFailed      =写入 conf/conf.php 失败 —— 已从备份恢复原文件。
+StrongAuthWarnEntitiesMissing      =安全警告：以下 multicompany 实体未启用 StrongAuth —— 登录这些实体的用户将没有任何第二因子：%s。请切换到各实体并逐一启用本模块。
+StrongAuthWarnTablesMissing        =数据库表缺失：%s。可点击下方按钮立即创建，或在"设置 ▸ 模块"中先禁用再重新启用模块。
+StrongAuthCreateTablesButton       =立即创建缺失的数据表
+StrongAuthTablesCreated            =表结构完成 —— 执行了 %s 条 CREATE TABLE（已存在的表不受影响）。
+StrongAuthTablesErrors             =建表时的 SQL 错误：
+StrongAuthTablesNoSqlDir           =模块内找不到 sql/ 目录 —— 请重新上传完整的模块目录。
+StrongAuthWarnInternalNoIdp        =已配置内部域名但未启用任何 SSO 提供商。内部域用户按策略被拒绝密码登录 —— 没有 IdP 他们将完全无法登录。请在下方启用提供商，或清空内部域名列表。
+
+StrongAuthTrustDevice30d           =信任此设备 30 天
+StrongAuthUsePasswordInstead       =使用用户名密码登录 ↓
+
+StrongAuthAuditLog                 =审计日志
+StrongAuthCodeRev                  =代码版本
+StrongAuthViewAudit                =查看审计日志
+StrongAuthRotateKey                =轮换 AES-256-GCM 主密钥
+StrongAuthRotateKeyButton          =生成新密钥并重新加密所有密钥
+StrongAuthRotateKeyConfirm         =将使用新密钥重新加密所有 TOTP 密钥和备用码哈希。继续吗？
+StrongAuthKeyRotated               =密钥已轮换。新密钥编号：%s，重新加密行数：%d
+StrongAuthKeyRotateFailed          =密钥轮换失败
+
+StrongAuthFactorTOTP             =动态口令（验证器 App）
+StrongAuthFactorBackupCode         =备用码
+StrongAuthFactorPasskey            =Passkey
+
+StrongAuthStatus                   =状态
+StrongAuthActions                  =操作
+StrongAuthEnrolled                 =已注册
+StrongAuthNotEnrolled              =未注册
+StrongAuthUnused                   =剩余
+StrongAuthEnroll                   =设置
+StrongAuthReEnroll                 =重新注册
+StrongAuthDisable                  =停用
+StrongAuthRegenerate               =重新生成
+StrongAuthManage                   =管理
+StrongAuthUseEntraIdInstead        =请使用 Microsoft 365 账号登录（下方按钮）。
+
+StrongAuthPasswordRequired         =请输入您的密码以继续
+StrongAuthConfirmYourPassword      =确认密码
+StrongAuthDisableConfirm           =确定停用 TOTP？这将移除您的 Authenticator 因子，您需要重新设置。
+StrongAuthRegenConfirm             =重新生成备用码？现有未使用的备用码将全部失效。
+StrongAuthNewBackupCodes           =新备用码
+StrongAuthShownOnce                =仅显示一次 — 请立即保存。
+StrongAuthTotpDisabled             =Authenticator 已停用
+
+StrongAuthPasskeyNotAvailable      =该账户无法使用 Passkey。
+StrongAuthPasskeyDevices          =已注册的 Passkey
+StrongAuthPasskeyDeleteConfirm    =删除此 Passkey？持有它的设备将无法再用它登录。
+StrongAuthPasskeyDeleted          =Passkey 已删除。
+
+StrongAuthEnrollTitle              =设置动态口令
+StrongAuthEnrollStep1Intro         =使用 Microsoft Authenticator、Google Authenticator 或任何兼容 RFC 6238 的应用扫描下方二维码。
+StrongAuthEnrollSecretManual       =或手动输入密钥：
+StrongAuthEnrollConfirmPrompt      =输入应用中的 6 位代码以确认设置：
+StrongAuthEnrollVerify             =验证
+StrongAuthEnrollInvalidCode        =代码无效或已过期，请重试。
+StrongAuthEnrollBack               =返回二维码
+StrongAuthEnrollTotpSaved          =Authenticator 已注册。
+StrongAuthEnrollBackupCodesHeader  =备用码
+StrongAuthEnrollBackupCodesWarning =每组备用码只能使用一次，用于在您丢失设备时登录。请妥善保存 — 它们不会再次显示。
+StrongAuthEnrollAckSave             =我已妥善保存备用码
+StrongAuthEnrollFinish             =完成
+StrongAuthEnrollDone               =双因素设置已完成。
+
+StrongAuth6DigitPlaceholder        =6 位代码或备用码
+StrongAuthUsePasskeyToContinue     =请点击下方 Passkey 按钮继续验证。
+StrongAuth2FAFailed                =代码无效，请重试。
+StrongAuth2FALocked                =连续失败次数过多，账户已被临时锁定。请稍后重试或联系管理员。
+StrongAuthBackupCodeLabel          =备用码
+StrongAuthTOTPLabel                =Authenticator 代码
+StrongAuthChooseMethod             =请选择第二因子方式
+StrongAuthMethodLabel              =认证
+StrongAuthBackupCodes              =备用码
+
+StrongAuthAuditIntro               =所有 StrongAuth 相关的认证事件。可使用筛选条件缩小范围；通过 SIEM 集成导出。
+StrongAuthEvent                    =事件
+StrongAuthMethod                   =方式
+StrongAuthAuditExport              =导出 CSV
+
+# totp2fa 迁移脚本
+StrongAuthDescription             =强身份认证 —— RFC 6238 TOTP（静态 AES-256-GCM 加密）、跨平台 WebAuthn Passkey（Windows Hello / iCloud 钥匙串 / Google 密码管理器，限内部用户），以及经 Dolibarr 原生登录管道的 Entra ID / Google Workspace / OIDC 单点登录。内部域用户仅限 IdP 登录；锁定策略跨实体全局生效；审计日志只增删、可对接 SIEM。
