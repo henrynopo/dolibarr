@@ -15,6 +15,17 @@ if (!is_object($conf->slycustom) || empty($conf->slycustom->enabled)) {
 	exit;
 }
 
+// Exports expose the full business dataset: require the module export right
+// (admins pass) and never serve external/thirdparty users.
+if (empty($user->admin) && empty($user->rights->slycustom->export->read)) {
+	accessforbidden();
+	exit;
+}
+if (!empty($user->socid)) {
+	accessforbidden();
+	exit;
+}
+
 $langs->loadLangs(array("slycustom@slycustom", "other"));
 
 $title = $langs->trans("SLYExports");

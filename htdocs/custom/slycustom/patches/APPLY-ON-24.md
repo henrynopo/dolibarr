@@ -1,0 +1,206 @@
+# 在官方 24.0.1 上应用 SLY 补丁（22.0.4 → 24.0.1 移植）
+
+本目录下 **sly24.0-*.patch** 系列由「官方 24.0.1 + 全部 [archive/sly22.0-*.patch](archive/) + 未入库定制」3way 合并、逐冲突人工裁决后重新生成（见 `gen_sly24_patches.sh`）。
+所有落库 PHP 文件均通过 `php -l`（PHP 8.1）语法检查；d-test（24.0.1 + 生产 custom）为功能验证环境。
+
+生成基线：官方 tag `24.0.1`（commit `b7958385f00`）。**与 22 版 patch 的关键差异见下文「淘汰清单」与「Hook 化与官方吸收分析」。**
+
+---
+
+## 〇、升级必做：dol_eval 白名单（与补丁无关，但 24 升级必配）
+
+Dolibarr 24 的 `dol_eval()` 对计算公式（extrafield computed、权限表达式等）默认只允许一个
+函数白名单（`core/lib/functions.lib.php` 顶部默认值），**不含 `isset`/`empty`**。从 22 迁移
+过来的数据库里，SLY 的 shipment 计算字段（ATA−ETA、ATD−ETD 等）大量使用
+`isset($object->array_options) && ...` 写法，在 24 上会抛：
+
+```
+Bad string syntax to evaluate. A function or method "isset" was called and is not
+into the parameter $dolibarr_main_restrict_eval_methods of white-listed functions...
+```
+
+未捕获处表现为页面 500（如 compta/index.php、发票卡片），捕获处显示为列表列的错误文本
+（如 shipment 列表计算列）。**该问题与任何 sly24 补丁无关**——未打补丁的 expedition 页面
+同样报错即为此证。
+
+**修复（d-test / d-test2 / prod 升 24 时必做，二选一）**：编辑 `htdocs/conf/conf.php`，在其他
+`$dolibarr_main_*` 配置附近加一行。
+
+**方案 A（不推荐——括号语法限制，实测不适用）**：
+
+```php
+$dolibarr_main_restrict_eval_methods = '';
+```
+
+空字符串=切回「黑名单模式」（v22 的默认行为）：允许所有**直接命名**的函数（`isset`、`array_sum`、
+`array_column`、`is_array`、`count`……全部旧公式原样可跑），但仍强制拦截动态调用、反引号、字符串拼接、
+白名单外的 `$变量`，以及硬黑名单（exec/system/proc_open、文件读写 fopen/file_get_contents、
+include/require、eval 族、可接收 callable 的函数、混淆函数 base64_decode/sprintf 等、posix/pcntl）。
+这就是 v24 为存量公式设计的官方兼容开关。
+（**d-test2 实测 2026-09-23：不适用**——'' 模式的括号语法扫描器要求每个 '(' 必须是字符串开头、紧跟 &&/||/! 或带空格的函数/方法名；嵌套分组（如 round(($a-$b)/86400)）与层叠调用（array_sum(array_column(...))）会剩下未消费的 '(' 而被拒："found call of a function or method without using the direct name"。官方示例恰好按此语法书写，SLY 公式不符合。请用方案 B。）**用此方案时数据库公式一条都不用改**（含 shipment 的
+isset 日期差与 array_sum 聚合公式）。
+
+**方案 B（推荐——白名单模式追加函数）**：
+
+```php
+$dolibarr_main_restrict_eval_methods = 'getDolGlobalString, getDolGlobalInt, getDolCurrency, getDolEntity, getDolDBType, fetchNoCompute, hasRight, isAdmin, isExternalUser, isModEnabled, isStringVarMatching, abs, min, max, round, dol_now, preg_match, isset, empty, is_array, array_column, array_sum';
+```
+
+（= 官方默认白名单 + SLY 公式所需函数；更严格，但今后公式用到新函数都要追加。）
+
+另：v24 官方为「公式需要已加载的其他对象」提供了新机制——公式内 `new X($db)` + `->fetchNoCompute($id)`
+（fetchNoCompute 即「完整 fetch 但关闭计算以防递归」，这就是它在默认白名单里的原因）。官方示例见
+admin.lang ComputedFormulaDesc3。SLY 的行聚合公式无需此机制（求值时 lines 已加载）。
+
+## 〇b、升级后必配的两个常量（Setup → Other Setup，非补丁）
+
+v24 上游新增了两个行为开关，d-test22 上的默认观感在 d-test24 会「消失」，都是**纯配置**，
+在 后台 → 设置 → 其他设置（Other Setup / 常量编辑器）里各加一条即可，不要为它们打补丁：
+
+1. **`MAIN_STATISTICS_IN_MENU` = `1`** —— v22 里订单/发票左侧菜单的 Statistics 入口是无条件的，
+   v24 的 eldy 菜单把它（连同供应商订单、合同、 Intervention、薪资等全部统计入口）包进了
+   `if (getDolGlobalString('MAIN_STATISTICS_IN_MENU'))`，不设置即全部隐藏。
+2. **`MAIN_CURRENCY_SYMBOL_BEFORE_VALUE` = `1`** —— v22 SLY 的观感「货币符号在金额前面」来自
+   `sly24.0-core.patch` 对 `price()` 的定制（`$listofcurrenciesbefore` 前置判断加了这个开关）。
+   打上 core 补丁后仍需设置此常量，符号才会前置；不设则符号在金额后。
+
+另注：SG 日期格式（dd/mm/yyyy 斜杠）在 `langs/en_SG/main.lang`（2.2.18 起随
+`sly24.0-langs.patch` 下发，仅 2 行）；用户语言需选 English (Singapore) 才生效。
+
+---
+
+## 一、淘汰清单（22 版有、24 版不需要）
+
+| 22 版 patch / 定制 | 24.0.1 官方状态 | 处置 |
+|---|---|---|
+| `archive/sly22.0-paiement-arrayfields.patch` | 官方 `compta/paiement/list.php` doActions 已传 `arrayfields`（键顺序不同，语义相同） | **淘汰**，无需 24 版 |
+| `archive/sly22.0-fourn-paiement-arrayfields.patch` | 官方 `fourn/paiement/list.php` 同上 | **淘汰**，无需 24 版 |
+| admin patch 中 `admin/supplier_invoice.php`、`admin/supplier_order.php` 两处 | v24 已删除这两个文件；定制内容仅为 `getDolGlobalString()` 化，v24 官方已全面采用该写法 | **淘汰**（生成 24 版 admin patch 时已排除） |
+| `compta/paiement.php` 的 SLY 多币种付款页改造 | v24 官方已原生实现完整多币种付款页（JS 分支、合计列、`multicurrency_result`） | 并入 `sly24.0-compta-multicurrency.patch` 时整体取官方版 |
+| `compta/ajaxpayment.php` 的 SLY 多币种分摊 | v24 官方 camelCase 重写版已实现（含 is_array 防护） | 同上，整体取官方版 |
+| 发票卡片金额区的多币种行（HT/VAT/TTC/RemainderToPay Multicurrency 独立行） | v24 官方已原生显示 | facture/card.php 相关冲突块取官方版 |
+
+## 二、24 版补丁列表与推荐应用顺序
+
+在**干净官方 24.0.1** 源码根目录（与 htdocs 同级）按序执行：
+
+```bash
+# 1. 核心（price 货币符号前置 + dol_eval $obj 防护 + boxes/tpl 多币种合计）
+git apply --ignore-whitespace htdocs/custom/slycustom/patches/sly24.0-core.patch
+
+# 1b. 左侧菜单父节点唯一匹配（Tools 下 SLY 三级菜单）
+git apply --ignore-whitespace htdocs/custom/slycustom/patches/sly24.0-menu-parent-match.patch
+
+# 2. 客户发票/付款多币种与已付判定（facture card、various_payment、index 等；paiement.php/ajaxpayment 取官方版后仅保留必要差异）
+git apply --ignore-whitespace htdocs/custom/slycustom/patches/sly24.0-compta-multicurrency.patch
+
+# 3. remx 折扣多路拆分（含外币拆分、afterSplitDiscount hook——slycustom 依赖）
+git apply --ignore-whitespace htdocs/custom/slycustom/patches/sly24.0-remx.patch
+
+# 4. 客户订单（草稿改客户、addline 只填外币价折算、linkedobject 多币种、datefield 统计）
+git apply --ignore-whitespace htdocs/custom/slycustom/patches/sly24.0-commande.patch
+
+# 5. 供应商发票/付款（linkedobject 多币种、付款页来源订单列）
+git apply --ignore-whitespace htdocs/custom/slycustom/patches/sly24.0-fourn-linkedobject.patch
+
+# 6. 报价 linkedobject 多币种
+git apply --ignore-whitespace htdocs/custom/slycustom/patches/sly24.0-comm-propal-linkedobject.patch
+
+# 7. 管理后台（debugbar/dict/mails_templates/company；已排除两个 v24 不存在的文件）
+git apply --ignore-whitespace htdocs/custom/slycustom/patches/sly24.0-admin.patch
+
+# 8. API（生产缓存目录、禁用用户可调 API、文档/上传简化、CORS）
+git apply --ignore-whitespace htdocs/custom/slycustom/patches/sly24.0-api.patch
+
+# 9. Misc/Cron（cron 预筛选 processing=0、delivery/don 小改动）
+git apply --ignore-whitespace htdocs/custom/slycustom/patches/sly24.0-misc-cron-other.patch
+
+# 10. 其它模块（adherents/contact/contrat/loan 多阶段还款/salaries/societe capital_currency/supplier_proposal/expedition/install/theme）
+git apply --ignore-whitespace htdocs/custom/slycustom/patches/sly24.0-other-modules.patch
+
+# 11. 银行计划明细多币种列
+git apply --ignore-whitespace htdocs/custom/slycustom/patches/sly24.0-bank-treso.patch
+
+# 12. 发票列表「来源订单」列位置（数据列由 slycustom hook 提供）
+git apply --ignore-whitespace htdocs/custom/slycustom/patches/sly24.0-invoice-list-source-order-position.patch
+
+# 12b. 供应商发票列表「来源订单」列位置（需 slycustom 模块重启用刷新 MAIN_MODULE_SLYCUSTOM_HOOKS）
+git apply --ignore-whitespace htdocs/custom/slycustom/patches/sly24.0-supplier-invoice-list-source-order-position.patch
+
+# 12c. 发票类 extrafields computed 初始化防护 + 旧 PDF 模板回退
+git apply --ignore-whitespace htdocs/custom/slycustom/patches/sly24.0-facture-pdf-fallback.patch
+
+# 13. 会计：BookKeeping 多币种列 + bookkeepingCreateBefore hook（SFRS Reports 依赖）
+git apply --ignore-whitespace htdocs/custom/slycustom/patches/sly24.0-accountancy-sfrs.patch
+
+# 14. 语言包（SLY 翻译）
+git apply --ignore-whitespace htdocs/custom/slycustom/patches/sly24.0-langs.patch
+```
+
+**数据库（一次性）**：
+- `archive/sly22.0-expedition-extrafields.sql`（ShipsGo 扩展字段）——22 升级时已执行过的库无需重跑；新库执行一次（24.0.1 启用 slycustom 模块时由 `sql/llx_slycustom_*.sql` 自动建表/补扩展字段，**不要**重复跑 archive 下的 SQL 以防与 24 字典冲突）
+- `archive/sly22.0-facture-so-inv-extrafields.sql`（SO/PO Invoice Details 导出 extrafields）——同上
+- `llx_societe.capital_currency`、`llx_loan.schedule_phases` 两列——生产 22 库已存在则无需动作
+
+## 三、Hook 化与官方吸收分析（哪些 patch 可以不打、哪些永远无法 hook）
+
+**结论：24 版 18 个 patch 中，仅 2 个纯 hook 服务型 patch 已被官方吸收淘汰；其余定制分三类——(A) 无法 hook 化（Dolibarr 无对应 hook 点，必须 patch）；(B) 理论可 hook 化但代价大于收益；(C) 已被 v24 官方原生实现。**
+
+### A. 无法 hook 化（必须保留 core patch）
+
+| patch | 为什么不能 hook |
+|---|---|
+| `sly24.0-core.patch`（price 货币符号） | `price()` 是全局函数，无 hook 点 |
+| `sly24.0-menu-parent-match.patch` | `Menubase` 树构建的类内部逻辑 |
+| `sly24.0-remx.patch` | 本身就是「给 remx 加 hook 点」的 patch；`afterSplitDiscount` 官方不存在 |
+| `sly24.0-accountancy-sfrs.patch` | `BookKeeping::create()` 类内部 INSERT；同理是「加 hook 点」的 patch |
+| `compta/commande/fourn/comm` 各 linkedobject 多币种 | `linkedobjectblock` 渲染（tpl + CommonObject）在 v24 **仍无 hook 点**（实测：v24 `commonobject.class.php` 已无 `showLinkToObjectBlock`，tpl 直接 include；页面 10 个 executeHooks 均为标准页面级 hook） |
+| facture card 的 `$effective_resteapayer` 多币种已付判定 | 影响「Classify paid」按钮出现与否的状态机，在卡片主逻辑内 |
+| `sly24.0-misc-cron-other.patch` | cron 卡片/列表行为，无 hook |
+| `sly24.0-commande.patch` 的 addline 外币折算 | `card.php` addline 主流程变量推导，无 hook |
+| `sly24.0-langs.patch` | core 语言键覆盖，无 hook（模块 langs 可覆盖同名键但加载时序不可靠） |
+| admin / api / bank-treso / 列表列位置 | 自定义页面布局与 bootstrap 阶段行为，无 hook 点 |
+
+### B. 理论可 hook 化、但不建议迁移（代价 > 收益）
+
+| patch 定制 | 理论 hook | 不建议的原因 |
+|---|---|---|
+| contrat/agenda.php 议程按钮 | `addMoreActionsButtons` | 已随 other-modules patch 打上；单独重写进 slycustom 会分裂 remnant |
+| adherents 订阅表单调整 | `formObjectOptions` 等 | 同上；且 22→24 表单结构变化大，hook 版需重做 UI 映射 |
+
+### C. v24 官方已吸收（22→24 升级的最大红利）
+
+见「一、淘汰清单」。付款列表 arrayfields、多币种付款页（paiement.php/ajaxpayment）、发票卡片多币种金额行、`getDolGlobalString` 化、供应商发票/订单 admin 页删除——这些在 v24 上**零 patch 直接可用**。
+
+### 长期建议（供 25+ 升级规划）
+
+1. **逐年核对淘汰清单**：每次大版本升级先跑 `git apply --check` 全量 patch，CLEAN 且 diff 落点与官方新实现重叠的，优先评估淘汰。
+2. **新定制一律 hook 优先**：output 层（列/按钮/HTML）用 `printFieldList*`/`addMoreActionsButtons`；数据层用 `doActions`（v24 已普遍传 `arrayfields` 引用）。
+3. **「加 hook 点」型 patch（remx、bookkeeping）保持最小 diff**：只保留 `initHooks + executeHooks` 行，业务逻辑全在 slycustom。
+
+## 四、本移植的冲突裁决记录（审计线索）
+
+32 个文件 123 个冲突块，裁决原则：官方 24 重构噪音取 ours；SLY 实质定制（`// SLY` 注释、multicurrency 字段、hook 调用、草稿改客户）取 theirs 并适配 ours 结构。关键裁决：
+
+- `facture/card.php`（23 块）：6 块官方多币种行取 ours；17 块 SLY 付款表格原币列/折扣原币折算/`$effective_resteapayer` 取 theirs
+- `comm/remx.php`（21 块）：全取 theirs——SLY 版为多币种 N 路拆分超集，官方 24 的 `DISCOUNT_SPLIT_MORE_THAN_TWO_PARTS` 仅本币
+- `fourn/facture/card.php`（14 块）：全取 theirs（与表头 `AmountMulticurrency` 列自洽）
+- `compta/paiement.php`（7 块）、`ajaxpayment.php`（4 块）：全取 ours（官方原生多币种实现）
+- `commande/card.php`：补回 3way 静默丢失的 2 处——addline 只填外币价折算块、`getSelectConditionsPaiements` 第 3 参 `1`（仅活跃付款条件）
+- `install/mysql/migration/21.0.0-22.0.0.sql`：取 ours（22→24 直升由 v24 安装器自带迁移，SLY 对旧迁移的修改不带入）
+
+**复核建议（d-test 验证重点）**：
+1. api_documents 上传去病毒扫描/`.noexe` 防护是 SLY 刻意移除的生产定制——确认仍符合预期
+2. contrat/agenda 添加事件后不返回议程页（SLY 行为）
+3. remx 外币拆分、发票付款表格原币列对齐（theirs 保留旧式 `align="right"` 属性，功能等价）
+
+**3way 静默丢失补回记录**（自动合并跳过、已手工恢复——升级经验：CLEAN apply ≠ 功能保留）：
+- `commande/card.php`：addline 只填外币价折算块（v22 提交 0cf6371 的 bug fix）、`getSelectConditionsPaiements` 第 3 参 `1`
+- `commande/list.php`：销售代表列 SALESREPFOLL 优先 + `$saleRepNomUrlCache` 缓存
+- `cron/list.php`：modulesetup/entity-0 显示全部任务的 entity 预筛选
+- `core/lib/functions.lib.php`：`forgeSQLFromUniversalSearchCriteria` 坏过滤串返回安全 `'1 = 2'`（防字面错误串拼 SQL 崩页——即 d-test select_company 事故的防线）、`dol_eval_standard` 的 `$object`/`$obj` 空对象防护
+- `core/tpl/object_discounts.tpl.php` + `html.form.class.php::form_remise_dispo()`：可用折扣按对象币种折算显示（display 参数追加为第 13/14 参，v24 官方占了 11/12 位）
+- `fourn/commande/card.php`：草稿改供应商联动付款条款/方式/银行账户、PO 创建预填链（供应商报价单→供应商默认→全局常量）、`$newlang`/`$societe` 12 处 PHP8 空对象防护
+- `fourn/facture/card.php`：付款条件 `filtertype=1`（两处）
+
+**已核实为官方吸收、无需补回的假丢失**：commande/index.php 与 compta/index.php 的多币种金额列（官方原生 multicurrency 版）、fourn/commande/card.php 的 `$defaultlang` PDF 语言与 filtertype 下拉、`showdocuments` 传参、`form_conditions_reglement` filtertype（官方版已带）。

@@ -13,7 +13,7 @@
 			ff.date_lim_reglement AS Date_Due,
 			ff.paye AS Paid,
 			ff.fk_statut AS fk_statut,
-			MAX(DATE(p.datep)) AS Date_Payment_Latest,
+			MAX(DATE(pf.datep)) AS Date_Payment_Latest,
 			COALESCE(NULLIF(TRIM(ff.multicurrency_code), ''), mc.code) AS Currency,
 			COALESCE(SUM(CASE WHEN ff.multicurrency_total_ttc IS NOT NULL THEN pff.multicurrency_amount ELSE pff.amount END), 0) AS Amount_Paid,
 			CASE
@@ -46,7 +46,6 @@
 		LEFT JOIN ".$prefix."c_units cu ON cu.rowid = ffd.fk_unit
 		LEFT JOIN ".$prefix."paiementfourn_facturefourn pff ON pff.fk_facturefourn = ff.rowid
 		LEFT JOIN ".$prefix."paiementfourn pf ON pf.rowid = pff.fk_paiementfourn
-		LEFT JOIN ".$prefix."paiement p ON p.rowid = pf.rowid
 		LEFT JOIN (
 			SELECT
 				rc.fk_invoice_supplier AS invoice_id,

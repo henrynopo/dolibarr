@@ -1,0 +1,1221 @@
+diff --git a/htdocs/compta/ajaxpayment.php b/htdocs/compta/ajaxpayment.php
+index 32f56331ba2..9a9e25b27d8 100644
+--- a/htdocs/compta/ajaxpayment.php
++++ b/htdocs/compta/ajaxpayment.php
+@@ -63,8 +63,21 @@ $amounts = GETPOST('amounts', 'array'); // from text inputs : invoice amount pay
+ $remains = GETPOST('remains'); // from dolibarr's object (no need to check)
+ $currentInvId = GETPOST('imgClicked'); // from DOM elements : imgId (equals invoice id)
+ 
++// Multicurrency
++$multicurrency_amountPayment = '';
++$multicurrency_amounts = array();
++$multicurrency_remains = array();
++if (isModEnabled('multicurrency')) {
++	$multicurrency_amountPayment = GETPOST('multicurrency_amountPayment');
++	$multicurrency_amounts = GETPOST('multicurrency_amounts');
++	$multicurrency_remains = GETPOST('multicurrency_remains');
++}
++
+ // Getting the posted keys=>values, sanitize the ones who are from text inputs
+ $amountPayment = $amountPayment != '' ? (is_numeric(price2num($amountPayment)) ? price2num($amountPayment) : '') : ''; // keep void if not a valid entry
++if (isModEnabled('multicurrency')) {
++	$multicurrency_amountPayment = $multicurrency_amountPayment != '' ? (is_numeric(price2num($multicurrency_amountPayment)) ? price2num($multicurrency_amountPayment) : '') : '';
++}
+ 
+ // Multicurrency LRR
+ $multicurrency = GETPOSTINT('multicurrency');
+@@ -211,5 +224,11 @@ if ($multicurrency) {
+ 	$toJsonArray['resultnum'] = price2num($result); // Return value to numeric format
+ }
+ 
++if (isModEnabled('multicurrency')) {
++	$toJsonArray['multicurrency_makeRed'] = ($multicurrency_totalRemaining < price2num($multicurrency_result) || price2num($multicurrency_result) < 0);
++	$toJsonArray['multicurrency_result'] = price($multicurrency_result); // Return value to user format
++	$toJsonArray['multicurrency_resultnum'] = price2num($multicurrency_result); // Return value to numeric format
++}
++
+ // Encode to JSON to return
+ echo json_encode($toJsonArray); // Printing the call's result
+diff --git a/htdocs/compta/bank/various_payment/card.php b/htdocs/compta/bank/various_payment/card.php
+index 39f5cd6f47c..ffead3792f2 100644
+--- a/htdocs/compta/bank/various_payment/card.php
++++ b/htdocs/compta/bank/various_payment/card.php
+@@ -708,7 +708,15 @@ if ($id) {
+ 	}
+ 	print '<tr><td>'.$langs->trans("Sens").'</td><td>'.$sens.'</td></tr>';
+ 
+-	print '<tr><td>'.$langs->trans("Amount").'</td><td><span class="amount">' . price($object->amount, 0, $langs, 1, -1, -1, $conf->currency).'</span></td></tr>';
++	// Amount: use bank account currency when payment is linked to a bank line
++	$amountcurrency = $conf->currency;
++	if (!empty($object->fk_account)) {
++		$bankaccount = new Account($db);
++		if ($bankaccount->fetch($object->fk_account) > 0 && !empty($bankaccount->currency_code)) {
++			$amountcurrency = $bankaccount->currency_code;
++		}
++	}
++	print '<tr><td>'.$langs->trans("Amount").'</td><td><span class="amount">'.price($object->amount, 0, $langs, 1, -1, -1, $amountcurrency).'</span></td></tr>';
+ 
+ 	// Account of Chart of account
+ 	$editvalue = '';
+diff --git a/htdocs/compta/bank/various_payment/list.php b/htdocs/compta/bank/various_payment/list.php
+index aa3d5eeae3c..6d57a43fe3e 100644
+--- a/htdocs/compta/bank/various_payment/list.php
++++ b/htdocs/compta/bank/various_payment/list.php
+@@ -179,6 +179,7 @@ $arrayfields = array(
+ 	'project'		=> array('label' => "Project", 'checked' => '-1', 'position' => 200, "enabled" => (string) (int) isModEnabled('project')),
+ 	'bank'			=> array('label' => "BankAccount", 'checked' => '1', 'position' => 300, "enabled" => (string) (int) isModEnabled("bank")),
+ 	'entry'			=> array('label' => "BankTransactionLine", 'checked' => '1', 'position' => 310, "enabled" => (string) (int) isModEnabled("bank")),
++	'currency'		=> array('label' => "Currency", 'checked' => '1', 'position' => 315, "enabled" => '1'),
+ 	'account'		=> array('label' => "AccountAccountingShort", 'checked' => '1', 'position' => 400, "enabled" => (string) (int) isModEnabled('accounting')),
+ 	'subledger'		=> array('label' => "SubledgerAccount", 'checked' => '1', 'position' => 410, "enabled" => (string) (int) isModEnabled('accounting')),
+ 	'debit'			=> array('label' => "Debit", 'checked' => '1', 'position' => 500),
+@@ -271,7 +272,7 @@ $help_url = '';
+ // Build and execute select
+ // --------------------------------------------------------------------
+ $sql = "SELECT v.rowid, v.sens, v.amount, v.label, v.datep as datep, v.datev as datev, v.fk_typepayment as type, v.num_payment, v.fk_bank, v.accountancy_code, v.subledger_account, v.fk_projet as fk_project,";
+-$sql .= " ba.rowid as bid, ba.ref as bref, ba.number as bnumber, ba.account_number as bank_account_number, ba.fk_accountancy_journal as accountancy_journal, ba.label as blabel,";
++$sql .= " ba.rowid as bid, ba.ref as bref, ba.number as bnumber, ba.account_number as bank_account_number, ba.fk_accountancy_journal as accountancy_journal, ba.label as blabel, ba.currency_code as bank_currency_code,";
+ $sql .= " pst.code as payment_code";
+ 
+ // Add fields from extrafields
+@@ -584,6 +585,12 @@ if ($arrayfields['entry']['checked']) {
+ 	print '</td>';
+ }
+ 
++// Currency (bank account currency)
++if (!empty($arrayfields['currency']['checked'])) {
++	print '<td class="liste_titre center">';
++	print '</td>';
++}
++
+ // Accounting account
+ if (!empty($arrayfields['account']['checked'])) {
+ 	/** @var FormAccounting $formaccounting */
+@@ -678,6 +685,10 @@ if ($arrayfields['entry']['checked']) {
+ 	print_liste_field_titre($arrayfields['entry']['label'], $_SERVER["PHP_SELF"], 'ba.label', '', $param, '', $sortfield, $sortorder);
+ 	$totalarray['nbfield']++;
+ }
++if (!empty($arrayfields['currency']['checked'])) {
++	print_liste_field_titre($arrayfields['currency']['label'], $_SERVER["PHP_SELF"], 'ba.currency_code', '', $param, '', $sortfield, $sortorder, 'center ');
++	$totalarray['nbfield']++;
++}
+ if (!empty($arrayfields['account']['checked'])) {
+ 	// False positive @phan-suppress-next-line PhanTypeInvalidDimOffset
+ 	print_liste_field_titre($arrayfields['account']['label'], $_SERVER["PHP_SELF"], 'v.accountancy_code', '', $param, '', $sortfield, $sortorder, 'left ');
+@@ -717,6 +728,7 @@ $totalarray = array();
+ $totalarray['nbfield'] = 0;
+ $totalarray['val']['total_cred'] = 0;
+ $totalarray['val']['total_deb'] = 0;
++$totalarray['val_by_currency'] = array(); // currency => field => sum (for Total row per-currency like invoice list)
+ $imaxinloop = ($limit ? min($num, $limit) : $num);
+ while ($i < $imaxinloop) {
+ 	$obj = $db->fetch_object($resql);
+@@ -762,9 +774,12 @@ while ($i < $imaxinloop) {
+ 			}
+ 		}
+ 
+-		// No
++		// No (line number)
+ 		if (getDolGlobalString('MAIN_VIEW_LINE_NUMBER_IN_LIST')) {
+ 			print '<td>'.(($offset * $limit) + $i).'</td>';
++			if (!$i) {
++				$totalarray['nbfield']++;
++			}
+ 		}
+ 
+ 		// Ref
+@@ -860,6 +875,15 @@ while ($i < $imaxinloop) {
+ 			}
+ 		}
+ 
++		// Currency (bank account currency)
++		if (!empty($arrayfields['currency']['checked'])) {
++			$row_currency = !empty($obj->bank_currency_code) ? $obj->bank_currency_code : $conf->currency;
++			print '<td class="center">'.dol_escape_htmltag($row_currency).'</td>';
++			if (!$i) {
++				$totalarray['nbfield']++;
++			}
++		}
++
+ 		// Accounting account
+ 		if (!empty($arrayfields['account']['checked'])) {
+ 			require_once DOL_DOCUMENT_ROOT.'/core/lib/accounting.lib.php';
+@@ -882,33 +906,39 @@ while ($i < $imaxinloop) {
+ 			}
+ 		}
+ 
+-		// Debit
++		// Debit (amount in bank account currency)
+ 		if ($arrayfields['debit']['checked']) {
++			$row_currency = !empty($obj->bank_currency_code) ? $obj->bank_currency_code : $conf->currency;
+ 			print '<td class="nowrap right">';
+ 			if ($obj->sens == 0) {
+-				print '<span class="amount">'.price($obj->amount).'</span>';
++				print '<span class="amount">'.price($obj->amount, 0, $langs, 1, -1, -1, $row_currency).'</span>';
+ 				$totalarray['val']['total_deb'] += $obj->amount;
++				if (!isset($totalarray['val_by_currency'][$row_currency])) {
++					$totalarray['val_by_currency'][$row_currency] = array();
++				}
++				$totalarray['val_by_currency'][$row_currency]['total_deb'] = ($totalarray['val_by_currency'][$row_currency]['total_deb'] ?? 0) + $obj->amount;
+ 			}
+ 			if (!$i) {
+ 				$totalarray['nbfield']++;
+-			}
+-			if (!$i) {
+ 				$totalarray['pos'][$totalarray['nbfield']] = 'total_deb';
+ 			}
+ 			print '</td>';
+ 		}
+ 
+-		// Credit
++		// Credit (amount in bank account currency)
+ 		if ($arrayfields['credit']['checked']) {
++			$row_currency = !empty($obj->bank_currency_code) ? $obj->bank_currency_code : $conf->currency;
+ 			print '<td class="nowrap right">';
+ 			if ($obj->sens == 1) {
+-				print '<span class="amount">'.price($obj->amount).'</span>';
++				print '<span class="amount">'.price($obj->amount, 0, $langs, 1, -1, -1, $row_currency).'</span>';
+ 				$totalarray['val']['total_cred'] += $obj->amount;
++				if (!isset($totalarray['val_by_currency'][$row_currency])) {
++					$totalarray['val_by_currency'][$row_currency] = array();
++				}
++				$totalarray['val_by_currency'][$row_currency]['total_cred'] = ($totalarray['val_by_currency'][$row_currency]['total_cred'] ?? 0) + $obj->amount;
+ 			}
+ 			if (!$i) {
+ 				$totalarray['nbfield']++;
+-			}
+-			if (!$i) {
+ 				$totalarray['pos'][$totalarray['nbfield']] = 'total_cred';
+ 			}
+ 			print '</td>';
+@@ -929,6 +959,11 @@ while ($i < $imaxinloop) {
+ 	$i++;
+ }
+ 
++// Ensure pos exists when there are rows so Total row has same column count as data rows
++if ($num > 0 && (!isset($totalarray['pos']) || !is_array($totalarray['pos']))) {
++	$totalarray['pos'] = array();
++}
++
+ // Show total line
+ include DOL_DOCUMENT_ROOT.'/core/tpl/list_print_total.tpl.php';
+ 
+diff --git a/htdocs/compta/facture/card.php b/htdocs/compta/facture/card.php
+index 6459b77..eeee260 100644
+--- a/htdocs/compta/facture/card.php
++++ b/htdocs/compta/facture/card.php
+@@ -387,10 +387,33 @@ if (empty($reshook)) {
+ 			$action = '';
+ 		}
+ 	} elseif ($action == 'unlinkdiscount' && $usercancreate) {
+-		// Delete link of credit note to invoice
+-		$discount = new DiscountAbsolute($db);
+-		$result = $discount->fetch(GETPOSTINT("discountid"));
+-		$discount->unlink_invoice();
++		// Delete link of credit note/deposit to invoice (only in draft mode, same as applying discount)
++		$object->fetch($id);
++		// SLY: Allow unlink discount if invoice is DRAFT or VALIDATED but NOT PAID
++		if ($object->statut == Facture::STATUS_DRAFT || ($object->statut == Facture::STATUS_VALIDATED && $object->paye == 0)) {
++			$discount = new DiscountAbsolute($db);
++			$result = $discount->fetch(GETPOSTINT("discountid"));
++			// SLY: only unlink if the discount is actually linked to this invoice
++			if (!empty($discount->fk_facture) && $discount->fk_facture == $object->id) {
++				$result = $discount->unlink_invoice();
++				if ($result > 0) {
++					// Recalculate invoice totals and regenerate PDF after unlinking discount
++					$object->update_price(1);
++					$object->update_next_value($user);
++					if (!getDolGlobalString('MAIN_DISABLE_PDF_AUTOUPDATE')) {
++						$outputlangs = $langs; // Use default langs for PDF generation
++						$hidedetails = getDolGlobalString('MAIN_GENERATE_DOCUMENTS_HIDE_DETAILS') ? 1 : 0;
++						$hidedesc = getDolGlobalString('MAIN_GENERATE_DOCUMENTS_HIDE_DESC') ? 1 : 0;
++						$hideref = getDolGlobalString('MAIN_GENERATE_DOCUMENTS_HIDE_REF') ? 1 : 0;
++						$object->generateDocument($object->model_pdf, $outputlangs, $hidedetails, $hidedesc, $hideref);
++					}
++				}
++			} else {
++				setEventMessages($langs->trans("ErrorDiscountNotLinkedToInvoice"), null, 'errors');
++			}
++		} else {
++			setEventMessages($langs->trans("ErrorInvoiceStatusNotAllowedToUnlinkDiscount"), null, 'errors');
++		}
+ 	} elseif ($action == 'valid' && $usercancreate) {
+ 		// Validation
+ 		$object->fetch($id);
+@@ -675,20 +698,18 @@ if (empty($reshook)) {
+ 			setEventMessages($object->error, $object->errors, 'errors');
+ 		}
+ 	} elseif ($action == 'setabsolutediscount' && $usercancreate) {
+-		// We have POST[remise_id] (common case) xor POST[remise_id_for_payment] (with unstable oldoption)
+-		$db->begin();
++		// Apply discount/credit note only in draft mode (same as vendor invoice)
++		$ret = $object->fetch($id);
++		if ($ret > 0 && $object->statut == Facture::STATUS_DRAFT) {
++			$db->begin();
+ 
+-		// We use the credit note to reduce amount of invoice
+-		if (GETPOSTINT("remise_id") > 0) {
+-			$ret = $object->fetch($id);
+-			if ($ret > 0) {
++			// We use the credit note to reduce amount of invoice
++			if (GETPOSTINT("remise_id") > 0) {
+ 				$result = $object->insert_discount(GETPOSTINT("remise_id"));
+ 				if ($result < 0) {
++					$error++;
+ 					setEventMessages($object->error, $object->errors, 'errors');
+ 				}
+-			} else {
+-				$error++;
+-				setEventMessages($object->error, $object->errors, 'errors');
+ 			}
+ 
+ 			if (!$error) {
+@@ -699,9 +720,9 @@ if (empty($reshook)) {
+ 					}
+ 				}
+ 			}
+-		}
+-		// We use the credit note to reduce remain to pay
+-		if (GETPOSTINT("remise_id_for_payment") > 0) {
++
++			// We use the credit note to reduce remain to pay
++			if (GETPOSTINT("remise_id_for_payment") > 0) {
+ 			require_once DOL_DOCUMENT_ROOT.'/core/class/discount.class.php';
+ 			$discount = new DiscountAbsolute($db);
+ 			$discount->fetch(GETPOSTINT("remise_id_for_payment"));
+@@ -735,33 +756,34 @@ if (empty($reshook)) {
+ 					}
+ 				}
+ 			}
+-		}
+-
+-		if (!$error) {
+-			$db->commit();
+-		} else {
+-			$db->rollback();
+-		}
+-
+-		if (empty($error) && !getDolGlobalString('MAIN_DISABLE_PDF_AUTOUPDATE')) {
+-			$outputlangs = $langs;
+-			$newlang = '';
+-			if (getDolGlobalInt('MAIN_MULTILANGS') /* && empty($newlang) */ && GETPOST('lang_id', 'aZ09')) {
+-				$newlang = GETPOST('lang_id', 'aZ09');
+-			}
+-			if (getDolGlobalInt('MAIN_MULTILANGS') && empty($newlang)) {
+-				$object->fetch_thirdparty();
+-				$newlang = $object->thirdparty->default_lang;
+ 			}
+-			if (!empty($newlang)) {
+-				$outputlangs = new Translate("", $conf);
+-				$outputlangs->setDefaultLang($newlang);
++
++			if (!$error) {
++				$db->commit();
++			} else {
++				$db->rollback();
+ 			}
+-			$ret = $object->fetch($id); // Reload to get new records
+ 
+-			$result = $object->generateDocument($object->model_pdf, $outputlangs, $hidedetails, $hidedesc, $hideref);
+-			if ($result < 0) {
+-				setEventMessages($object->error, $object->errors, 'errors');
++			if (empty($error) && !getDolGlobalString('MAIN_DISABLE_PDF_AUTOUPDATE')) {
++				$outputlangs = $langs;
++				$newlang = '';
++				if (getDolGlobalInt('MAIN_MULTILANGS') /* && empty($newlang) */ && GETPOST('lang_id', 'aZ09')) {
++					$newlang = GETPOST('lang_id', 'aZ09');
++				}
++				if (getDolGlobalInt('MAIN_MULTILANGS') && empty($newlang)) {
++					$object->fetch_thirdparty();
++					$newlang = $object->thirdparty->default_lang;
++				}
++				if (!empty($newlang)) {
++					$outputlangs = new Translate("", $conf);
++					$outputlangs->setDefaultLang($newlang);
++				}
++				$ret = $object->fetch($id); // Reload to get new records
++
++				$result = $object->generateDocument($object->model_pdf, $outputlangs, $hidedetails, $hidedesc, $hideref);
++				if ($result < 0) {
++					setEventMessages($object->error, $object->errors, 'errors');
++				}
+ 			}
+ 		}
+ 	} elseif ($action == 'setref' && $usercancreate) {
+@@ -4930,8 +4952,19 @@ if ($action == 'create') {
+ 
+ 	if ($object->paye || $object->status == $object::STATUS_CLOSED) {
+ 		$resteapayer = 0;
++		if (isModEnabled('multicurrency')) {
++			$multicurrency_resteapayer = 0;
++		}
++	}
++	// For "Classify paid" decision: use multicurrency remainder when invoice is in another currency (SLY)
++	$effective_resteapayer = $resteapayer;
++	if (isModEnabled('multicurrency') && !empty($object->multicurrency_code) && $object->multicurrency_code != $conf->currency) {
++		$effective_resteapayer = $multicurrency_resteapayer;
+ 	}
+ 	$resteapayeraffiche = $resteapayer;
++	if (isModEnabled('multicurrency') && !empty($object->multicurrency_code) && $object->multicurrency_code != $conf->currency) {
++		$multicurrency_resteapayeraffiche = $multicurrency_resteapayer;
++	}
+ 
+ 	if (getDolGlobalString('FACTURE_DEPOSITS_ARE_JUST_PAYMENTS')) {	// Never use this
+ 		$filterabsolutediscount = "fk_facture_source IS NULL"; // If we want deposit to be subtracted to payments only and not to total of final invoice
+@@ -5240,11 +5273,17 @@ if ($action == 'create') {
+ 		}
+ 	}
+ 
+-	// Confirmation of payment classification (when some payment started)
+-	if ($action == 'paid' && ($resteapayer <= 0 || (getDolGlobalString('INVOICE_CAN_SET_PAID_EVEN_IF_PARTIALLY_PAID') && $resteapayer == $object->total_ttc))) {
++	// Confirmation of payment classification (use effective_resteapayer for multicurrency: SLY)
++	if ($action == 'paid' && (
++		($object->type != Facture::TYPE_CREDIT_NOTE && ($effective_resteapayer <= 0 || (getDolGlobalString('INVOICE_CAN_SET_PAID_EVEN_IF_PARTIALLY_PAID') && $effective_resteapayer == $object->total_ttc))) ||
++		($object->type == Facture::TYPE_CREDIT_NOTE && $effective_resteapayer >= 0)
++	)) {
+ 		$formconfirm = $form->formconfirm($_SERVER["PHP_SELF"].'?facid='.$object->id, $langs->trans('ClassifyPaid'), $langs->trans('ConfirmClassifyPaidBill', $object->ref), 'confirm_paid', '', "yes", 1);
+ 	}
+-	if ($action == 'paid' && $resteapayer > 0 && (!getDolGlobalString('INVOICE_CAN_SET_PAID_EVEN_IF_PARTIALLY_PAID') || $resteapayer != $object->total_ttc)) {
++	if ($action == 'paid' && (
++		($object->type != Facture::TYPE_CREDIT_NOTE && $effective_resteapayer > 0 && (!getDolGlobalString('INVOICE_CAN_SET_PAID_EVEN_IF_PARTIALLY_PAID') || $effective_resteapayer != $object->total_ttc)) ||
++		($object->type == Facture::TYPE_CREDIT_NOTE && $effective_resteapayer < 0)
++	)) {
+ 		$close = array();
+ 		// Code
+ 		$i = 0;
+@@ -5534,6 +5573,22 @@ if ($action == 'create') {
+ 
+ 		// Relative and absolute discounts
+ 		print '<!-- Discounts -->'."\n";
++		// Default select the discount (credit/deposit) from the same order as this invoice, when available
++		$preselected_remise_id_for_payment = 0;
++		if (isModEnabled('order') && !empty($object->linkedObjectsIds['commande'])) {
++			$firstOrder = reset($object->linkedObjectsIds['commande']);
++			$currentOrderId = is_object($firstOrder) ? $firstOrder->id : $firstOrder;
++			$sqlPresel = "SELECT re.rowid FROM ".MAIN_DB_PREFIX."societe_remise_except re";
++			$sqlPresel .= " INNER JOIN ".MAIN_DB_PREFIX."facture f ON re.fk_facture_source = f.rowid";
++			$sqlPresel .= " INNER JOIN ".MAIN_DB_PREFIX."element_element ee ON ee.fk_target = f.rowid AND ee.targettype = 'facture' AND ee.sourcetype = 'commande' AND ee.fk_source = ".((int) $currentOrderId);
++			$sqlPresel .= " WHERE re.fk_soc = ".((int) $soc->id)." AND re.fk_facture IS NULL AND re.entity = ".((int) $conf->entity);
++			$sqlPresel .= " AND (".$filtercreditnote.")";
++			$resPresel = $db->query($sqlPresel);
++			if ($resPresel && $db->num_rows($resPresel) > 0) {
++				$rowPresel = $db->fetch_object($resPresel);
++				$preselected_remise_id_for_payment = (int) $rowPresel->rowid;
++			}
++		}
+ 		print '<tr><td>'.$langs->trans('DiscountStillRemaining').'</td>';
+ 		print '<td>';
+ 		$thirdparty = $soc;
+@@ -5902,6 +5957,7 @@ if ($action == 'create') {
+ 			// Multicurrency Amount HT
+ 			print '<td class="nowraponall amountcard right">' . price($sign * $object->multicurrency_total_ht, 0, $langs, 0, -1, -1, $object->multicurrency_code) . '</td>';
+ 		}
++		print '<td class="nowraponall amountcard right">' . price($sign * $object->total_ht, 0, $langs, 0, -1, -1, $conf->currency) . '</td>';
+ 		print '</tr>';
+ 
+ 		print '<tr>';
+@@ -5912,6 +5968,7 @@ if ($action == 'create') {
+ 			// Multicurrency Amount VAT
+ 			print '<td class="nowraponall amountcard right">' . price($sign * $object->multicurrency_total_tva, 0, $langs, 0, -1, -1, $object->multicurrency_code) . '</td>';
+ 		}
++		print '<td class="nowraponall amountcard right">' . price($sign * $object->total_tva, 0, $langs, 0, -1, -1, $conf->currency) . '</td>';
+ 		print '</tr>';
+ 
+ 		// Amount Local Taxes
+@@ -5921,9 +5978,9 @@ if ($action == 'create') {
+ 			print '<td class="nowraponall amountcard right">' . price($sign * $object->total_localtax1, 0, $langs, 0, -1, -1, $conf->currency) . '</td>';
+ 			if (isModEnabled("multicurrency") && $object->multicurrency_code && $object->multicurrency_code != $conf->currency) {
+ 				$object->multicurrency_total_localtax1 = (float) price2num($object->total_localtax1 * $object->multicurrency_tx, 'MT');
+-
+ 				print '<td class="nowraponall amountcard right">' . price($sign * $object->multicurrency_total_localtax1, 0, $langs, 0, -1, -1, $object->multicurrency_code) . '</td>';
+ 			}
++			print '<td class="nowraponall amountcard right">' . price($sign * $object->total_localtax1, 0, $langs, 0, -1, -1, $conf->currency) . '</td>';
+ 			print '</tr>';
+ 		}
+ 
+@@ -5933,9 +5990,9 @@ if ($action == 'create') {
+ 			print '<td class="nowraponall amountcard right">' . price($sign * $object->total_localtax2, 0, $langs, 0, -1, -1, $conf->currency) . '</td>';
+ 			if (isModEnabled("multicurrency") && $object->multicurrency_code && $object->multicurrency_code != $conf->currency) {
+ 				$object->multicurrency_total_localtax2 = (float) price2num($object->total_localtax2 * $object->multicurrency_tx, 'MT');
+-
+ 				print '<td class="nowraponall amountcard right">' . price($sign * $object->multicurrency_total_localtax2, 0, $langs, 0, -1, -1, $object->multicurrency_code) . '</td>';
+ 			}
++			print '<td class="nowraponall amountcard right">' . price($sign * $object->total_localtax2, 0, $langs, 0, -1, -1, $conf->currency) . '</td>';
+ 			print '</tr>';
+ 		}
+ 
+@@ -6000,6 +6057,7 @@ if ($action == 'create') {
+ 			// Multicurrency Amount TTC
+ 			print '<td class="nowrap amountcard right">' . price($sign * $object->multicurrency_total_ttc, 0, $langs, 0, -1, -1, $object->multicurrency_code) . '</td>';
+ 		}
++		print '<td class="nowraponall amountcard right">' . price($sign * $object->total_ttc, 0, $langs, 0, -1, -1, $conf->currency) . '</td>';
+ 		print '</tr>';
+ 
+ 		print '</table>';
+@@ -6185,7 +6243,13 @@ if ($action == 'create') {
+ 		if (isModEnabled("bank")) {
+ 			print '<td class="liste_titre"><span class="hideonsmartphone">'.$langs->trans('BankAccount').'</span></td>';
+ 		}
++		$show_multicurrency_column = (isModEnabled('multicurrency') && ($object->multicurrency_code != $conf->currency || $object->multicurrency_tx != 1));
++		if ($show_multicurrency_column) {
++			print '<td class="liste_titre right">'.$langs->trans('AmountMulticurrency').'</td>';
++		}
++		// Action
+ 		print '<td class="liste_titre"></td>';
++		// Amount
+ 		print '<td class="liste_titre right">'.$langs->trans('Amount').'</td>';
+ 		print '</tr>';
+ 
+@@ -6254,9 +6318,13 @@ if ($action == 'create') {
+ 						}
+ 						print '</td>';
+ 					}
++					if ($show_multicurrency_column) {
++						$amount_in_invoice_currency = price2num($sign * $objp->amount * $object->multicurrency_tx, 'MT');
++						print '<td class="right"><span class="amount">'.price($amount_in_invoice_currency, 0, $langs, 0, -1, -1, (empty($object->multicurrency_code) ? $conf->currency : $object->multicurrency_code)).'</span></td>';
++					}
++					print '<td class="center">';
+ 
+ 					// Delete
+-					print '<td class="center">';
+ 					$paiement = new Paiement($db);
+ 					$paiement->fetch($objp->rowid);
+ 					if ($object->status == Facture::STATUS_VALIDATED && $object->paye == 0 && $user->socid == 0 && !$paiement->isReconciled()) {
+@@ -6267,7 +6335,7 @@ if ($action == 'create') {
+ 					print '</td>';
+ 
+ 					// Amount
+-					print '<td class="right"><span class="amount">'.price($sign * $objp->amount).'</span></td>';
++					print '<td class="right"><span class="amount">'.price($sign * $objp->amount, 0, $langs, 0, -1, -1, $conf->currency).'</span></td>';
+ 
+ 					print '</tr>';
+ 					$i++;
+@@ -6282,7 +6350,7 @@ if ($action == 'create') {
+ 		if ($object->type != Facture::TYPE_CREDIT_NOTE) {
+ 			// Total already paid
+ 			print '<tr>';
+-			print '<td colspan="'.($nbcols + 1).'" class="right">';
++			print '<td colspan="'.$nbcols.'" class="right">';
+ 			print '<span class="opacitymedium">';
+ 			if ($object->type != Facture::TYPE_DEPOSIT) {
+ 				print $langs->trans('AlreadyPaidNoCreditNotesNoDeposits');
+@@ -6290,9 +6358,11 @@ if ($action == 'create') {
+ 				print $langs->trans('AlreadyPaid');
+ 			}
+ 			print '</span></td>';
+-			//print '<td></td>';
+-			print '<td class="right'.(($totalpaid > 0) ? ' amountalreadypaid' : '').'">'.price($totalpaid).'</td>';
+-			print '</tr>';
++			if ($show_multicurrency_column) {
++				print '<td class="right'.(($multicurrency_totalpaid > 0) ? ' amountalreadypaid' : '').'">'.price($multicurrency_totalpaid, 0, $langs, 0, -1, -1, (empty($object->multicurrency_code) ? $conf->currency : $object->multicurrency_code)).'</td>';
++			}
++				print '<td></td>';
++			print '<td class="right'.(($totalpaid > 0) ? ' amountalreadypaid' : '').'">'.price($totalpaid, 0, $langs, 0, -1, -1, $conf->currency).'</td></tr>';
+ 
+ 			$resteapayeraffiche = $resteapayer;
+ 			$cssforamountpaymentcomplete = 'amountpaymentcomplete';
+@@ -6302,9 +6372,9 @@ if ($action == 'create') {
+ 			$creditnoteamount = 0;
+ 			$depositamount = 0;
+ 			$sql = "SELECT re.rowid, re.amount_ht, re.amount_tva, re.amount_ttc,";
+-			$sql .= " re.description, re.fk_facture_source";
++			$sql .= " re.description, re.fk_facture_source, re.multicurrency_amount_ttc, re.multicurrency_code";
+ 			$sql .= " FROM ".MAIN_DB_PREFIX."societe_remise_except as re";
+-			$sql .= " WHERE fk_facture = ".((int) $object->id);
++			$sql .= " WHERE re.fk_facture = ".((int) $object->id);
+ 			$resql = $db->query($sql);
+ 			if ($resql) {
+ 				$num = $db->num_rows($resql);
+@@ -6313,8 +6383,22 @@ if ($action == 'create') {
+ 				while ($i < $num) {
+ 					$obj = $db->fetch_object($resql);
+ 					$invoice->fetch($obj->fk_facture_source);
+-					print '<tr>';
+-					print '<td colspan="'.$nbcols.'" class="right">';
++					// Original currency: from discount row, or source invoice proportional, or current invoice rate (same logic as vendor invoice)
++					$discount_orig_amount = null;
++					$discount_orig_code = '';
++					if (!empty($show_multicurrency_column)) {
++						if (!empty($obj->multicurrency_amount_ttc) && !empty($obj->multicurrency_code)) {
++							$discount_orig_amount = (float) $obj->multicurrency_amount_ttc;
++							$discount_orig_code = $obj->multicurrency_code;
++						} elseif ($invoice->total_ttc != 0 && !empty($invoice->multicurrency_code) && (float) $invoice->multicurrency_total_ttc != 0) {
++							$discount_orig_amount = price2num($obj->amount_ttc * ($invoice->multicurrency_total_ttc / $invoice->total_ttc), 'MT');
++							$discount_orig_code = $invoice->multicurrency_code;
++						} elseif (!empty($object->multicurrency_code) && (float) $object->multicurrency_tx != 0) {
++							$discount_orig_amount = price2num($obj->amount_ttc * $object->multicurrency_tx, 'MT');
++							$discount_orig_code = $object->multicurrency_code;
++						}
++					}
++					print '<tr><td colspan="'.$nbcols.'" class="right">';
+ 					print '<span class="opacitymedium">';
+ 					if ($invoice->type == Facture::TYPE_CREDIT_NOTE) {
+ 						print $langs->trans("CreditNote").' ';
+@@ -6325,14 +6409,20 @@ if ($action == 'create') {
+ 					print $invoice->getNomUrl(0);
+ 					print '</span>';
+ 					print '</td>';
+-					// Delete discount
++					if ($show_multicurrency_column) {
++						print '<td class="right">'.($discount_orig_amount !== null ? '<span class="amount">'.price($discount_orig_amount, 0, $langs, 0, -1, -1, $discount_orig_code).'</span>' : '').'</td>';
++					}
+ 					print '<td class="right">';
+-					print '<a href="'.$_SERVER["PHP_SELF"].'?facid='.$object->id.'&action=unlinkdiscount&token='.newToken().'&discountid='.$obj->rowid.'">';
+-					print img_picto($langs->transnoentitiesnoconv("RemoveDiscount"), 'unlink');
+-					print '</a>';
++					// SLY: Show delete discount button when invoice is not closed (draft or validated but not paid)
++					if ($object->statut == Facture::STATUS_DRAFT || ($object->statut == Facture::STATUS_VALIDATED && $object->paye == 0)) {
++						print '<a href="'.$_SERVER["PHP_SELF"].'?facid='.$object->id.'&action=unlinkdiscount&token='.newToken().'&discountid='.$obj->rowid.'">';
++						print img_picto($langs->transnoentitiesnoconv("RemoveDiscount"), 'unlink');
++						print '</a>';
++					} else {
++						print '&nbsp;';
++					}
+ 					print '</td>';
+-					// Amount
+-					print '<td class="right"><span class="amount">'.price($obj->amount_ttc).'</span></td>';
++					print '<td class="right"><span class="amount">'.price($obj->amount_ttc, 0, $langs, 0, -1, -1, $conf->currency).'</span></td>';
+ 					print '</tr>';
+ 					$i++;
+ 					if ($invoice->type == Facture::TYPE_CREDIT_NOTE) {
+@@ -6354,24 +6444,31 @@ if ($action == 'create') {
+ 				print $form->textwithpicto($langs->trans("Discount"), $langs->trans("HelpEscompte"), - 1);
+ 				print '</span>';
+ 				print '</td>';
++				if ($show_multicurrency_column) {
++					print '<td class="right"><span class="amount">'.price(price2num($object->multicurrency_total_ttc - $multicurrency_totalcreditnotes - $multicurrency_totaldeposits - $multicurrency_totalpaid, 'MT'), 0, $langs, 0, -1, -1, (empty($object->multicurrency_code) ? $conf->currency : $object->multicurrency_code)).'</span></td>';
++				}
+ 				print '<td></td>';
+-				print '<td class="right"><span class="amount">'.price(price2num($object->total_ttc - $creditnoteamount - $depositamount - $totalpaid, 'MT')).'</span></td>';
+-				print '</tr>';
++				print '<td class="right"><span class="amount">'.price(price2num($object->total_ttc - $creditnoteamount - $depositamount - $totalpaid, 'MT'), 0, $langs, 0, -1, -1, $conf->currency).'</span></td></tr>';
+ 				$resteapayeraffiche = 0;
++				if ($show_multicurrency_column) {
++					$multicurrency_resteapayeraffiche = 0;
++				}
+ 				$cssforamountpaymentcomplete = 'amountpaymentneutral';
+ 				$cssforamountpaymentcompletenoresize = 'amountpaymentneutralnoresize';
+ 			}
+ 			// Partially paid or abandoned 'badcustomer'
+ 			if (($object->status == Facture::STATUS_CLOSED || $object->status == Facture::STATUS_ABANDONED) && $object->close_code == 'badcustomer') {
+ 				print '<tr>';
+-				print '<td colspan="'.($nbcols + 1).'" class="nowrap right">';
++				print '<td colspan="'.$nbcols.'" class="nowrap right">';
+ 				print '<span class="opacitymedium">';
+ 				print $form->textwithpicto($langs->trans("Abandoned"), $langs->trans("HelpAbandonBadCustomer"), - 1);
+ 				print '</span>';
+ 				print '</td>';
+-				//print '<td></td>';
+-				print '<td class="right">'.price(price2num($object->total_ttc - $creditnoteamount - $depositamount - $totalpaid, 'MT')).'</td>';
+-				print '</tr>';
++				if ($show_multicurrency_column) {
++					print '<td class="right">'.price(price2num($object->multicurrency_total_ttc - $multicurrency_totalcreditnotes - $multicurrency_totaldeposits - $multicurrency_totalpaid, 'MT'), 0, $langs, 0, -1, -1, (empty($object->multicurrency_code) ? $conf->currency : $object->multicurrency_code)).'</td>';
++				}
++				print '<td></td>';
++				print '<td class="right">'.price(price2num($object->total_ttc - $creditnoteamount - $depositamount - $totalpaid, 'MT'), 0, $langs, 0, -1, -1, $conf->currency).'</td></tr>';
+ 				// $resteapayeraffiche=0;
+ 				$cssforamountpaymentcomplete = 'amountpaymentneutral';
+ 				$cssforamountpaymentcompletenoresize = 'amountpaymentneutralnoresize';
+@@ -6379,22 +6476,27 @@ if ($action == 'create') {
+ 			// Partially paid or abandoned 'product_returned'
+ 			if (($object->status == Facture::STATUS_CLOSED || $object->status == Facture::STATUS_ABANDONED) && $object->close_code == 'product_returned') {
+ 				print '<tr>';
+-				print '<td colspan="'.($nbcols + 1).'" class="nowrap right">';
++				print '<td colspan="'.$nbcols.'" class="nowrap right">';
+ 				print '<span class="opacitymedium">';
+ 				print $form->textwithpicto($langs->trans("ProductReturned"), $langs->trans("HelpAbandonProductReturned"), - 1);
+ 				print '</span>';
+ 				print '</td>';
+-				//print '<td></td>';
+-				print '<td class="right"><span class="amount">'.price(price2num($object->total_ttc - $creditnoteamount - $depositamount - $totalpaid, 'MT')).'</span></td>';
+-				print '</tr>';
++				if ($show_multicurrency_column) {
++					print '<td class="right"><span class="amount">'.price(price2num($object->multicurrency_total_ttc - $multicurrency_totalcreditnotes - $multicurrency_totaldeposits - $multicurrency_totalpaid, 'MT'), 0, $langs, 0, -1, -1, (empty($object->multicurrency_code) ? $conf->currency : $object->multicurrency_code)).'</span></td>';
++				}
++				print '<td></td>';
++				print '<td class="right"><span class="amount">'.price(price2num($object->total_ttc - $creditnoteamount - $depositamount - $totalpaid, 'MT'), 0, $langs, 0, -1, -1, $conf->currency).'</span></td></tr>';
+ 				$resteapayeraffiche = 0;
++				if ($show_multicurrency_column) {
++					$multicurrency_resteapayeraffiche = 0;
++				}
+ 				$cssforamountpaymentcomplete = 'amountpaymentneutral';
+ 				$cssforamountpaymentcompletenoresize = 'amountpaymentneutralnoresize';
+ 			}
+ 			// Partially paid or abandoned 'abandoned'
+ 			if (($object->status == Facture::STATUS_CLOSED || $object->status == Facture::STATUS_ABANDONED) && $object->close_code == 'abandon') {
+ 				print '<tr>';
+-				print '<td colspan="'.($nbcols + 1).'" class="nowrap right">';
++				print '<td colspan="'.$nbcols.'" class="nowrap right">';
+ 				$text = $langs->trans("HelpAbandonOther");
+ 				if ($object->close_note) {
+ 					$text .= '<br><br><b>'.$langs->trans("Reason").'</b>:'.$object->close_note;
+@@ -6404,27 +6506,33 @@ if ($action == 'create') {
+ 				print $form->textwithpicto($langs->trans("Abandoned"), $text, - 1);
+ 				print '</span>';
+ 				print '</td>';
+-				//print '<td></td>';
+-				print '<td class="right"><span class="amount">'.price(price2num($object->total_ttc - $creditnoteamount - $depositamount - $totalpaid, 'MT')).'</span></td>';
+-				print '</tr>';
++				if ($show_multicurrency_column) {
++					print '<td class="right"><span class="amount">'.price(price2num($object->multicurrency_total_ttc - $multicurrency_totalcreditnotes - $multicurrency_totaldeposits - $multicurrency_totalpaid, 'MT'), 0, $langs, 0, -1, -1, (empty($object->multicurrency_code) ? $conf->currency : $object->multicurrency_code)).'</span></td>';
++				}
++				print '<td></td>';
++				print '<td class="right"><span class="amount">'.price(price2num($object->total_ttc - $creditnoteamount - $depositamount - $totalpaid, 'MT'), 0, $langs, 0, -1, -1, $conf->currency).'</span></td></tr>';
+ 				$resteapayeraffiche = 0;
++				if ($show_multicurrency_column) {
++					$multicurrency_resteapayeraffiche = 0;
++				}
+ 				$cssforamountpaymentcomplete = 'amountpaymentneutral';
+ 				$cssforamountpaymentcompletenoresize = 'amountpaymentneutralnoresize';
+ 			}
+ 
+ 			// Billed
+ 			print '<tr>';
+-			print '<td colspan="'.($nbcols + 1).'" class="right">';
++			print '<td colspan="'.$nbcols.'" class="right">';
+ 			print '<span class="opacitymedium">';
+ 			print $langs->trans("Billed");
+ 			print '</td>';
+-			//print '<td></td>';
+-			print '<td class="right">'.price($object->total_ttc).'</td>';
+-			print '</tr>';
+-
++			if ($show_multicurrency_column) {
++				print '<td class="right">'.price($object->multicurrency_total_ttc, 0, $langs, 0, -1, -1, (empty($object->multicurrency_code) ? $conf->currency : $object->multicurrency_code)).'</td>';
++			}
++				print '<td></td>';
++			print '<td class="right">'.price($object->total_ttc, 0, $langs, 0, -1, -1, $conf->currency).'</td></tr>';
+ 			// Remainder to pay
+ 			print '<tr>';
+-			print '<td colspan="'.($nbcols + 1).'" class="right">';
++			print '<td colspan="'.$nbcols.'" class="right">';
+ 			print '<span class="opacitymedium">';
+ 			print $langs->trans('RemainderToPay');
+ 			if ($resteapayeraffiche < 0) {
+@@ -6432,27 +6540,12 @@ if ($action == 'create') {
+ 			}
+ 			print '</span>';
+ 			print '</td>';
+-			//print '<td></td>';
+-			print '<td class="right'.($resteapayeraffiche ? ' amountremaintopay' : (' '.$cssforamountpaymentcomplete)).'">'.price($resteapayeraffiche).'</td>';
+-			print '</tr>';
+-
+-			// Remainder to pay Multicurrency
+-			if (isModEnabled('multicurrency') && $object->multicurrency_code && ($object->multicurrency_code != $conf->currency || $object->multicurrency_tx != 1)) {
+-				print '<tr>';
+-				print '<td colspan="'.($nbcols + 1).'" class="right">';
+-				print '<span class="opacitymedium">';
+-				print $langs->trans('RemainderToPayMulticurrency');
+-				if ($resteapayeraffiche < 0) {
+-					print ' ('.$langs->trans('NegativeIfExcessReceived').')';
+-				}
+-				print '</span>';
+-				print '</td>';
+-				//print '<td></td>';
+-				print '<td class="right'.($resteapayeraffiche ? ' amountremaintopaynoresize' : (' '.$cssforamountpaymentcompletenoresize)).'">';
+-				//print (empty($object->multicurrency_code) ? $conf->currency : $object->multicurrency_code).' ';
+-				print price(price2num($object->multicurrency_tx * $resteapayeraffiche, 'MT'), 1, $langs, 1, -1, -1, (empty($object->multicurrency_code) ? $conf->currency : $object->multicurrency_code)).'</td>';
+-				print '</tr>';
++			if ($show_multicurrency_column) {
++				print '<td class="right'.($multicurrency_resteapayeraffiche ? ' amountremaintopay' : (' '.$cssforamountpaymentcomplete)).'">'.price($multicurrency_resteapayeraffiche, 0, $langs, 0, -1, -1, (empty($object->multicurrency_code) ? $conf->currency : $object->multicurrency_code)).'</td>';
+ 			}
++			print '<td></td>';
++			print '<td class="right'.($resteapayeraffiche ? ' amountremaintopay' : (' '.$cssforamountpaymentcomplete)).'">'.price($resteapayeraffiche, 0, $langs, 0, -1, -1, $conf->currency).'</td>';
++			print '</tr>';
+ 
+ 			// Retained warranty : usually use on construction industry
+ 			if (!empty($object->situation_final) && !empty($object->retained_warranty) && $displayWarranty) {
+@@ -6466,71 +6559,67 @@ if ($action == 'create') {
+ 
+ 				$billedWithRetainedWarranty = $object->total_ttc - $retainedWarranty;
+ 
+-				print '<tr>';
+-				print '<td colspan="'.($nbcols + 1).'" class="right">'.$langs->trans("ToPayOn", dol_print_date($object->date_lim_reglement, 'day')).' :</td>';
+-				//print '<td></td>';
+-				print '<td class="right">'.price($billedWithRetainedWarranty).'</td>';
+-				print '</tr>';
++				print '<tr><td colspan="'.$nbcols.'" align="right">'.$langs->trans("ToPayOn", dol_print_date($object->date_lim_reglement, 'day')).' :</td>';
++				if ($show_multicurrency_column) {
++					$multicurrency_billedWithRetainedWarranty = price2num($billedWithRetainedWarranty * $object->multicurrency_tx, 'MT');
++					print '<td align="right">'.price($multicurrency_billedWithRetainedWarranty, 0, $langs, 0, -1, -1, (empty($object->multicurrency_code) ? $conf->currency : $object->multicurrency_code)).'</td>';
++				}
++				print '<td></td>';
++				print '<td align="right">'.price($billedWithRetainedWarranty, 0, $langs, 0, -1, -1, $conf->currency).'</td></tr>';
+ 
+ 				// retained warranty
+ 				print '<tr>';
+-				print '<td colspan="'.($nbcols + 1).'" class="right">';
++				print '<td colspan="'.$nbcols.'" class="right">';
+ 				print $langs->trans("RetainedWarranty").' ('.$object->retained_warranty.'%)';
+ 				print !empty($object->retained_warranty_date_limit) ? ' '.$langs->trans("ToPayOn", dol_print_date($object->retained_warranty_date_limit, 'day')) : '';
+-				print '</td>';
+-				//print '<td></td>';
+-				print '<td class="right">'.price($retainedWarranty).'</td>';
+-				print '</tr>';
++				print ' :</td>';
++				if ($show_multicurrency_column) {
++					$multicurrency_retainedWarranty = price2num($retainedWarranty * $object->multicurrency_tx, 'MT');
++					print '<td align="right">'.price($multicurrency_retainedWarranty, 0, $langs, 0, -1, -1, (empty($object->multicurrency_code) ? $conf->currency : $object->multicurrency_code)).'</td>';
++				}
++				print '<td></td>';
++				print '<td align="right">'.price($retainedWarranty, 0, $langs, 0, -1, -1, $conf->currency).'</td></tr>';
+ 			}
+ 		} else { // Credit note
+ 			$resteapayeraffiche = $resteapayer;
++			if ($show_multicurrency_column) {
++				$multicurrency_resteapayeraffiche = $multicurrency_resteapayer;
++			}
+ 			$cssforamountpaymentcomplete = 'amountpaymentneutral';
+ 			$cssforamountpaymentcompletenoresize = 'amountpaymentneutralnoresize';
+ 
+ 			// Total already paid back
+ 			print '<tr>';
+-			print '<td colspan="'.($nbcols + 1).'" class="right">';
++			print '<td colspan="'.$nbcols.'" class="right">';
+ 			print '<span class="opacitymedium">'.$langs->trans('AlreadyPaidBack').'</span>';
+ 			print '</td>';
+-			//print '<td></td>';
+-			print '<td class="right"><span class="amount">'.price($sign * $totalpaid).'</span></td>';
+-			print '</tr>';
++			if ($show_multicurrency_column) {
++				print '<td class="right"><span class="amount">'.price($sign * $multicurrency_totalpaid, 0, $langs, 0, -1, -1, (empty($object->multicurrency_code) ? $conf->currency : $object->multicurrency_code)).'</span></td>';
++			}
++				print '<td></td>';
++			print '<td class="right"><span class="amount">'.price($sign * $totalpaid, 0, $langs, 0, -1, -1, $conf->currency).'</span></td></tr>';
+ 
+ 			// Billed
+-			print '<tr>';
+-			print '<td colspan="'.($nbcols + 1).'" class="right"><span class="opacitymedium">'.$langs->trans("Billed").'</span></td>';
+-			//print '<td></td>';
+-			print '<td class="right">'.price($sign * $object->total_ttc).'</td>';
+-			print '</tr>';
++			print '<tr><td colspan="'.$nbcols.'" class="right"><span class="opacitymedium">'.$langs->trans("Billed").'</span></td>';
++			if ($show_multicurrency_column) {
++				print '<td class="right">'.price($sign * $object->multicurrency_total_ttc, 0, $langs, 0, -1, -1, (empty($object->multicurrency_code) ? $conf->currency : $object->multicurrency_code)).'</td>';
++			}
++				print '<td></td>';
++			print '<td class="right">'.price($sign * $object->total_ttc, 0, $langs, 0, -1, -1, $conf->currency).'</td></tr>';
+ 
+ 			// Remainder to pay back
+-			print '<tr><td colspan="'.($nbcols + 1).'" class="right">';
++			print '<tr><td colspan="'.$nbcols.'" class="right">';
+ 			print '<span class="opacitymedium">'.$langs->trans('RemainderToPayBack');
+ 			if ($resteapayeraffiche > 0) {
+ 				print ' ('.$langs->trans('NegativeIfExcessRefunded').')';
+ 			}
+ 			print '</span></td>';
+-			//print '<td class="nowrap"></td>';
+-			print '<td class="right'.($resteapayeraffiche ? ' amountremaintopayback' : (' '.$cssforamountpaymentcomplete)).'">'.price($sign * $resteapayeraffiche);
+-			// TODO If credit not was converted into discount, we should show a tooltip to explain that remain to pay
+-			// is zero because already converted into discount for a future use, so no need to refund.
+-			print '</td>';
+-			print '</tr>';
+-
+-			// Remainder to pay back Multicurrency
+-			if (isModEnabled('multicurrency') && (($object->multicurrency_code && $object->multicurrency_code != $conf->currency) || $object->multicurrency_tx != 1)) {
+-				print '<tr>';
+-				print '<td colspan="'.($nbcols + 1).'" class="right">';
+-				print '<span class="opacitymedium">'.$langs->trans('RemainderToPayBackMulticurrency');
+-				if ($resteapayeraffiche > 0) {
+-					print ' ('.$langs->trans('NegativeIfExcessRefunded').')';
+-				}
+-				print '</span>';
+-				print '</td>';
+-				//print '<td></td>';
+-				print '<td class="right'.($resteapayeraffiche ? ' amountremaintopaybacknoresize' : (' '.$cssforamountpaymentcompletenoresize)).'">'.price(price2num($sign * $object->multicurrency_tx * $resteapayeraffiche, 'MT'), 1, $langs, 1, -1, -1, (empty($object->multicurrency_code) ? $conf->currency : $object->multicurrency_code)).'</td>';
+-				print '</tr>';
++			if ($show_multicurrency_column) {
++				print '<td class="right'.($multicurrency_resteapayeraffiche ? ' amountremaintopayback' : (' '.$cssforamountpaymentcomplete)).'">'.price($sign * $multicurrency_resteapayeraffiche, 0, $langs, 0, -1, -1, (empty($object->multicurrency_code) ? $conf->currency : $object->multicurrency_code)).'</td>';
+ 			}
++			print '<td></td>';
++			print '<td class="right'.($resteapayeraffiche ? ' amountremaintopayback' : (' '.$cssforamountpaymentcomplete)).'">'.price($sign * $resteapayeraffiche, 0, $langs, 0, -1, -1, $conf->currency).'</td>';
++			print '</tr>';
+ 
+ 			// Sold credit note
+ 			// print '<tr><td colspan="'.$nbcols.'" class="right">'.$langs->trans('TotalTTC').' :</td>';
+@@ -6871,10 +6960,10 @@ if ($action == 'create') {
+ 				}
+ 			}
+ 
+-			// Classify paid
+-			if ($object->status == Facture::STATUS_VALIDATED && $usercanissuepayment && (
+-				($object->type != Facture::TYPE_CREDIT_NOTE && $object->type != Facture::TYPE_DEPOSIT && ($resteapayer <= 0 || (getDolGlobalString('INVOICE_CAN_SET_PAID_EVEN_IF_PARTIALLY_PAID') && $object->total_ttc == $resteapayer))) ||
+-				($object->type == Facture::TYPE_CREDIT_NOTE && $resteapayer >= 0) ||
++			// Classify paid (use effective_resteapayer for multicurrency: SLY)
++			if ($object->status == Facture::STATUS_VALIDATED && $object->paye == 0 && $usercanissuepayment && (
++				($object->type != Facture::TYPE_CREDIT_NOTE && $object->type != Facture::TYPE_DEPOSIT && ($effective_resteapayer <= 0 || (getDolGlobalString('INVOICE_CAN_SET_PAID_EVEN_IF_PARTIALLY_PAID') && $object->total_ttc == $effective_resteapayer))) ||
++				($object->type == Facture::TYPE_CREDIT_NOTE && $effective_resteapayer >= 0) ||
+ 				($object->type == Facture::TYPE_DEPOSIT && $object->total_ttc > 0)
+ 			)
+ 			) {
+@@ -6888,8 +6977,11 @@ if ($action == 'create') {
+ 				}
+ 			}
+ 
+-			// Classify 'closed not completely paid' (possible if validated and not yet set as paid completely)
+-			if ($object->status == Facture::STATUS_VALIDATED && $object->paye == 0 && $resteapayer > 0 && (!getDolGlobalString('INVOICE_CAN_SET_PAID_EVEN_IF_PARTIALLY_PAID') || $resteapayer != $object->total_ttc) && $usercanissuepayment) {
++			// Classify 'closed not completely paid' (use effective_resteapayer for multicurrency: SLY)
++			if ($object->status == Facture::STATUS_VALIDATED && $object->paye == 0 && (
++				($object->type != Facture::TYPE_CREDIT_NOTE && $effective_resteapayer > 0 && (!getDolGlobalString('INVOICE_CAN_SET_PAID_EVEN_IF_PARTIALLY_PAID') || $effective_resteapayer != $object->total_ttc)) ||
++				($object->type == Facture::TYPE_CREDIT_NOTE && $effective_resteapayer < 0)
++			) && $usercanissuepayment) {
+ 				if ($totalpaid > 0 || $totalcreditnotes > 0) {
+ 					// If one payment or one credit note was linked to this invoice
+ 					print '<a class="butAction'.($conf->use_javascript_ajax ? ' reposition' : '').'" href="'.$_SERVER['PHP_SELF'].'?facid='.$object->id.'&action=paid&token='.newToken().'">'.$langs->trans('ClassifyPaidPartially').'</a>';
+diff --git a/htdocs/compta/facture/class/factureligne.class.php b/htdocs/compta/facture/class/factureligne.class.php
+index c428357356b..e3eb17e64b5 100644
+--- a/htdocs/compta/facture/class/factureligne.class.php
++++ b/htdocs/compta/facture/class/factureligne.class.php
+@@ -357,6 +357,13 @@ class FactureLigne extends CommonInvoiceLine
+ 					}
+ 				}
+ 
++				// Init any missing extrafield keys so formulas referencing any extrafield do not trigger "Undefined array key"
++				foreach (array_keys($extrafields->attributes[$this->table_element]['label']) as $key) {
++					if (!array_key_exists('options_' . $key, $this->array_options)) {
++						$this->array_options['options_' . $key] = null;
++					}
++				}
++
+ 				// Champs "computed"
+ 				foreach ($extrafields->attributes[$this->table_element]['label'] as $key => $val) {
+ 					if (!empty($extrafields->attributes[$this->table_element]['computed'][$key])) {
+diff --git a/htdocs/compta/facture/tpl/linkedobjectblock.tpl.php b/htdocs/compta/facture/tpl/linkedobjectblock.tpl.php
+index 8b12292736d..3f988031cb0 100644
+--- a/htdocs/compta/facture/tpl/linkedobjectblock.tpl.php
++++ b/htdocs/compta/facture/tpl/linkedobjectblock.tpl.php
+@@ -44,6 +44,8 @@ $linkedObjectBlock = dol_sort_array($linkedObjectBlock, 'date,ref', 'desc', 0, 0
+ /** @var Facture[] $linkedObjectBlock */
+ 
+ $total = 0;
++$multicurrency_total = 0;
++$multicurrency_code_total = '';
+ $ilink = 0;
+ foreach ($linkedObjectBlock as $key => $objectlink) {
+ 	$ilink++;
+@@ -93,10 +95,17 @@ foreach ($linkedObjectBlock as $key => $objectlink) {
+ 		'@phan-var-force Facture $objectlink';
+ 		if ($objectlink->status != 3) {
+ 			// If not abandoned
++			if (isModEnabled('multicurrency') && !empty($objectlink->multicurrency_code) && $conf->currency != $objectlink->multicurrency_code) {
++				$multicurrency_total += $objectlink->multicurrency_total_ht;
++				if ($multicurrency_code_total === '') {
++					$multicurrency_code_total = $objectlink->multicurrency_code;
++				}
++				echo $objectlink->multicurrency_code.' '.price($objectlink->multicurrency_total_ht).'<br>';
++			}
+ 			$total += $objectlink->total_ht;
+-			echo price($objectlink->total_ht);
++			echo $conf->currency.' '.price($objectlink->total_ht);
+ 		} else {
+-			echo '<strike>'.price($objectlink->total_ht).'</strike>';
++			echo '<strike>'.((isModEnabled('multicurrency') && !empty($objectlink->multicurrency_code) && $conf->currency != $objectlink->multicurrency_code) ? $objectlink->multicurrency_code.' '.price($objectlink->multicurrency_total_ht).'<br>'.$conf->currency.' ' : '').price($objectlink->total_ht).'</strike>';
+ 		}
+ 	}
+ 
+@@ -123,12 +132,17 @@ foreach ($linkedObjectBlock as $key => $objectlink) {
+ 	print "</tr>\n";
+ }
+ if (count($linkedObjectBlock) > 1) {
++	$total_amount_cell = '';
++	if (isModEnabled('multicurrency') && $multicurrency_code_total !== '' && (float) $multicurrency_total != 0 && $conf->currency != $multicurrency_code_total) {
++		$total_amount_cell .= $multicurrency_code_total.' '.price($multicurrency_total).'<br>';
++	}
++	$total_amount_cell .= $conf->currency.' '.price($total);
+ 	print '<tr class="liste_total '.(empty($noMoreLinkedObjectBlockAfter) ? 'liste_sub_total' : '').'">';
+ 	print '<td>'.$langs->trans("Total").'</td>';
+ 	print '<td></td>';
+ 	print '<td class="center"></td>';
+ 	print '<td class="center"></td>';
+-	print '<td class="right">'.price($total).'</td>';
++	print '<td class="right">'.$total_amount_cell.'</td>';
+ 	print '<td class="right"></td>';
+ 	print '<td class="right"></td>';
+ 	print '</tr>';
+diff --git a/htdocs/compta/index.php b/htdocs/compta/index.php
+index 36f9c6c3b2d..f4da30887ba 100644
+--- a/htdocs/compta/index.php
++++ b/htdocs/compta/index.php
+@@ -146,6 +146,9 @@ if (isModEnabled('invoice') && $user->hasRight('facture', 'lire')) {
+ 	$tmpinvoice = new Facture($db);
+ 
+ 	$sql = "SELECT f.rowid, f.ref, f.fk_statut as status, f.type, f.total_ht, f.total_tva, f.total_ttc, f.paye, f.tms";
++	if (isModEnabled('multicurrency')) {
++		$sql .= ", f.multicurrency_code, f.multicurrency_total_ht, f.multicurrency_total_ttc";
++	}
+ 	$sql .= ", f.date_lim_reglement as datelimite";
+ 	$sql .= ", s.nom as name";
+ 	$sql .= ", s.rowid as socid";
+@@ -255,10 +258,13 @@ if (isModEnabled('invoice') && $user->hasRight('facture', 'lire')) {
+ 				print '<td class="tdoverflowmax150">';
+ 				print $thirdpartystatic->getNomUrl(1, 'customer', 44);
+ 				print '</td>';
++				$disp_ht = (isModEnabled('multicurrency') && !empty($obj->multicurrency_code)) ? $obj->multicurrency_total_ht : $obj->total_ht;
++				$disp_ttc = (isModEnabled('multicurrency') && !empty($obj->multicurrency_code)) ? $obj->multicurrency_total_ttc : $obj->total_ttc;
++				$disp_currency = (isModEnabled('multicurrency') && !empty($obj->multicurrency_code)) ? $obj->multicurrency_code : $conf->currency;
+ 				if (getDolGlobalString('MAIN_SHOW_HT_ON_SUMMARY')) {
+-					print '<td class="nowrap right"><span class="amount">'.price($obj->total_ht).'</span></td>';
++					print '<td class="nowrap right"><span class="amount">'.price($disp_ht, 0, $langs, 1, -1, -1, $disp_currency).'</span></td>';
+ 				}
+-				print '<td class="nowrap right"><span class="amount">'.price($obj->total_ttc).'</span></td>';
++				print '<td class="nowrap right"><span class="amount">'.price($disp_ttc, 0, $langs, 1, -1, -1, $disp_currency).'</span></td>';
+ 
+ 				print '<td class="right" title="'.dol_escape_htmltag($langs->trans("DateModificationShort").' : '.dol_print_date($db->jdate($obj->tms), 'dayhour', 'tzuserrel')).'">'.dol_print_date($db->jdate($obj->tms), 'day', 'tzuserrel').'</td>';
+ 
+@@ -301,6 +307,9 @@ if ((isModEnabled('fournisseur') && !getDolGlobalString('MAIN_USE_NEW_SUPPLIERMO
+ 	$facstatic = new FactureFournisseur($db);
+ 
+ 	$sql = "SELECT ff.rowid, ff.ref, ff.fk_statut as status, ff.type, ff.libelle, ff.total_ht, ff.total_tva, ff.total_ttc, ff.tms, ff.paye, ff.ref_supplier";
++	if (isModEnabled('multicurrency')) {
++		$sql .= ", ff.multicurrency_code, ff.multicurrency_total_ht, ff.multicurrency_total_ttc";
++	}
+ 	$sql .= ", s.nom as name";
+ 	$sql .= ", s.rowid as socid";
+ 	$sql .= ", s.code_fournisseur, s.code_compta_fournisseur, s.email";
+@@ -385,10 +394,13 @@ if ((isModEnabled('fournisseur') && !getDolGlobalString('MAIN_USE_NEW_SUPPLIERMO
+ 				print '<td class="nowrap tdoverflowmax100">';
+ 				print $thirdpartystatic->getNomUrl(1, 'supplier');
+ 				print '</td>';
++				$disp_ht_ff = (isModEnabled('multicurrency') && !empty($obj->multicurrency_code)) ? $obj->multicurrency_total_ht : $obj->total_ht;
++				$disp_ttc_ff = (isModEnabled('multicurrency') && !empty($obj->multicurrency_code)) ? $obj->multicurrency_total_ttc : $obj->total_ttc;
++				$disp_currency_ff = (isModEnabled('multicurrency') && !empty($obj->multicurrency_code)) ? $obj->multicurrency_code : $conf->currency;
+ 				if (getDolGlobalString('MAIN_SHOW_HT_ON_SUMMARY')) {
+-					print '<td class="right"><span class="amount">'.price($obj->total_ht).'</span></td>';
++					print '<td class="right"><span class="amount">'.price($disp_ht_ff, 0, $langs, 1, -1, -1, $disp_currency_ff).'</span></td>';
+ 				}
+-				print '<td class="nowrap right"><span class="amount">'.price($obj->total_ttc).'</span></td>';
++				print '<td class="nowrap right"><span class="amount">'.price($disp_ttc_ff, 0, $langs, 1, -1, -1, $disp_currency_ff).'</span></td>';
+ 				print '<td class="right" title="'.dol_escape_htmltag($langs->trans("DateModificationShort").' : '.dol_print_date($db->jdate($obj->tms), 'dayhour', 'tzuserrel')).'">'.dol_print_date($db->jdate($obj->tms), 'day', 'tzuserrel').'</td>';
+ 
+ 				$alreadypaid = $facstatic->getSommePaiement();
+@@ -585,8 +597,8 @@ if (isModEnabled('tax') && $user->hasRight('tax', 'charges', 'lire')) {
+ 					print '<tr class="oddeven">';
+ 					print '<td class="nowraponall">'.$chargestatic->getNomUrl(1).'</td>';
+ 					print '<td class="center">'.dol_print_date($db->jdate($obj->date_ech), 'day').'</td>';
+-					print '<td class="nowrap right"><span class="amount">'.price($obj->amount).'</span></td>';
+-					print '<td class="nowrap right"><span class="amount">'.price($obj->totalpaid).'</span></td>';
++					print '<td class="nowrap right"><span class="amount">'.price($obj->amount, 0, $langs, 1, -1, -1, $conf->currency).'</span></td>';
++					print '<td class="nowrap right"><span class="amount">'.price($obj->totalpaid, 0, $langs, 1, -1, -1, $conf->currency).'</span></td>';
+ 					print '<td class="center">'.$chargestatic->getLibStatut(3).'</td>';
+ 					print '</tr>';
+ 
+@@ -603,8 +615,8 @@ if (isModEnabled('tax') && $user->hasRight('tax', 'charges', 'lire')) {
+ 				}
+ 
+ 				print '<tr class="liste_total"><td class="left" colspan="2">'.$langs->trans("Total").'</td>';
+-				print '<td class="nowrap right">'.price($tot_ttc).'</td>';
+-				print '<td class="nowrap right">'.price($tot_paid).'</td>';
++				print '<td class="nowrap right">'.price($tot_ttc, 0, $langs, 1, -1, -1, $conf->currency).'</td>';
++				print '<td class="nowrap right">'.price($tot_paid, 0, $langs, 1, -1, -1, $conf->currency).'</td>';
+ 				print '<td class="right">&nbsp;</td>';
+ 				print '</tr>';
+ 			} else {
+@@ -626,6 +638,9 @@ if (isModEnabled('invoice') && isModEnabled('order') && $user->hasRight("command
+ 	$langs->load("orders");
+ 
+ 	$sql = "SELECT sum(f.total_ht) as tot_fht, sum(f.total_ttc) as tot_fttc";
++	if (isModEnabled('multicurrency')) {
++		$sql .= ", c.multicurrency_code, c.multicurrency_total_ht, c.multicurrency_total_ttc";
++	}
+ 	$sql .= ", s.nom as name, s.email";
+ 	$sql .= ", s.rowid as socid";
+ 	$sql .= ", s.code_client, s.code_compta as code_compta_client";
+@@ -653,6 +668,9 @@ if (isModEnabled('invoice') && isModEnabled('order') && $user->hasRight("command
+ 	$sql .= $hookmanager->resPrint;
+ 
+ 	$sql .= " GROUP BY s.nom, s.email, s.rowid, s.code_client, s.code_compta, c.rowid, c.ref, c.facture, c.fk_statut, c.total_ht, c.total_tva, c.total_ttc, cc.rowid, cc.code";
++	if (isModEnabled('multicurrency')) {
++		$sql .= ", c.multicurrency_code, c.multicurrency_total_ht, c.multicurrency_total_ttc";
++	}
+ 
+ 	$resql = $db->query($sql);
+ 	if ($resql) {
+@@ -734,11 +752,14 @@ if (isModEnabled('invoice') && isModEnabled('order') && $user->hasRight("command
+ 				print '<td class="nowrap tdoverflowmax100">';
+ 				print $societestatic->getNomUrl(1, 'customer');
+ 				print '</td>';
++				$ord_disp_ht = (isModEnabled('multicurrency') && !empty($obj->multicurrency_code)) ? $obj->multicurrency_total_ht : $obj->total_ht;
++				$ord_disp_ttc = (isModEnabled('multicurrency') && !empty($obj->multicurrency_code)) ? $obj->multicurrency_total_ttc : $obj->total_ttc;
++				$ord_currency = (isModEnabled('multicurrency') && !empty($obj->multicurrency_code)) ? $obj->multicurrency_code : $conf->currency;
+ 				if (getDolGlobalString('MAIN_SHOW_HT_ON_SUMMARY')) {
+-					print '<td class="right"><span class="amount">'.price($obj->total_ht).'</span></td>';
++					print '<td class="right"><span class="amount">'.price($ord_disp_ht, 0, $langs, 1, -1, -1, $ord_currency).'</span></td>';
+ 				}
+-				print '<td class="nowrap right"><span class="amount">'.price($obj->total_ttc).'</span></td>';
+-				print '<td class="nowrap right"><span class="amount">'.price($obj->total_ttc - $obj->tot_fttc).'</span></td>';
++				print '<td class="nowrap right"><span class="amount">'.price($ord_disp_ttc, 0, $langs, 1, -1, -1, $ord_currency).'</span></td>';
++				print '<td class="nowrap right"><span class="amount">'.price($obj->total_ttc - $obj->tot_fttc, 0, $langs, 1, -1, -1, $conf->currency).'</span></td>';
+ 				print '<td>'.$commandestatic->getLibStatut(3).'</td>';
+ 				print '</tr>';
+ 				$tot_ht += $obj->total_ht;
+@@ -756,12 +777,12 @@ if (isModEnabled('invoice') && isModEnabled('order') && $user->hasRight("command
+ 				print "</tr>\n";
+ 			}
+ 
+-			print '<tr class="liste_total"><td colspan="2">'.$langs->trans("Total").' &nbsp; <span style="font-weight: normal">('.$langs->trans("RemainderToBill").': '.price($tot_tobill).')</span> </td>';
++			print '<tr class="liste_total"><td colspan="2">'.$langs->trans("Total").' &nbsp; <span style="font-weight: normal">('.$langs->trans("RemainderToBill").': '.price($tot_tobill, 0, $langs, 1, -1, -1, $conf->currency).')</span> </td>';
+ 			if (getDolGlobalString('MAIN_SHOW_HT_ON_SUMMARY')) {
+-				print '<td class="right">'.price($tot_ht).'</td>';
++				print '<td class="right">'.price($tot_ht, 0, $langs, 1, -1, -1, $conf->currency).'</td>';
+ 			}
+-			print '<td class="nowrap right">'.price($tot_ttc).'</td>';
+-			print '<td class="nowrap right">'.price($tot_tobill).'</td>';
++			print '<td class="nowrap right">'.price($tot_ttc, 0, $langs, 1, -1, -1, $conf->currency).'</td>';
++			print '<td class="nowrap right">'.price($tot_tobill, 0, $langs, 1, -1, -1, $conf->currency).'</td>';
+ 			print '<td>&nbsp;</td>';
+ 			print '</tr>';
+ 			print '</table></div><br>';
+diff --git a/htdocs/compta/paiement.php b/htdocs/compta/paiement.php
+index fe93a83f733..8c68367af61 100644
+--- a/htdocs/compta/paiement.php
++++ b/htdocs/compta/paiement.php
+@@ -682,6 +682,16 @@ if ($result >= 0) {
+ 
+ 			print '<tr class="liste_titre">';
+ 			print '<td>'.$arraytitle.'</td>';
++			// Source order column (invoice -> commande link, same as 14.0)
++			$langs->load('orders');
++			if (isModEnabled('slycustom')) {
++				$langs->load('slycustom@slycustom');
++			}
++			$sourceorderlabel = $langs->trans('SourceOrder');
++			if ($sourceorderlabel === 'SourceOrder') {
++				$sourceorderlabel = $langs->trans('Order');
++			}
++			print '<td>'.$sourceorderlabel.'</td>';
+ 			if ($displayAllInvoices) {
+ 				print '<td>' . $langs->trans('Type') . '</td>';
+ 			}
+@@ -700,9 +710,9 @@ if ($result >= 0) {
+ 			print '<td class="right">'.$alreadypayedlabel.'</td>';
+ 			print '<td class="right">'.$remaindertopay.'</td>';
+ 			print '<td class="right">'.$langs->trans('PaymentAmount').'</td>';
+-
+-			$parameters = array();
+-			$reshook = $hookmanager->executeHooks('printFieldListTitle', $parameters, $facture, $action); // Note that $action and $object may have been modified by hook
++			$parameters = array('context' => 'payment_unpaid_invoices');
++			$reshook = $hookmanager->executeHooks('printFieldListTitle', $parameters, $facture, $action);
++			print $hookmanager->resPrint;
+ 
+ 			print '<td align="right">&nbsp;</td>';
+ 			print "</tr>\n";
+@@ -736,7 +746,7 @@ if ($result >= 0) {
+ 				$creditnotes = $invoice->getSumCreditNotesUsed();
+ 				$deposits = $invoice->getSumDepositsUsed();
+ 				$alreadypayed = price2num($paiement + $creditnotes + $deposits, 'MT');
+-				$remaintopay = price2num($invoice->total_ttc - $paiement - $creditnotes - $deposits, 'MT');
++				$remaintopay = $invoice->getRemainToPay();
+ 
+ 				// Multicurrency Price
+ 				$tooltiponmulticurrencyfullamount = '';
+@@ -749,7 +759,7 @@ if ($result >= 0) {
+ 					$multicurrency_creditnotes = $invoice->getSumCreditNotesUsed(1);
+ 					$multicurrency_deposits = $invoice->getSumDepositsUsed(1);
+ 					$multicurrency_alreadypayed = price2num($multicurrency_payment + $multicurrency_creditnotes + $multicurrency_deposits, 'MT');
+-					$multicurrency_remaintopay = price2num($invoice->multicurrency_total_ttc - $multicurrency_payment - $multicurrency_creditnotes - $multicurrency_deposits, 'MT');
++					$multicurrency_remaintopay = $invoice->getRemainToPay(1);
+ 					// Multicurrency full amount tooltip
+ 					$tooltiponmulticurrencyfullamount = $langs->trans('AmountHT') . ": " . price($objp->multicurrency_total_ht, 0, $langs, 0, -1, -1, $objp->multicurrency_code) . "<br>";
+ 					$tooltiponmulticurrencyfullamount .= $langs->trans('AmountVAT') . ": " . price($objp->multicurrency_total_tva, 0, $langs, 0, -1, -1, $objp->multicurrency_code) . "<br>";
+@@ -770,6 +780,25 @@ if ($result >= 0) {
+ 				}
+ 				print "</td>\n";
+ 
++				// Source order cell (invoice -> commande via element_element, same as 14.0)
++				$p = MAIN_DB_PREFIX;
++				$sqlco = "SELECT c.ref, c.rowid AS id FROM ".$p."element_element ee";
++				$sqlco .= " INNER JOIN ".$p."commande c ON (c.rowid = ee.fk_source AND ee.sourcetype = 'commande' AND ee.targettype = 'facture' AND ee.fk_target = ".(int) $objp->facid.")";
++				$sqlco .= " UNION ALL SELECT c2.ref, c2.rowid AS id FROM ".$p."element_element ee2";
++				$sqlco .= " INNER JOIN ".$p."commande c2 ON (c2.rowid = ee2.fk_target AND ee2.targettype = 'commande' AND ee2.sourcetype = 'facture' AND ee2.fk_source = ".(int) $objp->facid.")";
++				$sqlco .= " LIMIT 1";
++				$resqlco = $db->query($sqlco);
++				if ($resqlco && $db->num_rows($resqlco) > 0) {
++					$objco = $db->fetch_object($resqlco);
++					$db->free($resqlco);
++					print '<td class="tdoverflowmax150"><a href="'.DOL_URL_ROOT.'/commande/card.php?id='.((int) $objco->id).'">'.dol_escape_htmltag($objco->ref).'</a></td>';
++				} else {
++					if ($resqlco) {
++						$db->free($resqlco);
++					}
++					print '<td class="tdoverflowmax150">&nbsp;</td>';
++				}
++
+ 				// type
+ 				if ($displayAllInvoices) {
+ 					$typearray = [
+@@ -934,8 +963,9 @@ if ($result >= 0) {
+ 				}
+ 				print "</td>";
+ 
+-				$parameters = array();
+-				$reshook = $hookmanager->executeHooks('printFieldListValue', $parameters, $objp, $action); // Note that $action and $object may have been modified by hook
++				$parameters = array('context' => 'payment_unpaid_invoices', 'facid' => (int) $objp->facid);
++				$reshook = $hookmanager->executeHooks('printFieldListValue', $parameters, $facture, $action);
++				print $hookmanager->resPrint;
+ 
+ 				// Warning
+ 				print '<td align="center" width="16">';
+@@ -966,8 +996,8 @@ if ($result >= 0) {
+ 				$i++;
+ 			}
+ 
+-			if ($i > 1) {
+-				$colspan = 3;
++				if ($i > 1) {
++				$colspan = 4;
+ 
+ 				// type
+ 				if ($displayAllInvoices) {
+diff --git a/htdocs/compta/paiement/class/paiement.class.php b/htdocs/compta/paiement/class/paiement.class.php
+index 9a50f59f623..a362c8a1556 100644
+--- a/htdocs/compta/paiement/class/paiement.class.php
++++ b/htdocs/compta/paiement/class/paiement.class.php
+@@ -488,6 +488,18 @@ class Paiement extends CommonObject
+ 							$deposits = $invoice->getSumDepositsUsed();
+ 							$alreadypayed = price2num($paiement + $creditnotes + $deposits, 'MT');
+ 							$remaintopay = price2num($invoice->total_ttc - $paiement - $creditnotes - $deposits, 'MT');
++							// When invoice is in another currency, use multicurrency remainder for auto-close decision (SLY)
++							if (isModEnabled('multicurrency') && !empty($invoice->multicurrency_code) && $invoice->multicurrency_code != $conf->currency) {
++								$mc_paid = $invoice->getSommePaiement(1);
++								$mc_creditnotes = $invoice->getSumCreditNotesUsed(1);
++								$mc_deposits = $invoice->getSumDepositsUsed(1);
++								$mc_remaintopay = price2num($invoice->multicurrency_total_ttc - $mc_paid - $mc_creditnotes - $mc_deposits, 'MT');
++								$mc_remaintopay_float = (float) $mc_remaintopay;
++								// Consider paid when multicurrency remainder is 0, overpaid (<=0), or negligible rounding (SLY)
++								if ($mc_remaintopay_float <= 0 || abs($mc_remaintopay_float) < 0.01) {
++									$remaintopay = 0;
++								}
++							}
+ 
+ 							//var_dump($invoice->total_ttc.' - '.$paiement.' -'.$creditnotes.' - '.$deposits.' - '.$remaintopay);exit;
+ 
+@@ -771,6 +783,29 @@ class Paiement extends CommonObject
+ 			}
+ 
+ 			$this->db->commit();
++			
++			// SLY: Regenerate PDF for all invoices linked to this payment after deletion
++			if (!getDolGlobalString('MAIN_DISABLE_PDF_AUTOUPDATE')) {
++				require_once DOL_DOCUMENT_ROOT.'/compta/facture/class/facture.class.php';
++				$outputlangs = $langs; // Use default langs for PDF generation
++				$hidedetails = getDolGlobalString('MAIN_GENERATE_DOCUMENTS_HIDE_DETAILS') ? 1 : 0;
++				$hidedesc = getDolGlobalString('MAIN_GENERATE_DOCUMENTS_HIDE_DESC') ? 1 : 0;
++				$hideref = getDolGlobalString('MAIN_GENERATE_DOCUMENTS_HIDE_REF') ? 1 : 0;
++
++				$invoiceids = $this->getBillsArray(); // Get all invoice IDs linked to this payment
++
++				if (is_array($invoiceids) && count($invoiceids) > 0) {
++					foreach ($invoiceids as $facid) {
++						$invoice = new Facture($this->db);
++						if ($invoice->fetch($facid) > 0) {
++							if ($invoice->generateDocument($invoice->model_pdf, $outputlangs, $hidedetails, $hidedesc, $hideref) < 0) {
++								dol_syslog("Error regenerating PDF for invoice ".$facid.": ".$invoice->error, LOG_ERR);
++							}
++						}
++					}
++				}
++			}
++
+ 			return 1;
+ 		} else {
+ 			$this->error = $this->db->error;

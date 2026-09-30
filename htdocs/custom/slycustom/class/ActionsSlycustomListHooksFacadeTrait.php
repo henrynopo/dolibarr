@@ -258,6 +258,14 @@ trait ActionsSlycustomListHooksFacadeTrait
 		$i = isset($parameters['i']) ? (int) $parameters['i'] : 0;
 		$insert_after = $parameters['insert_after'] ?? '';
 		$langs->load("slycustom@slycustom");
+
+		// Pre-default ShipsGo date extrafields on expedition list rows so
+		// computed-field formulas in extrafields do not raise a PHP 8.1+
+		// "Undefined array key" warning (formulas cannot use isset/??).
+		if (is_object($obj) && !empty($obj->element) && in_array($obj->element, array('shipping', 'expedition'), true)) {
+			$this->ensureShipmentDateOptionKeys($obj);
+		}
+
 		if ($this->slyListPayment_shouldPrintListValue($parameters, $object)) {
 			$this->resprints = $this->slyListPayment_printFieldListValue($object);
 			return 0;

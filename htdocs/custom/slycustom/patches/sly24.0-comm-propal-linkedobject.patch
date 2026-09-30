@@ -1,0 +1,37 @@
+diff --git a/htdocs/comm/propal/tpl/linkedobjectblock.tpl.php b/htdocs/comm/propal/tpl/linkedobjectblock.tpl.php
+index f219c07a3e5..6a5b78672e5 100644
+--- a/htdocs/comm/propal/tpl/linkedobjectblock.tpl.php
++++ b/htdocs/comm/propal/tpl/linkedobjectblock.tpl.php
+@@ -53,6 +53,9 @@ $linkedObjectBlock = dol_sort_array($linkedObjectBlock, 'date,ref', 'desc', 0, 0
+ /** @var Propal[] $linkedObjectBlock */
+ 
+ $total = 0;
++if (isModEnabled('multicurrency')) {
++	$multicurrency_total = 0;
++}
+ $ilink = 0;
+ foreach ($linkedObjectBlock as $key => $objectlink) {
+ 	$ilink++;
+@@ -80,8 +83,12 @@ foreach ($linkedObjectBlock as $key => $objectlink) {
+ 	print '<td class="linkedcol-date center">'.dol_print_date($objectlink->date, 'day').'</td>';
+ 	print '<td class="linkedcol-amount right">';
+ 	if ($user->hasRight('propal', 'lire')) {
++		if (isModEnabled('multicurrency') && !empty($objectlink->multicurrency_code) && $conf->currency != $objectlink->multicurrency_code) {
++			$multicurrency_total += $objectlink->multicurrency_total_ht;
++			echo $objectlink->multicurrency_code.' '.price($objectlink->multicurrency_total_ht).'<br>';
++		}
+ 		$total += $objectlink->total_ht;
+-		echo price($objectlink->total_ht);
++		echo $conf->currency.' '.price($objectlink->total_ht);
+ 	}
+ 	print '</td>';
+ 	print '<td class="linkedcol-statut right">'.$objectlink->getLibStatut(3).'</td>';
+@@ -94,7 +101,7 @@ if (count($linkedObjectBlock) > 1) {
+ 	print '<td></td>';
+ 	print '<td class="center"></td>';
+ 	print '<td class="center"></td>';
+-	print '<td class="right">'.price($total).'</td>';
++	print '<td class="right">'.$conf->currency.' '.price($total).'</td>';
+ 	print '<td class="right"></td>';
+ 	print '<td class="right"></td>';
+ 	print "</tr>\n";

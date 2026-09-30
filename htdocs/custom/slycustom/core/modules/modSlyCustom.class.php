@@ -49,7 +49,7 @@ class modSlyCustom extends DolibarrModules
 		$this->descriptionlong = 'SLYCustomDescriptionLong';
 		$this->editor_name = 'SLY';
 		$this->editor_url = '';
-		$this->version = '2.0.0';
+		$this->version = '2.2.19';
 		$this->const_name = 'MAIN_MODULE_'.strtoupper($this->name);
 		$this->picto = 'generic';
 
@@ -80,7 +80,7 @@ class modSlyCustom extends DolibarrModules
 					'supplierinvoicelist', 'supplierorderlist',
 					'paymentsupplierlist', 'propallist',
 					'ordersuppliercard', 'invoicesuppliercard',
-					'remx',  // 折扣拆分页：afterSplitDiscount（需应用 sly22.0-remx-hooks.patch）
+					'remx',  // 折扣拆分页：afterSplitDiscount（需应用 sly24.0-remx.patch）
 					'menuLeftMenuItems',  // 左侧菜单：将 Shipment 从产品目录移到商业目录
 					'formfile',  // 销售订单生成文档表单：增加「附加销售条款」选项
 				),
@@ -156,6 +156,11 @@ class modSlyCustom extends DolibarrModules
 		$this->rights[$r][4] = 'wise';
 		$this->rights[$r][5] = 'read';
 		$r++;
+		$this->rights[$r][0] = $this->numero.sprintf("%02d", $r + 1);
+		$this->rights[$r][1] = 'Wise payment create and record (outgoing transfers)';
+		$this->rights[$r][4] = 'wise';
+		$this->rights[$r][5] = 'write';
+		$r++;
 
 		$this->menu = array();
 		$r = 0;
@@ -170,7 +175,7 @@ class modSlyCustom extends DolibarrModules
 			'langs' => 'slycustom@slycustom',
 			'position' => 100,
 			'enabled' => '$conf->slycustom->enabled',
-			'perms' => '1',
+			'perms' => '$user->rights->slycustom->export->read',
 			'target' => '',
 			'user' => 2,
 		);
@@ -204,7 +209,7 @@ class modSlyCustom extends DolibarrModules
 			'langs' => 'slycustom@slycustom',
 			'position' => 400,
 			'enabled' => '$conf->slycustom->enabled',
-			'perms' => '1',
+			'perms' => '$user->rights->slycustom->export->read',
 			'target' => '',
 			'user' => 2,
 		);
@@ -220,7 +225,7 @@ class modSlyCustom extends DolibarrModules
 			'langs' => 'slycustom@slycustom',
 			'position' => 401,
 			'enabled' => '$conf->slycustom->enabled',
-			'perms' => '1',
+			'perms' => '$user->rights->slycustom->export->read',
 			'target' => '',
 			'user' => 2,
 		);
@@ -236,7 +241,7 @@ class modSlyCustom extends DolibarrModules
 			'langs' => 'slycustom@slycustom',
 			'position' => 402,
 			'enabled' => '$conf->slycustom->enabled',
-			'perms' => '1',
+			'perms' => '$user->rights->slycustom->export->read',
 			'target' => '',
 			'user' => 2,
 		);
@@ -252,7 +257,7 @@ class modSlyCustom extends DolibarrModules
 			'langs' => 'slycustom@slycustom',
 			'position' => 403,
 			'enabled' => '$conf->slycustom->enabled',
-			'perms' => '1',
+			'perms' => '$user->rights->slycustom->export->read',
 			'target' => '',
 			'user' => 2,
 		);
@@ -268,7 +273,7 @@ class modSlyCustom extends DolibarrModules
 			'langs' => 'slycustom@slycustom',
 			'position' => 404,
 			'enabled' => '$conf->slycustom->enabled',
-			'perms' => '1',
+			'perms' => '$user->rights->slycustom->export->read',
 			'target' => '',
 			'user' => 2,
 		);
@@ -284,7 +289,7 @@ class modSlyCustom extends DolibarrModules
 			'langs' => 'slycustom@slycustom',
 			'position' => 405,
 			'enabled' => '$conf->slycustom->enabled',
-			'perms' => '1',
+			'perms' => '$user->rights->slycustom->export->read',
 			'target' => '',
 			'user' => 2,
 		);
@@ -300,7 +305,7 @@ class modSlyCustom extends DolibarrModules
 			'langs' => 'slycustom@slycustom',
 			'position' => 406,
 			'enabled' => '$conf->slycustom->enabled',
-			'perms' => '1',
+			'perms' => '$user->rights->slycustom->export->read',
 			'target' => '',
 			'user' => 2,
 		);
@@ -316,7 +321,7 @@ class modSlyCustom extends DolibarrModules
 			'langs' => 'slycustom@slycustom',
 			'position' => 407,
 			'enabled' => '$conf->slycustom->enabled',
-			'perms' => '1',
+			'perms' => '$user->rights->slycustom->export->read',
 			'target' => '',
 			'user' => 2,
 		);
@@ -332,7 +337,7 @@ class modSlyCustom extends DolibarrModules
 			'langs' => 'slycustom@slycustom',
 			'position' => 410,
 			'enabled' => '$conf->slycustom->enabled',
-			'perms' => '1',
+			'perms' => '$user->rights->slycustom->export->read',
 			'target' => '',
 			'user' => 2,
 		);
@@ -348,7 +353,7 @@ class modSlyCustom extends DolibarrModules
 			'langs' => 'slycustom@slycustom',
 			'position' => 411,
 			'enabled' => '$conf->slycustom->enabled',
-			'perms' => '1',
+			'perms' => '$user->rights->slycustom->export->read',
 			'target' => '',
 			'user' => 2,
 		);
@@ -364,7 +369,7 @@ class modSlyCustom extends DolibarrModules
 			'langs' => 'slycustom@slycustom',
 			'position' => 412,
 			'enabled' => '$conf->slycustom->enabled',
-			'perms' => '1',
+			'perms' => '$user->rights->slycustom->export->read',
 			'target' => '',
 			'user' => 2,
 		);
@@ -380,7 +385,7 @@ class modSlyCustom extends DolibarrModules
 			'langs' => 'slycustom@slycustom',
 			'position' => 413,
 			'enabled' => '$conf->slycustom->enabled',
-			'perms' => '1',
+			'perms' => '$user->rights->slycustom->export->read',
 			'target' => '',
 			'user' => 2,
 		);
@@ -396,7 +401,7 @@ class modSlyCustom extends DolibarrModules
 			'langs' => 'slycustom@slycustom',
 			'position' => 414,
 			'enabled' => '$conf->slycustom->enabled',
-			'perms' => '1',
+			'perms' => '$user->rights->slycustom->export->read',
 			'target' => '',
 			'user' => 2,
 		);
@@ -512,13 +517,15 @@ class modSlyCustom extends DolibarrModules
 		$this->syncModulePartsModels();
 
 		$sql = array(
-			// Migrate old template names so existing config keeps working
-			"UPDATE ".MAIN_DB_PREFIX."const SET value = 'sly_invoice' WHERE name = 'FACTURE_ADDON_PDF' AND value = 'sponge_SLY_consignee'",
-			"UPDATE ".MAIN_DB_PREFIX."const SET value = 'sly_invoice' WHERE name = 'FACTURE_ADDON_PDF' AND value = 'sponge SLY consignee'",
-			"UPDATE ".MAIN_DB_PREFIX."const SET value = 'sly_packinglist' WHERE name = 'EXPEDITION_ADDON_PDF' AND value = 'espadon_SLY_PL'",
+			// Migrate old template names so existing config keeps working.
+			// Entity-scoped: enabling the module in one company must not rewrite
+			// the template constants/invoices of the other companies.
+			"UPDATE ".MAIN_DB_PREFIX."const SET value = 'sly_invoice' WHERE name = 'FACTURE_ADDON_PDF' AND value = 'sponge_SLY_consignee' AND entity IN (0, __ENTITY__)",
+			"UPDATE ".MAIN_DB_PREFIX."const SET value = 'sly_invoice' WHERE name = 'FACTURE_ADDON_PDF' AND value = 'sponge SLY consignee' AND entity IN (0, __ENTITY__)",
+			"UPDATE ".MAIN_DB_PREFIX."const SET value = 'sly_packinglist' WHERE name = 'EXPEDITION_ADDON_PDF' AND value = 'espadon_SLY_PL' AND entity IN (0, __ENTITY__)",
 			// Migrate invoice model_pdf: old SLY consignee template was removed, use sly_invoice
-			"UPDATE ".MAIN_DB_PREFIX."facture SET model_pdf = 'sly_invoice' WHERE model_pdf = 'sponge_SLY_consignee'",
-			"UPDATE ".MAIN_DB_PREFIX."facture SET model_pdf = 'sly_invoice' WHERE model_pdf = 'sponge SLY consignee'",
+			"UPDATE ".MAIN_DB_PREFIX."facture SET model_pdf = 'sly_invoice' WHERE model_pdf = 'sponge_SLY_consignee' AND entity = __ENTITY__",
+			"UPDATE ".MAIN_DB_PREFIX."facture SET model_pdf = 'sly_invoice' WHERE model_pdf = 'sponge SLY consignee' AND entity = __ENTITY__",
 			// Register SLY templates in document_model
 			"DELETE FROM ".MAIN_DB_PREFIX."document_model WHERE nom = 'sly_invoice' AND type = 'invoice' AND entity = ".((int) $conf->entity),
 			"INSERT INTO ".MAIN_DB_PREFIX."document_model (nom, type, entity) VALUES('sly_invoice', 'invoice', ".((int) $conf->entity).")",
@@ -545,6 +552,17 @@ class modSlyCustom extends DolibarrModules
 				."counterparty varchar(255) DEFAULT '', fees double(24,8) DEFAULT NULL, match_data text,"
 				."fk_soc integer NULL, fk_paiement integer NULL, statement_txn_json mediumtext,"
 				."note_private text, date_creation datetime, tms timestamp, UNIQUE KEY uk_event (fk_event)) ENGINE=innodb",
+			"CREATE TABLE IF NOT EXISTS ".MAIN_DB_PREFIX."slycustom_wise_transfer ("
+				."rowid integer AUTO_INCREMENT PRIMARY KEY, entity integer NOT NULL DEFAULT 1,"
+				."fk_facture_fourn integer NOT NULL, fk_user_creat integer NULL,"
+				."wise_quote_id varchar(64) DEFAULT '', wise_recipient_id bigint NULL, wise_transfer_id bigint NULL,"
+				."customer_transaction_id varchar(36) DEFAULT '', source_currency varchar(3) DEFAULT '',"
+				."target_currency varchar(3) DEFAULT '', target_amount double(24,8) DEFAULT 0,"
+				."source_amount double(24,8) DEFAULT 0, rate double(24,12) DEFAULT 0, fee double(24,8) DEFAULT 0,"
+				."reference_sent varchar(100) DEFAULT '', reference_source varchar(32) DEFAULT '',"
+				."status varchar(24) NOT NULL DEFAULT 'DRAFT', last_state varchar(64) DEFAULT '',"
+				."last_event_at datetime NULL, fk_paiement_fourn integer NULL, note text,"
+				."date_creation datetime, tms timestamp) ENGINE=innodb",
 		);
 
 		$result = $this->_init($sql, $options);

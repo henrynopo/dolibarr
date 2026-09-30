@@ -56,6 +56,8 @@ trait ActionsSlycustomShippingCardHooksTrait
 		global $conf, $user, $langs;
 
 		if (empty($object->element) || $object->element != 'shipping') {
+			// Not a shipment: delegate to the Wise outgoing flow (supplier invoices)
+			$this->wisePaymentAddMoreActionsButtons($parameters, $object, $action);
 			return 0;
 		}
 

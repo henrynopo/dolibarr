@@ -5,6 +5,696 @@ Note: entries before 2.0.0 are a retroactive reconstruction from git history
 (the module shipped with the version constant 1.0.0 throughout); 2.0.0 is the
 first version managed through this file.
 
+2.2.18 (2026-09-28)
+- patches: payment-table SUMMARY rows fixed (second round, same two files:
+  sly24.0-compta-multicurrency.patch / compta/facture/card.php and
+  sly24.0-fourn-linkedobject.patch / fourn/facture/card.php). 2.2.17 had
+  fixed the header and payment rows to the v24 column order but left the
+  bottom summary rows (Already paid / Billed / Remaining unpaid etc.) in
+  the v22 layout: label cells used colspan=($nbcols+1) swallowing the MC
+  column (MC amount rendered inside the narrow action cell), trailing
+  <td>&nbsp;</td> created a phantom column, and a botched splice left an
+  orphan <tr>-less fragment on the compta RemainderToPay row. Now all
+  summary rows follow the unified v24-order pattern: label
+  colspan=$nbcols + [MC amount td if column shown] + [action td: unlink
+  icon for discounts, otherwise empty] + currency-formatted amount td.
+  Credit-note RemainderToPayBack row rewritten the same way. Verified:
+  17/17 patch replay on the authoritative git 24.0.1 baseline, replay
+  trees byte-identical, php -l clean, and a static column-balance check
+  across all 4 bank/MC scenarios = 0 mismatches on both cards.
+- patches: SG date format PORT GAP closed — langs/en_SG/main.lang
+  (FormatDateShort / FormatDateShortInput %d.%m.%Y -> %d/%m/%Y) was
+  missing from the sly24 series: the v22 SLY tree customizes it but the
+  patch build had missed it among ~550 unrelated lang-file additions in
+  the dev worktree. Added to sly24.0-langs.patch as a MINIMAL port (only
+  the two date lines; v24-native keys FormatHourSecShort / TotalVATShort
+  are kept — a naive v22-file overlay would have deleted them).
+- patches: AmountMulticurrency translation key — the payment table's MC
+  column header ($langs->trans('AmountMulticurrency')) was SLY-introduced
+  but never defined in any lang file (v22 hid the bug because the MC
+  column rarely rendered; d-test2 with active multicurrency invoices
+  shows the raw key). Defined in en_US/compta.lang and zh_CN/compta.lang
+  (en_US fallback covers all en_* locales). One new line each, appended
+  via minimum hunks. Replay 17/17 clean, 103 files / 0 CRLF.
+- toolchain: pristine bundle sly24.0-pristine2401.tar.gz REBUILT after
+  discovering the previous one (sha cce72aef…) was POISONED — its content
+  was the sly24 ported working tree (101/101 files differ from git
+  24.0.1), not pristine 24.0.1; the sha matching memory had merely
+  proved it was the same poisoned file. New bundle: 103 entries (101
+  original targets + langs/en_SG/main.lang for SG date format +
+  langs/zh_CN/compta.lang), paths relative to htdocs, no directory
+  entries, deterministic tar; every entry byte-compared against git tag
+  24.0.1 (independent authority) and pure LF. New sha256:
+  f3c58e8d62abba22d9d6df7cafda1e007c2c3c7d6e9a268fb7ae010786e4d9d2.
+  BACKUP-GUIDE.md updated (old sha marked obsolete + poisoning lesson).
+- OPS: on d-test2 — Restore the compta-multicurrency row then re-Apply
+  with the updated patch; apply fourn-linkedobject as-is (still pending);
+  apply the updated sly24.0-langs.patch for the SG date format (d-test2
+  users must use the en_SG language to see it).
+  If Restore/Reset was ever done with the OLD bundle on any environment,
+  re-restore once with the new bundle to flush poisoned content.
+
+2.2.17 (2026-09-23)
+- patches: PAYMENT-TABLE structure bug fixed in TWO patch files (real
+  port defects, the cause of the d-test2 "payment table 一直错位"):
+  (a) sly24.0-compta-multicurrency.patch / compta/facture/card.php and
+  (b) sly24.0-fourn-linkedobject.patch / fourn/facture/card.php.
+  The v22 port had kept the v22 layout (amount last, action at end,
+  header without an action column) while v24 moved the action column
+  BEFORE Amount — and the port additionally emitted an orphan unclosed
+  <td>, a duplicate amount cell per row, and (fourn) miscounted empty
+  filler cells. Rows carried up to 3 more cells than the header.
+  Fix: align to the v24 structure — header [AmountMulticurrency if shown]
+  + Action (empty td restored) + Amount; rows [MC cell if] + single
+  action td (delete) + single amount cell (currency-formatted).
+  Sections regenerated from pristine 24.0.1 vs the corrected files and
+  spliced into the patches; full 17-patch replay = 0 failures, php -l
+  clean, replay byte-identical to the corrected sources, header/row cell
+  counts balanced. Pristine bundle unaffected (it ships baseline files).
+  OPS: on d-test2, Restore the compta-multicurrency row (per-patch
+  backup exists) then re-Apply with the updated patch; fourn patch not
+  yet applied — apply as-is when ready.
+
+2.2.16 (2026-09-23)
+- Shipment line totals migrated OFF computed extrafields onto the module
+  layer, per the official v24 model (user directive: no core patches, no
+  conf.php changes — official defaults only). Dolibarr 24's dol_eval
+  whitelist ships no aggregation function, and the official extrafields
+  help text (ComputedFormulaDesc3) confirms formulas are for scalar
+  maths / object reloads, never line aggregation.
+  (1) ActionsSlycustom::computeShipmentLineTotals() — shared static
+      (qty / options_quantitycarton / options_grossweight sums).
+  (2) Card display: doActions injects live totals into
+      $object->array_options (options_totalnetweight / options_TotalQtyCartons /
+      options_TotalGrossWeight) whenever lines are loaded — drafts included,
+      stored values never zeroed in contexts without lines.
+  (3) Persistence: SHIPMENT_VALIDATE trigger updates
+      llx_expedition_extrafields so lists / exports / PDF substitution read
+      stable stored values.
+  Ops: the three extrafields must be converted from computed to PLAIN
+  fields (clear the Computed formula box in Setup → Extra Fields →
+  Shipment) — the formula would keep erroring under the official default
+  whitelist. totalnetweight intentionally keeps the v22 formula's
+  observable behaviour (sum of line qty); switch the source key in
+  computeShipmentLineTotals() if true net weight is wanted.
+
+2.2.15 (2026-09-23)
+- REVERTED the 2.2.14 core hunk (expedition fetch_optionals ordering) after
+  user review: "为什么要修改核心函数，而不是修改公式、遵守最新的规范？"
+  Correct. Core-file changes are the last resort, not the first — and this
+  one was added before the sanctioned config-level fix (the final
+  $dolibarr_main_restrict_eval_methods line) had even been tested, and
+  before establishing whether the already-applied core patch's display-time
+  re-evaluation ($objectoffield = $this in showOptionals) already computes
+  line-based formulas correctly once the whitelist passes them. Reverted:
+  the other-modules hunk, the d24test source edit, target count back to
+  101. The compliant fix path, in order: (1) conf.php whitelist line
+  (norm-sanctioned — the error message itself names this parameter);
+  (2) formulas stay as-is (date-diff ones optionally rewritten whitelist-
+  free); (3) if the card still computes 0 after (1), the totals move to a
+  slycustom HOOK (custom/ only, zero core changes, immune to dol_eval).
+- Ops: sly24.0-pristine2401.tar.gz rebuilt with DETERMINISTIC tar flags
+  (--sort=name --mtime fixed, gzip -n) so its sha256 is stable across
+  rebuilds: cce72aef7c0f988d8514a0049df8ff1c9ca7f5024516d57e521ac248a90e18aa
+  (101 entries). BACKUP-GUIDE §五 updated.
+
+2.2.14 (2026-09-23)
+- patches/sly24.0-other-modules.patch: NEW hunk for
+  expedition/class/expedition.class.php — the first patch-content fix driven
+  by the d-test2 diagnosis. Root cause of the "computed extrafields show 0"
+  symptom: upstream v24 Expedition::fetch() calls fetch_optionals() (where
+  computed extrafields are evaluated over $objectoffield->lines) BEFORE
+  fetch_lines()/fetch_lines_free() — at evaluation time ->lines is empty, so
+  SLY's line-aggregating formulas (total qty, total cartons, total gross
+  weight via array_sum(array_column(...))) summed an empty array and always
+  returned 0. v22 evaluated with the real object and worked. Fix: move the
+  fetch_optionals() call to after the lines block (safe — fetch_lines*
+  never reads the shipment's own array_options, grep-verified). Verified:
+  pristine-24.0.1 replay of all 17 patches = 0 failures, php -l clean,
+  replay byte-identical to the d24test source tree. Patch-series targets:
+  101 → 102 files.
+- Ops: sly24.0-pristine2401.tar.gz rebuilt with the 102nd target
+  (sha256 63c3dda8d225c2157753a66816d14953124b0e82aacf641ea8f3ab8096410684);
+  BACKUP-GUIDE §五 updated accordingly.
+- Related (not patch-fixable, config/data level, documented in
+  APPLY-ON-24.md §〇): Dolibarr 24 dol_eval() whitelist rejects isset etc.
+  in migrated computed formulas — conf.php line required; line-aggregation
+  formulas additionally need is_array/array_column/array_sum appended.
+
+2.2.13 (2026-09-23)
+- admin/patches.php: lintscan removed entirely (user directive: "补丁文件
+  应该是你的责任，不是服务器应该做的" — patch QA belongs on the development
+  side, never on the production server). Removed: the green "Diagnose:
+  syntax scan" card, the lintscan action + its session resume keys, and the
+  whole PHP-CLI discovery stack (slyPatchLintTargets, slyPatchFindPhpCli,
+  slyPatchPhpCliValidates) — the exec-a-php-binary code surface that caused
+  the 2.2.8-2.2.10 fpm flood no longer exists in the tool at all. Lang keys
+  SlyPatchActionLintScan(+Hint)/SlyPatchLintPartial/SlyPatchLintPhpNone
+  deleted (en_US, en_SG, zh_CN). The tool's server-side footprint is now
+  git dry-runs, one git apply, and tar — nothing else. Patch verification
+  (replay on pristine 24.0.1, php -l, function/class cross-checks, hunk
+  review) happens in the dev repo before deployment.
+- Patch-side note: full hunk-by-hunk runtime review of
+  sly24.0-compta-multicurrency's compta/index.php changes found no fatal
+  (SQL additions guarded by isModEnabled('multicurrency') with matching
+  GROUP BY columns; price() called with the correct 7-parameter v24
+  signature). The reproduced 500 remains undiagnosed pending the server
+  error log (.user.ini error_log) — the only remaining diagnostic step.
+
+2.2.12 (2026-09-23)
+- admin/patches.php: slyPatchApply() reduced to the minimal model the tool
+  should have had all along (user directive: "有原始备份文件，就不需要重新
+  备份。直接patch"): backup target files that lack a pristine copy (never
+  re-backup existing ones) → apply. Removed from the apply path: (1) the
+  per-call session snapshot (a full second copy set of every target on
+  EVERY apply, pure disk/IO load, read by nothing); (2) the automatic
+  post-apply php -l syntax gate (one PHP process per target file per apply
+  — the dominant process-spawn cost, and with 2.2.8-2.2.10's fpm-selection
+  bug the very thing that flooded the host). Syntax diagnosis remains
+  available on demand via the green lintscan card. Pack creation stays
+  first-time-only from the pristine layer. Per single-patch Apply the tool
+  now spawns exactly 3 processes: 2 git dry-runs (live apply decision) +
+  1 git apply. Reset/Restore were already pure local `cp` from the
+  per-patch pristine layer and are unchanged.
+
+2.2.11 (2026-09-23)
+- admin/patches.php: CRITICAL fix — PHP CLI discovery could select an FPM
+  binary. The 2.2.8 validation only required `php -v` to start with "PHP "
+  and exit 0, which `php-fpm -v` ("PHP 8.x (fpm-fcgi)...") also satisfies;
+  the glob candidates (/usr/bin/php*, /usr/local/php*/bin/php, ...) can
+  match fpm binaries. Once selected, every syntax-gate invocation ran
+  `php-fpm -n -l <file>` — which does not lint anything but tries to START
+  AN FPM MASTER DAEMON per call: the daemonized parent returns quickly so
+  the "lint" reports success, while a persistent php process is left
+  behind for every target file. On d-test2 this flooded the host with
+  never-stopping processes (entry-process limit hit 40 times, server
+  nearly unusable) and the poisoned path was cached to
+  documents/slycustom/.phpcli so it kept happening on every later run.
+  Fix: new slyPatchPhpCliValidates() requires the "(cli)" SAPI marker in
+  the `php -v` first line; used both in the probe loop AND on every
+  file-cache hit (one cheap exec per request), so a poisoned .phpcli cache
+  file can never survive into a lint run again. RECOVERY for affected
+  hosts: stop using the tool, kill the stray php processes (hosting panel
+  PHP restart / support), delete documents/slycustom/.phpcli, deploy
+  2.2.11, resume.
+
+2.2.10 (2026-09-23)
+- admin/patches.php: performance + correctness fix for shared-host
+  throttling (d-test2: "each patch takes forever to apply, the server
+  becomes nearly unavailable"). Root cause was process-spawn volume: every
+  page view ran 2 git dry-runs per patch (34 spawns for 17 patches) in the
+  status table, applyall re-ran the same 34 in its pre-scan, and every
+  request re-probed PHP CLI candidates. On a host that throttles fork/exec
+  each single-patch round trip spawned ~50 processes. Fixes:
+  (1) slyPatchStatusCached() — session-cached status rows, 10-minute TTL;
+      single-patch actions (applyone/restoreone) overwrite their own row
+      with the deterministic outcome, applyall/smart-reset share one sweep,
+      bulk actions (restore_bundle, restorefrompack, upload_bundle,
+      resetone) drop the cache, and the Rescan button (?rescan=1) forces a
+      fresh sweep; the view shows the snapshot age next to the Rescan
+      button (SlyPatchStatusCacheNote).
+  (2) slyPatchFindPhpCli() persists the discovered binary to
+      documents/slycustom/.phpcli — one probe ever, not one per request
+      (delete the file to re-probe).
+  (3) slyPatchMakePack() now runs BEFORE the apply and tars the pristine
+      per-patch BACKUP directory instead of DOL_DOCUMENT_ROOT — the old
+      placement packed the PATCHED files, so every restore-from-pack was
+      writing patched content back (the same poisoning class as the
+      d-test2 bundle incident). Content is deterministic, so an existing
+      pack for a patch is kept instead of re-tarring (saves 17 tar spawns
+      per applyall). Packs already created by ≤2.2.9 hold patched content
+      and should be deleted (packs/ dir) — the tool never reads them for
+      pristine restores anymore, but keeping stale ones invites confusion.
+- Langs en_US, en_SG, zh_CN: new key SlyPatchStatusCacheNote.
+
+2.2.9 (2026-09-23)
+- admin/patches.php: upload-bundle path turned into a true recovery primitive
+  for the d-test2 incident ("first patch run OK, later modifications broke
+  everything; now nothing applies and every patched page 500s"). Root-cause
+  hypothesis, consistent with every symptom: the uploaded recovery bundle was
+  packed from the sly24 PORT WORKTREE (already fully customized + later
+  uncommitted edits), not from pristine 24.0.1. That single mistake (a) put
+  already-patched content into htdocs, so every patch fails BOTH the forward
+  and the reverse dry-run -> all Conflict, nothing can ever Apply again;
+  (b) seeded the per-patch backup layer with that same non-pristine content,
+  so every later Restore/Reset writes the poison back ("restore 之后仍然
+  500"); (c) the worktree's later edits were never runtime-tested, explaining
+  the 500s on exactly the pages with the most post-generation edits.
+  Changes: (1) slyPatchIngestUploadedBundle now OVERWRITES existing per-patch
+  backup files (an upload is an explicit reset-to-pristine operation asserted
+  by the confirm dialog) and reports "Re-seeded (overwritten) N" in the log —
+  the previous never-overwrite rule is exactly what kept poisoned backups
+  undead. (2) The orange upload card now shows for ANY conflict state,
+  including conflicts WITH backups (previously hidden when backups existed,
+  i.e. precisely in the poisoned-backup scenario it must rescue). (3) Bundle
+  layout tolerance: htdocs/<path> tar entries are accepted in addition to
+  root-relative ones.
+- Ops: guaranteed-pristine recovery bundle prebuilt locally from the git tag
+  itself (`git archive 24.0.1` — no working tree involved):
+  sly24.0-pristine2401.tar.gz (101 entries, ~1.4 MB,
+  sha256 7dd28582c70aef59da38633b81272887dd6d0db665a51c618dad38b3631334d9).
+  Upload it via the orange card, then Apply all — final state equals the
+  locally 4-layer-verified replay (17/17 apply, 101/101 php -l clean).
+- Langs en_US, en_SG, zh_CN: SlyPatchActionUploadBundleHint and
+  SlyPatchUploadBundleConfirmText updated for the overwrite-reseed semantics.
+
+2.2.8 (2026-09-22)
+- admin/patches.php: lintscan hardened after it failed to complete on the
+  d-test2 shared host. (1) PHP CLI discovery now probes candidate binaries —
+  command -v php, PHP_BINARY (excluding fpm/cgi/httpd), /usr/bin/php*,
+  /usr/local/bin/php*, cPanel /opt/cpanel/ea-php*/root/usr/bin/php and Plesk
+  layouts — validating each with `php -v` and reporting the tried list when
+  none works. (2) The scan is time-boxed (20s per request, set_time_limit(0)
+  requested) and chunked: when the budget elapses it stores its position and
+  the accumulated bad-file list in the session and asks for one more click
+  (SlyPatchLintPartial), instead of dying mid-scan on 30-60s hosting request
+  timeouts. Verified locally: all 17 patches replay cleanly on a pristine
+  24.0.1 tree (git apply -p2 --ignore-whitespace, 0 failures) and all 101
+  target files pass php -l — the series itself is syntax-clean.
+- Langs en_US, en_SG, zh_CN: new keys SlyPatchLintPartial, SlyPatchLintPhpNone.
+
+2.2.7 (2026-09-22)
+- admin/patches.php: post-apply syntax gate in slyPatchApply(). After the
+  engine reports success, every .php target of the patch is passed through
+  `php -l` (CLI binary discovered once via command -v; lint is skipped
+  with a log line when no CLI is on PATH). Any syntax error — the signature
+  of a patch applied onto a drifted baseline (different 24.0.x) or of a
+  truncated write — fails the apply AND restores every target from the
+  pristine per-patch backup captured moments earlier, so a broken file can
+  never stay in the tree. Motivated by the d-test2 compta/index.php 500
+  after the first successful applyall (2026-09-22): the patch series was
+  verified against pristine 24.0.1, so a live 500 means the server tree
+  differs from that baseline — this gate turns such a mismatch into a
+  clean refuse+rollback instead of a production 500. Log lines carry the
+  full php -l output per broken file.
+- admin/patches.php: shell-free diagnostics for the d-test2 shared-host
+  deployment (no SSH): new action=lintscan + green card "Diagnose: syntax
+  scan (php -l)" runs slyPatchLintTargets() over the union of all patch
+  targets (read-only) and reports in the persisted on-page log. The page
+  intro now always shows the live DOL_VERSION and flags non-24.0.1 trees
+  ("patches are generated against the 24.0.1 baseline") — a drifted 24.0.x
+  baseline is the leading suspect for post-apply 500s.
+- Langs en_US, en_SG, zh_CN: new keys SlyPatchActionLintScan(+Hint).
+
+2.2.6 (2026-09-22)
+- admin/patches.php: fixed the path-prefix mismatch surfaced by the new
+  conflict diagnostic box on d-test2 ("error: htdocs/core/... No such file
+  or directory"): the sly24.0-*.patch headers are REPO-ROOT relative
+  ("+++ b/htdocs/<path>", produced by gen_sly24_patches.sh which diffs
+  from the repository root), but the engine ran `cd DOL_DOCUMENT_ROOT`
+  (= htdocs) with -p1, resolving every target to <htdocs>/htdocs/<path>.
+  Consequences went beyond the apply failure: slyPatchTargetFiles()
+  returned htdocs/-prefixed paths, so backups / packs / bundles /
+  upload-whitelist all pointed at non-existent nested paths — a "Create
+  bundle" on a clean tree reported success while packing NOTHING
+  ("every unioned target is a new file"). Fixes:
+  * slyPatchEngine(): -p1 -> -p2 for both engines (strips "a/htdocs/"),
+    cd DOL_DOCUMENT_ROOT unchanged.
+  * slyPatchTargetFiles(): strips a leading "htdocs/" segment when
+    present, so every consumer (backup paths, packs, bundle, target
+    list, upload whitelist, file-to-patches map) now works in
+    DOL_DOCUMENT_ROOT-relative paths. Verified: 101 targets across the
+    17 patches, zero still-prefixed, 101/101 resolve to real files on
+    the local tree.
+- patches/BACKUP-GUIDE.md: troubleshooting table gains the prefix-
+  mismatch row; space-budget section's per-patch file counts were early
+  estimates — the real union is 101 files.
+
+2.2.5 (2026-09-22)
+- admin/patches.php + patches/: three stacked root causes behind the
+  d-test2 "every patch conflict on a never-patched pristine 24.0.1" report,
+  all identified and fixed:
+  1. CRLF patch files (primary): all 17 sly24.0-*.patch files carried
+     Windows CRLF line endings (the dev machine has core.autocrlf=true, so
+     the git checkout materialised them as CRLF; deploying by file copy
+     shipped those bytes to Linux). `git apply` treats the trailing CR as
+     part of the `+++ b/<file>` header and of every context line, so BOTH
+     the forward and the reverse dry-runs fail and a perfectly clean tree
+     reports "conflict" for all 17 patches. Fixes:
+     * All patch files converted to LF in the repo; new
+       patches/.gitattributes (*.patch text eol=lf) prevents autocrlf from
+       re-introducing CRLF on Windows checkouts.
+     * Runtime defence: slyPatchNormalizePatchFile() — slyPatchStatus()
+       and slyPatchApply() feed the engine an LF-normalised copy
+       (.norm_<name> staged under patch-backups/) whenever the stored
+       patch contains a CR, so the tool is immune regardless of how the
+       files reach the server.
+  2. dol_mkdir() return-value bug: dol_mkdir() returns 0 for "already
+     exists" (<0 KO, >0 created), but MakePack / MakeBundle /
+     IngestUploadedBundle tested it as boolean (`!dol_mkdir(...)`) — every
+     pack/bundle build after the first one failed with a bogus "could not
+     create dir .../packs" (d-test2: first Create-bundle OK, every later
+     one "failed"). New truth-proof slyPatchEnsureDir() (is_dir before and
+     after) replaces those three checks.
+  3. git dubious-ownership hardening: when htdocs is a git checkout owned
+     by a different user than php-fpm (typical for /home/<user> hosting),
+     git >= 2.35.2 fatals with "detected dubious ownership", failing every
+     status check the same way. The git engine templates now carry
+     `-c safe.directory=<DOL_DOCUMENT_ROOT>` (older git ignores the key).
+- New conflict diagnostic box above the patch table: when a patch reports
+  conflict and the engine produced output, the raw git/patch stderr (first
+  25 lines) is shown directly on the page instead of only in the badge
+  hover tooltip — CRLF and ownership failures would have been visible
+  immediately instead of taking two debugging rounds.
+- Table rows are buffered (ob_start per row) so the diagnostic box can be
+  printed before the table; row content unchanged.
+- Langs en_US, en_SG, zh_CN: new key SlyPatchConflictDiagIntro.
+- patches/BACKUP-GUIDE.md: new troubleshooting section 七 (all-conflict
+  checklist: CRLF / safe.directory / diagnose via the new box).
+
+2.2.4 (2026-09-22)
+- admin/patches.php: full logic + design audit on top of the upload-bundle
+  recovery path; findings and fixes:
+  * FATAL (own bug, pre-emptied): $conflictPatchesList /
+    $missingPerPatchList were not initialised before the status loop — on a
+    "conflict but backup exists" tree the card code hit count(null) and
+    PHP 8 TypeError-fatals the page. Both now initialised to array().
+  * Lost logs: every POST redirects before rendering, so the detailed
+    engine log (per-patch results, backup paths, failure output) never
+    reached the browser and the on-page log box was dead code. The action
+    handler now persists $logs into $_SESSION['slypatch_lastlogs']; the
+    view shows it once after the redirect and clears it.
+  * upload_bundle size cap 32MB -> 16MB: a cap at the post_max_size limit
+    gets rejected by PHP at the protocol layer with $_FILES empty,
+    surfacing as a misleading "no file in upload field". Basename regex
+    simplified to the same pattern as restorefrompack.
+  * Lang placeholders %d -> %s (SlyPatchNoBackupNotice,
+    SlyPatchUploadBundleOk): Dolibarr trans() only reliably substitutes
+    %s.
+  * upload_bundle now raises setEventMessages on success (restored +
+    seeded counts via SlyPatchUploadBundleOk) and on failure
+    (SlyPatchUploadBundleFailed), alongside the persisted detailed log.
+  * Security model unified across all three tar.gz consumers
+    (upload ingest / restorefrompack / restore_bundle): verbose
+    tar -tvzf listing parsed to refuse symlink / hardlink / device
+    entries BEFORE extraction, traversal check, and a hard whitelist —
+    slyPatchRestoreFromPack previously extracted any relative path
+    (packs can be planted cross-host), it now refuses entries outside
+    the union of all patch target files.
+  * slyPatchRestoreFilesFromBackup returns a structured 'missing' flag;
+    the resetapplyall_smart / resetone handlers stop sniffing the
+    English log-string prefix.
+  * slyPatchIngestUploadedBundle: single source of truth for the
+    whitelist (keys of slyPatchFileToPatchesMap — no second, drift-prone
+    whitelist), ?? guard on the per-file patch list, log line with
+    coverage (N/M target files present in the archive), duplicated
+    recursive staging-dir cleanup extracted into slyPatchRmDirTree().
+  * Dead code removed: unused global $db / global $PATCHES; legacy lang
+    keys SlyPatchResetOneFallbackConfirmText and SlyPatchResetSmartHint
+    (superseded by SlyPatchActionResetConflictHint) in all three langs.
+- admin/patches.php: recovery path for the deadlock reported on d-test where
+  every sly24.0-*.patch reports Conflict AND the per-patch backup layer is
+  missing (applied by an older slycustom release that lacked this layer, or
+  backups were wiped) — the local-only model of 2.2.3 left such an
+  environment with no way out. New operator-driven upload path, still zero
+  network / zero git:
+  * New helpers: slyPatchExtractTarGz (tar -tzf pre-flight refusing '..' /
+    absolute paths, then tar -xzf into a temp dir), slyPatchFileToPatchesMap
+    (reverse map: htdocs-relative path -> patch short names touching it),
+    slyPatchIngestUploadedBundle (extracts the uploaded tar.gz, copies each
+    whitelisted target file into DOL_DOCUMENT_ROOT AND seeds
+    patch-backups/per-patch/<name>/ for every patch touching it — honouring
+    the never-overwrite rule), slyPatchDownloadTargetList (streams the union
+    of all patch target paths as a plain text list).
+  * New GET action downloadtargetlist (token-gated, mirrors downloadpack):
+    downloads sly24.0-target-list.txt for offline bundle building.
+  * New POST action upload_bundle: whitelists the uploaded basename against
+    ^sly24\.0-(bundle|[a-zA-Z0-9_.-]+)_[A-Za-z0-9_.-]*\.tar\.gz$, caps the
+    size at 32MB, rejects any PHP upload error, then runs the ingest. Every
+    archive entry outside the patch-target whitelist is silently dropped.
+  * Workflow (documented in BACKUP-GUIDE.md §五): download the target list,
+    tar the same paths on a pristine 24.0.1 clone, upload the tar.gz; the
+    tool restores htdocs to the clean baseline and seeds per-patch backups
+    so future Resets are a pure local cp again.
+- admin/patches.php UI: bottom action bar rebuilt as severity-coded cards
+  (green left band = safe [apply all / create bundle], red = destructive
+  [restore from bundle / reset conflicting + apply all], orange = warning
+  [the new upload-bundle recovery card]). Replaces the previous "two red
+  boxes + bare inline forms" layout. Each card: title + one-line plain
+  hint + buttons on the right. The reset card shows a live count of
+  conflict patches missing their per-patch backup when > 0.
+  New CSS classes .slypatch-actions / .slypatch-action / .safe / .warn /
+  .danger scoped to this page only.
+- Status scan loop now also collects conflictPatchesList +
+  missingPerPatchList (conflict patches whose per-patch backup dir is
+  absent) to drive the new cards' visibility.
+- Langs en_US, en_SG, zh_CN: new keys SlyPatchActionApplyAll(+Hint),
+  SlyPatchActionCreateBundle(+Hint), SlyPatchActionRestoreBundle(+Hint),
+  SlyPatchActionResetConflict(+Hint), SlyPatchActionUploadBundle(+Hint),
+  SlyPatchDownloadTargetList, SlyPatchUploadBundleConfirmText,
+  SlyPatchNoBackupNotice, SlyPatchUploadBundleOk,
+  SlyPatchUploadBundleFailed.
+- patches/BACKUP-GUIDE.md: new §五 "当逐项备份缺失时——上传 Bundle 兜底"
+  (scenario, offline build steps, security boundaries); §五→§六 renumbered
+  (space budget).
+
+2.2.3 (2026-09-22)
+- admin/patches.php: dropped every external rollback source. Per user
+  directive, the only rollback sources for sly24.0-*.patch are now the
+  local pre-bundled backups (per-file per-patch backup + per-patch
+  pack tar.gz + cross-patch bundle tar.gz) — no git checkout, no
+  github archive download, no archive upload. The first applyall on
+  a clean Dolibarr 24.0.1 tree is the one-time setup that populates
+  the per-patch backups; from then on every Reset / Restore is a
+  pure local `cp` away.
+  * Removed helpers (200+ LOC, no longer referenced):
+    - slyPatchDetect24Base() — local git tag 24.0.1 probe.
+    - slyPatchDownloadOfficialTarball() — github tarball download
+      with dolibarr.org fallback (90MB cache at
+      documents/slycustom/downloads/).
+    - slyPatchResetCore2401() — bulk `git checkout 24.0.1 -- htdocs/`.
+    - slyPatchResetFilesFrom2401() — per-file `git checkout 24.0.1`.
+    - slyPatchResetFilesFromExtractedRoot() — per-file copy from
+      extracted 24.0.1 archive.
+    - slyPatchExtractArchive() / slyPatchArchiveExt() /
+      slyPatchExtractedStaysInRoot() — tar/zip extract path.
+    - slyPatchRrmDir() / slyPatchRecursivelyCopy() — used only by
+      the deleted reset helpers.
+  * resetapplyall_smart: now uses each conflict patch's own
+    per-patch backup (documents/slycustom/patch-backups/per-patch/
+    <name>/) as the only restore source. Bulk-conflict file inventory
+    is gone — we just restore the conflict patches in sequence. If any
+    conflict patch has no per-patch backup, the bulk action refuses
+    with a precise list of missing patches + three recovery paths
+    (lang key SlyPatchResetLocalFailed). Other htdocs files stay
+    untouched, so this remains safe to run on a partially-customised
+    deployment.
+  * resetone: dropped the git / auto-download fallback. Per-patch
+    backup is the only source. If the backup is missing, Reset
+    refuses with the same SlyPatchResetLocalFailed message naming the
+    specific patch.
+  * Top docblock: rewritten to reflect the local-only rollback model.
+  * UI: bulk-button confirm text now flows through
+    SlyPatchResetConflictConfirmText (replaces the hardcoded English
+    prompt). Per-row Reset no longer needs the fallback-confirm
+    branch (it never falls back anywhere).
+  * Langs: en_US, en_SG, zh_CN. SlyPatchResetSmartHint and
+    SlyPatchResetAllFailed rewritten to drop the git / download
+    language. New key SlyPatchResetLocalFailed with the three
+    recovery paths. SlyPatchResetConflictConfirmText added.
+    SlyPatchResetOneFallbackConfirmText retained as a legacy marker
+    (no longer referenced by code).
+  * patches/BACKUP-GUIDE.md: section 1 table now lists only the
+    three local-snapshot layers + per-patch pack + bundle (rows 3
+    and 4 — the git/download layers — removed). Section 4.6 updated
+    to recommend Bundle Restore as the "violent rollback" path; the
+    old slyPatchResetCore2401 path is mentioned as a removed
+    feature. A new first row in the table highlights "fresh git
+    clone + install/upgrade" as the one-time manual setup.
+
+2.2.2 (2026-09-21)
+- New "pack layer" backup mechanism on top of the existing per-file
+  per-patch backup in admin/patches.php: every successful slyPatchApply
+  call now also writes one tar.gz holding every pristine (pre-patch) file
+  that patch would touch, under
+  documents/slycustom/patch-backups/packs/sly24.0-<name>_<ts>.tar.gz.
+  Per-file backup stays as the source of truth for offline rollback; the
+  pack is a single portable artifact that complements it (download /
+  upload / cross-env rollback).
+  * slyPatchMakePack(): builds a list of patch targets (only files that
+    exist on disk; new files are skipped) and runs `tar -czf ... -T list`
+    with a random-suffix dotfile manifest cleaned up afterwards.
+    Failures are reported in the apply log but do NOT fail the apply.
+  * slyPatchListPacks($name): scans packs/ for sly24.0-<name>_*.tar.gz,
+    returns mtime-sorted descending. Drives the row UI and the top banner.
+  * slyPatchRestoreFromPack($pack): whitelists the basename with a strict
+    regex (sly24.0-[A-Za-z0-9_.-]+.tar.gz), basenames any caller input,
+    runs `tar -tzf` to enumerate entries, refuses path-traversal ('..'
+    segments / absolute paths) before any extraction, then `tar -xzf`
+    from DOL_DOCUMENT_ROOT. Used by the new per-row "Restore from pack"
+    button and the new bulk action=restorefrompack GET handler.
+  * Top-of-page info banner: live count + KB total across all packs in
+    packs/ (lang key SlyPatchPacksSummary).
+  * Per-row UI: "Download pack" link (GET, token-gated, headers
+    Content-Disposition: attachment) streams the latest pack for that row.
+    "Restore from pack" button (POST, CSRF + whitelist) is shown for
+    status in {applied, conflict} when at least one pack exists.
+  * Langs: en_US, en_SG, zh_CN.
+- New "bundle" backup layer on top of the per-patch pack layer for the
+  cross-patch overlap case: when two or more sly24.0-*.patch files touch
+  the same htdocs-relative path (e.g. core + remx + other-modules all
+  edit htdocs/main.inc.php), each per-patch pack captures the post-prior
+  state, so a single per-patch restore yields the wrong intermediate
+  value. The bundle is one tar.gz holding the deduped UNION of every
+  patch target, captured at the start of every applyall BEFORE the chain
+  begins — gives a single consistent "pre-applyall" snapshot.
+  * slyPatchAllTargetFiles(): reads every patch's `+++ b/...` headers,
+    dedupes into a single sorted list. Drives the bundle build.
+  * slyPatchMakeBundle(): writes sly24.0-bundle_<ts>.tar.gz to packs/.
+    Auto-invoked at the start of every applyall; failures are logged but
+    do NOT block the chain. Old bundles are never auto-deleted.
+  * slyPatchLatestBundle(): returns (basename, mtime) of the latest
+    bundle on disk. Drives the "Restore from bundle" button.
+  * New actions: bundle_create (manual snapshot, no apply) and
+    restore_bundle (one-tar.gz rollback via existing
+    slyPatchRestoreFromPack whose basename whitelist already accepts the
+    sly24.0-bundle_*.tar.gz naming).
+  * UI: top-of-page info banner now lists both "N pack(s) tar.gz, X KB"
+    AND "Latest bundle: <name> (<ts>)". Two new bottom buttons:
+    "Create bundle" and a red alert-style "Restore from bundle" (only
+    visible when a bundle exists on disk).
+  * Langs: en_US, en_SG, zh_CN. New keys: SlyPatchBundleLatest,
+    SlyPatchBundleNone, SlyPatchCreateBundle, SlyPatchRestoreBundle,
+    SlyPatchCreateBundleConfirmText, SlyPatchRestoreBundleConfirmText.
+
+2.2.1 (2026-09-21)
+- New admin tool admin/patches.php (entry button on the setup General tab):
+  browser-based application of the sly24.0-*.patch core series. Live status
+  per patch via reverse dry-run (applied / not applied / conflict), one-click
+  "apply all" in dependency order, automatic backup of every touched file to
+  documents/slycustom/patch-backups/<timestamp>/, admin-only + CSRF + patch
+  name whitelist + DOL_VERSION 24.x guard. Engine: git apply with fallback
+  to POSIX patch. Langs: en_SG, en_US, zh_CN.
+- Bugfix: patch engine command used `-p2` but the sly24.0-*.patch headers only
+  carry one prefix segment (`a/htdocs/...`); switched to `-p1`.
+- Bugfix: 5 lang keys referenced by sly24.0-remx.patch (SplitDiscountOptions
+  AndAmounts, RemxSplitLocalCurrency, RemxSplitOriginalCurrency, SplitInto,
+  LastPartCalculatedAutomatically) were missing from the official Dolibarr
+  24.0.1 lang files; added to en_SG / en_US / zh_CN.
+- Bugfix: sly24.0-commande.patch hunk at htdocs/commande/card.php @@ -40,23
+  +40,9@@ wrongly 3way-deleted `require_once '/core/class/html.formfile
+  .class.php'` while leaving `new FormFile($db)` at line 2142 — produced a
+  "Class FormFile not found" fatal when commande/card.php was loaded. hunk
+  rewritten as `-40,23 +40,24@@` to keep all upstream require_once and only
+  add `files.lib.php`.
+- New action `resetapplyall_smart` for the case where d-test htdocs/ is in a
+  partial-applied state (admin/patches.php badge shows "Conflict" for one or
+  more patches): the smart reset is **per-file surgical** — it scans every
+  patch for status=Conflict, unions the `+++ b/...` target-file lists into
+  a single set, then restores only those N files to their official 24.0.1
+  contents. Every other file in DOL_DOCUMENT_ROOT (customisations, hooks,
+  files not touched by any core patch, ad-hoc user edits) stays exactly
+  where it was. Source priority (one click tries them in order, no user
+  input required):
+    1. local git tag `24.0.1` (`git checkout 24.0.1 -- <path>` per file)
+    2. auto-download the official 24.0.1 tarball from
+       https://github.com/Dolibarr/dolibarr/archive/refs/tags/24.0.1.tar.gz
+       (cached at documents/slycustom/downloads/, falls back to the dolibarr
+       .org stable URL)
+  Pre-reset copies of every touched file are saved to
+  documents/slycustom/patch-backups/file-reset-<ts>/<path> so recovery is
+  one directory away. After the surgical reset the page chains into the
+  normal 17-patch apply-all so the freshly re-baselined tree ends with all
+  SLY customisations reapplied. Removed: the user-uploaded archive branch —
+  d-test post_max_size=32M, the 24.0.1 tarball is 90MB, so any upload attempt
+  fails at the PHP protocol layer (POST Content-Length exceeds limit) and
+  breaks the whole form. The remaining two sources are sufficient: per-patch
+  backup (handled by per-row Reset, local cp), then git tag / auto-download
+  (handled by this bulk action). Removed the now-unused slyPatchReplaceHtdocs
+  helper (was the old "replace entire htdocs/" path).
+- New per-row Apply / Reset / Restore buttons in the patches table: every
+  successful `slyPatchApply` call now also writes a stable per-patch backup
+  to documents/slycustom/patch-backups/per-patch/<name>/<rel> (honours
+  whatever is already on disk — never overwrites with a partially-patched
+  copy), so the per-row Reset is a local `cp -r` away: no network, no git,
+  no archive extraction. The bulk `resetapplyall_smart` button stays as
+  the one-click recovery for first-run / wiped-backup scenarios.
+    * Apply   (status=not applied) — clean forward apply, only this patch.
+    * Reset   (status=conflict)    — copy the per-patch backup back and
+      re-apply so the row lands on "applied"; if the per-patch backup is
+      missing, falls back through the same git 24.0.1 → auto-download
+      chain that `resetapplyall_smart` uses.
+    * Restore (status=applied)    — copy the per-patch backup back and
+      stop; row becomes "not applied".
+  All three new actions validate the patch name against the whitelist,
+  refuse any path that smells like `..`, and run inside the same CSRF +
+  admin-only + DOL_VERSION 24.x guard as the existing apply-all.
+- ShipsGo date-extrafield keys (options_atd / options_etd / options_ata /
+  options_eta): ensured present on $object->array_options before any
+  dol_eval() runs, via the new ensureShipmentDateOptionKeys() helper in
+  custom/slycustom/class/actions_slycustom.class.php. Called from both
+  doActions() (expedition card, view + edit) and printFieldListValue()
+  (expedition list rows). Pure module-layer hook, no core patch. Eliminates
+  the PHP 8.1+ "Undefined array key options_atd / options_ata" Warning that
+  the extrafield computed-formula itself cannot suppress (formula cannot
+  use isset / ?? / empty).
+- Housekeeping: sly22.0-*.patch (17 patches + 2 SQL) and APPLY-ON-22.md /
+  gen_sly22_patches.sh moved into patches/archive/ to keep the patches/
+  root directory focused on the active sly24.0 series. README.md and
+  PATCHES-BY-MODULE.md updated with a "historical document, archive/"
+  notice; modSlyCustom.class.php + ActionsSlycustomMenuHooksTrait.php
+  comments and the module README reference the 24-series patch names.
+
+2.2.0 (2026-09-21)
+- Dolibarr 24.0.1 port: core patches regenerated as patches/sly24.0-*.patch
+  (17 files, see patches/APPLY-ON-24.md for the full list, apply order,
+  dropped-patch analysis and hook-vs-patch classification).
+  * Dropped vs 22: paiement-arrayfields & fourn-paiement-arrayfields (official
+    since v24), admin supplier_invoice/supplier_order hunks (files removed,
+    getDolGlobalString absorbed), SLY multicurrency payment page in
+    paiement.php/ajaxpayment.php (official rewrite), commande/compta index
+    multicurrency (official), migration-SQL edits (not needed for 22->24).
+  * Ported from working tree (never in a 22 patch): BookKeeping multicurrency
+    columns + bookkeepingCreateBefore hook for SFRS Reports
+    (sly24.0-accountancy-sfrs.patch).
+  * Restored customisations silently dropped by 3-way merge: commande/card.php
+    addline foreign-price derivation & payment-terms filtertype; cron/list.php
+    entity prefilter; commande/list.php salesrep cache block; forgeSQLFromUni
+    versalSearchCriteria safe '1 = 2' fallback on bad filter strings; dol_eval
+    $object/$obj null guards; object_discounts multicurrency display;
+    fourn/commande/card.php vendor-switch & payment-terms prefill chain.
+  * gen_sly24_patches.sh added; all patched files pass php -l (PHP 8.1) and
+    all 17 patches apply cleanly on a pristine official 24.0.1.
+- Housekeeping: 14.0-era patches (sly14.0-*, original_orderstatus_14.0.php,
+  ref-expedition-*.diff, two one-shot extrafields fix SQLs) moved to
+  patches/archive/ with an index.php guard; patches/README.md rewritten for
+  the 22/24 layout; stray htdocs/check_sso.php (strongauth temp diagnostic)
+  and htdocs/core/redirect_if_setup_not_complete.inc.php (official v24 file
+  accidentally dropped into the v22 tree) deleted; the 7 SLY PDF template
+  copies under core/modules/** removal staged in git (the maintained versions
+  in custom/slycustom/core/modules/** are a superset and take over).
+
+2.1.1 (2026-09-21)
+- Exports (SO/PO Inv Details etc.): fixed negative amounts (credit notes) being
+  exported as text like '-84.80 — Excel could not parse them as numbers.
+  * slyCsvEscape(): the anti formula-injection quote prefix is no longer added
+    to plain numeric strings (digits/separators only); = + @ payloads and any
+    arithmetic/expression are still neutralized.
+  * CSV amounts now use price() 'none' locale: '.' decimal separator, no
+    thousands separator (screen tables keep localized formatting).
+  * Applies to all money columns (Total, Price, SubTotal, Amount_Received,
+    Pending_Payment, Fees_or_Loss, Amount_Paid) across all export datasets.
+
+2.1.0 (2026-09-18)
+- Wise outgoing payments (flow A), gated by WISE_OUTGOING_ENABLED:
+  * Wise_Payment (WiseOutgoingPayment): quote -> IBAN recipient -> UNFUNDED
+    transfer with per-transfer idempotency uuid; the funding endpoint is
+    never called — funding manually in the Wise dashboard is the approval
+    gate (unfunded transfers auto-cancel after 5 business days).
+  * Transfer reference sent to the vendor resolves to the VENDOR's own order
+    reference (linked supplier order ref_supplier) > vendor invoice number >
+    our invoice ref.
+  * New table llx_slycustom_wise_transfer (mapping, state, idempotency,
+    payment link); installed by module init or sql/llx_slycustom_wise.sql.
+  * "Pay via Wise" button + in-flight status on supplier invoice cards
+    (hook trait ActionsSlycustomWisePaymentTrait).
+  * wise/prepare.php: preview of what will be sent, create/refresh/record
+    actions with CSRF protection.
+  * transfers#state-change webhook handling with only-forward state guard;
+    outgoing_payment_sent auto-records the supplier payment (PaiementFourn +
+    bank line + auto-close), manual "record now" fallback on prepare.php.
+  * Wise_API: createQuote / createRecipientIban / createTransfer / getTransfer.
+
 2.0.0 (2026-09-16)
 - Wise incoming payments integration:
   * Reconcile page custom/slycustom/wise/reconcile.php (Tools menu, guarded by

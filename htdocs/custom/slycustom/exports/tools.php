@@ -18,6 +18,17 @@ if (!is_object($conf->slycustom) || empty($conf->slycustom->enabled)) {
 	exit;
 }
 
+// Exports expose the full business dataset: require the module export right
+// (admins pass) and never serve external/thirdparty users.
+if (empty($user->admin) && empty($user->rights->slycustom->export->read)) {
+	accessforbidden();
+	exit;
+}
+if (!empty($user->socid)) {
+	accessforbidden();
+	exit;
+}
+
 $langs->loadLangs(array("slycustom@slycustom", "other", "main"));
 
 @ini_set('max_execution_time', 180);
@@ -31,6 +42,15 @@ $langs->loadLangs(array("slycustom@slycustom", "other", "main"));
 function slyCsvEscape($value)
 {
 	$value = (string) $value;
+	// Neutralize spreadsheet formula injection: a leading = + - @ would be
+	// evaluated by Excel/LibreOffice when the exported file is opened.
+	// Pure numeric strings (digits, separators, spaces only — e.g. negative
+	// credit note amounts like -84.80 or -1,234.56) are exempt: they can never
+	// form a formula, and the quote prefix would break Excel number parsing.
+	if (isset($value[0]) && strpos('=+-@', $value[0]) !== false
+		&& !preg_match('/^[-+]?[\d][\d,. ]*$/', $value)) {
+		$value = "'".$value;
+	}
 	$value = str_replace("\t", "\\t", $value);
 	$value = preg_replace("/\r?\n/", "\\n", $value);
 	$value = str_replace('"', '""', $value);
@@ -173,9 +193,12 @@ function slyExportsFormatCommaSeparatedInvoiceStatuts($value, $langs)
  * @param string $value
  * @param Translate $langs
  * @param array|null $row Full dataset row (optional) for cross-field formatting.
+ * @param bool $plainNumber True for CSV export: amounts without thousand separators
+ *                          (price() 'none' locale = international '.' decimal, no grouping)
+ *                          so Excel keeps them numeric.
  * @return string
  */
-function slyFormatExportCellValue($datasetKey, $field, $value, $langs, $row = null)
+function slyFormatExportCellValue($datasetKey, $field, $value, $langs, $row = null, $plainNumber = false)
 {
 	if (($datasetKey === 'so_details' || $datasetKey === 'so_deposit_invoice_missing') && $field === 'fk_statut') {
 		return slyCommandeStatusPlainLabel($value, $langs);
@@ -286,7 +309,7 @@ function slyFormatExportCellValue($datasetKey, $field, $value, $langs, $row = nu
 		if ($value === '' || !is_numeric($value)) {
 			return (string) $value;
 		}
-		return price((float) $value, 0, $langs, 1, -1, -1, '');
+		return price((float) $value, 0, $plainNumber ? 'none' : $langs, 1, -1, -1, '');
 	}
 	return (string) $value;
 }
@@ -967,7 +990,7 @@ function outputDatasetCsv($filename, $columns, $rows, $datasetKey = '')
 		foreach ($columns as $column) {
 			$field = $column['field'];
 			$raw = isset($row[$field]) ? $row[$field] : '';
-			$out[] = slyCsvEscape(slyFormatExportCellValue($datasetKey, $field, $raw, $langs, $row));
+			$out[] = slyCsvEscape(slyFormatExportCellValue($datasetKey, $field, $raw, $langs, $row, true));
 		}
 		echo iconv('UTF-8', 'UTF-16LE//IGNORE', implode("\t", $out)."\n");
 	}

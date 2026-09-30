@@ -28,7 +28,7 @@
 ### 3. SLY 导出入口
 
 - 左侧菜单 **商业** 下会多出 **SLY Exports**，指向 `custom/slycustom/exports/index.php`。
-- **工具 (Tools)** 下为三级菜单：**SLY Export** → **SLY ALL-in-One** → 五个详情（SO Details、SO Invoice Details、Shipment Details、PO Details、PO Invoice Details）。若 22.0 上未打 `sly22.0-menu-parent-match.patch`，层级可能错位，打补丁后需清理残余菜单：见 **docs/MENU-CLEANUP.md**（界面停用再启用，或 CLI `cli_reset_sly_menus.php`）。
+- **工具 (Tools)** 下为三级菜单：**SLY Export** → **SLY ALL-in-One** → 五个详情（SO Details、SO Invoice Details、Shipment Details、PO Details、PO Invoice Details）。24.0.1 上 `sly24.0-menu-parent-match.patch` 已包含此 hook 点，无需手工打补丁；若菜单层级仍有错位，可参考历史 [archive/APPLY-ON-22.md](patches/archive/APPLY-ON-22.md) 思路，并清理残余菜单：见 **docs/MENU-CLEANUP.md**（界面停用再启用，或 CLI `cli_reset_sly_menus.php`）。
 - 若你仍使用带 SLY 导出脚本的环境（如原 `htdocs/exports/export_all.php` 等），可从该页链接过去；若完全使用官方 14.0 且未复制这些脚本，需自行把需要的导出脚本复制到 `custom/slycustom/exports/` 或其它可访问目录并在本模块中加链接。
 
 ### 4. 列表与界面（22.0 上启用即生效，14.0 需 core 支持）
@@ -43,7 +43,7 @@
 设置入口：**设置 → 模块/应用 → SLY Custom 设置 → "Wise 收款" 标签**；核对入口：**工具 → Wise 收款核对**（需授权 slycustom 的 "Wise incoming payment reconciliation" 权限，管理员自动可访问页面）。
 
 - **收纳入账**（`WISE_INCOMING_ENABLED`，默认开）：Wise `balances#credit` webhook 推送进入 `llx_slycustom_wise_incoming` 待核对队列；报文不含付款参考号，由系统调用对账单 API（±5 分钟窗口）回补参考号/对方/手续费；匹配引擎按 **SO 编号 → 关联客户发票**（`llx_element_element`）给候选；**核对页**（`wise/reconcile.php`）中人工勾选分摊、确认后生成付款 + 银行流水 + 自动关票；仅金额匹配的候选带警告标记。cron 每轮先做 2 天对账单兜底同步（找回被 4xx 丢弃的事件），再补明细。
-- **付款准备**（`WISE_OUTGOING_ENABLED`，默认关，开发中）：供应商发票 → Wise 转账草稿（reference 用供应商自己的订单号）→ Wise 后台人工注资付款。
+- **付款准备**（`WISE_OUTGOING_ENABLED`，默认关）：供应商发票卡片出现 **"通过 Wise 付款"** → `wise/prepare.php` 预览（收款人 IBAN、金额币种、**发给供应商的参考号 = 供应商自己的订单号**，优先级 PO ref_supplier → 发票 ref_supplier → 我方 ref）→ 确认创建**未注资**转账（幂等 uuid 防重复）；在 **Wise 后台人工注资 = 审批**（5 个工作日未注资自动取消）；`transfers#state-change` 推送（需另订阅）或页面手动刷新推进状态，`outgoing_payment_sent` 自动生成供应商付款 + 银行流水 + 自动关票（webhook 丢失时页面有手动兜底按钮）。映射表 `llx_slycustom_wise_transfer`。
 - 接收端 `custom/slycustom/webhook/wise.php`（无登录；RSA-SHA256 验签公钥存 `DOL_DATA_ROOT/wise_webhook/verification_key.pem`，拿不到公钥时启用"来源 IP 白名单"过渡加固——含旧版 AWS 出口段）。
 - SO 编号提取正则自动从订单编号掩码（`COMMANDE_<NAME>_MASK`）派生，`WISE_SO_REF_PATTERN` 仅作手工覆盖。
 - 多公司：配置常量按实体保存，webhook 按 payload 的 profile_id 路由实体；多币种：外币收款走原币通道，本币收外币发票走本币+发票汇率通道。
@@ -97,6 +97,7 @@ custom/slycustom/
 
 ## 版本
 
-- 模块版本：**2.0.0**（变更明细见 **ChangeLog**；2.0.0 起由该文件管理）
+- 模块版本：**2.1.0**（变更明细见 **ChangeLog**；2.0.0 起由该文件管理）
 - 针对 Dolibarr：**14.0 与 22.0**（22.0 为主力）
-- 2.0.0：新增 Wise 收款集成（webhook 收款核对、SO 匹配、银行映射、对账单明细补全 cron），ShipsGo 设置独立成标签页。
+- 2.1.0：新增 Wise 付款准备（未注资转账 + Vendor Order reference + 状态回写自动记供应商付款）。
+- 2.0.0：Wise 收款集成端到端（webhook 收款核对、SO 匹配、银行映射、核对页、对账单兜底 cron）。

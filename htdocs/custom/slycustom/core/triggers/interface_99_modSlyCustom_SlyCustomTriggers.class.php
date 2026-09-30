@@ -90,9 +90,28 @@ class InterfaceSlyCustomTriggers extends DolibarrTriggers
 		}
 
 		if ($action == 'SHIPPING_VALIDATE' && isModEnabled('slycustom')) {
+			// SLY line totals: persist on validation. v24 replacement for the
+			// v22 aggregated computed extrafields (totalnetweight/TotalQtyCartons/
+			// TotalGrossWeight) — dol_eval's whitelist has no aggregation function,
+			// so the module computes and stores them (lists/exports/PDF read the
+			// stored columns; the card shows live values via the doActions hook).
+			if (!is_array($object->lines ?? null) || count($object->lines) === 0) {
+				$object->fetch_lines();
+			}
+			dol_include_once('slycustom/class/actions_slycustom.class.php');
+			$totals = ActionsSlycustom::computeShipmentLineTotals($object);
+			if ($totals !== null && (int) $object->id > 0) {
+				$upsql = "UPDATE ".MAIN_DB_PREFIX."expedition_extrafields SET"
+					." totalnetweight = ".(float) $totals['qty']
+					.", TotalQtyCartons = ".(float) $totals['cartons']
+					.", TotalGrossWeight = ".(float) $totals['grossweight']
+					." WHERE fk_object = ".(int) $object->id;
+				$this->db->query($upsql);
+			}
+
 			// ShipsGo: create shipment when validated
-			require_once DOL_DOCUMENT_ROOT.'/custom/slycustom/class/ShipsGo_Update.class.php';
-			require_once DOL_DOCUMENT_ROOT.'/custom/slycustom/class/ShipsGo_API.class.php';
+			dol_include_once('slycustom/class/ShipsGo_Update.class.php');
+			dol_include_once('slycustom/class/ShipsGo_API.class.php');
 			$apiKey = ShipmentStatus::getApiKeyForExpedition($this->db, $object, $conf);
 			if ($apiKey === '') {
 				return 0;

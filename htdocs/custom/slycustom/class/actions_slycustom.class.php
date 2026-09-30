@@ -29,6 +29,7 @@ require_once DOL_DOCUMENT_ROOT.'/custom/slycustom/class/ActionsSlycustomShipping
 require_once DOL_DOCUMENT_ROOT.'/custom/slycustom/class/ActionsSlycustomProductCardHooksTrait.php';
 require_once DOL_DOCUMENT_ROOT.'/custom/slycustom/class/ActionsSlycustomMenuHooksTrait.php';
 require_once DOL_DOCUMENT_ROOT.'/custom/slycustom/class/ActionsSlycustomBuilddocHooksTrait.php';
+require_once DOL_DOCUMENT_ROOT.'/custom/slycustom/class/ActionsSlycustomWisePaymentTrait.php';
 require_once DOL_DOCUMENT_ROOT.'/custom/slycustom/class/ActionsSlycustomIndexHooksTrait.php';
 
 class ActionsSlycustom
@@ -66,6 +67,8 @@ class ActionsSlycustom
 	use ActionsSlycustomProductCardHooksTrait;
 	// Builddoc hooks extracted into ActionsSlycustomBuilddocHooksTrait
 	use ActionsSlycustomBuilddocHooksTrait;
+
+	use ActionsSlycustomWisePaymentTrait;
 	// Menu hooks extracted into ActionsSlycustomMenuHooksTrait
 	use ActionsSlycustomMenuHooksTrait;
 	use ActionsSlycustomIndexHooksTrait;
@@ -81,6 +84,86 @@ class ActionsSlycustom
 	}
 
 	/**
+	 * Make sure the date extrafield keys consumed by ShipsGo computed fields
+	 * are present on $obj->array_options before any dol_eval() runs over the
+	 * object. Missing keys raise a PHP 8.1+ "Undefined array key" warning that
+	 * the computed-field formula itself cannot suppress (it cannot use
+	 * isset/empty/??). Hooks do this from slycustom module layer, no core patch.
+	 *
+	 * @param  CommonObject $obj Object with extrafields loaded (expedition, shipment)
+	 * @return void
+	 */
+	public function ensureShipmentDateOptionKeys($obj)
+	{
+		if (!is_object($obj) || !property_exists($obj, 'array_options') || !is_array($obj->array_options)) {
+			return;
+		}
+		foreach (array('options_atd', 'options_etd', 'options_ata', 'options_eta') as $k) {
+			if (!array_key_exists($k, $obj->array_options)) {
+				$obj->array_options[$k] = 0;
+			}
+		}
+	}
+
+	/**
+	 * Compute SLY shipment line totals (qty, cartons, gross weight).
+	 *
+	 * v24 replacement for the v22 computed extrafields (totalnetweight /
+	 * TotalQtyCartons / TotalGrossWeight) that aggregated lines with
+	 * array_sum(array_column(...)): Dolibarr 24's dol_eval whitelist ships no
+	 * aggregation function, so the module computes the totals itself
+	 * (official extension model — hooks/triggers in custom/, zero core or
+	 * conf changes). Shared by the card hook (live display) and the
+	 * SHIPMENT_VALIDATE trigger (persistence for lists/exports/PDF).
+	 *
+	 * @param  CommonObject $obj Expedition with lines loaded
+	 * @return array{qty:float,cartons:float,grossweight:float}|null Null when no lines
+	 */
+	public static function computeShipmentLineTotals($obj)
+	{
+		if (!is_object($obj) || !is_array($obj->lines ?? null) || count($obj->lines) === 0) {
+			return null;
+		}
+		$qty = 0.0;
+		$cartons = 0.0;
+		$gross = 0.0;
+		foreach ($obj->lines as $line) {
+			if (!is_object($line)) {
+				continue;
+			}
+			$qty += (float) ($line->qty ?? 0);
+			$ao = is_array($line->array_options ?? null) ? $line->array_options : array();
+			$cartons += (float) ($ao['options_quantitycarton'] ?? 0);
+			$gross += (float) ($ao['options_grossweight'] ?? 0);
+		}
+		return array('qty' => $qty, 'cartons' => $cartons, 'grossweight' => $gross);
+	}
+
+	/**
+	 * Inject live line totals into the shipment's array_options for display.
+	 * Keys mirror the extrafield attribute names; totalnetweight keeps the
+	 * v22 formula's observable behaviour (it summed line qty, not a weight).
+	 * Skipped when lines are not loaded, so stored values are never wiped
+	 * with zeros in list/other contexts.
+	 *
+	 * @param  CommonObject $object Expedition
+	 * @return void
+	 */
+	public function injectShipmentLineTotals(&$object)
+	{
+		$totals = self::computeShipmentLineTotals($object);
+		if ($totals === null) {
+			return;
+		}
+		if (!is_array($object->array_options ?? null)) {
+			$object->array_options = array();
+		}
+		$object->array_options['options_totalnetweight'] = $totals['qty'];
+		$object->array_options['options_TotalQtyCartons'] = $totals['cartons'];
+		$object->array_options['options_TotalGrossWeight'] = $totals['grossweight'];
+	}
+
+	/**
 	 * Overloading the doActions function
 	 *
 	 * @param array         $parameters Hook parameters
@@ -91,6 +174,14 @@ class ActionsSlycustom
 	public function doActions($parameters, &$object, &$action)
 	{
 		global $conf, $user, $langs;
+
+		// Pre-default ShipsGo date extrafields on any expedition/shipment object
+		// that enters doActions (covers both view and edit paths).
+		if (is_object($object) && !empty($object->element) && in_array($object->element, array('shipping', 'expedition'), true)) {
+			$this->ensureShipmentDateOptionKeys($object);
+			// Live line totals (v24 replacement for the aggregated computed extrafields)
+			$this->injectShipmentLineTotals($object);
+		}
 
 		// Product/Service card: load SLYcustom so CustomsCode/CustomCode display as Plant No./厂号
 		if (is_object($object) && !empty($object->element) && in_array($object->element, array('product', 'service'), true)) {

@@ -49,15 +49,14 @@ if ((isset($_SERVER['REQUEST_METHOD']) && $_SERVER['REQUEST_METHOD'] !== 'POST')
 	exit;
 }
 
-// Token check
-if (!empty($conf->global->MAIN_SECURITY_CSRF_WITH_TOKEN)) {
-	$token = GETPOST('token', 'aZ09');
-	if (empty($token) || !dol_verify_token($token, 'builddoc')) {
-		$langs->load('errors');
-		setEventMessages($langs->trans('ErrorCSRFInvalid'), null, 'errors');
-		header('Location: '.DOL_URL_ROOT.'/commande/card.php?id='.$id.'#builddoc');
-		exit;
-	}
+// Token check (unconditional: this write path must not depend on
+// MAIN_SECURITY_CSRF_WITH_TOKEN, which is off by default)
+$token = GETPOST('token', 'aZ09');
+if (empty($token) || !dol_verify_token($token, 'builddoc')) {
+	$langs->load('errors');
+	setEventMessages($langs->trans('ErrorCSRFInvalid'), null, 'errors');
+	header('Location: '.DOL_URL_ROOT.'/commande/card.php?id='.$id.'#builddoc');
+	exit;
 }
 
 $object = new Commande($db);

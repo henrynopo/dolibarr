@@ -1,8 +1,10 @@
 # 按功能模块索引：14.0→22.0 补丁与迁移缺口
 
+> **历史文档**——14→22 时代的迁移指南。24 升级完成后，本文表格里列出的所有 `sly22.0-*` 文件已迁移到 [`archive/`](archive/)；24.0.1 的当前权威文档是 [APPLY-ON-24.md](APPLY-ON-24.md)。下文保留仅供考古，**不要**把这里的 `sly22.0-*.patch` 路径直接拿来给 24 部署用——24 上的对应补丁名是 `sly24.0-*`。
+
 本文档按**功能模块**整理 SLY 14.0 与 22.0 的补丁对应关系、数据库变更、slycustom 已实现部分及**迁移缺口**，便于排查「某功能在 22.0 对应哪几个 patch」以及「14.0 有而 22.0 未覆盖」的项。
 
-**应用补丁**：22.0 上按顺序执行见 [APPLY-ON-22.md](APPLY-ON-22.md)。**最小 core** 建议见上一级 [CORE-MINIMAL-REVIEW.md](../CORE-MINIMAL-REVIEW.md) §2.4。
+**应用补丁**：22.0 上按顺序执行见 [APPLY-ON-22.md](archive/APPLY-ON-22.md)。**最小 core** 建议见上一级 [CORE-MINIMAL-REVIEW.md](../CORE-MINIMAL-REVIEW.md) §2.4。
 
 ---
 
@@ -147,9 +149,13 @@
 
 ### 11. langs
 
-- **功能简述**：en_US、fr_FR、zh_CN 等 SLY 翻译与权限键对齐。
+- **功能简述**：en_US、fr_FR、zh_CN 等 SLY 翻译与权限键对齐；**24.0 新增**
+  `langs/en_SG/main.lang` 的 SG 日期格式（`FormatDateShort`/`FormatDateShortInput`
+  = `%d/%m/%Y`，2.2.18 补齐的移植缺口——最小移植，只改两行，保留 v24 原生的
+  `FormatHourSecShort`/`TotalVATShort` 键；用户需选用 en_SG 语言生效）。
 - **14.0**：`sly14.0-langs.patch`
 - **22.0**：`sly22.0-langs.patch`（已排除 22.0 不存在的 zh_CN 文件）；应用时若有冲突用 `--3way` 并保留 SLY 翻译。
+- **24.0**：`sly24.0-langs.patch`（9 个文件：en_US×5、fr_FR/main、zh_CN/receptions、en_SG/main、zh_CN/compta——后者为 2.2.18 补的 `AmountMulticurrency` 翻译键，避免 MC 列表头显示原始键名）。
 - **数据库**：无。
 - **slycustom**：slycustom 自身语言在 `custom/slycustom/langs/`。
 - **迁移缺口**：无（按 22.0 键合并即可）。

@@ -484,30 +484,36 @@ if ($action == 'wise_save_signature_key') {
 }
 
 if ($action == 'update' && !GETPOST('cancel', 'alpha')) {
-	$db->begin();
-	foreach (array_merge($arrayofparameters, $shipsgoparameters) as $key => $val) {
-		if (!GETPOSTISSET($key)) {
-			continue;
-		}
-		if (isset($val['type']) && $val['type'] == 'yesno') {
-			$val_const = GETPOSTINT($key);
-		} else {
-			$val_const = GETPOST($key, 'alphanohtml');
-		}
-		$result = dolibarr_set_const($db, $key, $val_const, 'chaine', 0, '', $conf->entity);
-		if ($result < 0) {
-			$error++;
-			break;
-		}
-	}
-	if (!$error) {
-		$db->commit();
-		setEventMessages($langs->trans("SetupSaved"), null, 'mesgs');
+	// CSRF check — update writes SHIPSGO/WISE secrets and must not be triggerable cross-site via GET
+	if (GETPOST('token', 'none') !== newToken()) {
+		setEventMessages($langs->trans("Error"), null, 'errors');
+		$action = '';
 	} else {
-		$db->rollback();
-		setEventMessages($langs->trans("SetupNotSaved"), null, 'errors');
+		$db->begin();
+		foreach (array_merge($arrayofparameters, $shipsgoparameters) as $key => $val) {
+			if (!GETPOSTISSET($key)) {
+				continue;
+			}
+			if (isset($val['type']) && $val['type'] == 'yesno') {
+				$val_const = GETPOSTINT($key);
+			} else {
+				$val_const = GETPOST($key, 'alphanohtml');
+			}
+			$result = dolibarr_set_const($db, $key, $val_const, 'chaine', 0, '', $conf->entity);
+			if ($result < 0) {
+				$error++;
+				break;
+			}
+		}
+		if (!$error) {
+			$db->commit();
+			setEventMessages($langs->trans("SetupSaved"), null, 'mesgs');
+		} else {
+			$db->rollback();
+			setEventMessages($langs->trans("SetupNotSaved"), null, 'errors');
+		}
+		$action = '';
 	}
-	$action = '';
 }
 
 /*
@@ -634,6 +640,14 @@ if ($tab == 'general') {
 	print '<input type="hidden" name="tab" value="general">';
 	print '<input type="submit" class="butAction" value="'.$langs->trans("SLYCUSTOM_SYNC_MENU_ICONS").'">';
 	print '</form>';
+	print '</div></td></tr>';
+
+	// Core patch tool (sly24.0-* series): status overview and one-click apply
+	print '<tr class="liste_titre"><td colspan="2">'.$langs->trans("SlyPatchTool").'</td></tr>';
+	print '<tr class="oddeven"><td colspan="2">';
+	print $langs->trans("SlyPatchToolEntryTooltip");
+	print '<br><br><div class="tabsAction">';
+	print '<a class="butAction" href="'.DOL_URL_ROOT.'/custom/slycustom/admin/patches.php">'.$langs->trans("SlyPatchToolOpen").'</a>';
 	print '</div></td></tr>';
 	print '</table>';
 	print '</div>';
@@ -1072,7 +1086,7 @@ if ($tab == 'wise') {
 	// Bank accounts (for the per-currency mapping) and payment modes
 	$bankAccounts = array();
 	$sql = 'SELECT rowid, ref, label, currency_code, clos FROM '.MAIN_DB_PREFIX.'bank_account';
-	$sql .= ' WHERE entity IN (1, '.(int) $conf->entity.') ORDER BY currency_code, ref';
+	$sql .= ' WHERE entity IN ('.getEntity('bank_account').') ORDER BY currency_code, ref';
 	$resql = $db->query($sql);
 	if ($resql) {
 		while ($obj = $db->fetch_object($resql)) {

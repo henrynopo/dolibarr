@@ -91,7 +91,12 @@ $object_po = new CommandeFournisseur($db);
 $soc = new Societe($db);
 
 // 模糊搜索：先按 c.ref LIKE 查所有匹配的 SO，不连 PO
-$sql_search = "SELECT c.rowid, c.ref, c.fk_soc FROM ".MAIN_DB_PREFIX."commande c WHERE c.entity IN (".getEntity('commande').") AND c.ref LIKE '%".$db->escape($search_ref)."%' ORDER BY c.ref DESC";
+$sql_search = "SELECT c.rowid, c.ref, c.fk_soc FROM ".MAIN_DB_PREFIX."commande c WHERE c.entity IN (".getEntity('commande').")";
+if (!empty($user->socid)) {
+	// 外部用户只能看到自己第三方的订单
+	$sql_search .= " AND c.fk_soc = ".(int) $user->socid;
+}
+$sql_search .= " AND c.ref LIKE '%".$db->escape($search_ref)."%' ORDER BY c.ref DESC";
 $res_search = $db->query($sql_search);
 $candidates = array();
 if ($res_search) {
@@ -127,8 +132,18 @@ if (empty($candidates)) {
 	exit(0);
 }
 
-// 确定唯一 SO：优先选 so_id，否则第一个
-$so_rowid = $so_id_selected ? $so_id_selected : (int) $candidates[0]['rowid'];
+// 确定唯一 SO：优先选 so_id，否则第一个。
+// so_id 只在已按 entity/socid 过滤的候选集内取值——Commande::fetch(rowid) 不带
+// entity 条件，直接信任 so_id 会造成跨实体越权读取（multicompany IDOR）。
+$so_rowid = (int) $candidates[0]['rowid'];
+if ($so_id_selected) {
+	foreach ($candidates as $c) {
+		if ($c['rowid'] === (int) $so_id_selected) {
+			$so_rowid = (int) $so_id_selected;
+			break;
+		}
+	}
+}
 $object_so->fetch($so_rowid);
 if (!$object_so->id) {
 	print '<p class="error">'.$langs->trans("NoRecordFound").'</p>';
@@ -174,11 +189,11 @@ if (method_exists($object_so, 'liste_contact')) {
 			$code = $c['code'] ?? '';
 			$lib = $c['libelle'] ?? $code;
 			if (stripos($lib, 'order') !== false || stripos($code, 'COMMANDE') !== false || stripos($code, 'CUSTOMER') !== false) {
-				$so_contacts_order[] = $name;
+				$so_contacts_order[] = dol_escape_htmltag($name);
 			} elseif (stripos($lib, 'invoice') !== false || stripos($lib, 'facture') !== false || stripos($code, 'BILL') !== false) {
-				$so_contacts_invoice[] = $name;
+				$so_contacts_invoice[] = dol_escape_htmltag($name);
 			} elseif (stripos($lib, 'ship') !== false || stripos($lib, 'expedition') !== false || stripos($code, 'SHIP') !== false) {
-				$so_contacts_ship[] = $name;
+				$so_contacts_ship[] = dol_escape_htmltag($name);
 			}
 		}
 	}
@@ -252,7 +267,7 @@ if (!empty($soc->id)) {
 }
 
 // ----- 1. 销售订单基本信息 -----
-$soTitle = '<strong>SALES ORDERS ('.$object_so->ref.')</strong>';
+$soTitle = '<strong>SALES ORDERS ('.dol_escape_htmltag($object_so->ref).')</strong>';
 print load_fiche_titre($soTitle, '', '', 0, '', '');
 print '<table class="noborder centpercent">';
 print '<tr class="liste_titre"><td class="fieldrequired">'.$langs->trans("ThirdParty").'</td><td>'.($soc->id ? $soc->getNomUrl(1) : '-').'</td></tr>';
@@ -326,7 +341,7 @@ print '<div class="fichehalfright"><div class="ficheaddleft">';
 
 // ----- Shipment 主要信息：Ref、状态、ETD/ETA/ATD/ATA -----
 if (!empty($shipments_data)) {
-	$shipmentTitle = '<strong>SHIPMENTS ('.$object_so->ref.')</strong>';
+	$shipmentTitle = '<strong>SHIPMENTS ('.dol_escape_htmltag($object_so->ref).')</strong>';
 	print load_fiche_titre($shipmentTitle, '', '', 0, '', '');
 	print '<table class="noborder centpercent">';
 	print '<tr class="liste_titre"><td>'.$langs->trans("Ref").'</td><td>'.$langs->trans("Status").'</td><td>ETD</td><td>ETA</td><td>ATD</td><td>ATA</td></tr>';
@@ -356,9 +371,10 @@ if (!empty($shipments_data)) {
 
 // ----- 采购订单 -----
 // 标题显示：系统 PO 号 + （可选）供应商单号，例如：PURCHASE ORDERS (PO260027 / XXX123)
-$poHeaderRef = $object_po->ref;
+$poHeaderRef = dol_escape_htmltag($object_po->ref);
 if (!empty($object_po->ref_supplier)) {
-	$poHeaderRef .= ' / '.$object_po->ref_supplier;
+	// ref_supplier 是表单可编辑的外部字段，必须转义（存储型 XSS）
+	$poHeaderRef .= ' / '.dol_escape_htmltag($object_po->ref_supplier);
 }
 $poTitle = '<strong>PURCHASE ORDERS ('.$poHeaderRef.')</strong>';
 print load_fiche_titre($poTitle, '', '', 0, '', '');

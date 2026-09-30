@@ -43,6 +43,8 @@ SLYCUSTOM_SYNC_MENU_ICONS_TOOLTIP=Update icons for "Search Order" and "Exports" 
 SLYCUSTOM_MENU_ICONS_SYNCED=Menu icons synced. Refresh the Tools or Commerce page to see the icons.
 UpdateShips=Update ShipsGo status
 ShipmentUpdated=Shipment status updated successfully
+ShipsGoMissingInfo=Missing ShipsGo info
+ShipsGoShipmentCreated=Shipment created
 UnvalidateShipment=Unvalidate shipment
 ConfirmUnvalidateShipment=Are you sure you want to unvalidate shipment %s?
 SourceOrder=Source order
@@ -75,6 +77,7 @@ SLYExportPODepositInvoiceMissing=PO deposit invoice missing
 SLYPoDepositInvoiceMissingBanner=According to payment terms, %s purchase order(s) require a supplier deposit invoice but no validated deposit invoice is linked yet.
 SLYPoDepositInvoiceMissingBannerLink=Open missing supplier-deposit list
 SLYPoDepositInvoiceMissingAlertShort=Deposit required by payment terms; no validated supplier deposit invoice linked to this PO.
+DepositInvoice=Deposit Invoice
 MultipleOrdersFound=Multiple orders found
 OrderContact=Order contact
 InvoiceContact=Invoice contact
@@ -114,6 +117,7 @@ SLYAllInOneRule_PO_PurchasePersonCntNe1=Purchase person count is not 1
 SLYAllInOneRule_POInv_PoCntGt1=More than 1 linked PO
 SLYAllInOnePreparingDownloadFor=Preparing download for: 
 SLYAllInOneAllDownloadsInitiated=All downloads have been initiated.
+Downloading=Downloading
 # SLY Debit Note (supplier invoice PDF template - we send to supplier, manual generation only)
 SLYDebitNoteModel=SLY Debit Note
 SLYDebitNoteModelDesc=Debit note sent to supplier. Do not set as default; generate PDF manually when sending to supplier. (Normally we receive credit notes from suppliers.)
@@ -251,3 +255,123 @@ WiseErrOverAlloc=Allocation exceeds the invoice remaining amount.
 WiseErrOverCredit=Allocations exceed the received amount.
 WiseErrCreate=Payment creation failed (see system log).
 WiseErrAlready=This credit is already recorded.
+
+# Wise outgoing (transfer preparation)
+WisePayViaWise=Pay via Wise
+WiseTransferStatus=Wise transfer
+WisePrepareTitle=Wise payment preparation
+WiseTransferSummary=What will be sent
+WiseSourceCurrency=Paid from balance
+WiseReferenceSent=Reference sent to vendor
+WiseReferenceSentTooltip=Priority: vendor's own order reference (linked PO ref_supplier) > vendor's invoice number > our invoice ref. Never our internal PO ref.
+WiseRefFromVendorOrder=from vendor order reference
+WiseRefFromVendorInvoice=from vendor invoice number
+WiseRefFromOurRef=from our invoice ref (fallback)
+WiseNoIban=Supplier has no IBAN bank account
+WiseCreateTransfer=Create transfer (unfunded)
+WisePrepareConfirm=Create an unfunded Wise transfer for the remaining amount? Payment only happens after you fund it manually in Wise.
+WiseTransferCreated=Unfunded Wise transfer #%s created. Fund it manually in the Wise dashboard (auto-cancels after 5 business days).
+WiseTransferFailed=Wise transfer creation failed:
+WiseTransferRefreshed=Wise state refreshed:
+WiseAwaitingFunding=Transfer created, awaiting manual funding in the Wise dashboard.
+WiseRefreshState=Refresh Wise state
+WiseRecordSupplierPayment=Record supplier payment now
+WiseOutgoingDisabled=Outgoing flow disabled (WISE_OUTGOING_ENABLED=0)
+
+# Core patch tool (admin/patches.php)
+SlyPatchTool=SLY Core Patches
+SlyPatchToolOpen=Open patch tool
+SlyPatchToolEntryTooltip=Apply the SLY core customisations (sly24.0-*.patch series) to the official Dolibarr files from the browser, with live status and automatic file backups.
+SlyPatchToolIntro=Engine: %s. Each patch is checked with a reverse dry-run: "Applied" means the reverse patch applies cleanly. Every apply first backs up the touched files into documents/slycustom/patch-backups/.
+SlyPatchVersionWarning=This patch series targets Dolibarr 24.x only — current version is %s. Regenerate the patches for your version before using this tool.
+SlyPatchNoEngine=Neither git nor the patch command is available on this server — cannot apply patches from the browser.
+SlyPatchApplyAll=Apply all patches (%s)
+SlyPatchApplyAllConfirmText=Apply all not-yet-applied SLY core patches to the Dolibarr core files? Originals are backed up under documents/slycustom/patch-backups/.
+SlyPatchRescan=Rescan status
+SlyPatchStatusCacheNote=Status snapshot is %s second(s) old (cached up to 10 min to spare the shared host) — the button forces a fresh scan.
+PatchApplied=Applied
+PatchNotApplied=Not applied
+PatchConflict=Conflict
+PatchApplyDoneMsg=Patches applied. Clear the OPcache (restart php-fpm) if one is active, then run your smoke tests.
+PatchApplyErrorMsg=At least one patch failed to apply. Check the log, restore from the backup if needed, and contact your integrator.
+SlyPatchDescCore=Global: currency symbol before value (MAIN_CURRENCY_SYMBOL_BEFORE_VALUE), dol_eval guards, forgeSQL safe fallback, boxes and list totals multicurrency
+SlyPatchDescMenuParentMatch=Left menu: parent entry takes the first match only (SLY Export third-level menus under Tools)
+SlyPatchDescCompta=Customer invoices/payments multicurrency: paid classification by effective balance, payment table original-currency column, various payments bank currency
+SlyPatchDescRemx=Global discounts: multicurrency N-way split (incl. foreign currency) + afterSplitDiscount hook
+SlyPatchDescCommande=Sales orders: draft customer change, add-line foreign price derivation, payment terms filter, linkedobject multicurrency, date-field statistics
+SlyPatchDescFourn=Supplier invoices/orders: linkedobject multicurrency, payment page source order column, vendor-switch payment defaults, prefill chain
+SlyPatchDescCommPropal=Proposals: linkedobject multicurrency
+SlyPatchDescAdmin=Admin UI: debugbar, dict error output, mail templates icons
+SlyPatchDescApi=REST API: production cache dir, disabled-user access, document/upload simplification, CORS
+SlyPatchDescMiscCron=Cron list entity prefilter, delivery/don small fixes
+SlyPatchDescOtherModules=Adherents/contact/contract/loan (multi-phase schedule)/salaries/thirdparty (capital currency)/supplier proposals/shipments/install/theme
+SlyPatchDescBankTreso=Bank upcoming entries: multicurrency column and balance alignment
+SlyPatchDescInvoiceListPos=Customer invoice list: Source order column right after Ref (data from slycustom hook)
+SlyPatchDescSupplierInvoiceListPos=Supplier invoice list: Source order column right after Ref (data from slycustom hook)
+SlyPatchDescFacturePdf=Invoice class: extrafield computed-keys init guard + legacy PDF template fallback
+SlyPatchDescAccountancySfrs=Bookkeeping: multicurrency columns + bookkeepingCreateBefore hook (SFRS Reports)
+SlyPatchDescLangs=Language packs: SLY translations (en_US, fr_FR, zh_CN)
+
+# SLY 24.0 remx split popup (lang keys referenced by sly24.0-remx.patch but absent from official Dolibarr lang files)
+SplitDiscountOptionsAndAmounts=Split options and amounts
+RemxSplitLocalCurrency=In company currency
+RemxSplitOriginalCurrency=In original (invoice) currency
+SplitInto=Split into
+LastPartCalculatedAutomatically=(last part is auto-calculated)
+
+# SLY patch tool: smart reset that only restores the files touched by conflicting
+# patches, then applies all 17 over the freshly re-baselined tree. "Smart" means
+# it picks the cheapest available source: local git 24.0.1 > auto-download from
+# github.com (cached at documents/slycustom/downloads/) > optional user upload.
+SlyPatchResetConflictFilesAndApply=Reset conflicting files + apply all
+# The line of hint text shown right under the red reset button.
+SlyPatchResetAllFailed=Bulk reset failed: see the FAILED lines in the log above.
+
+# Per-row action buttons (one form per patch row in the table).
+SlyPatchActions=Actions
+SlyPatchApplyOne=Apply
+SlyPatchResetOne=Reset
+SlyPatchRestoreOne=Restore
+SlyPatchApplyOneConfirmText=Apply %s to your DOL_DOCUMENT_ROOT now? (Backs up every touched file first; logs at the top of the page after redirect.)
+SlyPatchResetOneConfirmText=Restore %s from its per-patch backup and re-apply? (Local copy only — no network/git. The per-patch backup was created on the first successful apply.)
+SlyPatchResetLocalFailed=No per-patch backup exists for: %s — local rollback is unavailable. Per-patch backups are only created by slycustom ≥ 2.2.2 on the first successful Apply of each patch. Recovery paths: (1) re-Apply on a clean 24.0.1 tree to rebuild the backup; (2) copy the missing per-patch backup directories from prod to documents/slycustom/patch-backups/per-patch/<name>/; (3) fresh git clone of official 24.0.1, re-enable slycustom, and Apply the affected patches once to populate the backups.
+SlyPatchResetConflictConfirmText=Restore every file touched by the conflicting patches from its per-patch backup (every other file stays untouched), then re-Apply all 17 patches. Continue?
+SlyPatchRestoreOneConfirmText=Restore %s from its per-patch backup? (Stops there — does not re-apply. After this the row shows "not applied".)
+SlyPatchPerRowHint=Each row has its own Apply / Reset / Restore buttons. Reset rolls back only that one patch (using its per-patch backup) and re-applies; Restore just copies the backup back without re-applying; Apply runs a clean forward apply.
+SlyPatchActionApplyAll=Apply all patches
+SlyPatchActionApplyAllHint=Forward-apply the sly24.0-* series in dependency order. Every touched file is auto-backed up into the per-patch backup + pack layer. A pre-applyall bundle snapshot is taken first.
+SlyPatchActionCreateBundle=Create bundle
+SlyPatchActionCreateBundleHint=Snapshot the union of all 17 patch targets into one tar.gz. Use as a manual restore point before risky drift edits.
+SlyPatchActionRestoreBundle=Restore from bundle
+SlyPatchActionRestoreBundleHint=One-tar.gz rollback to the pre-applyall state. Resolves cross-patch overlap (per-patch restore yields a wrong intermediate state for files touched by more than one patch).
+SlyPatchActionResetConflict=Reset conflicting files + apply all
+SlyPatchActionResetConflictHint=For status=Conflict patches: restore their target files from the per-patch backup, then re-Apply all 17. Every other file stays untouched.
+SlyPatchActionUploadBundle=Upload bundle tar.gz (recovery path)
+SlyPatchActionUploadBundleHint=Last-resort recovery for conflict states. Build a clean 24.0.1 tar.gz off-host from the target list below, then upload it — the tool extracts, copies into htdocs, and (re)seeds per-patch backups: existing backup files are overwritten with the uploaded content. No network, no git, no download.
+SlyPatchDownloadTargetList=Download target file list
+SlyPatchUploadBundleConfirmText=The uploaded tar.gz will overwrite every target file listed by the 17 patches (only those files; everything else in htdocs is left untouched) and overwrite-rebuild the per-patch backup layer (existing backup files are replaced). Make sure the bundle was built from a pristine 24.0.1 working tree. Continue?
+SlyPatchNoBackupNotice=%s conflict patch(es) have no per-patch backup — the "Upload bundle" card above is the only recovery path.
+SlyPatchConflictDiagIntro=%s is in conflict. The engine's (git/patch) raw error output follows — this is the primary evidence for the root cause (CRLF line endings, git safe.directory permissions, context mismatch, ...):
+SlyPatchUploadBundleOk=Bundle ingested — %s file(s) written into DOL_DOCUMENT_ROOT, per-patch backup seeded for %s patch(es).
+SlyPatchUploadBundleOkReseeded=Bundle ingested — %s file(s) written into DOL_DOCUMENT_ROOT, %s existing per-patch backup file(s) overwritten (poisoned backups displaced).
+SlyPatchUploadBundleFailed=Bundle upload failed: %s
+
+# Pack layer: every successful Apply auto-creates one tar.gz holding every
+# pristine file that patch would touch, under
+# documents/slycustom/patch-backups/packs/. Supports download / cross-env
+# upload / one-click bulk restore.
+SlyPatchPacksSummary=Packs on disk: %d tar.gz file(s), %d KB total, in documents/slycustom/patch-backups/packs/ (auto-created on every successful Apply; inspect with tar -tzf).
+SlyPatchDownloadPack=Download pack
+SlyPatchRestoreFromPack=Restore from pack
+SlyPatchRestoreFromPackConfirmText=Extract every file from %s back into DOL_DOCUMENT_ROOT? (Inspect with: tar -tzf documents/slycustom/patch-backups/packs/%s; the row lands back on "not applied" when done.)
+
+# Bundle (cross-patch unified pack): the union of every sly24 patch target
+# in one tar.gz, designed for one-tar.gz rollback when multiple patches
+# touch the same file. Built automatically at the start of every applyall;
+# can also be triggered manually via "Create bundle".
+SlyPatchBundleLatest=Latest bundle: %s (built %s)
+SlyPatchBundleNone=No bundle yet — click "Create bundle" below to snapshot every patch-touched file, or run Apply all once to auto-create it.
+SlyPatchCreateBundle=Create bundle
+SlyPatchRestoreBundle=Restore from bundle
+SlyPatchCreateBundleConfirmText=Bundle every file touched by any sly24 patch (deduped union) into one tar.gz? (Independent from Apply all — no patch is applied, just a snapshot of the current state.)
+SlyPatchRestoreBundleConfirmText=Extract every file from the latest bundle (%s) back into DOL_DOCUMENT_ROOT? (One-tar.gz rollback to the pre-applyall state — designed for the case when multiple patches touch the same file.)

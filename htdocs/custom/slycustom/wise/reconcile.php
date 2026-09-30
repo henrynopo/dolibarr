@@ -39,6 +39,13 @@ if (!$user->admin && !$user->hasRight('slycustom', 'wise', 'read')) {
 
 $action = GETPOST('action', 'aZ09');
 $rowid = (int) GETPOST('rowid', 'int');
+
+// Recording a payment writes bookkeeping entries: require the wise write
+// right, not just the queue view right (admins pass).
+if ($action == 'record' && !$user->admin && !$user->hasRight('slycustom', 'wise', 'write')) {
+	accessforbidden();
+	exit;
+}
 $statusFilter = GETPOST('status', 'aZ09');
 if (!in_array($statusFilter, array(WiseIncomingPayment::STATUS_NEW, WiseIncomingPayment::STATUS_ENRICHED, WiseIncomingPayment::STATUS_RECORDED, WiseIncomingPayment::STATUS_IGNORED), true)) {
 	$statusFilter = '';
@@ -350,7 +357,7 @@ if ($resql) {
 		print '<tr class="oddeven"><td colspan="7"><span class="opacitymedium">'.$langs->trans("None").'</span></td></tr>';
 	}
 } else {
-	print '<tr class="oddeven"><td colspan="7" class="error">'.$db->lasterror.'</td></tr>';
+	print '<tr class="oddeven"><td colspan="7" class="error">'.dol_escape_htmltag($db->lasterror).'</td></tr>';
 }
 print '</table></div>';
 

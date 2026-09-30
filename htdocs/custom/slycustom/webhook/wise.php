@@ -24,7 +24,8 @@
  * (header X-Signature-SHA256, base64). Verification uses the subscription
  * public key stored in DOL_DATA_ROOT/wise_webhook/verification_key.pem.
  * Until that key file exists (bootstrap phase, before the first subscription
- * is created) deliveries are accepted and logged with a warning.
+ * is created) deliveries are acknowledged with 200 but NOT processed — an
+ * unsigned endpoint must never be able to write payments or fill the disk.
  *
  * Ingested events (WiseIncomingPayment::createFromWebhook):
  *  - balances#credit / balances#update(credit): queued into the incoming
@@ -151,10 +152,9 @@ if ((string) getDolGlobalString('WISE_WEBHOOK_IPCHECK') === '1') {
 		'18.184.251.153', '18.185.120.233', '18.188.246.233', '18.197.14.100',
 		// Sandbox
 		'18.199.110.249', '3.67.109.66', '3.78.113.13', '35.157.106.141', '54.93.137.122', '18.196.39.9');
+	// Only REMOTE_ADDR is trusted: forwarded headers (CF-Connecting-IP,
+	// X-Forwarded-For, ...) are client-controlled and would defeat the allowlist.
 	$ipCandidates = array();
-	if (!empty($_SERVER['HTTP_CF_CONNECTING_IP'])) {
-		$ipCandidates[] = trim($_SERVER['HTTP_CF_CONNECTING_IP']);
-	}
 	if (!empty($_SERVER['REMOTE_ADDR'])) {
 		$ipCandidates[] = trim($_SERVER['REMOTE_ADDR']);
 	}
@@ -222,7 +222,12 @@ if (!$bootstrap) {
 		wiseWebhookRespond(401, array('error' => 'Bad signature'));
 	}
 } else {
-	dol_syslog('wise_webhook bootstrap: no verification key yet, accepting unsigned delivery', LOG_WARNING);
+	// Bootstrap phase (no verification key yet): acknowledge so a Wise
+	// subscription/URL validation keeps working, but never dump or ingest an
+	// unsigned body — otherwise this public endpoint allows anonymous payment
+	// writes and unbounded disk filling.
+	dol_syslog('wise_webhook bootstrap: no verification key yet ('.$keyFile.'), delivery acknowledged but NOT processed. Save the subscription public key on the SLY Custom setup page (Wise tab) to resume ingestion.', LOG_WARNING);
+	wiseWebhookRespond(200, array('received' => true, 'note' => 'bootstrap: no verification key, delivery acknowledged but not processed'));
 }
 
 // 4. Persist a diagnostic dump (headers + raw body) inside DOL_DATA_ROOT,

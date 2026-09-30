@@ -131,8 +131,10 @@ if ($signature === '') {
 // 3. Verify HMAC using per-entity secret. Refuse if no secret configured.
 $secret = ShipmentStatus::getSecretKeyForEntity($db, $entity);
 if ($secret === '') {
+	// Same wording as a bad signature: distinct messages would let anonymous
+	// callers probe which entity ids have a secret configured.
 	dol_syslog('shipsgo_webhook no secret configured for entity='.$entity, LOG_WARNING);
-	slyWebhookRespond(401, array('error' => 'No webhook secret for entity'));
+	slyWebhookRespond(401, array('error' => 'Bad signature'));
 }
 
 $expected = hash_hmac('sha256', $raw, $secret);

@@ -15,7 +15,7 @@
 trait ActionsSlycustomMenuHooksTrait
 {
 	/**
-	 * Hook after discount split (remx 折扣拆分) — 仅当应用 sly22.0-remx-hooks.patch 后会被调用
+	 * Hook after discount split (remx 折扣拆分) — 仅当应用 sly24.0-remx.patch 后会被调用
 	 *
 	 * @param array            $parameters remid, newid1, newid2, socid
 	 * @param DiscountAbsolute $object     被拆分的原折扣对象

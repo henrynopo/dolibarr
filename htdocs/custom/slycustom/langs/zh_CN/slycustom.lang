@@ -37,12 +37,19 @@ SLYCUSTOM_PDF_TEMPLATES_SECTION=PDF 模板（发票 / 装箱单）
 SLYCUSTOM_SYNC_PDF_MODELS=同步 PDF 模板到列表
 SLYCUSTOM_SYNC_PDF_MODELS_TOOLTIP=将 SLY 发票与装箱单模板注册到系统，使其出现在「默认 PDF 模板」下拉中（设置 → 发票 / 发货）。若下拉中看不到模板，可点击一次。
 SLYCUSTOM_PDF_MODELS_SYNCED=PDF 模板（sly_invoice、sly_packinglist）已同步，应已出现在默认模板下拉中。
+SLYCUSTOM_MENU_ICONS=菜单图标
+SLYCUSTOM_SYNC_MENU_ICONS=同步菜单图标
+SLYCUSTOM_SYNC_MENU_ICONS_TOOLTIP=更新左侧菜单中「搜索订单」与「导出」的图标。启用模块后若图标缺失，可点击一次。
+SLYCUSTOM_MENU_ICONS_SYNCED=菜单图标已同步。刷新工具或商业页面即可看到图标。
 UpdateShips=更新 ShipsGo 状态
 ShipmentUpdated=发货状态已成功更新
+ShipsGoMissingInfo=缺少 ShipsGo 信息
+ShipsGoShipmentCreated=发货单已创建
 UnvalidateShipment=反确认发货单
 ConfirmUnvalidateShipment=确定要将发货单 %s 设回草稿吗？
 SourceOrder=来源订单
 SourcePurchaseOrder=来源采购订单
+SaleRepresentativesOfThirdParty=第三方销售代表
 SalesPerson=销售人员
 PurchasePerson=采购联系人
 SearchOrder=搜索订单
@@ -70,6 +77,7 @@ SLYExportPODepositInvoiceMissing=PO 定金发票缺失
 SLYPoDepositInvoiceMissingBanner=按付款条款应有供应商定金发票，但目前仍有 %s 个采购订单未关联已确认（已校验）的定金发票。
 SLYPoDepositInvoiceMissingBannerLink=打开 PO 定金缺失清单
 SLYPoDepositInvoiceMissingAlertShort=条款要求定金，但该 PO 尚未关联已确认（已校验）的供应商定金发票。
+DepositInvoice=定金发票
 MultipleOrdersFound=找到多条订单
 OrderContact=订单联系人
 InvoiceContact=发票联系人
@@ -109,6 +117,7 @@ SLYAllInOneRule_PO_PurchasePersonCntNe1=关联 purchase person 不是 1 个
 SLYAllInOneRule_POInv_PoCntGt1=关联 PO 超过 1 个
 SLYAllInOnePreparingDownloadFor=准备下载： 
 SLYAllInOneAllDownloadsInitiated=已全部触发下载。
+Downloading=正在下载
 # SLY Debit Note（我们发给供应商的借记通知单，仅手动生成）
 SLYDebitNoteModel=SLY Debit Note
 SLYDebitNoteModelDesc=发给供应商的借记通知单。请勿设为默认模板；仅在需要向供应商发送时手动生成 PDF。（平时多为供应商提供 credit note 给我们。）
@@ -246,3 +255,118 @@ WiseErrOverAlloc=分摊金额超过发票未付余额。
 WiseErrOverCredit=分摊合计超过实际收款金额。
 WiseErrCreate=付款创建失败（见系统日志）。
 WiseErrAlready=此笔收款已入账。
+
+# Wise 付款准备（流向 A）
+WisePayViaWise=通过 Wise 付款
+WiseTransferStatus=Wise 转账
+WisePrepareTitle=Wise 付款准备
+WiseTransferSummary=将发送的内容
+WiseSourceCurrency=付款余额币种
+WiseReferenceSent=发给供应商的参考号
+WiseReferenceSentTooltip=优先级：供应商自己的订单号（关联采购单 ref_supplier）> 供应商发票号 > 我们的发票号。绝不用我们内部 PO 号。
+WiseRefFromVendorOrder=来自供应商订单号
+WiseRefFromVendorInvoice=来自供应商发票号
+WiseRefFromOurRef=来自我们的发票号（兜底）
+WiseNoIban=供应商没有 IBAN 银行账户
+WiseCreateTransfer=创建转账（未注资）
+WisePrepareConfirm=为未付余额创建一笔未注资的 Wise 转账？只有你在 Wise 后台人工注资后才会真正付款。
+WiseTransferCreated=未注资转账 #%s 已创建。请到 Wise 后台人工注资付款（5 个工作日后未注资自动取消）。
+WiseTransferFailed=Wise 转账创建失败：
+WiseTransferRefreshed=Wise 状态已刷新：
+WiseAwaitingFunding=转账已创建，等待在 Wise 后台人工注资。
+WiseRefreshState=刷新 Wise 状态
+WiseRecordSupplierPayment=立即记录供应商付款
+WiseOutgoingDisabled=付款流程已停用（WISE_OUTGOING_ENABLED=0）
+
+# Core patch tool (admin/patches.php)
+SlyPatchTool=SLY 核心补丁
+SlyPatchToolOpen=打开补丁工具
+SlyPatchToolEntryTooltip=在浏览器中把 SLY core 定制（sly24.0-*.patch 系列）应用到官方 Dolibarr 文件，实时显示状态并自动备份原文件。
+SlyPatchToolIntro=引擎：%s。每个补丁用反向试运行检测：「已应用」= 反向补丁可干净应用。每次应用前会把涉及的文件备份到 documents/slycustom/patch-backups/。
+SlyPatchVersionWarning=本补丁系列仅适用于 Dolibarr 24.x——当前版本为 %s。使用本工具前请先为当前版本重新生成补丁。
+SlyPatchNoEngine=服务器上 git 和 patch 命令均不可用——无法从浏览器应用补丁。
+SlyPatchApplyAll=应用全部补丁（%s）
+SlyPatchApplyAllConfirmText=将所有未应用的 SLY 核心补丁应用到 Dolibarr 核心文件？原文件会备份到 documents/slycustom/patch-backups/。
+SlyPatchRescan=重新扫描状态
+SlyPatchStatusCacheNote=状态快照为 %s 秒前（10 分钟内免重扫，保护共享主机限流）——点右侧按钮强制刷新。
+PatchApplied=已应用
+PatchNotApplied=未应用
+PatchConflict=冲突
+PatchApplyDoneMsg=补丁已应用。若启用了 OPcache 请先清理（重启 php-fpm），然后执行冒烟测试。
+PatchApplyErrorMsg=至少一个补丁应用失败。请检查日志，必要时从备份恢复，并联系集成商。
+SlyPatchDescCore=全局：货币符号前置（MAIN_CURRENCY_SYMBOL_BEFORE_VALUE）、dol_eval 防护、forgeSQL 安全回退、box 与列表合计多币种
+SlyPatchDescMenuParentMatch=左侧菜单：父节点只取第一个匹配（Tools 下 SLY 导出三级菜单）
+SlyPatchDescCompta=客户发票/付款多币种：按有效余额判定已付、付款表格原币列、杂项付款银行币种
+SlyPatchDescRemx=全局折扣：多币种多路拆分（含外币拆分）+ afterSplitDiscount 钩子
+SlyPatchDescCommande=销售订单：草稿改客户、加行外币价折算、付款条件过滤、关联对象多币种、按日期字段统计
+SlyPatchDescFourn=供应商发票/订单：关联对象多币种、付款页来源订单列、换供应商付款默认值、预填链
+SlyPatchDescCommPropal=报价单：关联对象多币种
+SlyPatchDescAdmin=后台界面：debugbar、字典错误输出、邮件模板图标
+SlyPatchDescApi=REST API：生产缓存目录、禁用用户可调 API、文档/上传简化、CORS
+SlyPatchDescMiscCron=Cron 列表实体预过滤、发货/捐赠小修正
+SlyPatchDescOtherModules=会员/联系人/合同/贷款（多阶段还款）/薪资/第三方（注册资本币种）/供应商报价/发货/安装/主题
+SlyPatchDescBankTreso=银行待处理事项：多币种列与余额对齐
+SlyPatchDescInvoiceListPos=客户发票列表：来源订单列紧跟编号（数据由 slycustom 钩子提供）
+SlyPatchDescSupplierInvoiceListPos=供应商发票列表：来源订单列紧跟编号（数据由 slycustom 钩子提供）
+SlyPatchDescFacturePdf=发票类：扩展字段计算键初始化防护 + 旧 PDF 模板回退
+SlyPatchDescAccountancySfrs=记账：多币种列 + bookkeepingCreateBefore 钩子（SFRS 报表）
+SlyPatchDescLangs=语言包：SLY 翻译（en_US、fr_FR、zh_CN）
+
+# SLY 24.0 remx 拆分弹窗（sly24.0-remx.patch 引用但 Dolibarr 官方语言包未提供）
+SplitDiscountOptionsAndAmounts=拆分选项与金额
+RemxSplitLocalCurrency=按本币（公司币种）
+RemxSplitOriginalCurrency=按原币（发票币种）
+SplitInto=拆分数目
+LastPartCalculatedAutomatically=（末位自动计算）
+
+# SLY 补丁工具：智能重置 — 只还原冲突补丁实际改动的文件，然后应用全部 17 个补丁
+# 「智能」= 自动挑最便宜的数据源：本地 git 24.0.1 > 自动从 github.com 下载
+# （缓存到 documents/slycustom/downloads/）> 用户上传
+SlyPatchResetConflictFilesAndApply=还原冲突文件 + 应用全部补丁
+# 红色重置按钮正下方那行提示
+SlyPatchResetAllFailed=批量还原失败：上方日志中有 FAILED 行。
+
+# 每行独立的操作按钮（每个补丁一行表单）
+SlyPatchActions=操作
+SlyPatchApplyOne=应用
+SlyPatchResetOne=重置
+SlyPatchRestoreOne=恢复
+SlyPatchApplyOneConfirmText=立即将 %s 应用到 DOL_DOCUMENT_ROOT？（会先备份所有受影响文件，重定向后日志会显示在页面顶部。）
+SlyPatchResetOneConfirmText=从该补丁的逐项备份中还原 %s 并重新应用？（纯本地拷贝 — 不走网络/git。逐项备份在首次成功应用时建立。）
+SlyPatchResetLocalFailed=以下补丁没有逐项备份，无法本地回退：%s。逐项备份仅 slycustom ≥ 2.2.2 后首次成功 Apply 时建立。恢复路径：① 干净 24.0.1 上重新 Apply 一次；② 从 prod 复制 documents/slycustom/patch-backups/per-patch/<name>/ 过来；③ 全新 clone 24.0.1 + 重新启用 slycustom 后 Apply 一次建立备份。
+SlyPatchResetConflictConfirmText=从逐项备份还原全部冲突文件（其他文件不动）后，重新 Apply 全部 17 个补丁。继续？
+SlyPatchRestoreOneConfirmText=从该补丁的逐项备份中还原 %s？（到此为止 — 不重新应用。该行之后会显示"未应用"。）
+SlyPatchPerRowHint=每行都有独立的 Apply / Reset / Restore 按钮。Reset 只回滚并重新应用这一项补丁（用逐项备份）；Restore 只拷回备份、不重新应用；Apply 执行一次干净的正向 apply。
+SlyPatchActionApplyAll=应用全部补丁（Apply all）
+SlyPatchActionApplyAllHint=按依赖顺序正向应用 sly24.0-* 系列。自动把每个被触发的文件备份到逐项备份 + pack 层。开始时自动建一份 bundle 快照。
+SlyPatchActionCreateBundle=创建 Bundle（Create bundle）
+SlyPatchActionCreateBundleHint=把全部 17 patch 触碰的文件 union 后打包成一份 tar.gz。用于风险改动前的手动恢复点。
+SlyPatchActionRestoreBundle=从 Bundle 还原（Restore from bundle）
+SlyPatchActionRestoreBundleHint=一键回到 pre-applyall 状态。处理 cross-patch 文件重叠——per-patch restore 对共享文件给出错误的中段状态。
+SlyPatchActionResetConflict=还原冲突文件 + 应用全部（Reset conflicting files + apply all）
+SlyPatchActionResetConflictHint=对 status=Conflict 的补丁，把它们的 target files 从逐项备份 cp 回后再 Apply 全部 17 个。其他文件完全不动。
+SlyPatchActionUploadBundle=上传 Bundle tar.gz 还原（兜底）
+SlyPatchActionUploadBundleHint=补丁冲突时的兜底恢复。用干净 24.0.1 树按下面的清单打包一个 bundle 上传——工具解压、cp 回 htdocs，并按 patch 拆分（重新）建立逐项备份：已有备份会被上传内容覆盖。无网络、无 git、无下载。
+SlyPatchDownloadTargetList=下载 target file 清单
+SlyPatchUploadBundleConfirmText=上传的 tar.gz 将覆盖 DOL_DOCUMENT_ROOT 下 17 个 patch 触碰的所有目标文件（仅限清单内的目标文件，其他文件不动），并覆盖重建逐项备份（现有备份文件会被替换）。请确保这份 bundle 是从干净的 24.0.1 工作树打包的。继续？
+SlyPatchNoBackupNotice=有 %s 个冲突补丁缺少逐项备份——上方"上传 Bundle"卡是唯一的恢复路径。
+SlyPatchConflictDiagIntro=%s 处于冲突状态。引擎（git/patch）的原始报错如下（这是判断冲突根因的第一手信息，例如行尾 CRLF、git safe.directory 权限、上下文不匹配等）：
+SlyPatchUploadBundleOk=Bundle 已还原 — %s 个文件写入 DOL_DOCUMENT_ROOT，并为 %s 个 patch 建立逐项备份。
+SlyPatchUploadBundleOkReseeded=Bundle 已还原 — %s 个文件写入 DOL_DOCUMENT_ROOT，并覆盖重建 %s 个已有逐项备份文件（污染备份已被清除）。
+SlyPatchUploadBundleFailed=Bundle 上传失败：%s
+
+# 打包备份：每个 patch 一次成功 Apply 后自动生成单一 tar.gz（该 patch 影响的所有原始文件），
+# 位于 documents/slycustom/patch-backups/packs/。可用于下载 / 跨环境上传 / 批量恢复。
+SlyPatchPacksSummary=已建立打包备份：%d 个 tar.gz，合计 %d KB，存放于 documents/slycustom/patch-backups/packs/（每次成功 Apply 自动生成；预览用 tar -tzf）。
+SlyPatchDownloadPack=下载 pack
+SlyPatchRestoreFromPack=从 pack 恢复
+SlyPatchRestoreFromPackConfirmText=从 %s 这个 tar.gz 解出所有原始文件到 DOL_DOCUMENT_ROOT？（预览可用 tar -tzf documents/slycustom/patch-backups/packs/%s；完成后该行回到"未应用"。）
+
+# Bundle（跨 patch 统一打包）：所有 sly24 patch 影响的文件 union 打成单个 tar.gz，专为
+# 多 patch 触碰同一文件时的一键回退设计（每次 Apply all 自动建立；可手动「创建 Bundle」）。
+SlyPatchBundleLatest=最近 Bundle：%s（%s 建立）
+SlyPatchBundleNone=尚未建立 Bundle——点下方「创建 Bundle」打包全部受 patch 影响的文件，或先 Apply all 一次由系统自动建立。
+SlyPatchCreateBundle=创建 Bundle
+SlyPatchRestoreBundle=从 Bundle 恢复
+SlyPatchCreateBundleConfirmText=把所有 sly24 patch 影响的文件（去重 union）打包成单个 tar.gz？（独立于 Apply all 流程——不 apply 任何 patch，只快照当前状态。）
+SlyPatchRestoreBundleConfirmText=从最新 Bundle（%s）解出全部原始文件到 DOL_DOCUMENT_ROOT？（一键回到 Apply all 之前的状态，专为多 patch 触碰同一文件的回退而设计。）

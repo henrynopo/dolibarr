@@ -155,6 +155,8 @@ class WiseIncomingPayment
 	 */
 	public static function createFromWebhook($db, $entity, array $body, $raw, array $meta)
 	{
+		global $conf;
+
 		$eventType = isset($body['event_type']) && is_string($body['event_type']) ? $body['event_type'] : '';
 		$subscriptionId = isset($body['subscription_id']) && is_string($body['subscription_id']) ? $body['subscription_id'] : '';
 		$schemaVersion = isset($body['schema_version']) && is_string($body['schema_version']) ? $body['schema_version'] : '';
@@ -210,6 +212,83 @@ class WiseIncomingPayment
 		$incomingId = null;
 		$txnType = isset($data['transaction_type']) && is_string($data['transaction_type']) ? strtolower($data['transaction_type']) : '';
 		$isCredit = ($eventType === 'balances#credit' || ($eventType === 'balances#update' && $txnType === 'credit'));
+		$isTransferState = ($eventType === 'transfers#state-change');
+		if (!$isTest && $isTransferState) {
+			// Flow A write-back: update the transfer mapping; when the money
+			// leaves Wise, record the supplier payment automatically. Wise_Payment
+			// is required lazily to keep the webhook usable standalone.
+			require_once DOL_DOCUMENT_ROOT.'/custom/slycustom/class/Wise_Payment.class.php';
+			$wiseTransferId = isset($resource0['id']) ? (int) $resource0['id'] : 0;
+			$state = isset($data['current_state']) && is_string($data['current_state']) ? $data['current_state'] : '';
+			if ($wiseTransferId > 0 && $state !== '') {
+				$op = new WiseOutgoingPayment($db);
+				$newStatus = $op->applyTransferState($wiseTransferId, $state, $occurredAt);
+				if ($newStatus === WiseOutgoingPayment::STATUS_SENT) {
+					// Resolve a user for the bookkeeping write: invoice author, else first admin
+					$sql = 'SELECT t.rowid, t.entity FROM '.MAIN_DB_PREFIX.'slycustom_wise_transfer t WHERE t.wise_transfer_id = '.(int) $wiseTransferId.' ORDER BY t.rowid DESC LIMIT 1';
+					$resql2 = $db->query($sql);
+					$transferRowId = 0;
+					$transferEntity = 0;
+					if ($resql2) {
+						$obj2 = $db->fetch_object($resql2);
+						if ($obj2) {
+							$transferRowId = (int) $obj2->rowid;
+							$transferEntity = (int) $obj2->entity;
+						}
+						$db->free($resql2);
+					}
+					if ($transferRowId > 0) {
+						require_once DOL_DOCUMENT_ROOT.'/user/class/user.class.php';
+						$bookUser = null;
+						$sql = 'SELECT u.rowid FROM '.MAIN_DB_PREFIX.'user AS u';
+						$sql .= ' JOIN '.MAIN_DB_PREFIX.'facture_fourn AS f ON f.fk_user_author = u.rowid AND f.rowid =';
+						$sql .= ' (SELECT fk_facture_fourn FROM '.MAIN_DB_PREFIX.'slycustom_wise_transfer WHERE rowid = '.$transferRowId.')';
+						$resql2 = $db->query($sql);
+						if ($resql2) {
+							$obj2 = $db->fetch_object($resql2);
+							if ($obj2) {
+								$bookUser = new User($db);
+								$bookUser->fetch((int) $obj2->rowid);
+							}
+							$db->free($resql2);
+						}
+						if (!is_object($bookUser) || empty($bookUser->id)) {
+							// Fallback admin must belong to the transfer's company (superadmins live in entity 0)
+							$sql = 'SELECT rowid FROM '.MAIN_DB_PREFIX.'user WHERE admin = 1 AND statut = 1'
+								.' AND entity IN (0, '.(int) $transferEntity.')'
+								.' ORDER BY (entity = '.(int) $transferEntity.') DESC, rowid ASC LIMIT 1';
+							$resql2 = $db->query($sql);
+							if ($resql2) {
+								$obj2 = $db->fetch_object($resql2);
+								if ($obj2) {
+									$bookUser = new User($db);
+									$bookUser->fetch((int) $obj2->rowid);
+								}
+								$db->free($resql2);
+							}
+						}
+						if (is_object($bookUser) && !empty($bookUser->id)) {
+							// The payment must land in the transfer's own company: $conf may
+							// still point at the webhook receiver entity, while
+							// PaiementFourn::create writes entity = $conf->entity.
+							$prevEntity = (int) $conf->entity;
+							if ($transferEntity >= 1 && $transferEntity !== $prevEntity) {
+								$conf->setEntityValues($db, $transferEntity);
+							}
+							$pid = $op->recordSupplierPayment($transferRowId, $bookUser);
+							if ((int) $conf->entity !== $prevEntity) {
+								$conf->setEntityValues($db, $prevEntity);
+							}
+							dol_syslog('wise_webhook auto supplier payment for transfer '.$wiseTransferId.' result='.$pid.' user='.$bookUser->id.' entity='.$transferEntity, LOG_INFO);
+						} else {
+							dol_syslog('wise_webhook no user resolvable for auto payment, transfer row '.$transferRowId.' stays SENT', LOG_WARNING);
+						}
+					}
+				}
+			}
+			// Event stored, no queue row for outgoing
+			return array('event_id' => $eventId, 'duplicate' => false, 'incoming_id' => null, 'error' => null);
+		}
 		if (!$isTest && $isCredit) {
 			if (!self::isIncomingEnabled($db, $entity)) {
 				// Feature toggle OFF: keep the event (audit) but do not queue the credit.
@@ -1040,12 +1119,22 @@ class WiseIncomingPayment
 		if ($e <= 0) {
 			$e = !empty($this->entity) ? (int) $this->entity : (int) $conf->entity;
 		}
+		// Entity context must match the rows being processed: the cron job is
+		// registered with entity=0 so core never switches $conf, and currency
+		// inference (MAIN_MONNAIE per entity) would otherwise use the wrong company.
+		$prevEntity = (int) $conf->entity;
+		if ($e >= 1 && $e !== $prevEntity) {
+			$conf->setEntityValues($this->db, $e);
+		}
 		// Statement fallback first: recovers credits whose webhook was lost
 		// (Wise does not retry permanent 4xx rejections).
 		$sync = $this->syncFromStatements($e, 2);
 		dol_syslog('Wise_Incoming cron sync entity='.$e.' stats='.json_encode($sync), LOG_INFO);
 		$stats = $this->enrichPending($e, (int) $limit);
 		dol_syslog('Wise_Incoming cron enrich entity='.$e.' stats='.json_encode($stats), LOG_INFO);
+		if ((int) $conf->entity !== $prevEntity) {
+			$conf->setEntityValues($this->db, $prevEntity);
+		}
 		return 0;
 	}
 
