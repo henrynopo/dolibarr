@@ -62,7 +62,8 @@ Total                     12,474   ← 与 Dolibarr「Remaining unpaid」一致
 | chatter 提示 | 含义 | 操作 |
 |---|---|---|
 | paid in Dolibarr … | Dolibarr 侧已收款，等你登记 payment | 登记收付款并核销 |
-| Auto reset to draft: … changed after posting | Dolibarr 单据在过账后被修改，系统已把该分录**退回草稿并推入新数据** | 重新核对新值 → 再次 Post |
+| reopened for modification: entry reset to draft … | Dolibarr 单据被**重开（Modify）**，系统当场把该分录退回草稿，等重新验证时推入新数据 | 等待新数据推入后核对 → 再次 Post |
+| Auto reset to draft: … changed after posting | Dolibarr 单据在过账后被修改（未走重开流程），系统已把该分录**退回草稿并推入新数据** | 重新核对新值 → 再次 Post |
 
 ## 七、异常情况处理
 

@@ -39,7 +39,8 @@ class modOdooConnector extends DolibarrModules
 		global $conf;
 		$this->db = $db;
 
-		$this->numero = 500200;
+		// Module unique id. 500200=EmbeddedBookkeeping; 500300=OdooConnector (SLY range 500100-500999).
+		$this->numero = 500300;
 		$this->rights_class = 'odoo_connector';
 		$this->family = 'other';
 		$this->module_position = '90';

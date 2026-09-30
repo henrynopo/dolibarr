@@ -229,6 +229,76 @@ class OdooSync
 	}
 
 	/**
+	 * React to a document being reopened in Dolibarr (back to draft, "Modify"):
+	 * a posted Odoo move is reset to draft right away, so the next validation
+	 * pushes its update straight into it (event-driven model: the sync-time
+	 * auto reset stays only as a fallback). Draft moves are just flagged
+	 * To Review so the bookkeeper knows a change is coming.
+	 *
+	 * @param string $type     'invoice' (Facture) or 'bill' (FactureFournisseur)
+	 * @param int    $sourceId Dolibarr rowid of the reopened document
+	 * @return void
+	 */
+	public function syncDocumentUnvalidate($type, $sourceId)
+	{
+		$sourceId = (int) $sourceId;
+		if ($sourceId <= 0 || ($type !== 'invoice' && $type !== 'bill')) {
+			return;
+		}
+
+		$this->output = '';
+		$this->result = 0;
+
+		if (!$this->loadConfig()) {
+			return; // connector disabled/misconfigured: the sync-time fallback still covers it
+		}
+
+		$elementType = ($type === 'invoice') ? 'facture' : 'facture_fourn';
+		$mapped = $this->getMapping($elementType, $sourceId);
+		if ($mapped === null) {
+			return; // never pushed: nothing to unlock
+		}
+
+		// Live state of the mapped move (it may have been deleted manually in Odoo)
+		$found = $this->odoo->searchRead('account.move', array(array('id', '=', (int) $mapped->odoo_id)), array('id', 'state'), 1);
+		if ($found === false || empty($found) || !isset($found[0]['id'])) {
+			return; // API failure or move already gone: a deleted move is re-created on validate
+		}
+
+		// Document reference for the chatter note (light query, no full fetch);
+		// both tables use the column "ref" in Dolibarr 21+
+		$sql = 'SELECT ref AS r FROM ' . MAIN_DB_PREFIX . $elementType . ' WHERE rowid = ' . $sourceId;
+		$resql = $this->db->query($sql);
+		$ref = ($resql && ($obj = $this->db->fetch_object($resql)) && $obj->r !== null) ? $obj->r : ('#' . $sourceId);
+		$disp = ($type === 'invoice') ? 'Invoice ' : 'Vendor bill ';
+
+		if ($found[0]['state'] !== 'posted') {
+			// Already a draft: flag it, the next validation overwrites the values
+			$this->odoo->write('account.move', array((int) $mapped->odoo_id), array('review_state' => 'todo'));
+			$this->output .= $disp . $ref . ': reopened in Dolibarr, Odoo draft flagged To Review.' . "\n";
+			if (function_exists('dol_syslog')) {
+				dol_syslog(__METHOD__ . ': ' . $this->output, LOG_DEBUG);
+			}
+			return;
+		}
+
+		$reset = $this->odoo->executeKw('account.move', 'button_draft', array(array((int) $mapped->odoo_id)));
+		if ($reset === false) {
+			// Locked period / reconciled lines: keep the manual review workflow
+			$msg = 'Odoo move is posted and could not be reset to draft when the document was reopened in Dolibarr: ' . $this->odoo->error;
+			$this->output .= $disp . $ref . ': ' . $msg . "\n";
+			$this->logFailure($elementType, $sourceId, $ref, (int) $mapped->odoo_id, 'update_posted', $msg);
+		} else {
+			$this->odoo->write('account.move', array((int) $mapped->odoo_id), array('review_state' => 'todo'));
+			$this->postChatterNote((int) $mapped->odoo_id, 'Dolibarr document ' . $ref . ' was reopened for modification: entry reset to draft, the updated values are pushed when it is validated again.');
+			$this->output .= $disp . $ref . ': reopened in Dolibarr, posted Odoo move reset to draft and flagged To Review.' . "\n";
+		}
+		if (function_exists('dol_syslog')) {
+			dol_syslog(__METHOD__ . ': ' . $this->output, LOG_DEBUG);
+		}
+	}
+
+	/**
 	 * Independent cron entry: refresh the accounting date of the Odoo DRAFT
 	 * invoices and vendor bills linked to shipments whose data changed within
 	 * the lookback window (ATA/ETA updates, e.g. ShipsGo). The main sync also
@@ -1358,6 +1428,7 @@ class OdooSync
 					$this->odoo->write('account.move', array((int) $mapped->odoo_id), array('review_state' => 'todo'));
 					$this->saveMapping($elementType, (int) $invoice->id, 'account.move', (int) $mapped->odoo_id);
 					$this->output .= ($customer ? 'Invoice ' : 'Vendor bill ') . $invoice->ref . ': paid in Dolibarr, Odoo entry flagged To Review.' . "\n";
+					continue; // handled: payment-only change, nothing to push
 				} else {
 					$summary = 'new date ' . $dateInv . ', untaxed ' . $amounts['ht'] . ' ' . $amounts['code'] . ', tax ' . $amounts['tva'] . '.';
 					// Auto reset: un-post the move so the Dolibarr change can be pushed.
@@ -1376,7 +1447,6 @@ class OdooSync
 					// no continue: fall through to the normal update path, which saves
 					// the mapping (last_sync) only once the update has succeeded
 				}
-				continue;
 			}
 
 			// Customer invoices are often paid by the company of the BILLING contact,
@@ -1560,7 +1630,16 @@ class OdooSync
 						$this->output .= ($customer ? 'Invoice ' : 'Vendor bill ') . $ref . ': ' . count($dupIds) . ' Odoo moves exist for this invoice number, remove the extra ones in Odoo.' . "\n";
 						$this->logFailure($elementType, (int) $invoice->id, $ref, (int) $dupIds[0], 'duplicate', count($dupIds) . ' Odoo moves exist for this invoice number, remove the extra ones in Odoo');
 					}
-					if (isset($odooInfo[(int) $dupIds[0]]) && $odooInfo[(int) $dupIds[0]]['state'] === 'posted') {
+					// The adopted move is NOT in the batch-preloaded $odooInfo (this
+					// document had no mapping row, that is why we are here): fetch its
+					// state directly - writing a posted move would fail the update.
+					$adopted = $this->odoo->searchRead('account.move', array(array('id', '=', (int) $dupIds[0])), array('id', 'state'), 1);
+					if ($adopted === false) {
+						$this->output .= ($customer ? 'Invoice ' : 'Vendor bill ') . $ref . ': adopted move state check failed (' . $this->odoo->error . '), skipping.' . "\n";
+						$this->logFailure($elementType, (int) $invoice->id, $ref, (int) $dupIds[0], 'duplicate', 'Adopted move state check API error: ' . $this->odoo->error);
+						continue;
+					}
+					if (!empty($adopted) && isset($adopted[0]['state']) && $adopted[0]['state'] === 'posted') {
 						// Already posted and reconciled in Odoo: restore the mapping only
 						$this->saveMapping($elementType, (int) $invoice->id, 'account.move', (int) $dupIds[0]);
 						continue;
@@ -1791,10 +1870,13 @@ class OdooSync
 	}
 
 	/**
-	 * Remove the Odoo moves of invoices that are no longer valid in Dolibarr:
-	 * deleted, reopened to draft or abandoned (e.g. refunded then cancelled
-	 * without a credit note). Draft moves are deleted together with the mapping;
-	 * posted moves cannot be deleted, a warning asks for manual handling.
+	 * Remove the Odoo moves of invoices that are gone from Dolibarr: deleted
+	 * or abandoned (e.g. refunded then cancelled without a credit note).
+	 * Reopened documents (fk_statut = 0, "Modify") are deliberately NOT
+	 * cleaned: their Odoo draft stays in place (reset by the unvalidate
+	 * trigger) and the next validation pushes the update into it. Draft moves
+	 * are deleted together with the mapping; posted moves cannot be deleted,
+	 * a warning asks for manual handling.
 	 *
 	 * @param string $elementType facture, facture_fourn
 	 * @param string $table       llx facture / facture_fourn table name
@@ -1808,7 +1890,7 @@ class OdooSync
 		$sql .= " FROM ".$prefix."odoo_connector_sync m";
 		$sql .= " LEFT JOIN ".$prefix.$table." f ON f.rowid = m.fk_source_id";
 		$sql .= " WHERE m.element_type = '".$this->db->escape($elementType)."' AND m.entity = ".((int) $this->entity);
-		$sql .= " AND (f.rowid IS NULL OR f.fk_statut IN (0, 3))";
+		$sql .= " AND (f.rowid IS NULL OR f.fk_statut = 3)";
 		$resql = $this->db->query($sql);
 		if (!$resql) {
 			return;

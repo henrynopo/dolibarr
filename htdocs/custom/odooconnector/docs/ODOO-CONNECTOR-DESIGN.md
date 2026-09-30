@@ -26,7 +26,10 @@ Sync can be **Dolibarr → Odoo** (push), **Odoo → Dolibarr** (pull), or **bid
 
 - **Dolibarr** exposes data via internal PHP classes (`Facture`, `FactureFournisseur`, `ExpenseReport`) and optionally REST API.
 - **Odoo Online** is accessed via **JSON-RPC** (recommended) or XML-RPC from PHP. REST is available from Odoo 17+.
-- A **custom module** (`odoo_connector`) runs inside Dolibarr: it uses a cron job to run sync logic that reads from Dolibarr DB/API and calls Odoo’s JSON-RPC API.
+- A **custom module** (`odooconnector`) runs inside Dolibarr. Sync is **event-driven**: a
+  trigger pushes on `BILL_VALIDATE` / `BILL_SUPPLIER_VALIDATE` (validate) and resets the
+  Odoo entry on `BILL_UNVALIDATE` / `BILL_SUPPLIER_UNVALIDATE` (reopen/"Modify"). An
+  optional hourly cron job is a retry/fallback channel, not the primary path.
 
 ---
 
@@ -47,15 +50,20 @@ Sync can be **Dolibarr → Odoo** (push), **Odoo → Dolibarr** (pull), or **bid
 
 ### 2.1 Link records: external reference
 
-- **Dolibarr → Odoo**: When we create or update a record in Odoo from Dolibarr, store Odoo’s `id` in Dolibarr (e.g. `facture.ref_ext`, or a dedicated table `llx_odoo_connector_sync` with `element_type`, `fk_source_id`, `odoo_model`, `odoo_id`, `last_sync`).
+- **Dolibarr → Odoo**: When we create or update a record in Odoo from Dolibarr, store Odoo’s `id` in the dedicated mapping table `llx_odoo_connector_sync` (`element_type`, `fk_source_id`, `odoo_model`, `odoo_id`, `last_sync`). Core tables are never altered.
 - **Odoo → Dolibarr**: When we create a record in Dolibarr from Odoo, set `ref_ext` to Odoo’s external id (e.g. `odoo_account.move_123`) or store in the same mapping table.
 - Use **one mapping table** for all entity types to avoid schema changes on core tables and to support both directions.
 
 ### 2.2 Direction and conflict
 
 - **Push only** (Dolibarr → Odoo): Dolibarr is the master where all documents are recorded; Odoo is used for accounting only.
-- **Trigger**: a record is pushed when validated AND re-pushed on later modification (Dolibarr `tms` > mapping `last_sync`).
-- Odoo records stay **draft** (not posted) so Dolibarr edits can be re-pushed; write to a posted move is not attempted.
+- **Event-driven push**: a document is pushed when validated (trigger, immediate) and re-pushed on later modification (Dolibarr `tms` > mapping `last_sync`, picked up by the next sync run / manual "Sync now").
+- Odoo records stay **draft** (not posted) so Dolibarr edits can be re-pushed.
+- **Posted entries**: reopening the document in Dolibarr ("Modify") resets the linked Odoo
+  entry to draft immediately (trigger). If that is missed, the sync auto-resets when it
+  detects a change on a posted entry (draft + To Review), then pushes. Odoo refusals
+  (locked period, reconciled lines) fall back to a manual workflow: chatter warning +
+  failure log entry.
 
 ### 2.3 What we push
 
@@ -87,10 +95,13 @@ default account when empty:
 Lifecycle rules:
 
 - Synced set: invoices with `fk_statut IN (1, 2)` (validated or paid).
-- Invoices deleted / reopened to draft / abandoned after being synced (e.g. refunded then
+- Invoices **deleted or abandoned** (fk_statut = 3) after being synced (e.g. refunded then
   cancelled without a credit note): the Odoo **draft** move is deleted and the mapping row
   removed. Posted moves cannot be deleted automatically: a warning asks for a manual reversal
   in Odoo.
+- Invoices **reopened** (fk_statut = 0, "Modify") are NOT cleaned: their Odoo entry is reset
+  to draft by the unvalidate trigger and kept in place, and the next validation pushes the
+  update into the same entry (same Odoo id).
 - Deposit handling: Dolibarr deposit invoices are pushed as customer prepayments (liability
   account) / vendor prepayments (asset account); standard invoices and vendor bills that deduct
   deposits via lines/discount carry the net revenue/expense.
@@ -100,11 +111,20 @@ Lifecycle rules:
 | multicurrency_code | account.move.currency_id (res.currency ensured) |
 | multicurrency_total_ht | invoice_line_ids[0].price_unit |
 | multicurrency_total_tva | invoice_line_ids[1].price_unit (account = ODOO_CONNECTOR_TAX_ACCOUNT_ID) |
-| facnumber / ref_supplier | ref |
+| ref (Dolibarr 21+; formerly facnumber) / ref_supplier | ref |
 | (fixed const) | company_id = ODOO_CONNECTOR_COMPANY_ID |
 | (auto or const) | journal_id = first sale/purchase journal, or ODOO_CONNECTOR_*_JOURNAL_ID |
 
-Partner sync: `res.partner` matched by Dolibarr `code_client` (stored in Odoo `ref`), created minimal (name/ref/email) when missing. Never matched by name.
+Partner sync: `res.partner` is matched by a chain, first hit wins —
+1. Odoo `ref` = Dolibarr `code_client` or `code_fournisseur` (role-preferred order);
+2. VAT number (both spellings, with/without country prefix);
+3. a unique company email match.
+A partner matched by VAT/email gets the Dolibarr code written back into its empty `ref`,
+so later runs take the fast path. Nothing matches → created with name/ref/email/vat/
+address/phone and the customer/supplier rank (when the Odoo version still has those
+fields). Name is **never** a match key (a homonym would silently merge two companies);
+when a same-name partner already exists, the sync output asks for a manual merge in Odoo
+(Contacts → Merge) instead.
 
 Entity mapping: Dolibarr entity 1 ↔ Odoo company ID 1 (SLY Food Pte. Ltd.), fixed by config `ODOO_CONNECTOR_COMPANY_ID` because the Odoo database holds 7 companies.
 
@@ -112,20 +132,23 @@ Entity mapping: Dolibarr entity 1 ↔ Odoo company ID 1 (SLY Food Pte. Ltd.), fi
 
 ## 3. Implementation in Dolibarr
 
-### 3.1 Module: `odoo_connector`
+### 3.1 Module: `odooconnector`
 
-- **Location**: `htdocs/custom/odoo_connector/`
+- **Location**: `htdocs/custom/odooconnector/`
 - **Components**:
-  - **modOdooConnector.class.php**: Module descriptor, permissions, **cron job** for sync.
-  - **class/OdooConnector.class.php**: Odoo **JSON-RPC client** (login, `call_kw` for search_read, create, write).
-  - **class/OdooSync.class.php**: Sync logic:
-    - Load config (Odoo URL, db, user, password).
-    - For each entity (invoices, supplier invoices, expenses):
-      - Select records to sync (e.g. modified since last run, or with `ref_ext` empty for push).
-      - Map to Odoo fields; create or update in Odoo; store Odoo id in mapping table or `ref_ext`.
-    - Optional: pull from Odoo and create/update Dolibarr (with mapping table).
-  - **admin/setup.php**: Configuration (Odoo URL, database, user, password, sync direction, which entities to sync).
-  - **Cron**: Runs `OdooSync::runSync()` every X minutes (e.g. 15–60).
+  - **modOdooConnector.class.php**: Module descriptor, permissions, optional cron jobs.
+  - **core/triggers/interface_99_modOdooConnector_OdooConnector.class.php**: event entry
+    points — validate pushes (`BILL_VALIDATE` / `BILL_SUPPLIER_VALIDATE` →
+    `OdooSync::syncDocumentNow`), reopen resets (`BILL_UNVALIDATE` /
+    `BILL_SUPPLIER_UNVALIDATE` → `OdooSync::syncDocumentUnvalidate`).
+  - **class/OdooConnector.class.php**: Odoo **JSON-RPC client** (authenticate, execute_kw,
+    searchRead, create, write, unlink).
+  - **class/OdooSync.class.php**: Sync logic (event handlers above + `runSync` for cron /
+    manual runs: invoices, vendor bills, expenses, revoked-move cleanup).
+  - **admin/setup.php**: Configuration and the sync failure log.
+  - **Cron (optional)**: `OdooSync::runSync()` every hour (retry/fallback) and
+    `OdooSync::runShipmentDateSync()` (required when the accounting date follows shipment
+    ATA/ETA, since those updates fire no invoice event).
 
 ### 3.2 Config (stored in Dolibarr const or conf)
 
@@ -163,25 +186,34 @@ Use this to know which Dolibarr record corresponds to which Odoo id and to avoid
 ## 4. Flow Summary
 
 1. **Setup**: Admin configures Odoo URL, DB, user, password and which entities to sync in **Setup → Odoo Connector**.
-2. **Cron**: Periodically, `OdooSync::runSync()`:
-   - Authenticates with Odoo (JSON-RPC).
-   - For **customer invoices**: gets list of Facture (e.g. validated, not yet synced or updated since last sync); for each, creates or updates `account.move` (out_invoice); saves Odoo id in mapping.
-   - Same for **vendor bills** (FactureFournisseur → account.move in_invoice).
-   - For **expenses**: gets ExpenseReport; creates/updates `account.move` (in_invoice, draft, expense journal, partner `DOL-EXPENSES`); saves mapping.
-3. **Optional pull**: If direction is pull or both, read from Odoo (e.g. new payments), create or update Dolibarr records and mapping.
-4. **Logs**: Log sync results (created/updated/failed) in Dolibarr syslog or a dedicated log table for debugging.
+2. **Validate** (trigger, immediate): the invoice/vendor bill is pushed as an Odoo draft
+   (`account.move`), or the existing draft is updated, and the mapping row is saved. A
+   duplicate guard adopts an existing Odoo move pushed earlier for the same invoice number
+   (crash recovery) instead of creating a second copy.
+3. **Reopen** ("Modify", trigger, immediate): a posted Odoo entry is reset to draft and
+   flagged To Review, so step 2 can push the changes into it on the next validation.
+4. **Cron / manual "Sync now"** (retry & fallback): re-pushes everything changed since its
+   last run (`tms` > `last_sync`), cleans moves of deleted/abandoned documents, flags
+   paid-in-Dolibarr posted entries To Review. The shipment date cron refreshes the
+   accounting date of drafts linked to shipments whose ATA/ETA changed.
+5. **Logs**: failures are recorded per document in `llx_odoo_connector_synclog` (listed in
+   the module setup page) and cleared automatically when a retry succeeds.
 
 ---
 
 ## 5. How to Achieve Synced Accounting – Checklist
 
-- [ ] Install and enable **odoo_connector** module in Dolibarr.
+- [ ] Install and enable **odooconnector** module in Dolibarr.
 - [ ] Configure Odoo Online URL, database, user and password in module setup.
 - [ ] Enable sync for **Customer invoices**, **Vendor bills**, **Expenses** as needed.
-- [ ] Run cron (or manual “Sync now” in setup) so that:
-  - New/updated Dolibarr invoices and bills are pushed to Odoo.
-  - New/updated Dolibarr expense reports are pushed to Odoo.
-- [ ] Optionally map **third parties** (societe ↔ res.partner) first to avoid duplicate partners in Odoo.
-- [ ] Monitor logs and mapping table to fix duplicates or failed records.
+- [ ] Day-to-day: just **Validate** in Dolibarr — the push is immediate (event-driven);
+  reopening with **Modify** resets the linked Odoo entry so the next validation updates it.
+- [ ] Optionally enable the hourly sync cron as an automatic retry channel, and the
+  shipment date cron when the accounting date follows shipment ATA/ETA.
+- [ ] Partner duplicates from the pre-connector Odoo base: run one sync (VAT/email matches
+  get their `ref` backfilled automatically), then merge the leftovers in Odoo
+  (Contacts → Merge) — the sync output lists the same-name candidates.
+- [ ] Monitor the sync failure log in the module setup page; entries clear themselves when
+  a retry succeeds.
 
 This design allows you to have **synchronised accounting records** between both systems while keeping Dolibarr as the primary source for invoicing and expenses if you use push-only, or to extend later to bidirectional sync with clear rules.

@@ -58,22 +58,31 @@ class InterfaceOdooConnector extends DolibarrTriggers
 			return 0;
 		}
 		// Dolibarr trigger names: customer invoice validate = BILL_VALIDATE (facture.class.php),
-		// vendor bill validate = BILL_SUPPLIER_VALIDATE (fournisseur.facture.class.php).
-		if ($action !== 'BILL_VALIDATE' && $action !== 'BILL_SUPPLIER_VALIDATE') {
+		// vendor bill validate = BILL_SUPPLIER_VALIDATE (fournisseur.facture.class.php);
+		// reopening for modification ("Modify", back to draft) = BILL_UNVALIDATE / BILL_SUPPLIER_UNVALIDATE.
+		$validates = array('BILL_VALIDATE', 'BILL_SUPPLIER_VALIDATE');
+		$unvalidates = array('BILL_UNVALIDATE', 'BILL_SUPPLIER_UNVALIDATE');
+		if (!in_array($action, $validates) && !in_array($action, $unvalidates)) {
 			return 0;
 		}
 		if (empty($object) || (int) $object->id <= 0) {
 			return 0;
 		}
 
-		$type = ($action === 'BILL_VALIDATE') ? 'invoice' : 'bill';
-
 		// dol_include_once (not a hardcoded DOL_DOCUMENT_ROOT.'/custom/...'):
 		// official module convention, resolves whatever dol_document_root the
 		// module is installed under
 		dol_include_once('odooconnector/class/OdooSync.class.php');
 		$sync = new OdooSync($this->db);
-		$sync->syncDocumentNow($type, (int) $object->id);
+		if (in_array($action, $validates)) {
+			$type = ($action === 'BILL_VALIDATE') ? 'invoice' : 'bill';
+			$sync->syncDocumentNow($type, (int) $object->id);
+		} else {
+			// Event-driven unlock: reset the Odoo entry to draft right when the
+			// document is reopened, so the next validation pushes into it directly
+			$type = ($action === 'BILL_UNVALIDATE') ? 'invoice' : 'bill';
+			$sync->syncDocumentUnvalidate($type, (int) $object->id);
+		}
 
 		// Sync failures are logged inside the connector (synclog + syslog) and must
 		// never block the Dolibarr validation flow; the hourly cron stays the fallback.
