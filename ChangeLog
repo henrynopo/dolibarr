@@ -3,6 +3,79 @@ English Dolibarr ChangeLog
 --------------------------------------------------------------
 
 
+***** ChangeLog for SLY 24.0.1 compared to SLY 22.0.4 *****
+
+For users:
+- NEW: Dolibarr 22.0.4 → 24.0.1 upgrade on SLY24.0.1 branch.
+  Production on SLY22.0.4 unchanged. See doc/CONF-24.md and
+  custom/slycustom/patches/APPLY-ON-24.md for the upgrade runbook.
+- NEW: Setup → Other Setup must add 2 constants before the UI looks like v22:
+  • MAIN_STATISTICS_IN_MENU = 1 (re-enables Statistics menu entries hidden by v24)
+  • MAIN_CURRENCY_SYMBOL_BEFORE_VALUE = 1 (works with sly24.0-core.patch for
+    "currency symbol before value" layout)
+- NEW: conf/conf.php must whitelist extra eval functions for v24 dol_eval():
+  $dolibarr_main_restrict_eval_methods = 'getDolGlobalString, getDolGlobalInt,
+    getDolCurrency, getDolEntity, getDolDBType, fetchNoCompute, hasRight, isAdmin,
+    isExternalUser, isModEnabled, isStringVarMatching, abs, min, max, round, dol_now,
+    preg_match, isset, empty, is_array, array_column, array_sum';
+  Without this, shipment ETA/ATD computed extrafields raise a fatal 500.
+- NEW: SG date format dd/mm/yyyy now ships in langs/en_SG/main.lang (2 lines).
+  Set user language to "English (Singapore)" to activate.
+
+For developers — 17 sly24.0-*.patch core changes (clean-apply from 24.0.1):
+- CORE: price() with MAIN_CURRENCY_SYMBOL_BEFORE_VALUE; forgeSQLFromUniversalSearchCriteria
+  safe fallback for malformed filter strings (defense-in-depth for select_company incidents);
+  dol_eval $object/$obj null guards; boxes + list_print_total multicurrency totals.
+- MENU: Menubase left-tree parent match picks the first matching node, enabling the
+  Tools → SLY Exports three-level submenu.
+- COMPTA: Facture card + various_payment + compta/index multicurrency rows/columns.
+  Paiement.php/ajaxpayment take v24 native version (SLY's reimplementation is
+  functionally subsumed).
+- REMX: Multi-currency global discount split (N-way, including foreign-currency split)
+  + new afterSplitDiscount hook (slycustom listens).
+- COMMANDE: SO draft → change customer; addline foreign-currency price conversion;
+  linkedobject multicurrency; date-field stats; salesrep column priority + cache.
+- FOURN: Supplier invoice/order linkedobject multicurrency; draft supplier change
+  with cascading payment terms/mode/bank account; supplier proposal → PO default chain.
+- COMM-PROPOSAL: Proposal linkedobject multicurrency.
+- ADMIN: debugbar, dict error output, mail template icons, company adjustments
+  (admin/supplier_invoice.php + admin/supplier_order.php excluded — both files removed by v24).
+- API: production cache dir, disable user-callable API, document upload simplification,
+  CORS rules.
+- MISC/CRON: cron processing=0 prefilter; entity=0 shows all entities;
+  no confirm dialog on cron delete; delivery default args; don setPaid cleanup.
+- OTHER-MODULES: adherents/contact/contrat/loan (schedule_phases multi-phase repayment)/
+  salaries/societe (capital_currency)/supplier_proposal/expedition/install/theme tweaks.
+- BANK-TRESO: bank pending items multicurrency columns + balance alignment.
+- INVOICE LIST POSITIONS: customer invoice list + supplier invoice list "source order"
+  column placement (data from slycustom hook).
+- FACTURE PDF FALLBACK: extrafields computed init guard + old PDF template fallback.
+- ACCOUNTANCY-SFRS: BookKeeping multicurrency columns + bookkeepingCreateBefore hook
+  (sfrs_reports module listens).
+- LANGS: 10 SLY lang files (en_US×5, fr_FR/main, zh_CN/receptions, en_SG/main,
+  zh_CN/compta).
+
+For developers — 20 SLY custom modules migrated:
+- NEW: Low-risk (10) — docsemployes, ecv, grh, langpicker, listincsv,
+  previewdocuments, recrutement, rubis, tos, totp2fa.
+- NEW: Mid-risk (6) — changetiers, customlink, mydoli, strongauth, sgpayroll, odooconnector.
+  strongauth requires `composer install` (vendor/ ignored).
+- NEW: High-risk (3) — embeddedbookkeeping, supplierorderfromorder, sfrs_reports.
+- FIX: supplierorderfromorder/cbn.php:860 + ordercustomer.php:1673
+  's.fournisseur = 1' → '(s.fournisseur:=:1)'
+  (v24 forgeSQLFromUniversalSearchCriteria requires universal search syntax;
+  raw SQL falls back to '1=2' → empty supplier dropdown → white screen).
+- NEW: slycustom 2.2.19 → 2.3.0 (need_dolibarr_version 14 → 24).
+  Migrated last because it depends on hooks added by the core patches above.
+
+For developers — infrastructure:
+- NEW: htdocs/custom/.gitignore copied from SLY22.0.4 to whitelist the 20 SLY modules
+  for tracking (v24 upstream ignores the entire custom/ directory).
+- NEW: SLY24.0.1 worktree branch + tag SLY24.0.1.
+- NEW: slycustom/patches/sly24.0-*.patch series (17 patches) kept under
+  custom/slycustom/patches/ for future re-application / regeneration.
+
+
 ***** ChangeLog for 24.0.1 compared to 24.0.0 *****
 
 FIX: $arrayfields used before definition in don/list.php
