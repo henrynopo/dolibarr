@@ -1,0 +1,236 @@
+@charset "UTF-8";
+div.mainmenu.grh.topmenuimage{
+    background-image: url(../../grh/img/grh.png);
+/*    background-size: 24px;*/
+}
+
+.icon-grh.mainmenu{
+    background-image: url(../../grh/img/grh.png);
+/*    background-size: 24px;*/
+}
+@media only screen and (max-width: 767px){
+    #id-right {
+        /*width:100% !important;*/
+        width:100% ;
+    }
+}
+
+.forms_grh #wrapper ul{
+    list-style: none;
+}
+.forms_grh #wrapper ul li{
+    display: inline-block;
+    padding: 2px;
+    position: relative;
+    vertical-align: bottom !important;
+
+}
+.forms_grh #wrapper .fa-times:before{
+    color: #fff !important;
+}
+
+.forms_grh #wrapper ul li img{
+    height: 80px;
+    width: auto;
+    border: solid 1px #ccc;
+    background: #fff;
+}
+.forms_grh #wrapper ul li span{
+    position: absolute;
+    width: 17px;
+    height: 17px;
+    bottom: 0;
+    top: 0;
+    right: 0;
+    text-align: center;
+    line-height: 16px;
+    border: solid 1px #b94949;
+    background: #dc5656;
+    color: #fff;
+    font-size: 11px;
+}
+.forms_grh #wrapper ul li span:hover{
+    background: #a44242;
+}
+.forms_grh #wrapper ul li:hover span{
+    display: block;
+}
+/*.forms_grh #wrapper a.delete_file {
+    position: relative;
+}*/
+#lightbox {
+    position: fixed;
+    overflow: auto;
+    z-index: 8888;
+    top: 0;
+    left: 0;
+    width: 100%;
+    padding: 14px 0;
+    height: 100%;
+    background-color: rgba(0,0,0,0.5);
+    text-align: center;
+}
+#lightbox p {
+    text-align:right; 
+    color:#fff; 
+    margin-right:20px; 
+    font-size: 2em;
+    font-weight: bold;
+    cursor: pointer;
+}
+#lightbox img {
+    box-shadow:0 0 25px #111;
+    -webkit-box-shadow:0 0 25px #111;
+    -moz-box-shadow:0 0 25px #111;
+    max-width:800px;
+    background: #fff;
+}
+
+
+.delete_img {float:right;}
+.mrg-btm-10 {margin-bottom: 10px;}
+.hidden {display: none;}
+
+
+.index_infousers #s2id_userid{width: 100% !important;}
+
+
+/* css pointage_form*/
+
+.pointage_form {
+    background: #efefef;
+    padding:4px;
+}
+
+.ScrollOnlyMe{
+    overflow-y:scroll;
+    width: 100%;
+    max-height:600px;
+}
+
+.table_content{
+    margin-bottom:0;    
+    background: grey;
+}
+
+.table_content .weekendtoshow{
+    /*display: table-cell !important;*/
+    padding: 1px !important;
+}
+.table_content td.salary_user * {
+    color: #E7505A;
+}
+.table_content td.non_salary_user * {
+    color: #3598DC;
+}
+.guide_salariegrh{
+    /*font-family: roboto,Open Sans !important;*/
+    font-size: 12px;
+}
+.guide_salariegrh>div{
+    float: left;
+    padding: 10px;
+}
+.guide_salariegrh span{
+    width: 11px;
+    height: 11px;
+    border-radius: 50%;
+    display: inline-block;
+}
+.guide_salariegrh .non_salarie_ span{
+    background: #3598DC;
+}
+.guide_salariegrh .salarie_ span{
+    background: #E7505A;
+}
+.guide_salariegrh .salarie_ {
+    margin-right: 20px;
+}
+.table_content .tr[data="td_td"] td:nth-child(even) {
+    background:#efefef;
+}
+.table_content td.weekendtohide,td.weekendtoshow{
+    background: gray !important;
+}
+.ScrollOnlyMe table td input[type=text]{
+    padding: 4px 0px
+}
+.table_content td.user_pointage,td.thm_td{
+    border-right: 1px solid #e6e6e6;
+    white-space: nowrap;
+    font-size: 11px;
+    padding-right: 5px;
+}
+.pointage_form .periodeaaaamm{
+    max-width: 190px; 
+    width: 190px;
+}
+.pointage_form .select_period{
+    width: 353px;
+}
+.pointage_form .declare_no{
+    width: 265px;
+    text-align: left;
+}
+.pointage_form td.declare_no label { 
+    padding: 0 8px; 
+}
+/*#id-container .side-nav {
+    float: left !important;
+}*/
+/*#id-container {
+    display: block !important;
+}*/
+/*#id-right {
+    display: block !important;
+    opacity : 0;
+    float: left !important;
+}*/
+.table_content td{
+    white-space: nowrap;
+}
+.form_exportxls input[type=submit] {
+    padding: .69em 1em;
+    font-weight: bold;
+}
+.table_content button[disabled], .table_content html input[disabled]{
+    text-align: center;
+}
+table#header-fixed{
+    margin-bottom: 0;
+}
+.table_content .firsttrtab1 td{
+    color: #fff;font-size: 10px;
+}
+.table_content .firsttrtab1{
+    background-color: #808080 !important;
+    background: #808080 !important;
+    height: 30px;
+}
+.table_content .firsttrtab1 .right-arrow{text-align: center;display: inline-block;
+    position: relative;
+    background: #f07b6e;
+    padding: 0 3px 0 3px;}
+.table_content .firsttrtab1 .right-arrow:after{
+    content: '';display: 
+    block;position: absolute;
+    left: 100%;
+    top: 50%;
+    margin-top: -10px;
+    width: 0;
+    height: 0;
+    border-top: 10px solid transparent;
+    border-right: 10px solid transparent;
+    border-bottom: 10px solid transparent;
+    border-left: 10px solid #f07b6e;
+}
+.icon-plus-filter.search_icons_container{
+    margin-right: 4px;
+}
+#risques_txt, #observation_txt{
+    width: 100%;
+}
+
+.guide_salariegrh .update_salbas{
+    float: right;
+}

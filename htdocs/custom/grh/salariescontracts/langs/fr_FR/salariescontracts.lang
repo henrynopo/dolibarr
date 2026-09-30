@@ -1,0 +1,50 @@
+# Salaries contracts
+# Copyright (C) 2015 Yassine Belkaid <y.belkaid@nextconcept.ma>
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
+#
+# Générique
+#
+
+# Module label 'ModuleXXXName'
+# (where XXX is value of numeric property 'numero' of module)
+Module800000Name = contrats des salaries
+# Module description 'ModuleXXXDesc'
+# (where XXX is value of numeric property 'numero' of module)
+Module800000Desc = Ce module vous permet de créer des contrats pour vos salaries
+
+#
+# Page d'administration
+#
+MyModuleSetup = Configuration du module contrats des salaries
+Settings = Réglages
+MyModuleSetupPage = Page de réglage de contrats des salaries
+
+#
+# Page À propos
+#
+About = À propos
+MyModuleAbout = À propos de contrats des salaries
+MyModuleAboutPage = Page à propos de contrats des salaries
+
+#
+# Page d'exemple
+#
+MyPageName = Contracts des salaries
+ListOfSalaries = La liste des contrats
+New = Nouveau
+List = Liste
+NotActiveModSC = Le module des contrats des salaries est désactivé
+JobContract= Contrat de travail
