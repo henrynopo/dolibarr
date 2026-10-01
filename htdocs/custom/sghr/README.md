@@ -1,6 +1,32 @@
-# SG Payroll - Singapore Payroll for Dolibarr
+# SG HR & Payroll
 
-Singapore payroll module for Dolibarr ERP/CRM.
+Singapore HR & payroll module for Dolibarr ERP/CRM.
+
+## What's new in 2.0.0 (2026-10-01)
+
+Renamed from **SGPayroll** to **SG HR & Payroll** and absorbed two modules:
+
+- **docsemployes** (employee documents + expiry reminders) → `sghr/docsemployes/`,
+  user-card tab + "Employee Documents" left menu, permission tree `sghr->docs`
+- **ecv** (CV / skills / experience management) → `sghr/ecv/`,
+  "CV Management" left menu, permission tree `sghr->cv`
+- New **Candidate to Employee** conversion (`sghr/candidate_convert.php`,
+  left menu) turning a recrutement candidacy into a Dolibarr user +
+  SG HR employee profile in three steps
+
+**Zero data migration**: tables `llx_sgpayroll_*`, `llx_docsemployes`,
+`llx_ecv*` keep their original names. User-right bindings survive the
+rename — permission ids are unchanged and `init()` relabels their module.
+
+### Upgrade from sgpayroll/docsemployes/ecv (deploy sequence)
+
+1. Disable modules **SGPayroll**, **docsemployes** and **ecv** in the
+   module list (cleans their consts/menus), then delete their directories.
+2. On the server: `mv documents/sgpayroll documents/sghr` (payslip file
+   modulepart changed).
+3. Enable **SG HR & Payroll** — `init()` runs the rename migration
+   (rights/cronjobs labels, SGPAYROLL_* consts, menu cleanup) and
+   rebuilds menus/tabs.
 
 ## Compatibility
 

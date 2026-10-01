@@ -72,7 +72,7 @@ class modSghr extends DolibarrModules
 		$this->name = "SG HR & Payroll"; // Hardcoded to avoid runtime param errors
 		$this->description = "SG HR & Payroll — CPF, SDL/SHG, IRAS AIS, Payslips, employee documents";
 		$this->descriptionlong = "Singapore HR & payroll for Dolibarr: CPF contributions (OW/AW), statutory levies (SDL/SHG/FWL), IRAS AIS exports (IR8A/IR21), payroll runs & payslips, leave/claims integration, employee document management with expiry reminders (absorbing docsemployes), and CV/skill management (absorbing ecv).";
-		$this->version = '2.0.0-dev';
+		$this->version = '2.0.0';
 		$this->const_name = 'MAIN_MODULE_SGHR';
 		$this->picto = 'salary';
 
