@@ -42,4 +42,4 @@ RECEPTION_CHANGE_THIRDPARTY = 收货单中允许更换往来方
 EVENT_CHANGE_THIRDPARTY = 将更换操作记录到日程事件
 ThirdpartyChangeEvent = 往来方更换
 GlobalParams = 常规设置
-ModuleFamilyHaoPie=HaoPie
+ModuleFamilyHaoSG=HaoSG

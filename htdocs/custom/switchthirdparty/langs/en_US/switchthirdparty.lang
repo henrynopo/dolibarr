@@ -40,4 +40,5 @@ CONTRAT_CHANGE_THIRDPARTY = Modify thirdparty in an contract
 RECEPTION_CHANGE_THIRDPARTY = Modify thirdparty in a reception
 EVENT_CHANGE_THIRDPARTY = Save changes on events
 ThirdpartyChangeEvent = Thirdparty changes
-GlobalParams = General settingsModuleFamilyHaopie=HaoPie
+GlobalParams = General settings
+ModuleFamilyHaoSG=HaoSG

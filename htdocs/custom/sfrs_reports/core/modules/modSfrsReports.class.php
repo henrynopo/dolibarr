@@ -62,7 +62,7 @@ class modSfrsReports extends DolibarrModules
 		// Range 500000+ is reserved for custom/3rd-party modules (see Dolibarr wiki).
 		$this->numero = 501200;
 
-		$this->family = 'HaoPie';
+		$this->family = 'HaoSG';
 		$this->module_position = '75';
 
 		// Module label (no space allowed)

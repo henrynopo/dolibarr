@@ -28,4 +28,4 @@ LangPickerPosition = Position from the left or right end (in pixel)
 LoginPageSettings = Login Page Settings
 AddToLoginPage = Add to login page (the language list will contain all the available languages in Dolibarr)
 DefaultLangOnLoginPage = Default language on login page (language to use by default when no language is selected)
-ModuleFamilyHaoPie=HaoPie
+ModuleFamilyHaoSG=HaoSG

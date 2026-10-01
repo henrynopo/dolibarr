@@ -370,4 +370,4 @@ SlyPatchCreateBundle=创建 Bundle
 SlyPatchRestoreBundle=从 Bundle 恢复
 SlyPatchCreateBundleConfirmText=把所有 sly24 patch 影响的文件（去重 union）打包成单个 tar.gz？（独立于 Apply all 流程——不 apply 任何 patch，只快照当前状态。）
 SlyPatchRestoreBundleConfirmText=从最新 Bundle（%s）解出全部原始文件到 DOL_DOCUMENT_ROOT？（一键回到 Apply all 之前的状态，专为多 patch 触碰同一文件的回退而设计。）
-ModuleFamilyHaoPie=HaoPie
+ModuleFamilyHaoSG=HaoSG

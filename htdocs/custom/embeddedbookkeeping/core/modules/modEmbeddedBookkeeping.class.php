@@ -42,7 +42,7 @@ class modEmbeddedBookkeeping extends DolibarrModules
 		// Module unique id. 500200 leaves room for future SLY siblings (500100=slycustom, 500200=embeddedbookkeeping).
 		$this->numero = 500200;
 		$this->rights_class = 'embeddedbookkeeping';
-		$this->family = 'HaoPie';
+		$this->family = 'HaoSG';
 		$this->module_position = '92';
 		$this->name = preg_replace('/^mod/i', '', get_class($this));
 		$this->description = 'ModuleEmbeddedBookkeepingDesc';

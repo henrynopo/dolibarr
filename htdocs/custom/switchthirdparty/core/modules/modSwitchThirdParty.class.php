@@ -22,7 +22,7 @@ class modSwitchThirdParty extends DolibarrModules
         
         $this->numero = 432446;
 
-        $this->family = 'HaoPie';
+        $this->family = 'HaoSG';
 
         $this->special = 0;
 

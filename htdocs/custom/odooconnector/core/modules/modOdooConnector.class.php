@@ -42,7 +42,7 @@ class modOdooConnector extends DolibarrModules
 		// Module unique id. 500200=EmbeddedBookkeeping; 500300=OdooConnector (SLY range 500100-500999).
 		$this->numero = 500300;
 		$this->rights_class = 'odoo_connector';
-		$this->family = 'HaoPie';
+		$this->family = 'HaoSG';
 		$this->module_position = '90';
 		$this->name = preg_replace('/^mod/i', '', get_class($this));
 		$this->description = 'Sync customer invoices, vendor bills and expenses with Odoo Online';
