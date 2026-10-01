@@ -281,7 +281,7 @@ class modSghr extends DolibarrModules
 		$this->menu[$r++] = array(
 			'fk_menu' => 'fk_mainmenu=sghr', 'type' => 'left', 'titre' => 'SghrMenuRecruitment', 'mainmenu' => 'sghr', 'leftmenu' => 'sghr_grp_rec',
 			'url' => '/sghr/recruitment/index.php', 'langs' => 'recruitment@sghr', 'position' => 200, 'enabled' => 1,
-			'prefix' => '<span class="fas fa-person-chalkboard fa-fw pictofixedwidth"></span>', 'picto' => 'fa-user-friends',
+			'prefix' => '<span class="fas fa-user-friends fa-fw pictofixedwidth"></span>', 'picto' => 'fa-user-friends',
 			'perms' => '$user->rights->sghr->rec->read', 'user' => 0
 		);
 		$this->menu[$r++] = array(
