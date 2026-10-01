@@ -3,21 +3,11 @@
 	Gestion des imports
 */
 
-class Import{
- 
+class Import
+{
+
 	// constructor
-	function __Construct(){
-
-	} 
-
-  
-	
-	
-	
-		
-
-	
-
-	
-} 
-
+	function __Construct()
+	{
+	}
+}

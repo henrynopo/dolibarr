@@ -7,38 +7,42 @@ Version 1.0.6, on 2008-01-29, by Skrol29
 ********************************************************
 */
 
-define('TBS_NAVBAR','tbsNavBar');
+define('TBS_NAVBAR', 'tbsNavBar');
 
-class tbsNavBar {
+class tbsNavBar
+{
 
-	function OnInstall() {
+	function OnInstall()
+	{
 		$this->Version = '1.0.6';
 		return array('OnCommand');
 	}
 
-	function OnCommand($BlockLst,$Options,$PageCurr,$RecCnt=-1,$PageSize=1) {
-		$BlockLst = explode(',',$BlockLst);
+	function OnCommand($BlockLst, $Options, $PageCurr, $RecCnt = -1, $PageSize = 1)
+	{
+		$BlockLst = explode(',', $BlockLst);
 		foreach ($BlockLst as $BlockName) {
 			$BlockName = trim($BlockName);
-			$this->meth_Merge_NavigationBar($this->TBS->Source,$BlockName,$Options,$PageCurr,$RecCnt,$PageSize);
+			$this->meth_Merge_NavigationBar($this->TBS->Source, $BlockName, $Options, $PageCurr, $RecCnt, $PageSize);
 		}
 	}
 
-	function meth_Merge_NavigationBar(&$Txt,$BlockName,$Options,$PageCurr,$RecCnt,$PageSize) {
+	function meth_Merge_NavigationBar(&$Txt, $BlockName, $Options, $PageCurr, $RecCnt, $PageSize)
+	{
 
 		$TBS =& $this->TBS;
 
 		// Get block parameters
 		$PosBeg = 0;
 		$PrmLst = array();
-		while ($Loc = $TBS->meth_Locator_FindTbs($Txt,$BlockName,$PosBeg,'.')) {
-			if (isset($Loc->PrmLst['block'])) $PrmLst = array_merge($PrmLst,$Loc->PrmLst);
+		while ($Loc = $TBS->meth_Locator_FindTbs($Txt, $BlockName, $PosBeg, '.')) {
+			if (isset($Loc->PrmLst['block'])) $PrmLst = array_merge($PrmLst, $Loc->PrmLst);
 			$PosBeg = $Loc->PosEnd;
 		}
 
 		// Prepare options
 		if (!is_array($Options)) $Options = array('navsize'=>intval($Options));
-		$Options = array_merge($Options,$PrmLst);
+		$Options = array_merge($Options, $PrmLst);
 
 		// Default options
 		if (!isset($Options['navsize'])) $Options['navsize'] = 10;
@@ -60,7 +64,7 @@ class tbsNavBar {
 			// Display by block
 			$PageMin = $Options['pagemin']-1+$PageCurr - ( ($PageCurr-1) % $Options['navsize']);
 		}
-		$PageMin = max($PageMin,$Options['pagemin']);
+		$PageMin = max($PageMin, $Options['pagemin']);
 		$PageMax = $PageMin + $Options['navsize'] - 1;
 
 		// Calculate previous and next pages
@@ -72,8 +76,8 @@ class tbsNavBar {
 		$CurrNav['next'] = $PageCurr + 1;
 		if ($RecCnt>=0) {
 			$PageCnt = $Options['pagemin']-1 + intval(ceil($RecCnt/$PageSize));
-			$PageMax = min($PageMax,$PageCnt);
-			$PageMin = max($Options['pagemin'],$PageMax-$Options['navsize']+1);
+			$PageMax = min($PageMax, $PageCnt);
+			$PageMin = max($Options['pagemin'], $PageMax-$Options['navsize']+1);
 		} else {
 			$PageCnt = $Options['pagemin']-1;
 		}
@@ -89,7 +93,7 @@ class tbsNavBar {
 
 		// Merge general information
 		$Pos = 0;
-		while ($Loc = $TBS->meth_Locator_FindTbs($Txt,$BlockName,$Pos,'.')) {
+		while ($Loc = $TBS->meth_Locator_FindTbs($Txt, $BlockName, $Pos, '.')) {
 			$Pos = $Loc->PosBeg + 1;
 			$x = strtolower($Loc->SubName);
 			if (isset($CurrNav[$x])) {
@@ -99,7 +103,7 @@ class tbsNavBar {
 						$Val = '';
 					}
 				}
-				$TBS->meth_Locator_Replace($Txt,$Loc,$Val,false);
+				$TBS->meth_Locator_Replace($Txt, $Loc, $Val, false);
 			}
 		}
 
@@ -119,10 +123,6 @@ class tbsNavBar {
 		}
 
 		// Merge the nav bar
-		$TBS->meth_Merge_Block($Txt,$BlockName,$Data,$Query,'currpage',$RecSpe);
-
+		$TBS->meth_Merge_Block($Txt, $BlockName, $Data, $Query, 'currpage', $RecSpe);
 	}
-
 }
-
-?>

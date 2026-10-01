@@ -7,11 +7,13 @@ Version 1.1.1, on 2012-08-15, by Skrol29
 ********************************************************
 */
 
-define('TBS_ONFLY','tbsMergeOnFly');
+define('TBS_ONFLY', 'tbsMergeOnFly');
 
-class tbsMergeOnFly {
+class tbsMergeOnFly
+{
 
-	function OnInstall($PackSize=10) {
+	function OnInstall($PackSize = 10)
+	{
 		$this->Version = '1.1.0';
 		$this->PackSize = $PackSize;
 		$this->Encaps = 0; // encapsualtion level of blocks
@@ -21,11 +23,13 @@ class tbsMergeOnFly {
 		return array('OnCommand','BeforeMergeBlock','OnMergeSection','AfterMergeBlock');
 	}
 
-	function UpdateActivation() {
+	function UpdateActivation()
+	{
 		$this->IsActivated = ($this->PackSize>0) && ($this->Encaps==1);
 	}
-	
-	function OnCommand($PackSize, $CountSubRecords=false) {
+
+	function OnCommand($PackSize, $CountSubRecords = false)
+	{
 		if ($this->Encaps==0) {
 			$this->PackSize = $PackSize;
 			$this->CountSubRecords = $CountSubRecords;
@@ -33,15 +37,16 @@ class tbsMergeOnFly {
 		$this->UpdateActivation();
 	}
 
-	function BeforeMergeBlock(&$TplSource,&$BlockBeg,&$BlockEnd,$PrmLst) {
+	function BeforeMergeBlock(&$TplSource, &$BlockBeg, &$BlockEnd, $PrmLst)
+	{
 		$this->Encaps++;
 		$this->UpdateActivation();
 		if ($this->IsActivated) {
 			$this->Counter = 0;
-			$Part2 = substr($TplSource,$BlockBeg);
-			$this->TBS->Source = substr($TplSource,0,$BlockBeg);
+			$Part2 = substr($TplSource, $BlockBeg);
+			$this->TBS->Source = substr($TplSource, 0, $BlockBeg);
 			$this->TBS->Show(TBS_OUTPUT);
-			if ($this->Debug) echo "\n *DEBUG* BeforeMergeBlock : Flush, PackSize=".$this->PackSize.", CountSubRecords=".var_export($this->CountSubRecords,true).", Counter=".$this->Counter.".\n";
+			if ($this->Debug) echo "\n *DEBUG* BeforeMergeBlock : Flush, PackSize=".$this->PackSize.", CountSubRecords=".var_export($this->CountSubRecords, true).", Counter=".$this->Counter.".\n";
 			flush();
 			$TplSource = $Part2;
 			$BlockEnd = $BlockEnd - $BlockBeg;
@@ -49,7 +54,8 @@ class tbsMergeOnFly {
 		}
 	}
 
-	function AfterMergeBlock(&$Buffer,&$DataSrc,&$LocR) {
+	function AfterMergeBlock(&$Buffer, &$DataSrc, &$LocR)
+	{
 		$this->Encaps--;
 		if ($this->Encaps<=0) {
 			$this->PackSize = 0; // deactivate flushing
@@ -59,8 +65,9 @@ class tbsMergeOnFly {
 		}
 		$this->UpdateActivation();
 	}
-	
-	function OnMergeSection(&$Buffer,&$NewPart) {
+
+	function OnMergeSection(&$Buffer, &$NewPart)
+	{
 		 // sub-record also count for the flusing.
 		if ($this->IsActivated) {
 			$this->Counter++;
@@ -76,6 +83,4 @@ class tbsMergeOnFly {
 			$this->Counter++;
 		}
 	}
-
-
 }

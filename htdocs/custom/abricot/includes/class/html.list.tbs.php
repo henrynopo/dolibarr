@@ -1,3 +1,23 @@
+<!-- Copyright (C) 2025 ATM Consulting
+
+ This program is free software; you can redistribute it and/or modify
+ it under the terms of the GNU General Public License as published by
+ the Free Software Foundation; either version 3 of the License, or
+ (at your option) any later version.
+
+ This program is distributed in the hope that it will be useful,
+ but WITHOUT ANY WARRANTY; without even the implied warranty of
+ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ GNU General Public License for more details.
+
+ You should have received a copy of the GNU General Public License
+ along with this program. If not, see <https://www.gnu.org/licenses/>.
+
+ NOTE: this file is a TinyButStrong merge TEMPLATE, loaded by
+ TTemplateTBS::render() via LoadTemplate() as raw text - it is never
+ include()'d/parsed as PHP. Do not wrap this header (or anything else
+ in this file) in <?php ?> tags: PHP tags are not stripped and would
+ leak into the rendered HTML verbatim. Use an HTML comment instead. -->
 <table width="100%" border="0" class="notopnoleftnoright" style="margin-bottom: 2px;">
 		<tr>
 			[onshow;block=begin; when [liste.noheader]==0]
@@ -63,13 +83,12 @@
 		<tr>
 			<td id="pagination_bottom" class="nobordernopadding" align="right" valign="middle">
 				<script type="text/javascript">
-					if (typeof $ != "undefined")
-					{
-						$(function() {
-							var tbs_pagination = $('div.pagination').clone();
-							$('#pagination_bottom').append(tbs_pagination);
-						});
-					}
+if (typeof $ != "undefined") {
+	$(function () {
+		var tbs_pagination = $('div.pagination').clone();
+		$('#pagination_bottom').append(tbs_pagination);
+	});
+}
 				</script>
 			</td>
 		</tr>

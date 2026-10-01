@@ -13,24 +13,24 @@
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
 /**
- * 	\file		admin/grapefruit.php
- * 	\ingroup	grapefruit
+ * 	\file		admin/abricot_setup.php
+ * 	\ingroup	abricot
  * 	\brief		This file is an example module setup page
- * 				Put some comments here
+ * 			Put some comments here
  */
+
 // Dolibarr environment
-$res = @include("../../main.inc.php"); // From htdocs directory
+$res = @include("../../main.inc.php"); 		// From htdocs directory
 if (! $res) {
-    $res = @include("../../../main.inc.php"); // From "custom" directory
+    $res = @include("../../../main.inc.php"); 	// From "custom" directory
 }
 
 // Libraries
 require_once DOL_DOCUMENT_ROOT . "/core/lib/admin.lib.php";
-
 // Translations
 $langs->load("abricot@abricot");
 
@@ -45,10 +45,11 @@ $action = GETPOST('action', 'alpha');
 /*
  * Actions
  */
+
 if (preg_match('/set_(.*)/',$action,$reg))
 {
 	$code=$reg[1];
-	if (dolibarr_set_const($db, $code, GETPOST($code), 'chaine', 0, '', $conf->entity) > 0)
+	if (dolibarr_set_const($db, $code, GETPOST($code, 'alphanohtml'), 'chaine', 0, '', $conf->entity) > 0)
 	{
 		header("Location: ".$_SERVER["PHP_SELF"]);
 		exit;
@@ -58,13 +59,13 @@ if (preg_match('/set_(.*)/',$action,$reg))
 		dol_print_error($db);
 	}
 }
-	
+
 if (preg_match('/del_(.*)/',$action,$reg))
 {
 	$code=$reg[1];
 	if (dolibarr_del_const($db, $code, 0) > 0)
 	{
-		Header("Location: ".$_SERVER["PHP_SELF"]);
+		header("Location: ".$_SERVER["PHP_SELF"]);
 		exit;
 	}
 	else
@@ -73,9 +74,11 @@ if (preg_match('/del_(.*)/',$action,$reg))
 	}
 }
 
+
 /*
  * View
  */
+
 $page_name = "Setup";
 llxHeader('', $langs->trans($page_name));
 
@@ -109,7 +112,7 @@ print '<td>'.$langs->trans("set_ABRICOT_USE_OLD_DATABASE_ENCODING_SETTING").'</t
 print '<td align="center" width="20">&nbsp;</td>';
 print '<td align="center" width="100">';
 print '<form method="POST" action="'.$_SERVER['PHP_SELF'].'">';
-print '<input type="hidden" name="token" value="'.$_SESSION['newtoken'].'">';
+print '<input type="hidden" name="token" value="'. newToken() .'">';
 print '<input type="hidden" name="action" value="set_ABRICOT_USE_OLD_DATABASE_ENCODING_SETTING">';
 echo ajax_constantonoff('ABRICOT_USE_OLD_DATABASE_ENCODING_SETTING');
 print '</form>';
@@ -121,12 +124,11 @@ print '<td>'.$langs->trans("set_ABRICOT_USE_OLD_EMPTY_DATE_FORMAT").'</td>';
 print '<td align="center" width="20">&nbsp;</td>';
 print '<td align="center" width="100">';
 print '<form method="POST" action="'.$_SERVER['PHP_SELF'].'">';
-print '<input type="hidden" name="token" value="'.$_SESSION['newtoken'].'">';
+print '<input type="hidden" name="token" value="'. newToken() .'">';
 print '<input type="hidden" name="action" value="set_ABRICOT_USE_OLD_EMPTY_DATE_FORMAT">';
 echo ajax_constantonoff('ABRICOT_USE_OLD_EMPTY_DATE_FORMAT');
 print '</form>';
 print '</td></tr>';
-
 
 $var=!$var;
 print '<tr '.$bc[$var].'>';
@@ -134,9 +136,9 @@ print '<td>'.$langs->trans("set_ABRICOT_WKHTMLTOPDF_CMD").'</td>';
 print '<td align="center" width="20">&nbsp;</td>';
 print '<td align="right" width="300" style="white-space:nowrap;">';
 print '<form method="POST" action="'.$_SERVER['PHP_SELF'].'">';
-print '<input type="hidden" name="token" value="'.$_SESSION['newtoken'].'">';
+print '<input type="hidden" name="token" value="'. newToken() .'">';
 print '<input type="hidden" name="action" value="set_ABRICOT_WKHTMLTOPDF_CMD">';
-print '<input type="text" name="ABRICOT_WKHTMLTOPDF_CMD" value="'.(empty($conf->global->ABRICOT_WKHTMLTOPDF_CMD) ? '' : $conf->global->ABRICOT_WKHTMLTOPDF_CMD).'" size="80" placeholder="wkhtmltopdf" />';
+print '<input type="text" name="ABRICOT_WKHTMLTOPDF_CMD" value="'.(getDolGlobalString('ABRICOT_WKHTMLTOPDF_CMD') ? '' : getDolGlobalString('ABRICOT_WKHTMLTOPDF_CMD')).'" size="80" placeholder="wkhtmltopdf" />';
 print '<input type="submit" class="button" value="'.$langs->trans("Modify").'">';
 print '</form>';
 print '</td></tr>';
@@ -147,10 +149,9 @@ print '<td>'.$langs->trans("set_ABRICOT_CONVERTPDF_CMD").'</td>';
 print '<td align="center" width="20">&nbsp;</td>';
 print '<td align="right" width="300" style="white-space:nowrap;">';
 print '<form method="POST" action="'.$_SERVER['PHP_SELF'].'">';
-print '<input type="hidden" name="token" value="'.$_SESSION['newtoken'].'">';
+print '<input type="hidden" name="token" value="'. newToken() .'">';
 print '<input type="hidden" name="action" value="set_ABRICOT_CONVERTPDF_CMD">';
-print '<input type="text" name="ABRICOT_CONVERTPDF_CMD" value="'.(empty($conf->global->ABRICOT_CONVERTPDF_CMD) ? '' : $conf->global->ABRICOT_WKHTMLTOPDF_CMD).'" size="80" placeholder="libreoffice --invisible --norestore --headless --convert-to pdf --outdir " />';
-
+print '<input type="text" name="ABRICOT_CONVERTPDF_CMD" value="'.(!getDolGlobalString('ABRICOT_CONVERTPDF_CMD') ? '' : getDolGlobalString('ABRICOT_CONVERTPDF_CMD')).'" size="80" placeholder="libreoffice --invisible --norestore --headless --convert-to pdf --outdir " />';
 print '<input type="submit" class="button" value="'.$langs->trans("Modify").'">';
 print '</form>';
 print '</td></tr>';
@@ -183,7 +184,8 @@ print '<td align="center" width="20">&nbsp;</td>';
 print '<td align="center" width="200">';
 print '<form method="POST" action="'.$_SERVER['PHP_SELF'].'">';
 print '<input type="hidden" name="action" value="set_ABRICOT_MAILS_FORMAT">';
-print $form->selectarray('ABRICOT_MAILS_FORMAT',array('iso-8859-1'=>'iso-8859-1', 'UTF-8'=>'UTF-8'),$conf->global->ABRICOT_MAILS_FORMAT);
+print '<input type="hidden" name="token" value="'. newToken() .'">';
+print $form->selectarray('ABRICOT_MAILS_FORMAT',array('iso-8859-1'=>'iso-8859-1', 'UTF-8'=>'UTF-8'), getDolGlobalString('ABRICOT_MAILS_FORMAT'));
 print '<input type="submit" class="button" value="'.$langs->trans("Modify").'">';
 print '</form>';
 print '</td></tr>';
