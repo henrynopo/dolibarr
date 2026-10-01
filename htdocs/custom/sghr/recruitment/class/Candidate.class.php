@@ -291,7 +291,7 @@ class Candidate extends Commonobject{
 
         $result='';
         $label='';
-        $url=dol_buildpath('/sghr/recruitment/Candidate/card.php?id='.$this->id,2);
+        $url=dol_buildpath('/sghr/recruitment/candidates/card.php?id='.$this->id,2);
 
         // if ($user->rights->propal->lire){}
 
@@ -994,7 +994,7 @@ class RecruitmentDegree extends Commonobject
 
         $result='';
         $label='';
-        $url = dol_buildpath('/sghr/recruitment/Candidate/degrees/card.php?id='.$this->rowid,2);
+        $url = dol_buildpath('/sghr/recruitment/candidates/degrees/card.php?id='.$this->rowid,2);
 
         $linkclose='';
         if (empty($notooltip))
@@ -1397,7 +1397,7 @@ class rect_majors extends Commonobject
 
         $result='';
         $label='';
-        $url = dol_buildpath('/sghr/recruitment/Candidate/degrees/cardmajor.php?id='.$this->rowid.'&id_degree='.$this->fk_degree,2);
+        $url = dol_buildpath('/sghr/recruitment/candidates/degrees/cardmajor.php?id='.$this->rowid.'&id_degree='.$this->fk_degree,2);
 
         $linkclose='';
         if (empty($notooltip))

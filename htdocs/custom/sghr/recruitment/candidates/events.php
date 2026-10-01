@@ -126,11 +126,11 @@ print '<form method="get" action="'.$_SERVER["PHP_SELF"].'" class="Event_cnadid"
 		 //   			$etapes = new CandidateStage($db);
 
 			// 		print '<tr '.$bc[$var].' >';
-			//     		// print '<td align="center" style=""><a href="'.dol_buildpath('/sghr/recruitment/Candidate/card.php?id='.$item->rowid,2).'" >';
+			//     		// print '<td align="center" style=""><a href="'.dol_buildpath('/sghr/recruitment/candidates/card.php?id='.$item->rowid,2).'" >';
 			//     		// 	print $item->sujet;
 			//     		// print '</a></td>';
 			    		
-			//     		print '<td align="center" style=""><a href="'.dol_buildpath('/sghr/recruitment/Candidate/card.php?id='.$item->rowid,2).'" >';
+			//     		print '<td align="center" style=""><a href="'.dol_buildpath('/sghr/recruitment/candidates/card.php?id='.$item->rowid,2).'" >';
 			//     			print $item->nom.' '.$item->prenom;
 			//     		print '</a></td>';
 			    		
@@ -214,7 +214,7 @@ $db->close();
   //       	if($type == 'grid'){
   //       		$('#list').css('background-color','white');
   //       		$('#grid').css('background-color','rgba(0, 0, 0, 0.15)');
-  //               window.location.href="<?php echo dol_buildpath('/sghr/recruitment/Candidate/candidature-v2.php',2);?>";
+  //               window.location.href="<?php echo dol_buildpath('/sghr/recruitment/candidates/candidature-v2.php',2);?>";
   //       		$('.board').show();
   //       		$('.list').hide();
   //       	}

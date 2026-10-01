@@ -125,12 +125,12 @@ print '</table>';
             // console.log($id);
             $.ajax({
                 data:{'id_candidature':$id,},
-                url:"<?php echo dol_bildpath('/sghr/recruitment/Candidate/info_contact.php?action_=delete_user',2) ?>",
+                url:"<?php echo dol_bildpath('/sghr/recruitment/candidates/info_contact.php?action_=delete_user',2) ?>",
                 type:'POST',
                 success:function($data){
                     console.log($data);
                     if($data == 'Ok'){
-                        window.location.href="<?php echo dol_bildpath('/sghr/recruitment/Candidate/card.php?id='.$id,2) ;?>";
+                        window.location.href="<?php echo dol_bildpath('/sghr/recruitment/candidates/card.php?id='.$id,2) ;?>";
                     }else
                     location.reload();
 

@@ -95,7 +95,7 @@ if(isset($_GET['gridorlist'])){
 }
 
 if ($gridorlist == "GRID"){
-    header('Location: '.dol_buildpath('/sghr/recruitment/Candidate/kanban.php',2));
+    header('Location: '.dol_buildpath('/sghr/recruitment/candidates/kanban.php',2));
 }
 
 
@@ -161,8 +161,8 @@ print '<form method="get" action="'.$_SERVER["PHP_SELF"].'" class="kanban_recrut
 	print '<div class="div_h">';
 		print '<div style="float: left; width:10%; margin-bottom: 8px;">';
 			print '<div>';
-				print '<a class="icon_list" data-type="list" href="'.dol_buildpath('/sghr/recruitment/Candidate/index.php?gridorlist=LIST',2).'"> <img  src="'.dol_buildpath('/sghr/recruitment/img/list.png',2).'" style="height:30px" id="list" ></a>';
-				print '<a class="icon_list" data-type="grid" href="'.dol_buildpath('/sghr/recruitment/Candidate/kanban.php?gridorlist=GRID',2).'"> <img src="'.dol_buildpath('/sghr/recruitment/img/grip.png',2).'" style="height:30px" ></a> ';
+				print '<a class="icon_list" data-type="list" href="'.dol_buildpath('/sghr/recruitment/candidates/index.php?gridorlist=LIST',2).'"> <img  src="'.dol_buildpath('/sghr/recruitment/img/list.png',2).'" style="height:30px" id="list" ></a>';
+				print '<a class="icon_list" data-type="grid" href="'.dol_buildpath('/sghr/recruitment/candidates/kanban.php?gridorlist=GRID',2).'"> <img src="'.dol_buildpath('/sghr/recruitment/img/grip.png',2).'" style="height:30px" ></a> ';
 			print '</div>';
 		print '</div>';
 		
@@ -261,11 +261,11 @@ print '<form method="get" action="'.$_SERVER["PHP_SELF"].'" class="kanban_recrut
 		   			$etapes = new CandidateStage($db);
 
 					print '<tr '.$bc[$var].' >';
-			    		// print '<td align="center" style=""><a href="'.dol_buildpath('/sghr/recruitment/Candidate/card.php?id='.$item->rowid,2).'" >';
+			    		// print '<td align="center" style=""><a href="'.dol_buildpath('/sghr/recruitment/candidates/card.php?id='.$item->rowid,2).'" >';
 			    		// 	print $item->sujet;
 			    		// print '</a></td>';
 			    		
-			    		print '<td align="left" style=""><a href="'.dol_buildpath('/sghr/recruitment/Candidate/card.php?id='.$item->rowid,2).'" >';
+			    		print '<td align="left" style=""><a href="'.dol_buildpath('/sghr/recruitment/candidates/card.php?id='.$item->rowid,2).'" >';
 			    			print $item->nom.' '.$item->prenom;
 			    		print '</a></td>';
 			    		
@@ -370,7 +370,7 @@ $db->close();
   //       	if($type == 'grid'){
   //       		$('#list').css('background-color','white');
   //       		$('#grid').css('background-color','rgba(0, 0, 0, 0.15)');
-  //               window.location.href="<?php echo dol_buildpath('/sghr/recruitment/Candidate/candidature-v2.php',2);?>";
+  //               window.location.href="<?php echo dol_buildpath('/sghr/recruitment/candidates/candidature-v2.php',2);?>";
   //       		$('.board').show();
   //       		$('.list').hide();
   //       	}

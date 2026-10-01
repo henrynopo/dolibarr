@@ -632,13 +632,13 @@ print '</div>';
         if($type == 'list'){
           $('#grid').css('background-color','white');
           $('#list').css('background-color','rgba(0, 0, 0, 0.15)');
-          window.location.href="<?php echo dol_buildpath('/sghr/recruitment/Candidate/index.php',2);?>";
+          window.location.href="<?php echo dol_buildpath('/sghr/recruitment/candidates/index.php',2);?>";
          
         }
         if($type == 'grid'){
           $('#list').css('background-color','white');
           $('#grid').css('background-color','rgba(0, 0, 0, 0.15)');
-              window.location.href="<?php echo dol_buildpath('/sghr/recruitment/Candidate/candidature.php',2);?>";
+              window.location.href="<?php echo dol_buildpath('/sghr/recruitment/candidates/candidature.php',2);?>";
           $('.board').show();
           $('.list').hide();
         }
@@ -1119,7 +1119,7 @@ print '</div>';
                         }
                         $.ajax({
                           data:{'id_candidat':$id_debut,'id_etat':$id_etat},
-                          url:"<?php echo dol_buildpath('/sghr/recruitment/Candidate/info_contact.php?action_=change_etat',2) ?>",
+                          url:"<?php echo dol_buildpath('/sghr/recruitment/candidates/info_contact.php?action_=change_etat',2) ?>",
                           type:'POST',
                           dataType: "json",
                           success:function($data){

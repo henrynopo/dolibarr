@@ -207,7 +207,7 @@ if($action == "edit"){
             console.log($id);
             $.ajax({
                 data:{'poste':$id,},
-                url:"<?php echo dol_buildpath('/sghr/recruitment/Candidate/info_contact.php?action_=arreter',2); ?>",
+                url:"<?php echo dol_buildpath('/sghr/recruitment/candidates/info_contact.php?action_=arreter',2); ?>",
                 type:'POST',
                 success:function($data){
                     if($data == 'Ok'){
@@ -224,7 +224,7 @@ if($action == "edit"){
             console.log($id);
             $.ajax({
                 data:{'poste':$id,},
-                url:"<?php echo dol_buildpath('/sghr/recruitment/Candidate/info_contact.php?action_=finaliser',2); ?>",
+                url:"<?php echo dol_buildpath('/sghr/recruitment/candidates/info_contact.php?action_=finaliser',2); ?>",
                 type:'POST',
                 success:function($data){
                     if($data == 'Ok'){
@@ -241,7 +241,7 @@ if($action == "edit"){
             $id=$('#lancer').data('id');
             $.ajax({
                 data:{'poste':$id,},
-                url:"<?php echo dol_buildpath('/sghr/recruitment/Candidate/info_contact.php?action_=lancer',2); ?>",
+                url:"<?php echo dol_buildpath('/sghr/recruitment/candidates/info_contact.php?action_=lancer',2); ?>",
                 type:'POST',
                 success:function($data){
                     if($data == 'Ok'){

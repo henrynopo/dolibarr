@@ -109,7 +109,7 @@ print '<form method="get" action="'.$_SERVER["PHP_SELF"].'" class="list_majors">
 
 					print '<tr '.$bc[$var].' >';
 			    		print '<td align="center" style="">'; 
-				    		print '<a href="'.dol_buildpath('/sghr/recruitment/Candidate/degrees/cardmajor.php?id='.$item->rowid.'&id_degree='.$id_degree,2).'" >';
+				    		print '<a href="'.dol_buildpath('/sghr/recruitment/candidates/degrees/cardmajor.php?id='.$item->rowid.'&id_degree='.$id_degree,2).'" >';
 				    			print $item->label;
 				    		print '</a>';
 			    		print '</td>';

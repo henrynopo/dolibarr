@@ -663,7 +663,7 @@ if (count($Candidate->rows) > 0) {
     	$responsable->fetch($item->responsable);
 
 		print '<tr '.$bc[$var].' >';
-    		print '<td align="center" style=""><a href="'.dol_buildpath('/sghr/recruitment/Candidate/card.php?id='.$item->rowid,2).'" >';
+    		print '<td align="center" style=""><a href="'.dol_buildpath('/sghr/recruitment/candidates/card.php?id='.$item->rowid,2).'" >';
     			print $item->sujet;
     		print '</a></td>';
     		print '<td align="center">'.$item->nom.'</td>';

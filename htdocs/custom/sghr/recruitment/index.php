@@ -272,7 +272,7 @@ print ' <div class="board" style="width:100% !important; display:none">';
 			       			print '<div class="item-content">';
 				       			print '<div > <span>'.$item->label.'</span> <a href="./card.php?id='.$item->id.'&action=edit"><img align="right" src="'.DOL_MAIN_URL_ROOT.'/theme/md/img/edit.png"></a> <br><br></div>';
 				       			if($item->status == "Recrutementencours"){
-				       				print '<div > <a href="'.dol_buildpath('/sghr/recruitment/Candidate/candidature.php?id_poste='.$item->id,2).'" class="button" ><b>'.$langs->trans("Candidate").'</b></a> </div>';
+				       				print '<div > <a href="'.dol_buildpath('/sghr/recruitment/candidates/candidature.php?id_poste='.$item->id,2).'" class="button" ><b>'.$langs->trans("Candidate").'</b></a> </div>';
 				       			}
 				       			if($item->status == "Recrutementarrete"){
 				       				print '<a class="button" style="background-color:#00A09D !important;color:white !important;  " data-id="'.$item->rowid.'" id="lancer" >'.$langs->trans('lancer').'</a>';
@@ -312,7 +312,7 @@ print '</div>';
             $id=$('#lancer').data('id');
             $.ajax({
                 data:{'poste':$id,},
-                url:"<?php echo dol_buildpath('/sghr/recruitment/Candidate/info_contact.php?action_=lancer',2) ?>",
+                url:"<?php echo dol_buildpath('/sghr/recruitment/candidates/info_contact.php?action_=lancer',2) ?>",
                 type:'POST',
                 success:function($data){
                     if($data == 'Ok'){

@@ -281,7 +281,7 @@ class modSghr extends DolibarrModules
 		$this->menu[$r++] = array(
 			'fk_menu' => 'fk_mainmenu=sghr', 'type' => 'left', 'titre' => 'SghrMenuRecruitment', 'mainmenu' => 'sghr', 'leftmenu' => 'sghr_grp_rec',
 			'url' => '/sghr/recruitment/index.php', 'langs' => 'recruitment@sghr', 'position' => 200, 'enabled' => 1,
-			'prefix' => '<span class="fas fa-person-chalkboard fa-fw pictofixedwidth"></span>', 'picto' => 'fa-person-chalkboard',
+			'prefix' => '<span class="fas fa-person-chalkboard fa-fw pictofixedwidth"></span>', 'picto' => 'fa-user-friends',
 			'perms' => '$user->rights->sghr->rec->read', 'user' => 0
 		);
 		$this->menu[$r++] = array(
@@ -294,14 +294,14 @@ class modSghr extends DolibarrModules
 		$this->menu[$r++] = array(
 			'fk_menu' => 'fk_mainmenu=sghr,fk_leftmenu=sghr_grp_rec', 'type' => 'left',
 			'titre' => 'Candidate', 'mainmenu' => 'sghr', 'leftmenu' => 'sghr_rec_cands',
-			'url' => '/sghr/recruitment/Candidate/kanban.php?page=0', 'langs' => 'recruitment@sghr', 'position' => 202, 'enabled' => 1,
+			'url' => '/sghr/recruitment/candidates/kanban.php?page=0', 'langs' => 'recruitment@sghr', 'position' => 202, 'enabled' => 1,
 			'prefix' => '<span class="fas fa-columns fa-fw pictofixedwidth"></span>', 'picto' => 'fa-columns',
 			'perms' => '$user->rights->sghr->rec->read', 'user' => 0
 		);
 		$this->menu[$r++] = array(
 			'fk_menu' => 'fk_mainmenu=sghr,fk_leftmenu=sghr_grp_rec', 'type' => 'left',
 			'titre' => 'liste_des_candidatures', 'mainmenu' => 'sghr', 'leftmenu' => 'sghr_rec_cands_list',
-			'url' => '/sghr/recruitment/Candidate/index.php?page=0', 'langs' => 'recruitment@sghr', 'position' => 203, 'enabled' => 1,
+			'url' => '/sghr/recruitment/candidates/index.php?page=0', 'langs' => 'recruitment@sghr', 'position' => 203, 'enabled' => 1,
 			'prefix' => '<span class="fas fa-list fa-fw pictofixedwidth"></span>', 'picto' => 'fa-list',
 			'perms' => '$user->rights->sghr->rec->read', 'user' => 0
 		);
@@ -478,7 +478,7 @@ class modSghr extends DolibarrModules
 		$this->menu[$r++] = array(
 			'fk_menu' => 'fk_mainmenu=sghr,fk_leftmenu=sghr_grp_cfg', 'type' => 'left',
 			'titre' => 'niveauetud', 'mainmenu' => 'sghr', 'leftmenu' => 'sghr_cfg_degrees',
-			'url' => '/sghr/recruitment/Candidate/degrees/index.php', 'langs' => 'recruitment@sghr', 'position' => 913, 'enabled' => 1,
+			'url' => '/sghr/recruitment/candidates/degrees/index.php', 'langs' => 'recruitment@sghr', 'position' => 913, 'enabled' => 1,
 			'prefix' => '<span class="fas fa-graduation-cap fa-fw pictofixedwidth"></span>', 'picto' => 'fa-graduation-cap', 'perms' => '$user->admin', 'user' => 0
 		);
 	}

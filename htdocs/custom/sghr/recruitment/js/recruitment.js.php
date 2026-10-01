@@ -88,7 +88,7 @@ function GetMajors(x) {
 	val = $(x).val();
 	$.ajax({
 		data:{'fk_degree':val},
-		url:'<?php echo dol_buildpath("/sghr/recruitment/Candidate/ajax/getMajors.php",2) ?>',
+		url:'<?php echo dol_buildpath("/sghr/recruitment/candidates/ajax/getMajors.php",2) ?>',
 		type:'POST',
         success:function(data){
             $(x).parents('tr').find('.select_majors').html(data);

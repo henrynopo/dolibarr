@@ -51,7 +51,7 @@ if(isset($_GET['gridorlist'])){
 }
 
 if ($gridorlist == "LIST"){
-    header('Location: '.dol_buildpath('/sghr/recruitment/Candidate/index.php',2));
+    header('Location: '.dol_buildpath('/sghr/recruitment/candidates/index.php',2));
 }
 
 $limit  = $conf->liste_limit+1;
@@ -78,17 +78,17 @@ print_barre_liste($modname, $page, $_SERVER["PHP_SELF"], "", $sortfield, $sortor
 
 
 // print '<link rel="stylesheet" href="https://www.jqwidgets.com/jquery-widgets-documentation/jqwidgts/styles/jqx.base.css" type="text/css" />';
-print '<link rel="stylesheet" href="'.dol_buildpath('/sghr/recruitment/Candidate/css/kanban.css',2).'" type="text/css" />';
-print '<script type="text/javascript" src="'.dol_buildpath('/sghr/recruitment/Candidate/js/jqxcore.js',2).'"></script>';
-print '<script type="text/javascript" src="'.dol_buildpath('/sghr/recruitment/Candidate/js/jqxsortable.js',2).'"></script>';
-print '<script type="text/javascript" src="'.dol_buildpath('/sghr/recruitment/Candidate/js/jqxkanban.js',2).'"></script>';
-print '<script type="text/javascript" src="'.dol_buildpath('/sghr/recruitment/Candidate/js/jqxdata.js',2).'"></script>';
+print '<link rel="stylesheet" href="'.dol_buildpath('/sghr/recruitment/candidates/css/kanban.css',2).'" type="text/css" />';
+print '<script type="text/javascript" src="'.dol_buildpath('/sghr/recruitment/candidates/js/jqxcore.js',2).'"></script>';
+print '<script type="text/javascript" src="'.dol_buildpath('/sghr/recruitment/candidates/js/jqxsortable.js',2).'"></script>';
+print '<script type="text/javascript" src="'.dol_buildpath('/sghr/recruitment/candidates/js/jqxkanban.js',2).'"></script>';
+print '<script type="text/javascript" src="'.dol_buildpath('/sghr/recruitment/candidates/js/jqxdata.js',2).'"></script>';
 
 print '<form method="get" action="'.$_SERVER["PHP_SELF"].'" class="kanban_recrut">'."\n";
   print '<div style="float: left; margin-bottom: 8px; width:100%;">';
       print '<div style="width:10%; float:left;" >';
-          print '<a class="icon_list" data-type="list" href="'.dol_buildpath('/sghr/recruitment/Candidate/index.php?gridorlist=LIST',2).'"> <img  src="'.dol_buildpath('/sghr/recruitment/img/list.png',2).'" style="height:30px" id="list" ></a>';
-          print '<a class="icon_list" data-type="grid" href="'.dol_buildpath('/sghr/recruitment/Candidate/kanban.php?gridorlist=GRID',2).'"> <img src="'.dol_buildpath('/sghr/recruitment/img/grip.png',2).'" style="height:30px" id="grid" ></a> ';
+          print '<a class="icon_list" data-type="list" href="'.dol_buildpath('/sghr/recruitment/candidates/index.php?gridorlist=LIST',2).'"> <img  src="'.dol_buildpath('/sghr/recruitment/img/list.png',2).'" style="height:30px" id="list" ></a>';
+          print '<a class="icon_list" data-type="grid" href="'.dol_buildpath('/sghr/recruitment/candidates/kanban.php?gridorlist=GRID',2).'"> <img src="'.dol_buildpath('/sghr/recruitment/img/grip.png',2).'" style="height:30px" id="grid" ></a> ';
       print '</div>';
 
       print '<div class="statusdetailcolorsback" style="">';
@@ -280,7 +280,7 @@ print '<div id="kanban"></div>';
                 $id_new=$id_new[1];
                   $.ajax({
                     data:{'id_candidat':$id_candidat,'id_etat':$id_new},
-                    url:"<?php echo dol_buildpath('/sghr/recruitment/Candidate/info_contact.php?action_=change_etat',2); ?>",
+                    url:"<?php echo dol_buildpath('/sghr/recruitment/candidates/info_contact.php?action_=change_etat',2); ?>",
                     type:'POST',
                     dataType: "json",
                     success:function($data){
@@ -325,7 +325,7 @@ print '<div id="kanban"></div>';
             $('.jqx-kanban-item-text').find('b').click(function(){
                 $id=$(this).parent().parent().attr('id');
                 $id=$id.split('_');
-                location.href="<?php echo dol_buildpath('/sghr/recruitment/Candidate/card.php?id=',2)?>"+$id[1];
+                location.href="<?php echo dol_buildpath('/sghr/recruitment/candidates/card.php?id=',2)?>"+$id[1];
 
                 // location.href=$('#show_8').attr('href');
             });

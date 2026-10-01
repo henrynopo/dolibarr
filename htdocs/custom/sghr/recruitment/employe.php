@@ -116,7 +116,7 @@ print '</thead><tbody>';
 
             print '<tr '.$bc[$var].' >';
                 print '<td align="left" style="">';
-                print '<a href="'.dol_buildpath('/sghr/recruitment/Candidate/card.php?id='.$item->rowid,2).'" >';
+                print '<a href="'.dol_buildpath('/sghr/recruitment/candidates/card.php?id='.$item->rowid,2).'" >';
                 print $item->prenom.' '.$item->nom;
                 print '</a>';
                 print '</td>';
@@ -189,11 +189,11 @@ function field($titre,$champ){
             // console.log($id);
             $.ajax({
                 data:{'id_candidature':$id,},
-                url:"<?php echo dol_buildpath('/sghr/recruitment/Candidate/info_contact.php?action_=delete_user',2) ?>",
+                url:"<?php echo dol_buildpath('/sghr/recruitment/candidates/info_contact.php?action_=delete_user',2) ?>",
                 type:'POST',
                 success:function($data){
                     if($data == 'Ok'){
-                        window.location.href="<?php echo dol_buildpath('/sghr/recruitment/Candidate/card.php?id='.$id,2) ;?>";
+                        window.location.href="<?php echo dol_buildpath('/sghr/recruitment/candidates/card.php?id='.$id,2) ;?>";
                     }
 
                 }

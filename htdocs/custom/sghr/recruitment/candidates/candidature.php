@@ -45,17 +45,17 @@ print_barre_liste($modname, $page, $_SERVER["PHP_SELF"], "", $sortfield, $sortor
 
 
 // print '<link rel="stylesheet" href="https://www.jqwidgets.com/jquery-widgets-documentation/jqwidgts/styles/jqx.base.css" type="text/css" />';
-print '<link rel="stylesheet" href="'.dol_buildpath('/sghr/recruitment/Candidate/css/kanban.css',2).'" type="text/css" />';
+print '<link rel="stylesheet" href="'.dol_buildpath('/sghr/recruitment/candidates/css/kanban.css',2).'" type="text/css" />';
 
-print '<script type="text/javascript" src="'.dol_buildpath('recruitment/Candidate/js/jqxcore.js',2).'"></script>';
-print '<script type="text/javascript" src="'.dol_buildpath('recruitment/Candidate/js/jqxsortable.js',2).'"></script>';
-print '<script type="text/javascript" src="'.dol_buildpath('recruitment/Candidate/js/jqxkanban.js',2).'"></script>';
-print '<script type="text/javascript" src="'.dol_buildpath('recruitment/Candidate/js/jqxdata.js',2).'"></script>';
+print '<script type="text/javascript" src="'.dol_buildpath('recruitment/candidates/js/jqxcore.js',2).'"></script>';
+print '<script type="text/javascript" src="'.dol_buildpath('recruitment/candidates/js/jqxsortable.js',2).'"></script>';
+print '<script type="text/javascript" src="'.dol_buildpath('recruitment/candidates/js/jqxkanban.js',2).'"></script>';
+print '<script type="text/javascript" src="'.dol_buildpath('recruitment/candidates/js/jqxdata.js',2).'"></script>';
 
 print '<div class="div_h">';
 
   print '<div style="float: left; margin-bottom: 8px; width:10%;">';
-      print '<a class="icon_list" data-type="list" href="'.dol_buildpath('recruitment/Candidate/index.php',2).'"> <img  src="'.dol_buildpath('recruitment/img/list.png',2).'" style="height:30px" id="list" ></a>';
+      print '<a class="icon_list" data-type="list" href="'.dol_buildpath('recruitment/candidates/index.php',2).'"> <img  src="'.dol_buildpath('recruitment/img/list.png',2).'" style="height:30px" id="list" ></a>';
       print '<a class="icon_list" data-type="grid"> <img src="'.dol_buildpath('recruitment/img/grip.png',2).'" style="height:30px" id="grid" ></a> ';
   print '</div>';
 
@@ -210,7 +210,7 @@ print '<div id="kanban"></div>';
                 $id_new=$id_new[1];
                   $.ajax({
                     data:{'id_candidat':$id_candidat,'id_etat':$id_new},
-                    url:"<?php echo dol_buildpath('/sghr/recruitment/Candidate/info_contact.php?action_=change_etat',2); ?>",
+                    url:"<?php echo dol_buildpath('/sghr/recruitment/candidates/info_contact.php?action_=change_etat',2); ?>",
                     type:'POST',
                     dataType: "json",
                     success:function($data){
@@ -256,7 +256,7 @@ print '<div id="kanban"></div>';
                     $etape=$Candidate->rows[$j];
                     ?>
 
-                    $('#kanban_<?php echo $etape->rowid ?>').find('.jqx-kanban-item-text').append('<a id="show_<?php echo $etape->rowid ?>" href="<?php echo dol_buildpath('/sghr/recruitment/Candidate/card.php?id='.$etape->rowid,2)?>" style="display:none"></a>');
+                    $('#kanban_<?php echo $etape->rowid ?>').find('.jqx-kanban-item-text').append('<a id="show_<?php echo $etape->rowid ?>" href="<?php echo dol_buildpath('/sghr/recruitment/candidates/card.php?id='.$etape->rowid,2)?>" style="display:none"></a>');
 
                     $('div#kanban_<?php echo $etape->rowid ?>').find('.jqx-kanban-item-footer').find('.jqx-kanban-item-keyword').each(function(){
                         <?php 

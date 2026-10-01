@@ -187,7 +187,7 @@ print '<div  class="list" style="width:100% !important;">';
 					    		print $item->nom;
 				    		print '</a>';
 				    		print '</td>';
-				    		// print '<td align="center" style=""><a href="'.dol_buildpath('/sghr/recruitment/Candidate/card.php?id='.$item->candidature,2).'"> '.$Candidate->sujet.' </a></td>';
+				    		// print '<td align="center" style=""><a href="'.dol_buildpath('/sghr/recruitment/candidates/card.php?id='.$item->candidature,2).'"> '.$Candidate->sujet.' </a></td>';
 							print '<td align="center">'.$langs->trans($item->type).'</td>';
 							print '<td align="center">'.$date.'</td>';
 							print '<td align="center">';

@@ -37,7 +37,7 @@ function menu_candidature($id)
     // print_r($_SERVER);
     $link = $_SERVER["REQUEST_URI"];
     if(!empty($id))
-        $link = dol_buildpath("recrutement/Candidate/card.php?id=".$id,2);
+        $link = dol_buildpath("recrutement/candidates/card.php?id=".$id,2);
 
         $head[$h][0] = $link;
         $head[$h][1] = $langs->trans("general");

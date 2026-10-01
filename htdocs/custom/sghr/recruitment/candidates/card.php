@@ -214,7 +214,7 @@ dol_fiche_head(
             $id=$('#cree_employe').data('id');
             $.ajax({
                 data:{'id_':$id,},
-                url:"<?php echo dol_buildpath('/sghr/recruitment/Candidate/info_contact.php?action_=cree_employe',2) ?>",
+                url:"<?php echo dol_buildpath('/sghr/recruitment/candidates/info_contact.php?action_=cree_employe',2) ?>",
                 type:'POST',
                 success:function($data){
                     if($data == 'Ok'){
@@ -230,7 +230,7 @@ dol_fiche_head(
             $id=$('#refuse').data('id');
             $.ajax({
                 data:{'id_':$id,},
-                url:"<?php echo dol_buildpath('/sghr/recruitment/Candidate/info_contact.php?action_=refuse',2) ?>",
+                url:"<?php echo dol_buildpath('/sghr/recruitment/candidates/info_contact.php?action_=refuse',2) ?>",
                 type:'POST',
                 success:function($data){
                     if($data == 'Ok'){
@@ -246,7 +246,7 @@ dol_fiche_head(
             $id=$('#relance').data('id');
             $.ajax({
                 data:{'id_':$id,},
-                url:"<?php echo dol_buildpath('/sghr/recruitment/Candidate/info_contact.php?action_=relance',2) ?>",
+                url:"<?php echo dol_buildpath('/sghr/recruitment/candidates/info_contact.php?action_=relance',2) ?>",
                 type:'POST',
                 success:function($data){
                     if($data == 'Ok'){
@@ -264,7 +264,7 @@ dol_fiche_head(
         console.log($id);
         $.ajax({
             data:{'id':$id,},
-            url:"<?php echo dol_buildpath('/sghr/recruitment/Candidate/info_contact.php?action_=get_contact',2) ?>",
+            url:"<?php echo dol_buildpath('/sghr/recruitment/candidates/info_contact.php?action_=get_contact',2) ?>",
             type:'POST',
             dataType: 'json',
             success:function(data){
