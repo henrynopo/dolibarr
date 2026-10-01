@@ -8,7 +8,7 @@
  * (at your option) any later version.
  *
  * Candidate -> SG HR employee conversion (sghr phase 4, inspired by
- * recrutement's candidatures/fiche_employe.php). recrutement exposes no
+ * recrutement's Candidate/fiche_employe.php). recrutement exposes no
  * standard hook on its candidacy card, so this standalone page drives the
  * flow from the sghr side: pick a candidate, review the prefilled
  * employee form, create the Dolibarr user (or reuse one with the same
@@ -44,7 +44,7 @@ $fkTableUser = MAIN_DB_PREFIX.'user';
  */
 function sghrFetchCandidate($db, $id)
 {
-	$sql = "SELECT rowid, nom, prenom, email, tel FROM ".MAIN_DB_PREFIX."candidatures WHERE rowid = ".((int) $id);
+	$sql = "SELECT rowid, nom, prenom, email, tel FROM ".MAIN_DB_PREFIX."Candidate WHERE rowid = ".((int) $id);
 	$resql = $db->query($sql);
 	if ($resql && $db->num_rows($resql) > 0) {
 		return $db->fetch_object($resql);
@@ -135,7 +135,7 @@ print load_fiche_titre($langs->trans('SghrCandidateConvertTitle'), '', 'user');
 // Step 1: candidate picker
 if ($fromCand <= 0) {
 	$cands = array();
-	$sql = "SELECT c.rowid, c.nom, c.prenom, c.email FROM ".MAIN_DB_PREFIX."candidatures c ORDER BY c.rowid DESC LIMIT 500";
+	$sql = "SELECT c.rowid, c.nom, c.prenom, c.email FROM ".MAIN_DB_PREFIX."Candidate c ORDER BY c.rowid DESC LIMIT 500";
 	$resql = $db->query($sql);
 	if ($resql) {
 		while ($obj = $db->fetch_object($resql)) {

@@ -79,14 +79,14 @@ class modSghr extends DolibarrModules
 		$this->module_parts = array(
 			'triggers' => 1,
 			'menus' => 1,
-			'hooks' => array('usercard', 'docsemployesindex', 'docsemployescard', 'completetabs', 'main'),
-			'css' => array('/sghr/css/sghr.css', '/sghr/docsemployes/css/docsemployes.css', '/sghr/ecv/css/ecv.css', '/sghr/recrutement/css/recrutement.css'),
-			'js' => array('/sghr/docsemployes/js/docsemployes.js', '/sghr/ecv/js/ecv.js', '/sghr/recrutement/js/recrutement.js.php'),
+			'hooks' => array('usercard', 'employeedocsindex', 'employeedocscard', 'completetabs', 'main'),
+			'css' => array('/sghr/css/sghr.css', '/sghr/employeedocs/css/employeedocs.css', '/sghr/cv/css/cv.css', '/sghr/recruitment/css/recruitment.css'),
+			'js' => array('/sghr/employeedocs/js/employeedocs.js', '/sghr/cv/js/cv.js', '/sghr/recruitment/js/recruitment.js.php'),
 		);
 
 		// Employee documents tab (absorbed from docsemployes module, phase 2)
 		$this->tabs = array(
-			'user:+tab_docsemploye:tab_docsemploye:docsemployes@sghr:$user->rights->sghr->docs->read:/sghr/docsemployes/index.php?id=__ID__',
+			'user:+tab_docsemploye:tab_docsemploye:employeedocs@sghr:$user->rights->sghr->docs->read:/sghr/employeedocs/index.php?id=__ID__',
 		);
 
 		$this->dirs = array("/sghr/temp");
@@ -251,7 +251,7 @@ class modSghr extends DolibarrModules
 		$this->menu[$r++] = array(
 			'fk_menu' => 'fk_mainmenu=sghr,fk_leftmenu=sghr_grp_emp', 'type' => 'left',
 			'titre' => 'EmployeeDocuments', 'mainmenu' => 'sghr', 'leftmenu' => 'sghr_docs',
-			'url' => '/sghr/docsemployes/index.php', 'langs' => 'docsemployes@sghr', 'position' => 102, 'enabled' => 1,
+			'url' => '/sghr/employeedocs/index.php', 'langs' => 'employeedocs@sghr', 'position' => 102, 'enabled' => 1,
 			'prefix' => '<span class="fas fa-passport fa-fw pictofixedwidth"></span>',
 			'perms' => '$user->rights->sghr->docs->read', 'user' => 0
 		);
@@ -280,49 +280,49 @@ class modSghr extends DolibarrModules
 		// ── Group: RECRUITMENT (200) ───────────────────────────────────────────
 		$this->menu[$r++] = array(
 			'fk_menu' => 'fk_mainmenu=sghr', 'type' => 'left', 'titre' => 'SghrMenuRecruitment', 'mainmenu' => 'sghr', 'leftmenu' => 'sghr_grp_rec',
-			'url' => '/sghr/recrutement/index.php', 'langs' => 'recrutement@sghr', 'position' => 200, 'enabled' => 1,
+			'url' => '/sghr/recruitment/index.php', 'langs' => 'recruitment@sghr', 'position' => 200, 'enabled' => 1,
 			'prefix' => '<span class="fas fa-person-chalkboard fa-fw pictofixedwidth"></span>',
 			'perms' => '$user->rights->sghr->rec->read', 'user' => 0
 		);
 		$this->menu[$r++] = array(
 			'fk_menu' => 'fk_mainmenu=sghr,fk_leftmenu=sghr_grp_rec', 'type' => 'left',
-			'titre' => 'postes', 'mainmenu' => 'sghr', 'leftmenu' => 'sghr_rec_postes',
-			'url' => '/sghr/recrutement/index.php', 'langs' => 'recrutement@sghr', 'position' => 201, 'enabled' => 1,
+			'titre' => 'JobPosition', 'mainmenu' => 'sghr', 'leftmenu' => 'sghr_rec_postes',
+			'url' => '/sghr/recruitment/index.php', 'langs' => 'recruitment@sghr', 'position' => 201, 'enabled' => 1,
 			'prefix' => '<span class="fas fa-briefcase fa-fw pictofixedwidth"></span>',
 			'perms' => '$user->rights->sghr->rec->read', 'user' => 0
 		);
 		$this->menu[$r++] = array(
 			'fk_menu' => 'fk_mainmenu=sghr,fk_leftmenu=sghr_grp_rec', 'type' => 'left',
-			'titre' => 'candidatures', 'mainmenu' => 'sghr', 'leftmenu' => 'sghr_rec_cands',
-			'url' => '/sghr/recrutement/candidatures/kanban.php?page=0', 'langs' => 'recrutement@sghr', 'position' => 202, 'enabled' => 1,
+			'titre' => 'Candidate', 'mainmenu' => 'sghr', 'leftmenu' => 'sghr_rec_cands',
+			'url' => '/sghr/recruitment/Candidate/kanban.php?page=0', 'langs' => 'recruitment@sghr', 'position' => 202, 'enabled' => 1,
 			'prefix' => '<span class="fas fa-columns fa-fw pictofixedwidth"></span>',
 			'perms' => '$user->rights->sghr->rec->read', 'user' => 0
 		);
 		$this->menu[$r++] = array(
 			'fk_menu' => 'fk_mainmenu=sghr,fk_leftmenu=sghr_grp_rec', 'type' => 'left',
 			'titre' => 'liste_des_candidatures', 'mainmenu' => 'sghr', 'leftmenu' => 'sghr_rec_cands_list',
-			'url' => '/sghr/recrutement/candidatures/index.php?page=0', 'langs' => 'recrutement@sghr', 'position' => 203, 'enabled' => 1,
+			'url' => '/sghr/recruitment/Candidate/index.php?page=0', 'langs' => 'recruitment@sghr', 'position' => 203, 'enabled' => 1,
 			'prefix' => '<span class="fas fa-list fa-fw pictofixedwidth"></span>',
 			'perms' => '$user->rights->sghr->rec->read', 'user' => 0
 		);
 		$this->menu[$r++] = array(
 			'fk_menu' => 'fk_mainmenu=sghr,fk_leftmenu=sghr_grp_rec', 'type' => 'left',
 			'titre' => 'CVManagement', 'mainmenu' => 'sghr', 'leftmenu' => 'sghr_cv',
-			'url' => '/sghr/ecv/index.php', 'langs' => 'ecv@sghr', 'position' => 204, 'enabled' => 1,
+			'url' => '/sghr/cv/index.php', 'langs' => 'cv@sghr', 'position' => 204, 'enabled' => 1,
 			'prefix' => '<span class="fas fa-file-alt fa-fw pictofixedwidth"></span>',
 			'perms' => '$user->rights->sghr->cv->read', 'user' => 0
 		);
 		$this->menu[$r++] = array(
 			'fk_menu' => 'fk_mainmenu=sghr,fk_leftmenu=sghr_grp_rec', 'type' => 'left',
 			'titre' => 'recru_recherche_avancee', 'mainmenu' => 'sghr', 'leftmenu' => 'sghr_rec_search',
-			'url' => '/sghr/recrutement/search.php', 'langs' => 'recrutement@sghr', 'position' => 205, 'enabled' => 1,
+			'url' => '/sghr/recruitment/search.php', 'langs' => 'recruitment@sghr', 'position' => 205, 'enabled' => 1,
 			'prefix' => '<span class="fas fa-search fa-fw pictofixedwidth"></span>',
 			'perms' => '$user->rights->sghr->rec->read', 'user' => 0
 		);
 		$this->menu[$r++] = array(
 			'fk_menu' => 'fk_mainmenu=sghr,fk_leftmenu=sghr_grp_rec', 'type' => 'left',
 			'titre' => 'rapports', 'mainmenu' => 'sghr', 'leftmenu' => 'sghr_rec_reports',
-			'url' => '/sghr/recrutement/rapports.php', 'langs' => 'recrutement@sghr', 'position' => 206, 'enabled' => 1,
+			'url' => '/sghr/recruitment/rapports.php', 'langs' => 'recruitment@sghr', 'position' => 206, 'enabled' => 1,
 			'prefix' => '<span class="fas fa-chart-bar fa-fw pictofixedwidth"></span>',
 			'perms' => '$user->rights->sghr->rec->read', 'user' => 0
 		);
@@ -460,25 +460,25 @@ class modSghr extends DolibarrModules
 		$this->menu[$r++] = array(
 			'fk_menu' => 'fk_mainmenu=sghr,fk_leftmenu=sghr_grp_cfg', 'type' => 'left',
 			'titre' => 'departements', 'mainmenu' => 'sghr', 'leftmenu' => 'sghr_cfg_departements',
-			'url' => '/sghr/recrutement/departements/index.php', 'langs' => 'recrutement@sghr', 'position' => 910, 'enabled' => 1,
+			'url' => '/sghr/recruitment/departements/index.php', 'langs' => 'recruitment@sghr', 'position' => 910, 'enabled' => 1,
 			'prefix' => '<span class="fas fa-building fa-fw pictofixedwidth"></span>', 'perms' => '$user->admin', 'user' => 0
 		);
 		$this->menu[$r++] = array(
 			'fk_menu' => 'fk_mainmenu=sghr,fk_leftmenu=sghr_grp_cfg', 'type' => 'left',
 			'titre' => 'etiquettes_candidature', 'mainmenu' => 'sghr', 'leftmenu' => 'sghr_cfg_etiquettes',
-			'url' => '/sghr/recrutement/etiquettes/index.php', 'langs' => 'recrutement@sghr', 'position' => 911, 'enabled' => 1,
+			'url' => '/sghr/recruitment/Tag/index.php', 'langs' => 'recruitment@sghr', 'position' => 911, 'enabled' => 1,
 			'prefix' => '<span class="fas fa-tags fa-fw pictofixedwidth"></span>', 'perms' => '$user->admin', 'user' => 0
 		);
 		$this->menu[$r++] = array(
 			'fk_menu' => 'fk_mainmenu=sghr,fk_leftmenu=sghr_grp_cfg', 'type' => 'left',
-			'titre' => 'origines', 'mainmenu' => 'sghr', 'leftmenu' => 'sghr_cfg_origines',
-			'url' => '/sghr/recrutement/origines/index.php', 'langs' => 'recrutement@sghr', 'position' => 912, 'enabled' => 1,
+			'titre' => 'Source', 'mainmenu' => 'sghr', 'leftmenu' => 'sghr_cfg_origines',
+			'url' => '/sghr/recruitment/Source/index.php', 'langs' => 'recruitment@sghr', 'position' => 912, 'enabled' => 1,
 			'prefix' => '<span class="fas fa-globe fa-fw pictofixedwidth"></span>', 'perms' => '$user->admin', 'user' => 0
 		);
 		$this->menu[$r++] = array(
 			'fk_menu' => 'fk_mainmenu=sghr,fk_leftmenu=sghr_grp_cfg', 'type' => 'left',
 			'titre' => 'niveauetud', 'mainmenu' => 'sghr', 'leftmenu' => 'sghr_cfg_degrees',
-			'url' => '/sghr/recrutement/candidatures/degrees/index.php', 'langs' => 'recrutement@sghr', 'position' => 913, 'enabled' => 1,
+			'url' => '/sghr/recruitment/Candidate/degrees/index.php', 'langs' => 'recruitment@sghr', 'position' => 913, 'enabled' => 1,
 			'prefix' => '<span class="fas fa-graduation-cap fa-fw pictofixedwidth"></span>', 'perms' => '$user->admin', 'user' => 0
 		);
 	}
@@ -505,17 +505,17 @@ class modSghr extends DolibarrModules
 			// phase 2: docsemployes absorption - same id-preserving label migration
 			"UPDATE ".MAIN_DB_PREFIX."rights_def SET module = 'sghr' WHERE module = 'docsemployes'",
 			"UPDATE ".MAIN_DB_PREFIX."cronjobs SET module = 'sghr' WHERE module = 'docsemployes'",
-			"UPDATE ".MAIN_DB_PREFIX."cronjobs SET url = REPLACE(url, '/docsemployes/', '/sghr/docsemployes/') WHERE url LIKE '%/docsemployes/%'",
+			"UPDATE ".MAIN_DB_PREFIX."cronjobs SET url = REPLACE(url, '/docsemployes/', '/sghr/employeedocs/') WHERE url LIKE '%/docsemployes/%'",
 			"DELETE FROM ".MAIN_DB_PREFIX."menu WHERE module = 'docsemployes'",
 			// phase 3: ecv absorption
 			"UPDATE ".MAIN_DB_PREFIX."rights_def SET module = 'sghr' WHERE module = 'ecv'",
 			"UPDATE ".MAIN_DB_PREFIX."cronjobs SET module = 'sghr' WHERE module = 'ecv'",
-			"UPDATE ".MAIN_DB_PREFIX."cronjobs SET url = REPLACE(url, '/ecv/', '/sghr/ecv/') WHERE url LIKE '%/ecv/%'",
+			"UPDATE ".MAIN_DB_PREFIX."cronjobs SET url = REPLACE(url, '/ecv/', '/sghr/cv/') WHERE url LIKE '%/ecv/%'",
 			"DELETE FROM ".MAIN_DB_PREFIX."menu WHERE module = 'ecv'",
 			// phase 6: recrutement absorption
 			"UPDATE ".MAIN_DB_PREFIX."rights_def SET module = 'sghr' WHERE module = 'recrutement'",
 			"UPDATE ".MAIN_DB_PREFIX."cronjobs SET module = 'sghr' WHERE module = 'recrutement'",
-			"UPDATE ".MAIN_DB_PREFIX."cronjobs SET url = REPLACE(url, '/recrutement/', '/sghr/recrutement/') WHERE url LIKE '%/recrutement/%'",
+			"UPDATE ".MAIN_DB_PREFIX."cronjobs SET url = REPLACE(url, '/recrutement/', '/sghr/recruitment/') WHERE url LIKE '%/recrutement/%'",
 			"DELETE FROM ".MAIN_DB_PREFIX."menu WHERE module = 'recrutement'",
 		);
 		foreach ($migration as $sqlmig) {
