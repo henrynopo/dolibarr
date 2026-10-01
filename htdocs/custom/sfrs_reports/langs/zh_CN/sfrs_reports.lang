@@ -178,3 +178,4 @@ AgingTotal = 账龄合计
 BookkeepingBalance = 账簿余额（%s）
 AgingDifferenceNote = 账龄合计来自未结业务单据；账簿余额为整个控制科目区间的余额。两者差异来自汇兑重估凭证（FXREV）、手工凭证及发票子账簿之外的记账，属正常现象。
 AgingReportNote = 金额以列报货币计。"原币金额"列显示发票币种的未结部分（比例法）。截止日期之后开票、或目前已结清的发票不计入。
+ModuleFamilyHaopie=HaoPie

@@ -192,3 +192,4 @@ StrongAuthAuditExport              =导出 CSV
 
 # totp2fa 迁移脚本
 StrongAuthDescription             =强身份认证 —— RFC 6238 TOTP（静态 AES-256-GCM 加密）、跨平台 WebAuthn Passkey（Windows Hello / iCloud 钥匙串 / Google 密码管理器，限内部用户），以及经 Dolibarr 原生登录管道的 Entra ID / Google Workspace / OIDC 单点登录。内部域用户仅限 IdP 登录；锁定策略跨实体全局生效；审计日志只增删、可对接 SIEM。
+ModuleFamilyHaopie=HaoPie

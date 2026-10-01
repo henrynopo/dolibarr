@@ -178,3 +178,4 @@ AgingTotal = Aging total
 BookkeepingBalance = Ledger balance %s
 AgingDifferenceNote = The aging total is computed from open business documents; the ledger balance covers the whole control-account range. Differences are expected from FX revaluation entries (FXREV), manual journal entries and postings outside the invoice subledger.
 AgingReportNote = Amounts are in the presentation currency. The "Original currency" column shows the open part in the invoice currency (proportional method). Invoices still open today but issued after the as-of date, or fully settled by now, are excluded.
+ModuleFamilyHaopie=HaoPie
