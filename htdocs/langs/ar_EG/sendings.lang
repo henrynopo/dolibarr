@@ -1,8 +1,0 @@
-# Dolibarr language file - Source file is en_US - sendings
-Sendings=شحنات
-Shipments=شحنات
-StatusSendingCanceled=تم الإلغاء
-StatusSendingCanceledShort=تم الإلغاء
-StatusSendingValidatedShort=معتمد
-DeliveryDate=تاريخ التوريد
-StatusDeliveryCanceled=تم الإلغاء

@@ -1,8 +1,0 @@
-# Dolibarr language file - Source file is en_US - sms
-SmsTargets=Objectifs
-SmsRecipients=Objectifs
-SmsRecipient=Objectif
-SmsTo=Objectif
-SmsMessage=Message SMS
-SmsStatusSentPartialy=Partiellement envoyé
-SmsStatusSentCompletely=Complètement envoyé
