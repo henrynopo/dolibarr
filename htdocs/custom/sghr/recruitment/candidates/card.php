@@ -17,7 +17,7 @@ dol_include_once('/sghr/recruitment/class/Tag.class.php');
 dol_include_once('/sghr/recruitment/class/Source.class.php');
 dol_include_once('/sghr/recruitment/lib/recrutement.lib.php');
 dol_include_once('/sghr/recruitment/class/JobPosition.class.php');
-dol_include_once('/sghr/recruitment/class/cv.class.php');
+dol_include_once('/sghr/recruitment/class/RecruitCv.class.php');
 dol_include_once('/core/class/html.form.class.php');
 dol_include_once('/core/class/html.formother.class.php');
 

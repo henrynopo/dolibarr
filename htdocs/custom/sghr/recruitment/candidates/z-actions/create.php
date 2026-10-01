@@ -312,7 +312,7 @@ if($action == "add"){
                         }
                         // die(GETPOST('id_departement'));
                             print $JobPosition->select_departement($id_dep,'Department');
-                            print '<a href="'.dol_buildpath('/sghr/recruitment/departements/card.php?action=add&backtopage='.urlencode($_SERVER["PHP_SELF"].'?action=add'),2).'">'.$langs->trans('cree_departement').'</a>';
+                            print '<a href="'.dol_buildpath('/sghr/recruitment/departments/card.php?action=add&backtopage='.urlencode($_SERVER["PHP_SELF"].'?action=add'),2).'">'.$langs->trans('cree_departement').'</a>';
                         print '</td>';
                     print '</tr>';
                     print '<tr>';

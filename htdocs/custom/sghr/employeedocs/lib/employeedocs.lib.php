@@ -13,7 +13,7 @@ require_once DOL_DOCUMENT_ROOT.'/core/lib/usergroups.lib.php';
 
 
 
-dol_include_once('/sghr/employeedocs/class/docsemployes.class.php');
+dol_include_once('/sghr/employeedocs/class/EmployeeDocs.class.php');
 dol_include_once('/core/class/html.form.class.php');
 
 $langs->load('employeedocs@sghr');

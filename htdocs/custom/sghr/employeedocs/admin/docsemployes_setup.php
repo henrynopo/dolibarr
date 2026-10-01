@@ -8,7 +8,7 @@ if (! $res) { $res = @include("../../../main.inc.php"); } // From "custom" direc
 // Libraries
 require_once DOL_DOCUMENT_ROOT . "/core/lib/admin.lib.php";
 require_once '../lib/docsemployes.lib.php';
-dol_include_once('/sghr/employeedocs/class/docsemployes.class.php');
+dol_include_once('/sghr/employeedocs/class/EmployeeDocs.class.php');
 
 $employeeDocs  = new EmployeeDocs($db);
 // Translations
@@ -71,7 +71,7 @@ elseif ($action == 'docsemployes_mails') {
     if ($nbrd && $nbrd > 0){
         $res = dolibarr_set_const($db, $name, $nbrd, 'chaine', 0, '', 0);
         
-        // $sql = "UPDATE " . MAIN_DB_PREFIX. "cronjob SET frequency = '".$nbrd."', unitfrequency = 86400 WHERE module_name = 'docsemployes' AND classesname = 'employeedocs/class/docsemployes.class.php' AND objectname = 'docsemployes' AND methodename = 'checkInterventionsMails'";
+        // $sql = "UPDATE " . MAIN_DB_PREFIX. "cronjob SET frequency = '".$nbrd."', unitfrequency = 86400 WHERE module_name = 'docsemployes' AND classesname = 'employeedocs/class/EmployeeDocs.class.php' AND objectname = 'docsemployes' AND methodename = 'checkInterventionsMails'";
         // $resql = $db->query($sql);
         // if($resql) $res = dolibarr_set_const($db, $name, $nbrd, 'chaine', 0, '', 0);
 
@@ -271,7 +271,7 @@ if (!empty($conf->global->DOCSEMPLOYES_SEND_EMAIL)) {
   
     $cronid = '';
 
-    $sql = "SELECT * FROM " . MAIN_DB_PREFIX. "cronjob WHERE module_name = 'docsemployes' AND classesname = 'employeedocs/class/docsemployes.class.php' AND objectname = 'docsemployes' AND methodename = 'checkDocsMails'";
+    $sql = "SELECT * FROM " . MAIN_DB_PREFIX. "cronjob WHERE module_name = 'docsemployes' AND classesname = 'employeedocs/class/EmployeeDocs.class.php' AND objectname = 'docsemployes' AND methodename = 'checkDocsMails'";
     $resql = $db->query($sql);
 
     if ($resql) {

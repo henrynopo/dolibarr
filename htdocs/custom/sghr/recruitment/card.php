@@ -14,7 +14,7 @@ dol_include_once('/sghr/recruitment/class/Candidate.class.php');
 dol_include_once('/sghr/recruitment/class/Department.class.php');
 dol_include_once('/sghr/recruitment/lib/recrutement.lib.php');
 dol_include_once('/sghr/recruitment/class/JobPosition.class.php');
-dol_include_once('/sghr/recruitment/class/cv.class.php');
+dol_include_once('/sghr/recruitment/class/RecruitCv.class.php');
 dol_include_once('/core/class/html.form.class.php');
 
 require_once DOL_DOCUMENT_ROOT.'/core/lib/images.lib.php';

@@ -7,7 +7,7 @@ if (! $res && file_exists("../../main.inc.php")) $res=@include("../../main.inc.p
 if (! $res && file_exists("../../../main.inc.php")) $res=@include("../../../main.inc.php"); // For "custom" 
 
 
-dol_include_once('/sghr/cv/class/ecv.class.php');
+dol_include_once('/sghr/cv/class/Cv.class.php');
 dol_include_once('/sghr/cv/class/CvEducation.class.php');
 dol_include_once('/core/class/html.form.class.php');
 dol_include_once('/sghr/cv/lib/cv.lib.php');
@@ -320,7 +320,7 @@ $Master_recherche = preg_replace('/\s\s+/', '', $langs->trans("Master_recherche"
 			$id=$(this).data('id');
 			$.ajax({
 				data:{'id':$id},
-				url:"<?php echo dol_escape_js(dol_buildpath('/sghr/cv/formations/data_edit.php',2)) ;?>",
+				url:"<?php echo dol_escape_js(dol_buildpath('/sghr/cv/education/data_edit.php',2)) ;?>",
 				type:'POST',
 				success:function(data){
 					$('#tr_formations').html(data);

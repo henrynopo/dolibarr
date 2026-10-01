@@ -7,7 +7,7 @@ if (! $res && file_exists("../../../../../main.inc.php")) $res=@include("../../.
 if (! $res && file_exists("../main.inc.php")) $res=@include("../main.inc.php");       // For root directory
 if (! $res && file_exists("../../main.inc.php")) $res=@include("../../main.inc.php"); // For "custom" 
 
-dol_include_once('/sghr/cv/class/ecv.class.php');
+dol_include_once('/sghr/cv/class/Cv.class.php');
 dol_include_once('/sghr/cv/class/CvSkill.class.php');
 dol_include_once('/sghr/cv/class/CvLanguage.class.php');
 dol_include_once('/sghr/cv/class/CvExperience.class.php');

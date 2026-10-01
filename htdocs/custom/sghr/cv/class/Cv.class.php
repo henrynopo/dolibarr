@@ -1,7 +1,7 @@
 <?php 
 require_once DOL_DOCUMENT_ROOT . '/core/class/commonobject.class.php'; 
 
-// dol_include_once('/sghr/cv/class/ecv.class.php');
+// dol_include_once('/sghr/cv/class/Cv.class.php');
  
 class Cv extends Commonobject{ 
 
@@ -450,7 +450,7 @@ class Cv extends Commonobject{
     {
         global $conf, $langs;
 
-        dol_include_once('/sghr/cv/core/modules/modecv.class.php');
+        dol_include_once('/sghr/cv/core/modules/modCv.class.php');
         $modcore = new modecv($this->db);
         
         $lastversion    = $modcore->version;

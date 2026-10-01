@@ -7,7 +7,7 @@ if (! $res && file_exists("../../main.inc.php")) $res=@include("../../main.inc.p
 if (! $res && file_exists("../../../main.inc.php")) $res=@include("../../../main.inc.php"); // For "custom" 
 
 
-dol_include_once('/sghr/cv/class/ecv.class.php');
+dol_include_once('/sghr/cv/class/Cv.class.php');
 dol_include_once('/sghr/cv/class/CvQualification.class.php');
 $cvProfile              = new Cv($db);
 $CvQualification   = new CvQualification($db);

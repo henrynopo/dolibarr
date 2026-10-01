@@ -28,7 +28,7 @@ class modSwitchThirdParty extends DolibarrModules
 
         $this->module_position = 500;
 
-        $this->name = "changetiers";
+        $this->name = "switchthirdparty";
 
         // Module description, used if translation string 'ModuleXXXDesc' not found (where XXX is value of numeric property 'numero' of module)
         $this->description = "Module432446Desc";
@@ -203,10 +203,18 @@ class modSwitchThirdParty extends DolibarrModules
      * @param      string	$options    Options when enabling module ('', 'noboxes')
      * @return     int             	1 if OK, 0 if KO
      */
-    public function init($options='')
+    public function init($options = '')
     {
         $sql = array();
-        
+
+        // Rename migration changetiers -> switchthirdparty: relabel rights
+        // preserving row ids (user bindings survive), drop legacy menu rows
+        // and consts of the old module name.
+        $this->db->query("UPDATE ".MAIN_DB_PREFIX."rights_def SET module = 'switchthirdparty' WHERE module = 'changetiers'");
+        $this->db->query("UPDATE ".MAIN_DB_PREFIX."cronjobs SET module = 'switchthirdparty' WHERE module = 'changetiers'");
+        $this->db->query("DELETE FROM ".MAIN_DB_PREFIX."menu WHERE module = 'changetiers'");
+        $this->db->query("DELETE FROM ".MAIN_DB_PREFIX."const WHERE name LIKE 'MAIN_MODULE_CHANGETIERS%'");
+
         //écriture du fichier de config js
         //$file = __DIR__.'/../../js/conf_changetiers.js';
         //file_put_contents($file, '');

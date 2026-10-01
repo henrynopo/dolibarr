@@ -7,7 +7,7 @@ if (! $res && file_exists("../../main.inc.php")) $res=@include("../../main.inc.p
 if (! $res && file_exists("../../../main.inc.php")) $res=@include("../../../main.inc.php"); // For "custom" 
 
 
-dol_include_once('/sghr/cv/class/ecv.class.php');
+dol_include_once('/sghr/cv/class/Cv.class.php');
 dol_include_once('/sghr/cv/class/CvLicense.class.php');
 dol_include_once('/core/class/html.form.class.php');
 dol_include_once('/sghr/cv/lib/cv.lib.php');
@@ -132,7 +132,7 @@ if(!empty($id_ecv)){
 	$head = ecvAdminPrepareHead($id_ecv);
     dol_fiche_head($head,'permis','',	0,"cv@sghr");
 }
-print '<link rel="stylesheet" href= "'.dol_buildpath('/sghr/cv/permis/css/rating.css',2).'">';
+print '<link rel="stylesheet" href= "'.dol_buildpath('/sghr/cv/licenses/css/rating.css',2).'">';
 
 print '<form method="get" action="'.$_SERVER["PHP_SELF"].'" class="form_ecv index_permisecv">'."\n";
 print '<input name="pagem" type="hidden" value="'.$page.'">';
@@ -238,7 +238,7 @@ function field($titre,$champ){
             $id=$('#new_permis tr').length+1;
 			// console.log($id);
            		$.ajax({
-           			url:"<?php echo dol_escape_js(dol_buildpath('/sghr/cv/permis/data_permis.php?data=select',2)); ?>",
+           			url:"<?php echo dol_escape_js(dol_buildpath('/sghr/cv/licenses/data_permis.php?data=select',2)); ?>",
 		            type:"POST",
 		            data:{'permis_id':$id},
 		            success:function(data){
@@ -258,7 +258,7 @@ function field($titre,$champ){
 			$id=$(this).data('id');
 			$.ajax({
 				data:{'permis_id':$id},
-				url:"<?php echo dol_escape_js(dol_buildpath('/sghr/cv/permis/data_permis.php?data=edit',2)); ?>",
+				url:"<?php echo dol_escape_js(dol_buildpath('/sghr/cv/licenses/data_permis.php?data=edit',2)); ?>",
 				type:'POST',
 				success:function(data){
 					$('#new_permis').html(data);

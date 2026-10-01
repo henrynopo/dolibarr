@@ -231,49 +231,49 @@ class modSghr extends DolibarrModules
 			'url' => '/sghr/employee_list.php?mainmenu=sghr',
 			'langs' => 'sghr@sghr', 'position' => 1000, 'enabled' => 1,
 			'perms' => '$user->admin || $user->rights->sghr->payroll->read || $user->rights->sghr->employee->read || $user->rights->sghr->claims->submit',
-			'prefix' => '<span class="fas fa-briefcase fa-fw pictofixedwidth"></span>', 'user' => 0
+			'prefix' => '<span class="fas fa-briefcase fa-fw pictofixedwidth"></span>', 'picto' => 'fa-briefcase', 'user' => 0
 		);
 
 		// ── Group: EMPLOYEES (100) ─────────────────────────────────────────────
 		$this->menu[$r++] = array(
 			'fk_menu' => 'fk_mainmenu=sghr', 'type' => 'left', 'titre' => 'SghrMenuEmployees', 'mainmenu' => 'sghr', 'leftmenu' => 'sghr_grp_emp',
 			'url' => '/sghr/employee_list.php', 'langs' => 'sghr@sghr', 'position' => 100, 'enabled' => 1,
-			'prefix' => '<span class="fas fa-users fa-fw pictofixedwidth"></span>',
+			'prefix' => '<span class="fas fa-users fa-fw pictofixedwidth"></span>', 'picto' => 'fa-users',
 			'perms' => '$user->rights->sghr->employee->read', 'user' => 0
 		);
 		$this->menu[$r++] = array(
 			'fk_menu' => 'fk_mainmenu=sghr,fk_leftmenu=sghr_grp_emp', 'type' => 'left',
 			'titre' => 'Employees', 'mainmenu' => 'sghr', 'leftmenu' => 'sghr_emp_list',
 			'url' => '/sghr/employee_list.php', 'langs' => 'sghr@sghr', 'position' => 101, 'enabled' => 1,
-			'prefix' => '<span class="fas fa-user fa-fw pictofixedwidth"></span>',
+			'prefix' => '<span class="fas fa-user fa-fw pictofixedwidth"></span>', 'picto' => 'fa-user',
 			'perms' => '$user->rights->sghr->employee->read', 'user' => 0
 		);
 		$this->menu[$r++] = array(
 			'fk_menu' => 'fk_mainmenu=sghr,fk_leftmenu=sghr_grp_emp', 'type' => 'left',
 			'titre' => 'EmployeeDocuments', 'mainmenu' => 'sghr', 'leftmenu' => 'sghr_docs',
 			'url' => '/sghr/employeedocs/index.php', 'langs' => 'employeedocs@sghr', 'position' => 102, 'enabled' => 1,
-			'prefix' => '<span class="fas fa-passport fa-fw pictofixedwidth"></span>',
+			'prefix' => '<span class="fas fa-passport fa-fw pictofixedwidth"></span>', 'picto' => 'fa-passport',
 			'perms' => '$user->rights->sghr->docs->read', 'user' => 0
 		);
 		$this->menu[$r++] = array(
 			'fk_menu' => 'fk_mainmenu=sghr,fk_leftmenu=sghr_grp_emp', 'type' => 'left',
 			'titre' => 'SghrCandidateConvertTitle', 'mainmenu' => 'sghr', 'leftmenu' => 'sghr_convert',
 			'url' => '/sghr/candidate_convert.php', 'langs' => 'sghr@sghr', 'position' => 103, 'enabled' => 1,
-			'prefix' => '<span class="fas fa-user-plus fa-fw pictofixedwidth"></span>',
+			'prefix' => '<span class="fas fa-user-plus fa-fw pictofixedwidth"></span>', 'picto' => 'fa-user-plus',
 			'perms' => '$user->rights->sghr->employee->write', 'user' => 0
 		);
 		$this->menu[$r++] = array(
 			'fk_menu' => 'fk_mainmenu=sghr,fk_leftmenu=sghr_grp_emp', 'type' => 'left',
 			'titre' => 'EmployeePortal', 'mainmenu' => 'sghr', 'leftmenu' => 'sghr_portal',
 			'url' => '/sghr/employee_portal.php', 'langs' => 'sghr@sghr', 'position' => 104, 'enabled' => 1,
-			'prefix' => '<span class="fas fa-id-badge fa-fw pictofixedwidth"></span>',
+			'prefix' => '<span class="fas fa-id-badge fa-fw pictofixedwidth"></span>', 'picto' => 'fa-id-badge',
 			'perms' => '$user->rights->sghr->employee->self_write || $user->admin', 'user' => 2
 		);
 		$this->menu[$r++] = array(
 			'fk_menu' => 'fk_mainmenu=sghr,fk_leftmenu=sghr_portal', 'type' => 'left',
 			'titre' => 'PortalRequests', 'mainmenu' => 'sghr', 'leftmenu' => 'sghr_portal_requests',
 			'url' => '/sghr/portal_requests.php', 'langs' => 'sghr@sghr', 'position' => 105, 'enabled' => 1,
-			'prefix' => '<span class="fas fa-inbox fa-fw pictofixedwidth"></span>',
+			'prefix' => '<span class="fas fa-inbox fa-fw pictofixedwidth"></span>', 'picto' => 'fa-inbox',
 			'perms' => '$user->rights->sghr->claims->submit || $user->admin', 'user' => 2
 		);
 
@@ -281,49 +281,49 @@ class modSghr extends DolibarrModules
 		$this->menu[$r++] = array(
 			'fk_menu' => 'fk_mainmenu=sghr', 'type' => 'left', 'titre' => 'SghrMenuRecruitment', 'mainmenu' => 'sghr', 'leftmenu' => 'sghr_grp_rec',
 			'url' => '/sghr/recruitment/index.php', 'langs' => 'recruitment@sghr', 'position' => 200, 'enabled' => 1,
-			'prefix' => '<span class="fas fa-person-chalkboard fa-fw pictofixedwidth"></span>',
+			'prefix' => '<span class="fas fa-person-chalkboard fa-fw pictofixedwidth"></span>', 'picto' => 'fa-person-chalkboard',
 			'perms' => '$user->rights->sghr->rec->read', 'user' => 0
 		);
 		$this->menu[$r++] = array(
 			'fk_menu' => 'fk_mainmenu=sghr,fk_leftmenu=sghr_grp_rec', 'type' => 'left',
 			'titre' => 'JobPosition', 'mainmenu' => 'sghr', 'leftmenu' => 'sghr_rec_postes',
 			'url' => '/sghr/recruitment/index.php', 'langs' => 'recruitment@sghr', 'position' => 201, 'enabled' => 1,
-			'prefix' => '<span class="fas fa-briefcase fa-fw pictofixedwidth"></span>',
+			'prefix' => '<span class="fas fa-briefcase fa-fw pictofixedwidth"></span>', 'picto' => 'fa-briefcase',
 			'perms' => '$user->rights->sghr->rec->read', 'user' => 0
 		);
 		$this->menu[$r++] = array(
 			'fk_menu' => 'fk_mainmenu=sghr,fk_leftmenu=sghr_grp_rec', 'type' => 'left',
 			'titre' => 'Candidate', 'mainmenu' => 'sghr', 'leftmenu' => 'sghr_rec_cands',
 			'url' => '/sghr/recruitment/Candidate/kanban.php?page=0', 'langs' => 'recruitment@sghr', 'position' => 202, 'enabled' => 1,
-			'prefix' => '<span class="fas fa-columns fa-fw pictofixedwidth"></span>',
+			'prefix' => '<span class="fas fa-columns fa-fw pictofixedwidth"></span>', 'picto' => 'fa-columns',
 			'perms' => '$user->rights->sghr->rec->read', 'user' => 0
 		);
 		$this->menu[$r++] = array(
 			'fk_menu' => 'fk_mainmenu=sghr,fk_leftmenu=sghr_grp_rec', 'type' => 'left',
 			'titre' => 'liste_des_candidatures', 'mainmenu' => 'sghr', 'leftmenu' => 'sghr_rec_cands_list',
 			'url' => '/sghr/recruitment/Candidate/index.php?page=0', 'langs' => 'recruitment@sghr', 'position' => 203, 'enabled' => 1,
-			'prefix' => '<span class="fas fa-list fa-fw pictofixedwidth"></span>',
+			'prefix' => '<span class="fas fa-list fa-fw pictofixedwidth"></span>', 'picto' => 'fa-list',
 			'perms' => '$user->rights->sghr->rec->read', 'user' => 0
 		);
 		$this->menu[$r++] = array(
 			'fk_menu' => 'fk_mainmenu=sghr,fk_leftmenu=sghr_grp_rec', 'type' => 'left',
 			'titre' => 'CVManagement', 'mainmenu' => 'sghr', 'leftmenu' => 'sghr_cv',
 			'url' => '/sghr/cv/index.php', 'langs' => 'cv@sghr', 'position' => 204, 'enabled' => 1,
-			'prefix' => '<span class="fas fa-file-alt fa-fw pictofixedwidth"></span>',
+			'prefix' => '<span class="fas fa-file-alt fa-fw pictofixedwidth"></span>', 'picto' => 'fa-file-alt',
 			'perms' => '$user->rights->sghr->cv->read', 'user' => 0
 		);
 		$this->menu[$r++] = array(
 			'fk_menu' => 'fk_mainmenu=sghr,fk_leftmenu=sghr_grp_rec', 'type' => 'left',
 			'titre' => 'recru_recherche_avancee', 'mainmenu' => 'sghr', 'leftmenu' => 'sghr_rec_search',
 			'url' => '/sghr/recruitment/search.php', 'langs' => 'recruitment@sghr', 'position' => 205, 'enabled' => 1,
-			'prefix' => '<span class="fas fa-search fa-fw pictofixedwidth"></span>',
+			'prefix' => '<span class="fas fa-search fa-fw pictofixedwidth"></span>', 'picto' => 'fa-search',
 			'perms' => '$user->rights->sghr->rec->read', 'user' => 0
 		);
 		$this->menu[$r++] = array(
 			'fk_menu' => 'fk_mainmenu=sghr,fk_leftmenu=sghr_grp_rec', 'type' => 'left',
 			'titre' => 'rapports', 'mainmenu' => 'sghr', 'leftmenu' => 'sghr_rec_reports',
 			'url' => '/sghr/recruitment/rapports.php', 'langs' => 'recruitment@sghr', 'position' => 206, 'enabled' => 1,
-			'prefix' => '<span class="fas fa-chart-bar fa-fw pictofixedwidth"></span>',
+			'prefix' => '<span class="fas fa-chart-bar fa-fw pictofixedwidth"></span>', 'picto' => 'fa-chart-bar',
 			'perms' => '$user->rights->sghr->rec->read', 'user' => 0
 		);
 
@@ -331,98 +331,98 @@ class modSghr extends DolibarrModules
 		$this->menu[$r++] = array(
 			'fk_menu' => 'fk_mainmenu=sghr', 'type' => 'left', 'titre' => 'SghrMenuPayroll', 'mainmenu' => 'sghr', 'leftmenu' => 'sghr_grp_pay',
 			'url' => '/sghr/payslip_list.php', 'langs' => 'sghr@sghr', 'position' => 300, 'enabled' => 1,
-			'prefix' => '<span class="fas fa-money-check-alt fa-fw pictofixedwidth"></span>',
+			'prefix' => '<span class="fas fa-money-check-alt fa-fw pictofixedwidth"></span>', 'picto' => 'fa-money-check-alt',
 			'perms' => '$user->rights->sghr->payroll->read', 'user' => 0
 		);
 		$this->menu[$r++] = array(
 			'fk_menu' => 'fk_mainmenu=sghr,fk_leftmenu=sghr_grp_pay', 'type' => 'left',
 			'titre' => 'SgpayrollPayrollRun', 'mainmenu' => 'sghr', 'leftmenu' => 'sgpayroll_run',
 			'url' => '/sghr/payslip_list.php', 'langs' => 'sghr@sghr', 'position' => 301, 'enabled' => 1,
-			'prefix' => '<span class="fas fa-play fa-fw pictofixedwidth"></span>',
+			'prefix' => '<span class="fas fa-play fa-fw pictofixedwidth"></span>', 'picto' => 'fa-play',
 			'perms' => '$user->rights->sghr->payroll->read', 'user' => 0
 		);
 		$this->menu[$r++] = array(
 			'fk_menu' => 'fk_mainmenu=sghr,fk_leftmenu=sghr_grp_pay', 'type' => 'left',
 			'titre' => 'PayrollDashboard', 'mainmenu' => 'sghr', 'leftmenu' => 'sgpayroll_dashboard',
 			'url' => '/sghr/payroll_dashboard.php', 'langs' => 'sghr@sghr', 'position' => 302, 'enabled' => 1,
-			'prefix' => '<span class="fas fa-tachometer-alt fa-fw pictofixedwidth"></span>',
+			'prefix' => '<span class="fas fa-tachometer-alt fa-fw pictofixedwidth"></span>', 'picto' => 'fa-tachometer-alt',
 			'perms' => '$user->rights->sghr->payroll->read', 'user' => 0
 		);
 		$this->menu[$r++] = array(
 			'fk_menu' => 'fk_mainmenu=sghr,fk_leftmenu=sghr_grp_pay', 'type' => 'left',
 			'titre' => 'CpfStatutory', 'mainmenu' => 'sghr', 'leftmenu' => 'sgpayroll_cpf',
 			'url' => '/sghr/cpf_review.php', 'langs' => 'sghr@sghr', 'position' => 303, 'enabled' => 1,
-			'prefix' => '<span class="fas fa-piggy-bank fa-fw pictofixedwidth"></span>',
+			'prefix' => '<span class="fas fa-piggy-bank fa-fw pictofixedwidth"></span>', 'picto' => 'fa-piggy-bank',
 			'perms' => '$user->rights->sghr->payroll->read', 'user' => 0
 		);
 		$this->menu[$r++] = array(
 			'fk_menu' => 'fk_mainmenu=sghr,fk_leftmenu=sghr_grp_pay', 'type' => 'left',
 			'titre' => 'IrasSubmissions', 'mainmenu' => 'sghr', 'leftmenu' => 'sgpayroll_iras',
 			'url' => '/sghr/iras_ais_review.php', 'langs' => 'sghr@sghr', 'position' => 304, 'enabled' => 1,
-			'prefix' => '<span class="fas fa-file-invoice fa-fw pictofixedwidth"></span>',
+			'prefix' => '<span class="fas fa-file-invoice fa-fw pictofixedwidth"></span>', 'picto' => 'fa-file-invoice',
 			'perms' => '$user->rights->sghr->ais->review || $user->rights->sghr->export->iras', 'user' => 0
 		);
 		$this->menu[$r++] = array(
 			'fk_menu' => 'fk_mainmenu=sghr,fk_leftmenu=sgpayroll_iras', 'type' => 'left',
 			'titre' => 'IrasWhtReview', 'mainmenu' => 'sghr', 'leftmenu' => 'sgpayroll_wht',
 			'url' => '/sghr/iras_wht_review.php', 'langs' => 'sghr@sghr', 'position' => 305, 'enabled' => 1,
-			'prefix' => '<span class="fas fa-handshake fa-fw pictofixedwidth"></span>',
+			'prefix' => '<span class="fas fa-handshake fa-fw pictofixedwidth"></span>', 'picto' => 'fa-handshake',
 			'perms' => '$user->rights->sghr->export->iras', 'user' => 0
 		);
 		$this->menu[$r++] = array(
 			'fk_menu' => 'fk_mainmenu=sghr,fk_leftmenu=sghr_grp_pay', 'type' => 'left',
 			'titre' => 'MomSubmissions', 'mainmenu' => 'sghr', 'leftmenu' => 'sgpayroll_mom',
 			'url' => '/sghr/mom_oed.php', 'langs' => 'sghr@sghr', 'position' => 306, 'enabled' => 1,
-			'prefix' => '<span class="fas fa-building fa-fw pictofixedwidth"></span>',
+			'prefix' => '<span class="fas fa-building fa-fw pictofixedwidth"></span>', 'picto' => 'fa-building',
 			'perms' => '$user->rights->sghr->payroll->read', 'user' => 0
 		);
 		$this->menu[$r++] = array(
 			'fk_menu' => 'fk_mainmenu=sghr,fk_leftmenu=sgpayroll_mom', 'type' => 'left',
 			'titre' => 'MomLevy', 'mainmenu' => 'sghr', 'leftmenu' => 'sgpayroll_mom_levy',
 			'url' => '/sghr/mom_levy.php', 'langs' => 'sghr@sghr', 'position' => 307, 'enabled' => 1,
-			'prefix' => '<span class="fas fa-layer-group fa-fw pictofixedwidth"></span>',
+			'prefix' => '<span class="fas fa-layer-group fa-fw pictofixedwidth"></span>', 'picto' => 'fa-layer-group',
 			'perms' => '$user->rights->sghr->payroll->read', 'user' => 0
 		);
 		$this->menu[$r++] = array(
 			'fk_menu' => 'fk_mainmenu=sghr,fk_leftmenu=sgpayroll_mom', 'type' => 'left',
 			'titre' => 'MomCompliance', 'mainmenu' => 'sghr', 'leftmenu' => 'sgpayroll_mom_comp',
 			'url' => '/sghr/mom_compliance.php', 'langs' => 'sghr@sghr', 'position' => 308, 'enabled' => 1,
-			'prefix' => '<span class="fas fa-clipboard-check fa-fw pictofixedwidth"></span>',
+			'prefix' => '<span class="fas fa-clipboard-check fa-fw pictofixedwidth"></span>', 'picto' => 'fa-clipboard-check',
 			'perms' => '$user->rights->sghr->payroll->read', 'user' => 0
 		);
 		$this->menu[$r++] = array(
 			'fk_menu' => 'fk_mainmenu=sghr,fk_leftmenu=sghr_grp_pay', 'type' => 'left',
 			'titre' => 'SgpayrollSalaryPayments', 'mainmenu' => 'sghr', 'leftmenu' => 'sgpayroll_payments',
 			'url' => '/salaries/list.php', 'langs' => 'sghr@sghr', 'position' => 309,
-			'enabled' => 'isModEnabled(\'salaries\')', 'prefix' => '<span class="fas fa-credit-card fa-fw pictofixedwidth"></span>',
+			'enabled' => 'isModEnabled(\'salaries\')', 'prefix' => '<span class="fas fa-credit-card fa-fw pictofixedwidth"></span>', 'picto' => 'fa-credit-card',
 			'perms' => '$user->rights->salaries->lire', 'user' => 0
 		);
 		$this->menu[$r++] = array(
 			'fk_menu' => 'fk_mainmenu=sghr,fk_leftmenu=sghr_grp_pay', 'type' => 'left',
 			'titre' => 'SgpayrollLeaveManagement', 'mainmenu' => 'sghr', 'leftmenu' => 'sgpayroll_leave',
 			'url' => '/holiday/list.php', 'langs' => 'sghr@sghr', 'position' => 310,
-			'enabled' => 'isModEnabled(\'holiday\')', 'prefix' => '<span class="fas fa-umbrella-beach fa-fw pictofixedwidth"></span>',
+			'enabled' => 'isModEnabled(\'holiday\')', 'prefix' => '<span class="fas fa-umbrella-beach fa-fw pictofixedwidth"></span>', 'picto' => 'fa-umbrella-beach',
 			'perms' => '$user->rights->holiday->read', 'user' => 0
 		);
 		$this->menu[$r++] = array(
 			'fk_menu' => 'fk_mainmenu=sghr,fk_leftmenu=sghr_grp_pay', 'type' => 'left',
 			'titre' => 'ExpenseClaims', 'mainmenu' => 'sghr', 'leftmenu' => 'sgpayroll_claims',
 			'url' => '/expensereport/list.php', 'langs' => 'sghr@sghr', 'position' => 311,
-			'enabled' => 'isModEnabled(\'expensereport\')', 'prefix' => '<span class="fas fa-receipt fa-fw pictofixedwidth"></span>',
+			'enabled' => 'isModEnabled(\'expensereport\')', 'prefix' => '<span class="fas fa-receipt fa-fw pictofixedwidth"></span>', 'picto' => 'fa-receipt',
 			'perms' => '$user->rights->expensereport->lire || $user->rights->sghr->claims->submit', 'user' => 0
 		);
 		$this->menu[$r++] = array(
 			'fk_menu' => 'fk_mainmenu=sghr,fk_leftmenu=sghr_grp_pay', 'type' => 'left',
 			'titre' => 'SgpayrollTimeTracking', 'mainmenu' => 'sghr', 'leftmenu' => 'sgpayroll_timespent',
 			'url' => '/projet/activity/index.php', 'langs' => 'sghr@sghr', 'position' => 312,
-			'enabled' => 'isModEnabled(\'projet\')', 'prefix' => '<span class="fas fa-clock fa-fw pictofixedwidth"></span>',
+			'enabled' => 'isModEnabled(\'projet\')', 'prefix' => '<span class="fas fa-clock fa-fw pictofixedwidth"></span>', 'picto' => 'fa-clock',
 			'perms' => '$user->rights->projet->lire', 'user' => 0
 		);
 		$this->menu[$r++] = array(
 			'fk_menu' => 'fk_mainmenu=sghr,fk_leftmenu=sghr_grp_pay', 'type' => 'left',
 			'titre' => 'Documents', 'mainmenu' => 'sghr', 'leftmenu' => 'sgpayroll_docs',
 			'url' => '/sghr/documents_list.php', 'langs' => 'sghr@sghr', 'position' => 313, 'enabled' => 1,
-			'prefix' => '<span class="fas fa-file-pdf fa-fw pictofixedwidth"></span>',
+			'prefix' => '<span class="fas fa-file-pdf fa-fw pictofixedwidth"></span>', 'picto' => 'fa-file-pdf',
 			'perms' => '$user->rights->sghr->payroll->read', 'user' => 0
 		);
 
@@ -430,56 +430,56 @@ class modSghr extends DolibarrModules
 		$this->menu[$r++] = array(
 			'fk_menu' => 'fk_mainmenu=sghr', 'type' => 'left', 'titre' => 'SghrMenuSetup', 'mainmenu' => 'sghr', 'leftmenu' => 'sghr_grp_cfg',
 			'url' => '/sghr/admin/setup.php', 'langs' => 'sghr@sghr', 'position' => 900, 'enabled' => 1,
-			'prefix' => '<span class="fas fa-cog fa-fw pictofixedwidth"></span>', 'perms' => '$user->admin', 'user' => 0
+			'prefix' => '<span class="fas fa-cog fa-fw pictofixedwidth"></span>', 'picto' => 'fa-cog', 'perms' => '$user->admin', 'user' => 0
 		);
 		$this->menu[$r++] = array(
 			'fk_menu' => 'fk_mainmenu=sghr,fk_leftmenu=sghr_grp_cfg', 'type' => 'left',
 			'titre' => 'CpfRateTable', 'mainmenu' => 'sghr', 'leftmenu' => 'sgpayroll_cpfrates',
 			'url' => '/sghr/admin/cpfrates.php', 'langs' => 'sghr@sghr', 'position' => 901, 'enabled' => 1,
-			'prefix' => '<span class="fas fa-table fa-fw pictofixedwidth"></span>', 'perms' => '$user->admin', 'user' => 0
+			'prefix' => '<span class="fas fa-table fa-fw pictofixedwidth"></span>', 'picto' => 'fa-table', 'perms' => '$user->admin', 'user' => 0
 		);
 		$this->menu[$r++] = array(
 			'fk_menu' => 'fk_mainmenu=sghr,fk_leftmenu=sghr_grp_cfg', 'type' => 'left',
 			'titre' => 'CostCentres', 'mainmenu' => 'sghr', 'leftmenu' => 'sgpayroll_costcentres',
 			'url' => '/sghr/admin/setup_costcentres.php', 'langs' => 'sghr@sghr', 'position' => 902, 'enabled' => 1,
-			'prefix' => '<span class="fas fa-sitemap fa-fw pictofixedwidth"></span>', 'perms' => '$user->admin', 'user' => 0
+			'prefix' => '<span class="fas fa-sitemap fa-fw pictofixedwidth"></span>', 'picto' => 'fa-sitemap', 'perms' => '$user->admin', 'user' => 0
 		);
 		$this->menu[$r++] = array(
 			'fk_menu' => 'fk_mainmenu=sghr,fk_leftmenu=sghr_grp_cfg', 'type' => 'left',
 			'titre' => 'SchedulePresets', 'mainmenu' => 'sghr', 'leftmenu' => 'sgpayroll_schedule_presets',
 			'url' => '/sghr/admin/setup_schedule_presets.php', 'langs' => 'sghr@sghr', 'position' => 903, 'enabled' => 1,
-			'prefix' => '<span class="fas fa-calendar-alt fa-fw pictofixedwidth"></span>', 'perms' => '$user->admin', 'user' => 0
+			'prefix' => '<span class="fas fa-calendar-alt fa-fw pictofixedwidth"></span>', 'picto' => 'fa-calendar-alt', 'perms' => '$user->admin', 'user' => 0
 		);
 		$this->menu[$r++] = array(
 			'fk_menu' => 'fk_mainmenu=sghr,fk_leftmenu=sghr_grp_cfg', 'type' => 'left',
 			'titre' => 'StatutoryRates', 'mainmenu' => 'sghr', 'leftmenu' => 'sgpayroll_statutory_rates',
 			'url' => '/sghr/admin/setup_statutory_rates.php', 'langs' => 'sghr@sghr', 'position' => 904, 'enabled' => 1,
-			'prefix' => '<span class="fas fa-coins fa-fw pictofixedwidth"></span>', 'perms' => '$user->admin', 'user' => 0
+			'prefix' => '<span class="fas fa-coins fa-fw pictofixedwidth"></span>', 'picto' => 'fa-coins', 'perms' => '$user->admin', 'user' => 0
 		);
 		// Recruitment dictionaries
 		$this->menu[$r++] = array(
 			'fk_menu' => 'fk_mainmenu=sghr,fk_leftmenu=sghr_grp_cfg', 'type' => 'left',
 			'titre' => 'departements', 'mainmenu' => 'sghr', 'leftmenu' => 'sghr_cfg_departements',
-			'url' => '/sghr/recruitment/departements/index.php', 'langs' => 'recruitment@sghr', 'position' => 910, 'enabled' => 1,
-			'prefix' => '<span class="fas fa-building fa-fw pictofixedwidth"></span>', 'perms' => '$user->admin', 'user' => 0
+			'url' => '/sghr/recruitment/departments/index.php', 'langs' => 'recruitment@sghr', 'position' => 910, 'enabled' => 1,
+			'prefix' => '<span class="fas fa-building fa-fw pictofixedwidth"></span>', 'picto' => 'fa-building', 'perms' => '$user->admin', 'user' => 0
 		);
 		$this->menu[$r++] = array(
 			'fk_menu' => 'fk_mainmenu=sghr,fk_leftmenu=sghr_grp_cfg', 'type' => 'left',
 			'titre' => 'etiquettes_candidature', 'mainmenu' => 'sghr', 'leftmenu' => 'sghr_cfg_etiquettes',
 			'url' => '/sghr/recruitment/Tag/index.php', 'langs' => 'recruitment@sghr', 'position' => 911, 'enabled' => 1,
-			'prefix' => '<span class="fas fa-tags fa-fw pictofixedwidth"></span>', 'perms' => '$user->admin', 'user' => 0
+			'prefix' => '<span class="fas fa-tags fa-fw pictofixedwidth"></span>', 'picto' => 'fa-tags', 'perms' => '$user->admin', 'user' => 0
 		);
 		$this->menu[$r++] = array(
 			'fk_menu' => 'fk_mainmenu=sghr,fk_leftmenu=sghr_grp_cfg', 'type' => 'left',
 			'titre' => 'Source', 'mainmenu' => 'sghr', 'leftmenu' => 'sghr_cfg_origines',
 			'url' => '/sghr/recruitment/Source/index.php', 'langs' => 'recruitment@sghr', 'position' => 912, 'enabled' => 1,
-			'prefix' => '<span class="fas fa-globe fa-fw pictofixedwidth"></span>', 'perms' => '$user->admin', 'user' => 0
+			'prefix' => '<span class="fas fa-globe fa-fw pictofixedwidth"></span>', 'picto' => 'fa-globe', 'perms' => '$user->admin', 'user' => 0
 		);
 		$this->menu[$r++] = array(
 			'fk_menu' => 'fk_mainmenu=sghr,fk_leftmenu=sghr_grp_cfg', 'type' => 'left',
 			'titre' => 'niveauetud', 'mainmenu' => 'sghr', 'leftmenu' => 'sghr_cfg_degrees',
 			'url' => '/sghr/recruitment/Candidate/degrees/index.php', 'langs' => 'recruitment@sghr', 'position' => 913, 'enabled' => 1,
-			'prefix' => '<span class="fas fa-graduation-cap fa-fw pictofixedwidth"></span>', 'perms' => '$user->admin', 'user' => 0
+			'prefix' => '<span class="fas fa-graduation-cap fa-fw pictofixedwidth"></span>', 'picto' => 'fa-graduation-cap', 'perms' => '$user->admin', 'user' => 0
 		);
 	}
 

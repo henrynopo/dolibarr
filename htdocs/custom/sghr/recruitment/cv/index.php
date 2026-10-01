@@ -9,7 +9,7 @@ if (! $res && file_exists("../../../main.inc.php")) $res=@include("../../../main
 
 dol_include_once('/sghr/recruitment/class/JobPosition.class.php');
 dol_include_once('/sghr/recruitment/class/Candidate.class.php');
-dol_include_once('/sghr/recruitment/class/cv.class.php');
+dol_include_once('/sghr/recruitment/class/RecruitCv.class.php');
 dol_include_once('/core/class/html.form.class.php');
 dol_include_once('/sghr/recruitment/lib/recrutement.lib.php');
 

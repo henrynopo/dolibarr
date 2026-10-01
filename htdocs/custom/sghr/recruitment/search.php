@@ -696,7 +696,7 @@ if (count($Candidate->rows) > 0) {
     		print '<td align="center" style="">';
 	    		if($item->Department){
 	    			$Department->fetch($item->Department);
-	    			print '<a href="'.dol_buildpath('/sghr/recruitment/departements/card.php?id='.$item->Department,2).'" >'.$Department->label.'</a>';
+	    			print '<a href="'.dol_buildpath('/sghr/recruitment/departments/card.php?id='.$item->Department,2).'" >'.$Department->label.'</a>';
 	    		}
     		print '</td>';
     		

@@ -1,7 +1,7 @@
 <?php 
 require_once DOL_DOCUMENT_ROOT . '/core/class/commonobject.class.php'; 
 
-// dol_include_once('/sghr/employeedocs/class/docsemployes.class.php');
+// dol_include_once('/sghr/employeedocs/class/EmployeeDocs.class.php');
 // require_once 'PHPMailer/src/SMTP.php';
 // require_once 'PHPMailer/src/PHPMailer.php';
 require_once DOL_DOCUMENT_ROOT.'/core/lib/admin.lib.php';
@@ -839,7 +839,7 @@ class EmployeeDocs extends Commonobject{
     {
         global $conf, $langs;
 
-        dol_include_once('/sghr/employeedocs/core/modules/moddocsemployes.class.php');
+        dol_include_once('/sghr/employeedocs/core/modules/modEmployeeDocs.class.php');
         $modcore = new moddocsemployes($this->db);
         
         $lastversion    = $modcore->version;
@@ -864,13 +864,13 @@ class EmployeeDocs extends Commonobject{
 		if (!dolibarr_get_const($this->db,'DOCSEMPLOYES_NUMBEROFDAYSBEFORETOSENDMAIL',$conf->entity))
 			dolibarr_set_const($this->db,'DOCSEMPLOYES_NUMBEROFDAYSBEFORETOSENDMAIL',0,'chaine',0,'',$conf->entity);
 
-		dol_include_once('/sghr/employeedocs/core/modules/moddocsemployes.class.php');
+		dol_include_once('/sghr/employeedocs/core/modules/modEmployeeDocs.class.php');
         $modcore = new moddocsemployes($this->db);
 
 		$modcore->cronjobs[0]['entity']  	    = $conf->entity;
         $modcore->cronjobs[0]['label']  	    = 'docsemployescheckMails';
         $modcore->cronjobs[0]['jobtype']  	    = 'method';
-        $modcore->cronjobs[0]['class']  	    = 'employeedocs/class/docsemployes.class.php';
+        $modcore->cronjobs[0]['class']  	    = 'employeedocs/class/EmployeeDocs.class.php';
         $modcore->cronjobs[0]['objectname']    = 'docsemployes';
         $modcore->cronjobs[0]['method'] 	    = 'checkDocsMails';
         $modcore->cronjobs[0]['frequency']     = 1;
@@ -884,7 +884,7 @@ class EmployeeDocs extends Commonobject{
 
         $modcore->insert_cronjobs();
 
-        $sql2 = "UPDATE " . MAIN_DB_PREFIX. "cronjob SET status = 1 WHERE module_name = 'docsemployes' AND classesname = 'employeedocs/class/docsemployes.class.php' AND objectname = 'docsemployes' AND methodename = 'checkDocsMails'";
+        $sql2 = "UPDATE " . MAIN_DB_PREFIX. "cronjob SET status = 1 WHERE module_name = 'docsemployes' AND classesname = 'employeedocs/class/EmployeeDocs.class.php' AND objectname = 'docsemployes' AND methodename = 'checkDocsMails'";
         $resql = $this->db->query($sql2);
 
 		

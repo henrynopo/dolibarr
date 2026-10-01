@@ -333,7 +333,7 @@ if( ($id && empty($action)) || $action == "delete" ){
                             if($item->Department){
                                 $departements->fetch($item->Department);
                                 // print $departements->label;
-                                print '<a href="'.dol_buildpath('/sghr/recruitment/departements/card.php?id='.$item->Department,2).'" >'.$departements->label.'</a>';
+                                print '<a href="'.dol_buildpath('/sghr/recruitment/departments/card.php?id='.$item->Department,2).'" >'.$departements->label.'</a>';
                             }
                         print '</td>';
                     print '</tr>';

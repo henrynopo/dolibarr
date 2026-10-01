@@ -113,7 +113,7 @@ print '<form method="get" action="'.$_SERVER["PHP_SELF"].'">'."\n";
 			    	$user_->fetch($item->gestionnaire);
 					print '<tr '.$bc[$var].' >';
 			    		print '<td align="center" style="">'; 
-				    		print '<a href="'.dol_buildpath('/sghr/recruitment/departements/card.php?id='.$item->rowid,2).'" >';
+				    		print '<a href="'.dol_buildpath('/sghr/recruitment/departments/card.php?id='.$item->rowid,2).'" >';
 				    			print $item->label;
 				    		print '</a>';
 			    		print '</td>';

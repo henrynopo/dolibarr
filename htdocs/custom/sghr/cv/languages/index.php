@@ -7,7 +7,7 @@ if (! $res && file_exists("../../main.inc.php")) $res=@include("../../main.inc.p
 if (! $res && file_exists("../../../main.inc.php")) $res=@include("../../../main.inc.php"); // For "custom" 
 
 
-dol_include_once('/sghr/cv/class/ecv.class.php');
+dol_include_once('/sghr/cv/class/Cv.class.php');
 dol_include_once('/sghr/cv/class/CvLanguage.class.php');
 dol_include_once('/core/class/html.form.class.php');
 dol_include_once('/sghr/cv/lib/cv.lib.php');
@@ -132,7 +132,7 @@ if(!empty($id_ecv)){
     dol_fiche_head($head,'langues','',	0,"cv@sghr");
 }
 
-print '<link rel="stylesheet" href= "'.dol_buildpath('/sghr/cv/langues/css/rating.css',2).'">';
+print '<link rel="stylesheet" href= "'.dol_buildpath('/sghr/cv/languages/css/rating.css',2).'">';
 
 print '<form method="get" action="'.$_SERVER["PHP_SELF"].'" class="form_ecv langsecv">'."\n";
 	print '<input name="pagem" type="hidden" value="'.$page.'">';
@@ -245,7 +245,7 @@ function field($titre,$champ){
             $id=$('#new_langue tr').length+1;
 			console.log($id);
            		$.ajax({
-           			url:"<?php echo dol_escape_js(dol_buildpath('/sghr/cv/langues/data_langues.php?data=select',2)); ?>",
+           			url:"<?php echo dol_escape_js(dol_buildpath('/sghr/cv/languages/data_langues.php?data=select',2)); ?>",
 		            type:"POST",
 		            data:{'langue_id':$id},
 		            success:function(data){
@@ -265,7 +265,7 @@ function field($titre,$champ){
 			$id=$(this).data('id');
 			$.ajax({
 				data:{'langue_id':$id},
-				url:"<?php echo dol_escape_js(dol_buildpath('/sghr/cv/langues/data_langues.php?data=edit',2)); ?>",
+				url:"<?php echo dol_escape_js(dol_buildpath('/sghr/cv/languages/data_langues.php?data=edit',2)); ?>",
 				type:'POST',
 				success:function(data){
 					$('#new_langue').html(data);

@@ -384,7 +384,7 @@ if($action == "edit"){
                         print '<td style="text-align:left;">'.$langs->trans('Department').'</td>';
                         print '<td style="">';
                             print $JobPosition->select_departement($id_departement,'Department');
-                            print '<a href="'.dol_buildpath('/sghr/recruitment/departements/card.php?action=add&backtopage='.urlencode($_SERVER["PHP_SELF"].'?action=edit&id='.$id),2).'">'.$langs->trans('cree_departement').'</a>';
+                            print '<a href="'.dol_buildpath('/sghr/recruitment/departments/card.php?action=add&backtopage='.urlencode($_SERVER["PHP_SELF"].'?action=edit&id='.$id),2).'">'.$langs->trans('cree_departement').'</a>';
                         print '</td>';
                     print '</tr>';
                     $date_depot = date('d/m/Y');

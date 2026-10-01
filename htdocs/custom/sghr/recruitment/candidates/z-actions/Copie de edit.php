@@ -250,7 +250,7 @@ if($action == "edit"){
                     print '<tr>';
                         print '<th style="text-align:left; width:20%">'.$langs->trans('Department').'</th>';
                         print '<td >'.$JobPosition->select_departement($id_departement,'Department');
-                        print '<a href="'.dol_buildpath('/sghr/recruitment/departements/card.php?action=add&backtopage='.urlencode($_SERVER["PHP_SELF"].'?action=edit&id='.$id),2).'">'.$langs->trans('cree_departement').'</a>';
+                        print '<a href="'.dol_buildpath('/sghr/recruitment/departments/card.php?action=add&backtopage='.urlencode($_SERVER["PHP_SELF"].'?action=edit&id='.$id),2).'">'.$langs->trans('cree_departement').'</a>';
                             print '</td>';
                         print '</td>';
                     print '</tr>';

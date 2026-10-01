@@ -15,7 +15,7 @@
  * along with this program. If not, see <http://www.gnu.org/licenses/>.
  */
 
-dol_include_once('/sghr/employeedocs/class/docsemployes.class.php');
+dol_include_once('/sghr/employeedocs/class/EmployeeDocs.class.php');
 dol_include_once('/compta/facture/class/facture.class.php');
 
 class Actionsdocsemployes{

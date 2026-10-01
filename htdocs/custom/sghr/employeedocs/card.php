@@ -13,7 +13,7 @@ require_once DOL_DOCUMENT_ROOT.'/core/class/html.formfile.class.php';
 // require_once DOL_DOCUMENT_ROOT.'/type_document/class/type_document.class.php';
 
 
-dol_include_once('/sghr/employeedocs/class/docsemployes.class.php');
+dol_include_once('/sghr/employeedocs/class/EmployeeDocs.class.php');
 dol_include_once('/core/class/html.form.class.php');
 dol_include_once('/sghr/employeedocs/class/type_document.class.php');
 

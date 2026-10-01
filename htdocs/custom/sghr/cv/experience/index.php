@@ -11,7 +11,7 @@ require_once DOL_DOCUMENT_ROOT.'/core/lib/pdf.lib.php';
 require_once DOL_DOCUMENT_ROOT.'/core/lib/files.lib.php';
 
 
-dol_include_once('/sghr/cv/class/ecv.class.php');
+dol_include_once('/sghr/cv/class/Cv.class.php');
 dol_include_once('/sghr/cv/class/CvExperience.class.php');
 dol_include_once('/core/class/html.form.class.php');
 dol_include_once('/sghr/cv/lib/cv.lib.php');

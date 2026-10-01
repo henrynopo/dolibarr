@@ -7,7 +7,7 @@ if (! $res && file_exists("../../main.inc.php")) $res=@include("../../main.inc.p
 if (! $res && file_exists("../../../main.inc.php")) $res=@include("../../../main.inc.php"); // For "custom" 
 
 
-dol_include_once('/sghr/cv/class/ecv.class.php');
+dol_include_once('/sghr/cv/class/Cv.class.php');
 dol_include_once('/sghr/cv/class/CvCertificate.class.php');
 dol_include_once('/core/class/html.form.class.php');
 dol_include_once('/sghr/cv/lib/cv.lib.php');
@@ -66,7 +66,7 @@ if ($action == 'create' && $request_method === 'POST') {
 			if ($_FILES['certificats']) { 
 	            $TFile = $_FILES['certificats'];
 				$copie = array('copie' => dol_sanitizeFileName($TFile['name'][$i],''));
-	            $upload_dir = DOL_DATA_ROOT.'/ecv'.'/'.$id_ecv.'/certificats/'.$isvalid.'/';
+	            $upload_dir = DOL_DATA_ROOT.'/ecv'.'/'.$id_ecv.'/certificates/'.$isvalid.'/';
 	            if (dol_mkdir($upload_dir) >= 0)
 	            {
 	                $destfull = $upload_dir.$TFile['name'][$key];
@@ -114,7 +114,7 @@ if ($action == 'edit' && $request_method === 'POST') {
     if ($isvalid > 0) {
     	$CvCertificate->fetch($id);
     	if($_FILES['copie']['name']){
-		    $dir = DOL_DATA_ROOT.'/ecv'.'/'.$id_ecv.'/certificats/'.$id.'/';
+		    $dir = DOL_DATA_ROOT.'/ecv'.'/'.$id_ecv.'/certificates/'.$id.'/';
 			$copie = array('copie' => dol_sanitizeFileName($_FILES['copie']['name'],''));
 	    	if($CvCertificate->copie && $_FILES['copie']['name']){
 	            $file=$dir.$CvCertificate->copie;
@@ -248,10 +248,10 @@ print '</thead><tbody>';
 				        if($item->copie){
 				        	print '<li>';
                             	$minifile = getImageFileNameForSize($item->copie, '');  
-	                            $dt_files = getAdvancedPreviewUrl('ecv', $item->fk_ecv.'/certificats/'.$item->rowid.'/'.$minifile, 1, '&entity='.(!empty($item->entity)?$item->entity:$conf->entity));
+	                            $dt_files = getAdvancedPreviewUrl('ecv', $item->fk_ecv.'/certificates/'.$item->rowid.'/'.$minifile, 1, '&entity='.(!empty($item->entity)?$item->entity:$conf->entity));
 
 	                            print ' <a href="'.$dt_files['url'].'" class="'.$dt_files['css'].'" target="'.$dt_files['target'].'" mime="'.$dt_files['mime'].'">' ;
-	                                print '<img class="photo" title="'.$minifile.'" alt="Fichier binaire" src="'.DOL_URL_ROOT.'/viewimage.php?modulepart=ecv&entity='.(!empty($item->entity)?$item->entity:$conf->entity).'&file='.$item->fk_ecv.'/certificats/'.$item->rowid.'/'.$minifile.'&perm=download" border="0" name="image" >';
+	                                print '<img class="photo" title="'.$minifile.'" alt="Fichier binaire" src="'.DOL_URL_ROOT.'/viewimage.php?modulepart=ecv&entity='.(!empty($item->entity)?$item->entity:$conf->entity).'&file='.$item->fk_ecv.'/certificates/'.$item->rowid.'/'.$minifile.'&perm=download" border="0" name="image" >';
 	                            print '</a> ';
 	                        print '</li>';
 				        }
@@ -347,7 +347,7 @@ function field($titre,$champ){
 			$id=$(this).data('id');
 			$.ajax({
 				data:{'id':$id},
-				url:"<?php echo dol_escape_js(dol_buildpath('/sghr/cv/certificats/data_edit.php',2)) ?>",
+				url:"<?php echo dol_escape_js(dol_buildpath('/sghr/cv/certificates/data_edit.php',2)) ?>",
 				type:'POST',
 				success:function(data){
 					$('#tr_certificats').html(data);

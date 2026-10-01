@@ -178,7 +178,7 @@ print '<form method="get" action="'.$_SERVER["PHP_SELF"].'" class="Event_cnadid"
 			// 	    		if($item->Department){
 		 //   						$Department = new departements($db);
 			// 	    			$Department->fetch($item->Department);
-			// 	    			print '<a href="'.dol_buildpath('/sghr/recruitment/departements/card.php?id='.$item->Department,2).'" >'.$Department->label.'</a>';
+			// 	    			print '<a href="'.dol_buildpath('/sghr/recruitment/departments/card.php?id='.$item->Department,2).'" >'.$Department->label.'</a>';
 			// 	    		}
 			//     		print '</td>';
 			    		

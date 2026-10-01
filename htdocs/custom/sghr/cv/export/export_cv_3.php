@@ -289,7 +289,7 @@ $html.='</table>';
                         $html.='<td style="width:18%;" align="center">';
 
                         $minifile = getImageFileNameForSize($value->copie, '');  
-                        $urlfile = DOL_DATA_ROOT.'/ecv'.'/'.$cvProfile->rowid.'/certificats/'.$value->rowid.'/'.$minifile;
+                        $urlfile = DOL_DATA_ROOT.'/ecv'.'/'.$cvProfile->rowid.'/certificates/'.$value->rowid.'/'.$minifile;
                         if(@getimagesize($urlfile))
                         $html .= '<img src="'.$urlfile.'" height="35px" >';
                         

@@ -214,7 +214,7 @@ print '<div class="list recrutmodule">';
 								print $JobPosition->getNomUrl(1);
 				    		print '</td>';
 				    		print '<td align="left" style="">';
-				    			print '<a href="'.dol_buildpath('/sghr/recruitment/departements/card.php?id='.$Department->rowid,2).'" >';
+				    			print '<a href="'.dol_buildpath('/sghr/recruitment/departments/card.php?id='.$Department->rowid,2).'" >';
 					    			print $Department->label;
 					    		print '</a>';
 				    		print '</td>';

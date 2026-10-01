@@ -1,8 +1,8 @@
 <?php 
 require_once DOL_DOCUMENT_ROOT . '/core/class/commonobject.class.php'; 
 
-// dol_include_once('/sghr/cv/class/ecv.class.php');
-dol_include_once('/sghr/cv/class/ecv.class.php');
+// dol_include_once('/sghr/cv/class/Cv.class.php');
+dol_include_once('/sghr/cv/class/Cv.class.php');
 
 class CvLanguage extends Commonobject{ 
 	public $errors = array();

@@ -31,7 +31,7 @@ function ecvAdminPrepareHead($id_ecv)
     $h = 0;
     $head = array();
 	dol_include_once('/sghr/cv/class/CvSkill.class.php');
-	dol_include_once('/sghr/cv/class/ecv.class.php');
+	dol_include_once('/sghr/cv/class/Cv.class.php');
     if(!empty($id_ecv)){
         $Skill = new CvSkill($db);
         $head[$h][0] = dol_buildpath("/sghr/cv/card.php?id=".$id_ecv, 2);
@@ -42,11 +42,11 @@ function ecvAdminPrepareHead($id_ecv)
         $head[$h][1] = $langs->trans("ecv_experiences");
         $head[$h][2] = 'experiences';
         $h++;
-        $head[$h][0] = dol_buildpath("/sghr/cv/formations/index.php?id_ecv=".$id_ecv,2);
+        $head[$h][0] = dol_buildpath("/sghr/cv/education/index.php?id_ecv=".$id_ecv,2);
         $head[$h][1] = $langs->trans("ecv_formations");
         $head[$h][2] = 'formations';
         $h++;
-        $head[$h][0] = dol_buildpath("/sghr/cv/certificats/index.php?id_ecv=".$id_ecv,2);
+        $head[$h][0] = dol_buildpath("/sghr/cv/certificates/index.php?id_ecv=".$id_ecv,2);
         $head[$h][1] = $langs->trans("ecv_certificats");
         $head[$h][2] = 'certificats';
         $h++;
@@ -58,11 +58,11 @@ function ecvAdminPrepareHead($id_ecv)
         $head[$h][1] = $langs->trans("ecv_competences");
         $head[$h][2] = 'Skill';
         $h++;
-        $head[$h][0] = dol_buildpath("/sghr/cv/langues/index.php?id_ecv=".$id_ecv,2);
+        $head[$h][0] = dol_buildpath("/sghr/cv/languages/index.php?id_ecv=".$id_ecv,2);
         $head[$h][1] = $langs->trans("ecv_langues");
         $head[$h][2] = 'langues';
         $h++;
-        $head[$h][0] = dol_buildpath("/sghr/cv/permis/index.php?id_ecv=".$id_ecv,2);
+        $head[$h][0] = dol_buildpath("/sghr/cv/licenses/index.php?id_ecv=".$id_ecv,2);
         $head[$h][1] = $langs->trans("ecv_permis_circulations");
         $head[$h][2] = 'permis';
         $h++;
