@@ -130,6 +130,11 @@ class EBKEntryDraft
 		if (count($this->rows) < 2) {
 			return 'EBKNotEnoughRowsForBookkeeping';
 		}
+		// Security fix (audit 2026-09-30): cap rows per entry so a caller with
+		// bookkeeping write rights cannot post unbounded lines in one call.
+		if (count($this->rows) > 100) {
+			return 'EBKTooManyRowsForBookkeeping';
+		}
 
 		$sum = 0.0;
 		$hasDebit = false;

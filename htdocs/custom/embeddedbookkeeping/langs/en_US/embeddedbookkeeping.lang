@@ -67,6 +67,7 @@ EBKRoundingAdjusted=A rounding residual was folded onto the last line to keep th
 EBKEntryNotBalanced=The entry is not balanced (debit total must equal credit total).
 EBKPieceNumMismatch=Rows were written under different piece numbers; the write was rolled back. Check the ACCOUNTANCY_ENABLE_FKDOCDET constant.
 EBKNotEnoughRowsForBookkeeping=An entry needs at least one debit and one credit line.
+EBKTooManyRowsForBookkeeping=An entry cannot exceed 100 rows.
 EBKDuplicateRowForBookkeeping=Two lines share the same account and label; make each line label unique.
 
 # Permissions

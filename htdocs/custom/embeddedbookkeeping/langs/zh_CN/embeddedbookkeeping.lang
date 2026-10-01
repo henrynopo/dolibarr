@@ -67,6 +67,7 @@ EBKRoundingAdjusted=舍入残差已并入最后一行以保持借贷平衡，请
 EBKEntryNotBalanced=分录不平衡（借方合计必须等于贷方合计）。
 EBKPieceNumMismatch=各行被写到了不同凭证号下，写入已回滚。请检查 ACCOUNTANCY_ENABLE_FKDOCDET 常量。
 EBKNotEnoughRowsForBookkeeping=分录至少需要一条借方行和一条贷方行。
+EBKTooManyRowsForBookkeeping=单笔分录不能超过 100 行。
 EBKDuplicateRowForBookkeeping=两行使用了相同科目与标签；请让每行标签唯一。
 
 # 权限
