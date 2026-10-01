@@ -836,6 +836,11 @@ class EmployeeDocs extends Commonobject{
 
 
 	public function upgradeModuleDocsEmpl()
+	{
+		// SLY 2026-10: retired - see upgradeModuleEcv note.
+		return true;
+	}
+	public function upgradeModuleDocsEmplLegacy()
     {
         global $conf, $langs;
 

@@ -447,6 +447,12 @@ class Cv extends Commonobject{
 
 	
 	public function upgradeModuleEcv()
+	{
+		// SLY 2026-10: module upgrade is owned by sghr (sql/ + admin/upgrade_sql.php);
+		// the legacy descriptor-driven self-upgrade is retired (class deleted).
+		return true;
+	}
+	public function upgradeModuleEcvLegacy()
     {
         global $conf, $langs;
 

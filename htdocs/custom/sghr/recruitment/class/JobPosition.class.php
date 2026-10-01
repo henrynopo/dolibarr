@@ -473,6 +473,11 @@ class JobPosition extends Commonobject{
 
     public function upgradeModuleRecrut()
     {
+        // SLY 2026-10: retired - see upgradeModuleEcv note.
+        return true;
+    }
+    public function upgradeModuleRecrutLegacy()
+    {
         global $conf, $langs;
         
         dol_include_once('/sghr/recruitment/core/modules/modrecrutement.class.php');
