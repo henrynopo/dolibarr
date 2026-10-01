@@ -25,7 +25,7 @@ class modStrongauth extends DolibarrModules
         // ---- identity ----
         $this->numero       = 570015;
         $this->rights_class = 'strongauth';
-        $this->family       = 'technic';
+        $this->family       = 'haopie';
         $this->name         = preg_replace('/^mod/i', '', str_replace('_', ' ', get_class($this)));
         $this->description  = 'StrongAuthDescription';
         $this->editor_name  = 'HaoSG Group';
