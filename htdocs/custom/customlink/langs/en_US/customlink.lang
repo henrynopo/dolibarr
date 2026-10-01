@@ -127,3 +127,4 @@ CUSTOMLINK_AllowedLinkTypesDesc=Select which element types can be chosen when ad
 CUSTOMLINK_NoElementTypes=No element types available in database.
 CUSTOMLINK_LinkNotAllowedByRules=This link is not allowed by the current rules (e.g. only one PO per SO, one SO per shipment).
 Parameter=Parameter
+ModuleFamilyHaopie=HaoPie

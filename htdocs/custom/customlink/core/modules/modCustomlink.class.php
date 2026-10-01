@@ -51,7 +51,7 @@ class modcustomlink extends DolibarrModules
 		$this->editor_name = "<b>Patas-Monkey</b>";
 		$this->editor_web = "https://www.patas-monkey.com";
 
-		$this->family = "Patas-Tools";
+		$this->family = 'haopie';
 
 		// Module label (no space allowed), used if translation string 'ModuleXXXName' not found 
 		$this->name = preg_replace('/^mod/i', '', get_class($this));

@@ -279,7 +279,7 @@ class ActionsSwitchThirdParty
 
             // Select changement tiers
             $formtiers = '<form method="post" action="'.$_SERVER['PHP_SELF'] . '?'.$idparam.'=' . GETPOST($idparam).'">' . PHP_EOL;
-            $formtiers .=  '<input type="hidden" name="action" value="changetiers">' . PHP_EOL;
+            $formtiers .=  '<input type="hidden" name="action" value="switchthirdparty">' . PHP_EOL;
             $formtiers .=  '<input type="hidden" name="token" value="'.$_SESSION['newtoken'].'">' . PHP_EOL;
             $formtiers .=  $form->select_company($object->{$idextparam}, 'socid', $paramcompany) . PHP_EOL;
             $formtiers .=  '<input type="submit" class="button valignmiddle" value="'.$langs->trans("Modify").'">' . PHP_EOL;
