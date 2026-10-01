@@ -684,3 +684,7 @@ SghrConvertConfirm=Create employee
 SghrCandidateConverted=Employee created for %s
 SghrCandidateConvertFor=Convert candidate %s to employee
 SghrRecrutementNotEnabled=The recrutement module is not enabled; candidate data may be incomplete.
+SghrMenuEmployees=Employees
+SghrMenuRecruitment=Recruitment
+SghrMenuPayroll=Payroll
+SghrMenuSetup=Setup

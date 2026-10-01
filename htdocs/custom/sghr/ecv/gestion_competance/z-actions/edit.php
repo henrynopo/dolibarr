@@ -23,7 +23,7 @@ if ($action == 'update' && $request_method === 'POST') {
     $competances->fetch($id);
 
     if ($isvalid > 0) {
-        $dir = $conf->ecv->dir_output.'/competances/';
+        $dir = DOL_DATA_ROOT.'/ecv'.'/competances/';
         
 
         if ($_FILES['icon'] && isset($_FILES['icon']['name']) && !empty($_FILES['icon']['name'])) { 
@@ -33,7 +33,7 @@ if ($action == 'update' && $request_method === 'POST') {
             }
             $TFile = $_FILES['icon'];
             $copie = array('icon' => dol_sanitizeFileName($TFile['name'],''));
-            $upload_dir = $conf->ecv->dir_output.'/competances/';
+            $upload_dir = DOL_DATA_ROOT.'/ecv'.'/competances/';
             if (dol_mkdir($upload_dir) >= 0)
             {
                 $destfull = $upload_dir.$TFile['name'];

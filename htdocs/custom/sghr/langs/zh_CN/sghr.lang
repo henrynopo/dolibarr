@@ -665,3 +665,7 @@ SghrConvertConfirm=创建员工
 SghrCandidateConverted=已为 %s 创建员工
 SghrCandidateConvertFor=将候选人 %s 转为员工
 SghrRecrutementNotEnabled=recrutement 模块未启用，候选人数据可能不完整。
+SghrMenuEmployees=员工
+SghrMenuRecruitment=招聘
+SghrMenuPayroll=工资
+SghrMenuSetup=设置

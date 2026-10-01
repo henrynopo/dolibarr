@@ -157,8 +157,8 @@ $html.='<table class="info_user" style="width:100%">';
                             $html.='<td style="width:7%;"></td><td style="width:58%;"align="left">';
 
                             $minifile = getImageFileNameForSize($competances->icon, '');  
-                            // $urlfile = $conf->ecv->dir_output.'/competances/'.$competances->rowid.'/'.$minifile;
-                            $urlfile = $conf->ecv->dir_output.'/competances/'.$minifile;
+                            // $urlfile = DOL_DATA_ROOT.'/ecv'.'/competances/'.$competances->rowid.'/'.$minifile;
+                            $urlfile = DOL_DATA_ROOT.'/ecv'.'/competances/'.$minifile;
                             if(@getimagesize($urlfile))
                             $html.='<img alt="Photo" src="'.$urlfile.'" height="13px" > ';
 
@@ -284,7 +284,7 @@ $html.='<table class="info_user" style="width:100%">';
                             $html.='<td style="width:10%" align="right">';
 
                                 $minifile = getImageFileNameForSize($value->profile_soc, '');  
-                                $urlfile = $conf->ecv->dir_output.'/'.$ecv->rowid.'/experiences/'.$value->rowid.'/'.$minifile;
+                                $urlfile = DOL_DATA_ROOT.'/ecv'.'/'.$ecv->rowid.'/experiences/'.$value->rowid.'/'.$minifile;
                                 if(@getimagesize($urlfile))
                                 $html.='<img src="'.$urlfile.'" height="15px"  >';
 
@@ -338,7 +338,7 @@ $html.='<table class="info_user" style="width:100%">';
                             $html.='<td style="width:18% !important;" align="center">';
 
                             $minifile = getImageFileNameForSize($value->copie, '');  
-                            $urlfile = $conf->ecv->dir_output.'/'.$ecv->rowid.'/certificats/'.$value->rowid.'/'.$minifile;
+                            $urlfile = DOL_DATA_ROOT.'/ecv'.'/'.$ecv->rowid.'/certificats/'.$value->rowid.'/'.$minifile;
                             if(@getimagesize($urlfile))
                             $html .= '<img src="'.$urlfile.'" height="35px" >';
 

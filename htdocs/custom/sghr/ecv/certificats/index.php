@@ -66,7 +66,7 @@ if ($action == 'create' && $request_method === 'POST') {
 			if ($_FILES['certificats']) { 
 	            $TFile = $_FILES['certificats'];
 				$copie = array('copie' => dol_sanitizeFileName($TFile['name'][$i],''));
-	            $upload_dir = $conf->ecv->dir_output.'/'.$id_ecv.'/certificats/'.$isvalid.'/';
+	            $upload_dir = DOL_DATA_ROOT.'/ecv'.'/'.$id_ecv.'/certificats/'.$isvalid.'/';
 	            if (dol_mkdir($upload_dir) >= 0)
 	            {
 	                $destfull = $upload_dir.$TFile['name'][$key];
@@ -114,7 +114,7 @@ if ($action == 'edit' && $request_method === 'POST') {
     if ($isvalid > 0) {
     	$ecvcertificats->fetch($id);
     	if($_FILES['copie']['name']){
-		    $dir = $conf->ecv->dir_output.'/'.$id_ecv.'/certificats/'.$id.'/';
+		    $dir = DOL_DATA_ROOT.'/ecv'.'/'.$id_ecv.'/certificats/'.$id.'/';
 			$copie = array('copie' => dol_sanitizeFileName($_FILES['copie']['name'],''));
 	    	if($ecvcertificats->copie && $_FILES['copie']['name']){
 	            $file=$dir.$ecvcertificats->copie;

@@ -184,7 +184,7 @@ if(count($ecvcompetances->rows) > 0){
                 $html.='<td> ';
 
                 $minifile = getImageFileNameForSize($competances->icon, '');  
-                $urlfile = $conf->ecv->dir_output.'/competances/'.$minifile;
+                $urlfile = DOL_DATA_ROOT.'/ecv'.'/competances/'.$minifile;
 
                 if(@getimagesize($urlfile))
                 $html .= '<img alt="Photo" src="'.$urlfile.'" height="20px" >  ';

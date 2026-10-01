@@ -107,7 +107,7 @@ $form=new Form($db);
 $var=false;
 print '<table class="noborder" width="100%">';
 
-dol_include_once('docsemployes/www/class/context.class.php');
+dol_include_once('/sghr/docsemployes/www/class/context.class.php');
 $context = Context::getInstance();
 //$context = new Context();
 _print_input_form_part('EACCESS_ROOT_URL',false,'',array('placeholder'=>'http://'),'input','EACCESS_ROOT_URL_HELP');

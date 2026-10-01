@@ -14,7 +14,7 @@ if ($action == 'confirm_delete' && GETPOST('confirm') == 'yes' ) {
     $error = $competances->delete();
 
     if ($error == 1) {
-        $dir = $conf->ecv->dir_output.'/competances/';
+        $dir = DOL_DATA_ROOT.'/ecv'.'/competances/';
             $file = $dir.$competances->icon;
         if($competances->icon){
             unlink($file);

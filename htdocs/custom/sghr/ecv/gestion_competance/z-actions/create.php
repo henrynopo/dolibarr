@@ -23,7 +23,7 @@ if ($action == 'create' && $request_method === 'POST') {
         if ($_FILES['icon']) { 
             $TFile = $_FILES['icon'];
             $copie = array('icon' => dol_sanitizeFileName($TFile['name'],''));
-            $upload_dir = $conf->ecv->dir_output.'/competances/';
+            $upload_dir = DOL_DATA_ROOT.'/ecv'.'/competances/';
             if (dol_mkdir($upload_dir) >= 0)
             {
                 $destfull = $upload_dir.$TFile['name'];

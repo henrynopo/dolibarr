@@ -37,7 +37,7 @@ $competances   = new competances($db);
             
             $outdata .='<td>';
 
-            $urlfile = $conf->ecv->dir_output.'/competances/'.$minifile;
+            $urlfile = DOL_DATA_ROOT.'/ecv'.'/competances/'.$minifile;
             
             if(@getimagesize($urlfile))
             $outdata .=' <img alt="Photo" src="'.DOL_URL_ROOT.'/viewimage.php?modulepart=ecv&entity='.$conf->entity.'&file=competances/'.$minifile.'&perm=download" height="30px" >';

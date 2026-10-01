@@ -178,7 +178,7 @@ print '</thead><tbody>';
                 // $dt_files = getAdvancedPreviewUrl('ecv', 'competances/'.$minifile, 1, '&entity='.$conf->entity);
                 $linkcomp = DOL_URL_ROOT.'/viewimage.php?modulepart=ecv&entity='.$conf->entity.'&file=competances/'.$minifile.'&perm=download';
 
-                $urlfile = $conf->ecv->dir_output.'/competances/'.$minifile;
+                $urlfile = DOL_DATA_ROOT.'/ecv'.'/competances/'.$minifile;
 
 				print '<tr '.$bc[$var].' >';
 		    		print '<td align="left" style="">';

@@ -82,7 +82,7 @@ if ($action == 'edit' && $request_method === 'POST') {
     $isvalid = $ecvexperiences->update($id, $data);
     if ($isvalid > 0) {
         $ecvexperiences->fetch($id);
-        $upload_dir = $conf->ecv->dir_output.'/'.$id_ecv.'/experiences/'.$id.'/';
+        $upload_dir = DOL_DATA_ROOT.'/ecv'.'/'.$id_ecv.'/experiences/'.$id.'/';
     	if(!empty($_FILES['profile']['name'])){
 	        if($ecvexperiences->profile_soc){
 	            $file=$upload_dir."/".$item->profile_soc;
@@ -150,7 +150,7 @@ if ($action == 'create' && $request_method === 'POST') {
 	        if ($_FILES['experiences']) { 
 	            $TFile = $_FILES['experiences'];
 				$profile_soc = array('profile_soc' => dol_sanitizeFileName($TFile['name'][$key],''));
-	            $upload_dir = $conf->ecv->dir_output.'/'.$id_ecv.'/experiences/'.$id.'/';
+	            $upload_dir = DOL_DATA_ROOT.'/ecv'.'/'.$id_ecv.'/experiences/'.$id.'/';
 	            if (dol_mkdir($upload_dir) >= 0)
 	            {
 	                $destfull = $upload_dir.$TFile['name'][$key];
@@ -192,11 +192,11 @@ if ($action == 'confirm_delete' && GETPOST('confirm') == 'yes' ) {
     $error = 1;
     $ecvexperiences->delete();
     if ($error == 1) {
-    	$dir = $conf->ecv->dir_output.'/'.$id_ecv.'/experiences/'.$id.'/';
+    	$dir = DOL_DATA_ROOT.'/ecv'.'/'.$id_ecv.'/experiences/'.$id.'/';
         $files=scandir($dir);
         foreach ($files as $file) {
             if($file != '.' && $file!='..'){
-                $dir = $conf->ecv->dir_output.'/'.$id_ecv.'/experiences/'.$id.'/'.$file;
+                $dir = DOL_DATA_ROOT.'/ecv'.'/'.$id_ecv.'/experiences/'.$id.'/'.$file;
                 if(file_exists($dir)){
                     unlink($dir);
                 }
