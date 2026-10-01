@@ -49,7 +49,7 @@ class modSlyCustom extends DolibarrModules
 		$this->descriptionlong = 'SLYCustomDescriptionLong';
 		$this->editor_name = 'SLY';
 		$this->editor_url = '';
-		$this->version = '2.3.0';
+		$this->version = '2.3.1';
 		$this->const_name = 'MAIN_MODULE_'.strtoupper($this->name);
 		$this->picto = 'generic';
 
@@ -563,11 +563,38 @@ class modSlyCustom extends DolibarrModules
 				."status varchar(24) NOT NULL DEFAULT 'DRAFT', last_state varchar(64) DEFAULT '',"
 				."last_event_at datetime NULL, fk_paiement_fourn integer NULL, note text,"
 				."date_creation datetime, tms timestamp) ENGINE=innodb",
+			// en_SG lang files ship 12-hour time formats (%I:%M %p). Overwrite with
+			// 24-hour equivalents via the official llx_overwrite_trans mechanism.
+			// The table ships with core installs but may be missing after manual
+			// upgrades, so create it first (harmless when already present).
+			// Entity-scoped: rows stay visible/manageable on each entity's Translation
+			// page, and the DELETE first makes re-running init idempotent (it also
+			// takes over the same keys if they were hand-configured before).
+			// DELETE/INSERT carry ignoreerror=1: a legacy UNIQUE index without the
+			// entity column (pre-17 schema) must not fail the whole module init.
+			"CREATE TABLE IF NOT EXISTS ".MAIN_DB_PREFIX."overwrite_trans ("
+				."rowid integer AUTO_INCREMENT PRIMARY KEY, entity integer DEFAULT 1 NOT NULL,"
+				."lang varchar(5), transkey varchar(128), transvalue text) ENGINE=innodb",
+			array('sql' => "DELETE FROM ".MAIN_DB_PREFIX."overwrite_trans WHERE lang = 'en_SG' AND transkey IN ('FormatHourShort','FormatHourSecShort','FormatDateHourShort','FormatDateHourSecShort','FormatDateHourText','FormatDateHourTextShort') AND entity = __ENTITY__", 'ignoreerror' => 1),
+			array('sql' => "INSERT INTO ".MAIN_DB_PREFIX."overwrite_trans (lang, transkey, transvalue, entity) VALUES('en_SG', 'FormatHourShort', '%H:%M', __ENTITY__)", 'ignoreerror' => 1),
+			array('sql' => "INSERT INTO ".MAIN_DB_PREFIX."overwrite_trans (lang, transkey, transvalue, entity) VALUES('en_SG', 'FormatHourSecShort', '%H:%M:%S', __ENTITY__)", 'ignoreerror' => 1),
+			array('sql' => "INSERT INTO ".MAIN_DB_PREFIX."overwrite_trans (lang, transkey, transvalue, entity) VALUES('en_SG', 'FormatDateHourShort', '%d/%m/%Y %H:%M', __ENTITY__)", 'ignoreerror' => 1),
+			array('sql' => "INSERT INTO ".MAIN_DB_PREFIX."overwrite_trans (lang, transkey, transvalue, entity) VALUES('en_SG', 'FormatDateHourSecShort', '%d/%m/%Y %H:%M:%S', __ENTITY__)", 'ignoreerror' => 1),
+			array('sql' => "INSERT INTO ".MAIN_DB_PREFIX."overwrite_trans (lang, transkey, transvalue, entity) VALUES('en_SG', 'FormatDateHourText', '%d/%m/%Y %H:%M', __ENTITY__)", 'ignoreerror' => 1),
+			array('sql' => "INSERT INTO ".MAIN_DB_PREFIX."overwrite_trans (lang, transkey, transvalue, entity) VALUES('en_SG', 'FormatDateHourTextShort', '%d/%m/%Y %H:%M', __ENTITY__)", 'ignoreerror' => 1),
 		);
 
 		$result = $this->_init($sql, $options);
 		if ($result) {
 			$this->syncMenuPrefixes();
+			// DB-stored translation overrides are only loaded when this switch is on
+			// (same toggle as admin/translation.php uses). Without it the rows above
+			// stay inert. Write to entity 0 (shared) plus the current entity, same
+			// pattern as syncModulePartsModels() above.
+			require_once DOL_DOCUMENT_ROOT.'/core/lib/admin.lib.php';
+			foreach (array_unique(array(0, (int) $conf->entity)) as $ent) {
+				dolibarr_set_const($this->db, 'MAIN_ENABLE_OVERWRITE_TRANSLATION', '1', 'chaine', 0, '', $ent);
+			}
 		}
 		return $result;
 	}
@@ -638,6 +665,19 @@ class modSlyCustom extends DolibarrModules
 			"DELETE FROM ".MAIN_DB_PREFIX."document_model WHERE nom = 'cornas_SLY' AND type = 'order_supplier' AND entity = ".((int) $conf->entity),
 		);
 
-		return $this->_remove($sql, $options);
+		$result = $this->_remove($sql, $options);
+
+		// Remove the 24-hour time format overrides. The MAIN_ENABLE_OVERWRITE_TRANSLATION
+		// switch is deliberately kept: it also governs hand-made overrides on the
+		// Translation page and is not owned by this module.
+		// Executed manually (NOT in the _remove array): the plain _remove loop has no
+		// ignoreerror mechanism and no __ENTITY__ substitution, so a missing table or
+		// stale index must not be able to fail the whole module disable.
+		$sqldelete = "DELETE FROM ".MAIN_DB_PREFIX."overwrite_trans WHERE lang = 'en_SG'"
+			." AND transkey IN ('FormatHourShort','FormatHourSecShort','FormatDateHourShort','FormatDateHourSecShort','FormatDateHourText','FormatDateHourTextShort')"
+			." AND entity = ".((int) $conf->entity);
+		$this->db->query($sqldelete);
+
+		return $result;
 	}
 }
