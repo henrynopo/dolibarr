@@ -18,7 +18,7 @@
 
 /**
  * 	\file		admin/docsemployes.php
- * 	\ingroup	docsemployes
+ * 	\ingroup employeedocs
  * 	\brief		This file is an example module setup page
  * 				Put some comments here
  */

@@ -5,7 +5,7 @@
 
 /**
  * \file    lib/switchthirdparty.lib.php
- * \ingroup changetiers
+ * \ingroup switchthirdparty
  * \brief   changetiers
  *
  * Show admin header

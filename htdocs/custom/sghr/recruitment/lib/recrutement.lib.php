@@ -18,7 +18,7 @@
 
 /**
  *	\file		lib/recrutement.lib.php
- *	\ingroup	recrutement
+ *	\ingroup recruitment
  *	\brief		This file is an example module library
  *				Put some comments here
  */

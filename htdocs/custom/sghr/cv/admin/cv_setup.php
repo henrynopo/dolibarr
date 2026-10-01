@@ -18,7 +18,7 @@
 
 /**
  *  \file       admin/cv.php
- *  \ingroup    ecv
+ *  \ingroup cv
  *  \brief      This file is an example module setup page
  *              Put some comments here
  */

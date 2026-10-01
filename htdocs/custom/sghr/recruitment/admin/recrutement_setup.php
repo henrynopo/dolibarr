@@ -18,7 +18,7 @@
 
 /**
  * 	\file		admin/recrutement.php
- * 	\ingroup	recrutement
+ * 	\ingroup recruitment
  * 	\brief		This file is an example module setup page
  * 				Put some comments here
  */

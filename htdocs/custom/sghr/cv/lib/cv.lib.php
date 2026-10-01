@@ -18,7 +18,7 @@
 
 /**
  *	\file		lib/cv.lib.php
- *	\ingroup	ecv
+ *	\ingroup cv
  *	\brief		This file is an example module library
  *				Put some comments here
  */

@@ -18,7 +18,7 @@
 
 /**
  *	\file		lib/docsemployes.lib.php
- *	\ingroup	docsemployes
+ *	\ingroup employeedocs
  *	\brief		This file is an example module library
  *				Put some comments here
  */

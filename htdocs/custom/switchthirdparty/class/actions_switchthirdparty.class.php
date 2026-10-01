@@ -5,7 +5,7 @@
 
 /**
  * \file    class/actions_switchthirdparty.class.php
- * \ingroup changetiers
+ * \ingroup switchthirdparty
  * \brief   ActionsChangetiers
  *
  */
