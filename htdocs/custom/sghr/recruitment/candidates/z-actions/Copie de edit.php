@@ -219,7 +219,7 @@ if($action == "edit"){
                                 $id_origine=$item->origine;
                             print '<td style="padding:8px 0px 8px 8px; ">'.$candidature->select_origine($id_origine,'origine');
 
-                            print '  <a href="'.dol_buildpath('/sghr/recruitment/Source/card.php?action=add&backtopage='.urlencode($_SERVER["PHP_SELF"].'?action=edit&id='.$id),2).'">'.$langs->trans('cree_origine').'</a>';
+                            print '  <a href="'.dol_buildpath('/sghr/recruitment/sources/card.php?action=add&backtopage='.urlencode($_SERVER["PHP_SELF"].'?action=edit&id='.$id),2).'">'.$langs->trans('cree_origine').'</a>';
 
                             print '</td>';
                         print '</tr>';

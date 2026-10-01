@@ -466,13 +466,13 @@ class modSghr extends DolibarrModules
 		$this->menu[$r++] = array(
 			'fk_menu' => 'fk_mainmenu=sghr,fk_leftmenu=sghr_grp_cfg', 'type' => 'left',
 			'titre' => 'etiquettes_candidature', 'mainmenu' => 'sghr', 'leftmenu' => 'sghr_cfg_etiquettes',
-			'url' => '/sghr/recruitment/Tag/index.php', 'langs' => 'recruitment@sghr', 'position' => 911, 'enabled' => 1,
+			'url' => '/sghr/recruitment/tags/index.php', 'langs' => 'recruitment@sghr', 'position' => 911, 'enabled' => 1,
 			'prefix' => '<span class="fas fa-tags fa-fw pictofixedwidth"></span>', 'picto' => 'fa-tags', 'perms' => '$user->admin', 'user' => 0
 		);
 		$this->menu[$r++] = array(
 			'fk_menu' => 'fk_mainmenu=sghr,fk_leftmenu=sghr_grp_cfg', 'type' => 'left',
 			'titre' => 'Source', 'mainmenu' => 'sghr', 'leftmenu' => 'sghr_cfg_origines',
-			'url' => '/sghr/recruitment/Source/index.php', 'langs' => 'recruitment@sghr', 'position' => 912, 'enabled' => 1,
+			'url' => '/sghr/recruitment/sources/index.php', 'langs' => 'recruitment@sghr', 'position' => 912, 'enabled' => 1,
 			'prefix' => '<span class="fas fa-globe fa-fw pictofixedwidth"></span>', 'picto' => 'fa-globe', 'perms' => '$user->admin', 'user' => 0
 		);
 		$this->menu[$r++] = array(

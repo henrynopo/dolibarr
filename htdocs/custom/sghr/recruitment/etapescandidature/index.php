@@ -108,7 +108,7 @@ print '<form method="get" action="'.$_SERVER["PHP_SELF"].'">'."\n";
 
 					print '<tr '.$bc[$var].' >';
 			    		print '<td align="center" style="">'; 
-				    		print '<a href="'.dol_buildpath('/sghr/recruitment/Tag/card.php?id='.$item->rowid,2).'" >';
+				    		print '<a href="'.dol_buildpath('/sghr/recruitment/tags/card.php?id='.$item->rowid,2).'" >';
 				    			print $item->rowid;
 				    		print '</a>';
 			    		print '</td>';

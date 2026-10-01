@@ -250,7 +250,7 @@ if($action == "add"){
                             $id_org=GETPOST('id_origine');
                         }
                         print $candidature->select_origine($id_org,'origine');
-                        print '  <a href="'.dol_buildpath('/sghr/recruitment/Source/card.php?action=add&backtopage='.urlencode($_SERVER["PHP_SELF"].'?action=add'),2).'">'.$langs->trans('cree_origine').'</a>';
+                        print '  <a href="'.dol_buildpath('/sghr/recruitment/sources/card.php?action=add&backtopage='.urlencode($_SERVER["PHP_SELF"].'?action=add'),2).'">'.$langs->trans('cree_origine').'</a>';
                         print '</td>';
                     print '</tr>';
 

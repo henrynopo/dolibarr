@@ -309,7 +309,7 @@ if($action == "edit"){
                         print '<td style="text-align:left;">'.$langs->trans('origine').'</td>';
                         print '<td style="">';
                         print $candidature->select_origine($id_origine,'origine');
-                        print '  <a href="'.dol_buildpath('/sghr/recruitment/Source/card.php?action=add&backtopage='.urlencode($_SERVER["PHP_SELF"].'?action=edit&id='.$id),2).'">'.$langs->trans('cree_origine').'</a>';
+                        print '  <a href="'.dol_buildpath('/sghr/recruitment/sources/card.php?action=add&backtopage='.urlencode($_SERVER["PHP_SELF"].'?action=edit&id='.$id),2).'">'.$langs->trans('cree_origine').'</a>';
                         print '</td>';
                     print '</tr>';
 
