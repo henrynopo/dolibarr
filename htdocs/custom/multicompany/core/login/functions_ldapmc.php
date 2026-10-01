@@ -101,11 +101,14 @@ function check_user_password_ldapmc($usertotest, $passwordtotest, $entitytotest)
 		$resultFetchLdapUser = 0;
 
 		// Define $userSearchFilter
+		// Security fix (audit 2026-10-01): RFC 4515 filter escaping on the
+		// user-supplied login (LDAP injection - same weakness core
+		// functions_ldap.php had historically)
 		$userSearchFilter = "";
 		if (empty($dolibarr_main_auth_ldap_filter)) {
-			$userSearchFilter = "(".$ldapuserattr."=".$usertotest.")";
+			$userSearchFilter = "(".$ldapuserattr."=".ldap_escape($usertotest, "", LDAP_ESCAPE_FILTER).")";
 		} else {
-			$userSearchFilter = str_replace('%1%', $usertotest, $dolibarr_main_auth_ldap_filter);
+			$userSearchFilter = str_replace('%1%', ldap_escape($usertotest, "", LDAP_ESCAPE_FILTER), $dolibarr_main_auth_ldap_filter);
 		}
 
 		// If admin login provided

@@ -627,7 +627,7 @@ class DaoMulticompany extends CommonObject
 	 * @param    string $value	Value of status (0: disable, 1: enable)
 	 * @return int
 	 */
-	public function setEntity($id, $type='active', $value)
+	public function setEntity($id, $type='active', $value=1)
 	{
 		$this->db->begin();
 

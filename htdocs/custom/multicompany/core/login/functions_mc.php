@@ -82,12 +82,9 @@ function check_user_password_mc($usertotest, $passwordtotest, $entitytotest=1)
 							}
 						}
 						// For compatibility with old versions
-						if (empty($passok))	{
-							if ((empty($passcrypted) || !empty($passtyped)) && (!empty($passclear) && ($passtyped == $passclear))) {
-								$passok=true;
-								dol_syslog("functions_mc::check_user_password_mc Authentification ok - found pass in database");
-							}
-						}
+						// Security fix (audit 2026-10-01): plaintext-password compatibility
+						// fallback removed - authentication is hash-verify only
+						// (dol_verifyHash above). SLY user records all carry modern hashes.
 
 						if (!empty($passok) && !empty($obj->entity)) {
 							global $entitytotest;

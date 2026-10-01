@@ -2254,7 +2254,7 @@ class ActionsMulticompany
 					} else {
 						$staticentity = new self($this->db);
 						$staticentity->getInfo($object->entity);
-						$this->resprints.= $staticentity->label;
+						$this->resprints.= dol_escape_htmltag($staticentity->label);
 					}
 					$this->resprints.= "</td></tr>\n";
 				}
@@ -2296,7 +2296,7 @@ class ActionsMulticompany
 									$otherentity = new self($this->db);
 									$otherentity->getInfo($sharedwithentity);
 									$this->resprints.= '<div class="refidno multicompany-entity-card-container">';
-									$this->resprints.= '<span class="fa fa-globe"></span><span class="multiselect-selected-title-text">'.$otherentity->label.'</span>';
+									$this->resprints.= '<span class="fa fa-globe"></span><span class="multiselect-selected-title-text">'.dol_escape_htmltag($otherentity->label).'</span>';
 									$this->resprints.= "</div>\n";
 								}
 								$this->resprints.= "</td></tr>\n";
@@ -2332,7 +2332,7 @@ class ActionsMulticompany
 									$otherentity = new self($this->db);
 									$otherentity->getInfo($sharedwithentity);
 									$this->resprints.= '<div class="refidno multicompany-entity-card-container">';
-									$this->resprints.= '<span class="fa fa-globe"></span><span class="multiselect-selected-title-text">'.$otherentity->label.'</span>';
+									$this->resprints.= '<span class="fa fa-globe"></span><span class="multiselect-selected-title-text">'.dol_escape_htmltag($otherentity->label).'</span>';
 									$this->resprints.= "</div>\n";
 								}
 								$this->resprints.= "</td></tr>\n";
@@ -2378,7 +2378,7 @@ class ActionsMulticompany
 									$otherentity = new self($this->db);
 									$otherentity->getInfo($sharedwithentity);
 									$this->resprints.= '<div class="refidno multicompany-entity-card-container">';
-									$this->resprints.= '<span class="fa fa-globe"></span><span class="multiselect-selected-title-text">'.$otherentity->label.'</span>';
+									$this->resprints.= '<span class="fa fa-globe"></span><span class="multiselect-selected-title-text">'.dol_escape_htmltag($otherentity->label).'</span>';
 									$this->resprints.= "</div>\n";
 								}
 								$this->resprints.= "</td></tr>\n";
@@ -2421,7 +2421,7 @@ class ActionsMulticompany
 									$otherentity = new self($this->db);
 									$otherentity->getInfo($sharedwithentity);
 									$this->resprints.= '<div class="refidno multicompany-entity-card-container">';
-									$this->resprints.= '<span class="fa fa-globe"></span><span class="multiselect-selected-title-text">'.$otherentity->label.'</span>';
+									$this->resprints.= '<span class="fa fa-globe"></span><span class="multiselect-selected-title-text">'.dol_escape_htmltag($otherentity->label).'</span>';
 									$this->resprints.= "</div>\n";
 								}
 								$this->resprints.= "</td></tr>\n";
@@ -2465,7 +2465,7 @@ class ActionsMulticompany
 									$otherentity = new self($this->db);
 									$otherentity->getInfo($sharedwithentity);
 									$this->resprints.= '<div class="refidno multicompany-entity-card-container">';
-									$this->resprints.= '<span class="fa fa-globe"></span><span class="multiselect-selected-title-text">'.$otherentity->label.'</span>';
+									$this->resprints.= '<span class="fa fa-globe"></span><span class="multiselect-selected-title-text">'.dol_escape_htmltag($otherentity->label).'</span>';
 									$this->resprints.= "</div>\n";
 								}
 								$this->resprints.= "</td></tr>\n";
@@ -2869,7 +2869,7 @@ class ActionsMulticompany
 										$otherentity = new self($this->db);
 										$otherentity->getInfo($sharedwithentity);
 										$this->resprints.= '<div class="refidno multicompany-entity-card-container multicompany-margin-right-5" data-tooltip="'.$langs->trans("MulticompanySharedWithThisEntity").'" data-tooltip-position="bottom">';
-										$this->resprints.= '<span class="fa fa-globe"></span><span class="multiselect-selected-title-text">'.$otherentity->label.'</span>';
+										$this->resprints.= '<span class="fa fa-globe"></span><span class="multiselect-selected-title-text">'.dol_escape_htmltag($otherentity->label).'</span>';
 										$this->resprints.= '</div>';
 									}
 								}
@@ -2914,7 +2914,7 @@ class ActionsMulticompany
 										$otherentity = new self($this->db);
 										$otherentity->getInfo($sharedwithentity);
 										$this->resprints.= '<div class="refidno multicompany-entity-card-container multicompany-margin-right-5" data-tooltip="'.$langs->trans("MulticompanySharedWithThisEntity").'" data-tooltip-position="bottom">';
-										$this->resprints.= '<span class="fa fa-globe"></span><span class="multiselect-selected-title-text">'.$otherentity->label.'</span>';
+										$this->resprints.= '<span class="fa fa-globe"></span><span class="multiselect-selected-title-text">'.dol_escape_htmltag($otherentity->label).'</span>';
 										$this->resprints.= '</div>';
 									}
 								}
@@ -2937,7 +2937,7 @@ class ActionsMulticompany
 										$otherentity = new self($this->db);
 										$otherentity->getInfo($sharedwithentity);
 										$this->resprints.= '<div class="refidno multicompany-entity-card-container multicompany-margin-right-5" data-tooltip="'.$langs->trans("MulticompanySharedWithThisEntity").'" data-tooltip-position="bottom">';
-										$this->resprints.= '<span class="fa fa-globe"></span><span class="multiselect-selected-title-text">'.$otherentity->label.'</span>';
+										$this->resprints.= '<span class="fa fa-globe"></span><span class="multiselect-selected-title-text">'.dol_escape_htmltag($otherentity->label).'</span>';
 										$this->resprints.= '</div>';
 									}
 								}
@@ -2973,7 +2973,7 @@ class ActionsMulticompany
 										$otherentity = new self($this->db);
 										$otherentity->getInfo($sharedwithentity);
 										$this->resprints.= '<div class="refidno multicompany-entity-card-container multicompany-margin-right-5" data-tooltip="'.$langs->trans("MulticompanySharedWithThisEntity").'" data-tooltip-position="bottom">';
-										$this->resprints.= '<span class="fa fa-globe"></span><span class="multiselect-selected-title-text">'.$otherentity->label.'</span>';
+										$this->resprints.= '<span class="fa fa-globe"></span><span class="multiselect-selected-title-text">'.dol_escape_htmltag($otherentity->label).'</span>';
 										$this->resprints.= '</div>';
 									}
 								}
@@ -3007,7 +3007,7 @@ class ActionsMulticompany
 										$otherentity = new self($this->db);
 										$otherentity->getInfo($sharedwithentity);
 										$this->resprints.= '<div class="refidno multicompany-entity-card-container multicompany-margin-right-5" data-tooltip="'.$langs->trans("MulticompanySharedWithThisEntity").'" data-tooltip-position="bottom">';
-										$this->resprints.= '<span class="fa fa-globe"></span><span class="multiselect-selected-title-text">'.$otherentity->label.'</span>';
+										$this->resprints.= '<span class="fa fa-globe"></span><span class="multiselect-selected-title-text">'.dol_escape_htmltag($otherentity->label).'</span>';
 										$this->resprints.= '</div>';
 									}
 								}
@@ -5173,7 +5173,7 @@ class ActionsMulticompany
 				continue;
 			}
 			$info = (empty($entity->active) ? ' ('.$langs->transnoentities('Disabled').')' : ($entity->visible == 2 ? ' ('.$langs->transnoentities('Template').')' : (empty($entity->visible) ? ' ('.$langs->transnoentities('Hidden').')' : '')));
-			$entities[$entity->id] = dol_html_entity_decode($entity->label, null) . $info;
+			$entities[$entity->id] = dol_escape_htmltag(dol_html_entity_decode($entity->label, null)) . $info;
 		}
 
 		return $entities;
