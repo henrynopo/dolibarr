@@ -67,7 +67,7 @@ class modSghr extends DolibarrModules
 		$this->numero = 501100;
 		$this->rights_class = 'sghr';
 
-		$this->family = "hr";
+		$this->family = 'haopie';
 		$this->module_position = '55';
 		$this->name = "SG HR & Payroll"; // Hardcoded to avoid runtime param errors
 		$this->description = "SG HR & Payroll — CPF, SDL/SHG, IRAS AIS, Payslips, employee documents";

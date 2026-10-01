@@ -42,7 +42,7 @@ class modSlyCustom extends DolibarrModules
 		// Module unique id (see https://wiki.dolibarr.org/index.php/List_of_modules_id)
 		$this->numero = 500100;
 		$this->rights_class = 'slycustom';
-		$this->family = "other";
+		$this->family = 'haopie';
 		$this->module_position = '90';
 		$this->name = preg_replace('/^mod/i', '', get_class($this));
 		$this->description = 'ModuleSlyCustomDesc';

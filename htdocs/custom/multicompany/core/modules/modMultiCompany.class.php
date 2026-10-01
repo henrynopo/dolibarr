@@ -52,7 +52,7 @@ class modMultiCompany extends DolibarrModules
 
 		// Family can be 'crm','financial','hr','projects','products','ecm','technic','other'
 		// It is used to group modules in module setup page
-		$this->family = "base";
+		$this->family = 'haopie';
 		// Gives the possibility to the module, to provide his own family info and position of this family.
 		$this->familyinfo = array(
 			'core' => array(
