@@ -1112,7 +1112,14 @@ if (in_array($action, array('applyall', 'applyone', 'restoreone', 'resetone', 'r
 		slyPatchStatusSweepBegin();
 		foreach (array_keys($PATCHES) as $name) {
 			$patchfile = DOL_DOCUMENT_ROOT.'/custom/slycustom/patches/sly24.0-'.$name.'.patch';
-			$st = slyPatchStatusCached($name, $patchfile, $engine);
+			// Force a live measurement for the skip decision: sweep begin only
+			// resets the cache when the WHOLE snapshot is older than the TTL, so
+			// rows measured minutes before an out-of-band file change (restore,
+			// upload, a previous partial applyall) could still be served stale
+			// here — a patch wrongly seen as 'applied' gets silently skipped and
+			// the tree ends in a mixed state (prod 2026-10-01: multicurrency list
+			// pages 500). Same rationale as the applyone branch above.
+			$st = slyPatchStatusCached($name, $patchfile, $engine, true);
 			if ($st['status'] == 'notapplied') {
 				$r = slyPatchApply($name, $engine);
 				$logs[] = '── sly24.0-'.$name.'.patch: '.($r['ok'] ? 'applied' : 'FAILED')."\n".$r['log'];
