@@ -72,7 +72,7 @@ class modSghr extends DolibarrModules
 		$this->name = "SG HR & Payroll"; // Hardcoded to avoid runtime param errors
 		$this->description = "SG HR & Payroll — CPF, SDL/SHG, IRAS AIS, Payslips, employee documents";
 		$this->descriptionlong = "Singapore HR & payroll for Dolibarr: CPF contributions (OW/AW), statutory levies (SDL/SHG/FWL), IRAS AIS exports (IR8A/IR21), payroll runs & payslips, leave/claims integration, employee document management with expiry reminders (absorbing docsemployes), and CV/skill management (absorbing ecv).";
-		$this->version = '2.0.0';
+		$this->version = '2.1.0';
 		$this->const_name = 'MAIN_MODULE_SGHR';
 		$this->picto = 'salary';
 
@@ -80,8 +80,8 @@ class modSghr extends DolibarrModules
 			'triggers' => 1,
 			'menus' => 1,
 			'hooks' => array('usercard', 'docsemployesindex', 'docsemployescard', 'completetabs', 'main'),
-			'css' => array('/sghr/css/sghr.css', '/sghr/docsemployes/css/docsemployes.css', '/sghr/ecv/css/ecv.css'),
-			'js' => array('/sghr/docsemployes/js/docsemployes.js', '/sghr/ecv/js/ecv.js'),
+			'css' => array('/sghr/css/sghr.css', '/sghr/docsemployes/css/docsemployes.css', '/sghr/ecv/css/ecv.css', '/sghr/recrutement/css/recrutement.css'),
+			'js' => array('/sghr/docsemployes/js/docsemployes.js', '/sghr/ecv/js/ecv.js', '/sghr/recrutement/js/recrutement.js.php'),
 		);
 
 		// Employee documents tab (absorbed from docsemployes module, phase 2)
@@ -205,6 +205,21 @@ class modSghr extends DolibarrModules
 		$this->rights[$r][0] = 190961112;
 		$this->rights[$r][1] = 'CvDelete';
 		$this->rights[$r][2] = 'd'; $this->rights[$r][3] = 0; $this->rights[$r][4] = 'cv'; $this->rights[$r][5] = 'delete';
+		$r++;
+
+		// Recruitment permissions (absorbed from recrutement module;
+		// ids kept so existing user-right bindings survive the module rename)
+		$this->rights[$r][0] = 999119990;
+		$this->rights[$r][1] = 'RecruitmentRead';
+		$this->rights[$r][2] = 'r'; $this->rights[$r][3] = 1; $this->rights[$r][4] = 'rec'; $this->rights[$r][5] = 'read';
+		$r++;
+		$this->rights[$r][0] = 999119991;
+		$this->rights[$r][1] = 'RecruitmentWrite';
+		$this->rights[$r][2] = 'w'; $this->rights[$r][3] = 0; $this->rights[$r][4] = 'rec'; $this->rights[$r][5] = 'write';
+		$r++;
+		$this->rights[$r][0] = 999119992;
+		$this->rights[$r][1] = 'RecruitmentDelete';
+		$this->rights[$r][2] = 'd'; $this->rights[$r][3] = 0; $this->rights[$r][4] = 'rec'; $this->rights[$r][5] = 'delete';
 
 		// ── Top menu ──────────────────────────────────────────────────────────
 		$this->menu[$r++] = array(
@@ -490,6 +505,224 @@ class modSghr extends DolibarrModules
 			'prefix' => '<span class="fas fa-user-plus fa-fw pictofixedwidth"></span>',
 			'picto' => 'fa-user-plus', 'perms' => '$user->hasRight("sghr","employee","write")', 'user' => 0
 		);
+
+		$this->menu[$r]=array(	'fk_menu'=>'fk_mainmenu=sghr',
+			'type'=>'left',
+			'titre'=>'Recruitment',
+			'mainmenu'=>'sghr',
+			'leftmenu'=>'sghr_rec',
+			'url'=>'/sghr/recrutement/index.php',
+			'langs'=>'recrutement@sghr',
+			'position'=>201,
+			'enabled'=>'1',
+			'perms'=>'$user->rights->sghr->rec->read',
+			'target'=>'',
+			'user'=>2);
+		$r++;
+
+
+		$this->menu[$r]=array(	'fk_menu'=>'fk_mainmenu=sghr',
+			'type'=>'left',
+			'titre'=>'recru_recherche_avancee',
+            'leftmenu'=>'ecv4',
+			'url'=>'/sghr/recrutement/search.php',
+			'langs'=>'recrutement@sghr',
+			'position'=>2,
+			'enabled'=>'1',
+			'perms'=>'$user->rights->sghr->rec->read',
+			'target'=>'',
+			'user'=>2);
+		$r++;
+
+		// Left Menu
+		$this->menu[$r]=array(	'fk_menu'=>'fk_mainmenu=sghr',
+			'type'=>'left',
+			'titre'=>'postes',
+            'leftmenu'=>'postes',
+			'url'=>'/sghr/recrutement/index.php',
+			'langs'=>'recrutement@sghr',
+			'position'=>3,
+			'enabled'=>'1',
+			'perms'=>'$user->rights->sghr->rec->read',
+			'target'=>'',
+			'user'=>2);
+		$r++;
+			$this->menu[$r]=array('fk_menu'=>'fk_mainmenu=sghr,fk_leftmenu=postes',
+				'type'=>'left',
+				'titre'=>'liste_des_postes',
+				'url'=>'/sghr/recrutement/index.php',
+				'langs'=>'recrutement@sghr',
+				'position'=> 4,
+				'enabled'=>'1',
+				'perms'=>'$user->rights->sghr->rec->read',
+				'target'=>'',
+				'user'=>2);		
+			$r++;
+
+			$this->menu[$r]=array('fk_menu'=>'fk_mainmenu=sghr,fk_leftmenu=postes',
+				'type'=>'left',
+				'titre'=>'add_poste',
+				'url'=>'/sghr/recrutement/card.php?action=add',
+				'langs'=>'recrutement@sghr',
+				'position'=> 5,
+				'enabled'=>'1',
+				'perms'=>'$user->rights->sghr->rec->write',
+				'target'=>'',
+				'user'=>2);
+			$r++;
+
+		$this->menu[$r]=array('fk_menu'=>'fk_mainmenu=sghr',
+			'type'=>'left',
+			'titre'=>'candidatures',
+            'leftmenu'=>'candidatures',
+			'url'=>'/sghr/recrutement/candidatures/kanban.php?page=0',
+			'langs'=>'recrutement@sghr',
+			'position'=>4,
+			'enabled'=>'1',
+			'perms'=>'$user->rights->sghr->rec->read',
+			'target'=>'',
+			'user'=>2);
+		$r++;
+			$this->menu[$r]=array('fk_menu'=>'fk_mainmenu=sghr,fk_leftmenu=candidatures',
+				'type'=>'left',
+				'titre'=>'liste_des_candidatures',
+				'url'=>'/sghr/recrutement/candidatures/index.php?page=0',
+				'langs'=>'recrutement@sghr',
+				'position'=> 5,
+				'enabled'=>'1',
+				'perms'=>'$user->rights->sghr->rec->read',
+				'target'=>'',
+				'user'=>2);		
+			$r++;
+
+			$this->menu[$r]=array('fk_menu'=>'fk_mainmenu=sghr,fk_leftmenu=candidatures',
+				'type'=>'left',
+				'titre'=>'add_candidature',
+				'url'=>'/sghr/recrutement/candidatures/card.php?action=add',
+				'langs'=>'recrutement@sghr',
+				'position'=> 6,
+				'enabled'=>'1',
+				'perms'=>'$user->rights->sghr->rec->write',
+				'target'=>'',
+				'user'=>2);		
+			$r++;
+
+		
+		$this->menu[$r]=array('fk_menu'=>'fk_mainmenu=sghr',
+			'type'=>'left',
+			'titre'=>'cv',
+		    'leftmenu'=>'cv',
+			'url'=>'/sghr/recrutement/cv/list.php',
+			'langs'=>'recrutement@sghr',
+			'position'=>7,
+			'enabled'=>'1',
+			'perms'=>'$user->rights->sghr->rec->read',
+			'target'=>'',
+			'user'=>2);
+		$r++;
+
+		$this->menu[$r]=array('fk_menu'=>'fk_mainmenu=sghr',
+			'type'=>'left',
+			'titre'=>'rapports',
+            'leftmenu'=>'rapports',
+			'url'=>'/sghr/recrutement/rapports.php',
+			'langs'=>'recrutement@sghr',
+			'position'=>8,
+			'enabled'=>'1',
+			'perms'=>'$user->rights->sghr->rec->read',
+			'target'=>'',
+			'user'=>2);
+		$r++;
+
+		$this->menu[$r]=array('fk_menu'=>'fk_mainmenu=sghr',
+			'type'=>'left',
+			'titre'=>'configuration',
+            'leftmenu'=>'configuration',
+			'url'=>'/sghr/recrutement/departements/index.php?action=config',
+			'langs'=>'recrutement@sghr',
+			'position'=>9,
+			'enabled'=>'1',
+			'perms'=>'$user->rights->sghr->rec->read',
+			'target'=>'',
+			'user'=>2);
+		$r++;
+
+			// $this->menu[$r]=array('fk_menu'=>'fk_mainmenu=sghr,fk_leftmenu=configuration',
+			// 	'type'=>'left',
+			// 	'titre'=>'configuration',
+			// 	// 'url'=>'/sghr/recrutement/candidatures/candidatures.php',
+			// 	'langs'=>'recrutement@sghr',
+			// 	'position'=> 10,
+			// 	'enabled'=>'1',
+			// 	'perms'=>'$user->rights->sghr->rec->read',
+			// 	'target'=>'',
+			// 	'user'=>2);		
+			// $r++;
+
+			// $this->menu[$r]=array('fk_menu'=>'fk_mainmenu=sghr,fk_leftmenu=configuration',
+			// 	'type'=>'left',
+			// 	'titre'=>'postes',
+			// 	'url'=>'/sghr/recrutement/index.php',
+			// 	'langs'=>'recrutement@sghr',
+			// 	'position'=> 11,
+			// 	'enabled'=>'1',
+			// 	'perms'=>'$user->rights->sghr->rec->read',
+			// 	'target'=>'',
+			// 	'user'=>2);		
+			// $r++;
+
+			$this->menu[$r]=array('fk_menu'=>'fk_mainmenu=sghr,fk_leftmenu=configuration',
+				'type'=>'left',
+				'titre'=>'departements',
+				'url'=>'/sghr/recrutement/departements/index.php',
+				'langs'=>'recrutement@sghr',
+				'position'=> 12,
+				'enabled'=>'1',
+				'perms'=>'$user->rights->sghr->rec->read',
+				'target'=>'',
+				'user'=>2);		
+			$r++;
+
+			$this->menu[$r]=array('fk_menu'=>'fk_mainmenu=sghr,fk_leftmenu=configuration',
+				'type'=>'left',
+				'titre'=>'etiquettes_candidature',
+				'url'=>'/sghr/recrutement/etiquettes/index.php',
+				'langs'=>'recrutement@sghr',
+				'position'=> 13,
+				'enabled'=>'1',
+				'perms'=>'$user->rights->sghr->rec->read',
+				'target'=>'',
+				'user'=>2);		
+			$r++;
+
+			$this->menu[$r]=array('fk_menu'=>'fk_mainmenu=sghr,fk_leftmenu=configuration',
+				'type'=>'left',
+				'titre'=>'origines',
+				'url'=>'/sghr/recrutement/origines/index.php',
+				'langs'=>'recrutement@sghr',
+				'position'=> 26,
+				'enabled'=>'1',
+				'perms'=>'$user->rights->sghr->rec->read',
+				'target'=>'',
+				'user'=>2);		
+			$r++;
+
+			$this->menu[$r]=array('fk_menu'=>'fk_mainmenu=sghr,fk_leftmenu=configuration',
+				'type'=>'left',
+				'titre'=>'niveauetud',
+				'url'=>'/sghr/recrutement/candidatures/degrees/index.php',
+				'langs'=>'recrutement@sghr',
+				'position'=> 26,
+				'enabled'=>'1',
+				'perms'=>'$user->rights->sghr->rec->read',
+				'target'=>'',
+				'user'=>2);		
+			$r++;
+
+			
+
+
+
 	}
 
 	/**
@@ -521,6 +754,11 @@ class modSghr extends DolibarrModules
 			"UPDATE ".MAIN_DB_PREFIX."cronjobs SET module = 'sghr' WHERE module = 'ecv'",
 			"UPDATE ".MAIN_DB_PREFIX."cronjobs SET url = REPLACE(url, '/ecv/', '/sghr/ecv/') WHERE url LIKE '%/ecv/%'",
 			"DELETE FROM ".MAIN_DB_PREFIX."menu WHERE module = 'ecv'",
+			// phase 6: recrutement absorption
+			"UPDATE ".MAIN_DB_PREFIX."rights_def SET module = 'sghr' WHERE module = 'recrutement'",
+			"UPDATE ".MAIN_DB_PREFIX."cronjobs SET module = 'sghr' WHERE module = 'recrutement'",
+			"UPDATE ".MAIN_DB_PREFIX."cronjobs SET url = REPLACE(url, '/recrutement/', '/sghr/recrutement/') WHERE url LIKE '%/recrutement/%'",
+			"DELETE FROM ".MAIN_DB_PREFIX."menu WHERE module = 'recrutement'",
 		);
 		foreach ($migration as $sqlmig) {
 			$this->db->query($sqlmig);

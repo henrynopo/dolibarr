@@ -130,9 +130,7 @@ llxHeader('', $langs->trans('SghrCandidateConvertTitle'));
 
 print load_fiche_titre($langs->trans('SghrCandidateConvertTitle'), '', 'user');
 
-if (empty($conf->recrutement->enabled)) {
-	print info_admin($langs->trans('SghrRecrutementNotEnabled'), 0, 0, 1);
-}
+// recrutement is now part of sghr (absorbed phase 6); no module check needed
 
 // Step 1: candidate picker
 if ($fromCand <= 0) {

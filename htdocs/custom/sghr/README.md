@@ -2,26 +2,29 @@
 
 Singapore HR & payroll module for Dolibarr ERP/CRM.
 
-## What's new in 2.0.0 (2026-10-01)
+## What's new in 2.1.0 (2026-10-01)
 
-Renamed from **SGPayroll** to **SG HR & Payroll** and absorbed two modules:
+Renamed from **SGPayroll** to **SG HR & Payroll** and absorbed three modules:
 
 - **docsemployes** (employee documents + expiry reminders) → `sghr/docsemployes/`,
   user-card tab + "Employee Documents" left menu, permission tree `sghr->docs`
 - **ecv** (CV / skills / experience management) → `sghr/ecv/`,
   "CV Management" left menu, permission tree `sghr->cv`
+- **recrutement** (jobs, candidatures, interview kanban, dictionaries, exports) →
+  `sghr/recrutement/`, left-menu group "Recruitment", permission tree `sghr->rec`
 - New **Candidate to Employee** conversion (`sghr/candidate_convert.php`,
   left menu) turning a recrutement candidacy into a Dolibarr user +
   SG HR employee profile in three steps
 
 **Zero data migration**: tables `llx_sgpayroll_*`, `llx_docsemployes`,
-`llx_ecv*` keep their original names. User-right bindings survive the
+`llx_ecv*`, `llx_recrutement`, `llx_candidatures` keep their original names. User-right bindings survive the
 rename — permission ids are unchanged and `init()` relabels their module.
 
-### Upgrade from sgpayroll/docsemployes/ecv (deploy sequence)
+### Upgrade from sgpayroll/docsemployes/ecv/recrutement (deploy sequence)
 
-1. Disable modules **SGPayroll**, **docsemployes** and **ecv** in the
-   module list (cleans their consts/menus), then delete their directories.
+1. Disable modules **SGPayroll**, **docsemployes**, **ecv** and
+   **recrutement** in the module list (cleans their consts/menus),
+   then delete their directories.
 2. On the server: `mv documents/sgpayroll documents/sghr` (payslip file
    modulepart changed).
 3. Enable **SG HR & Payroll** — `init()` runs the rename migration
