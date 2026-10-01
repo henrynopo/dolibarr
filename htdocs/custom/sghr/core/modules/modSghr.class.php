@@ -480,6 +480,16 @@ class modSghr extends DolibarrModules
 			'prefix' => '<span class="fas fa-file-alt fa-fw pictofixedwidth"></span>',
 			'picto' => 'fa-file-alt', 'perms' => '$user->hasRight("sghr","cv","read")', 'user' => 0
 		);
+
+		// Candidate -> employee conversion (phase 4; recrutement integration)
+		$this->menu[$r++] = array(
+			'fk_menu' => 'fk_mainmenu=sghr', 'type' => 'left',
+			'titre' => 'SghrCandidateConvertTitle', 'mainmenu' => 'sghr', 'leftmenu' => 'sghr_convert',
+			'url' => '/sghr/candidate_convert.php',
+			'langs' => 'sghr@sghr', 'position' => 1007, 'enabled' => 1,
+			'prefix' => '<span class="fas fa-user-plus fa-fw pictofixedwidth"></span>',
+			'picto' => 'fa-user-plus', 'perms' => '$user->hasRight("sghr","employee","write")', 'user' => 0
+		);
 	}
 
 	/**
