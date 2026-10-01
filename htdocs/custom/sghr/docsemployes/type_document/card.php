@@ -4,10 +4,10 @@ $res=0;
 if (! $res && file_exists("../../main.inc.php")) $res=@include("../../main.inc.php");       // For root directory
 if (! $res && file_exists("../../../main.inc.php")) $res=@include("../../../main.inc.php"); // For "custom" 
 
-dol_include_once('/docsemployes/class/type_document.class.php');
+dol_include_once('/sghr/docsemployes/class/type_document.class.php');
 dol_include_once('/core/class/html.form.class.php');
 
-$langs->load('docsemployes@docsemployes');
+$langs->load('docsemployes@sghr');
 
 $modname = $langs->trans("type_document");
 
@@ -34,17 +34,17 @@ if(!empty($id)){
 } 
 
 $error  = false;
-if (!$user->rights->docsemployes->lire) {
+if (!$user->rights->sghr->docs->read) {
     accessforbidden();
 }
 
 if(in_array($action, ["add","edit"])) {
-    if (!$user->rights->docsemployes->creer) {
+    if (!$user->rights->sghr->docs->write) {
       accessforbidden();
     }
 }
 if($action == "delete") {
-    if (!$user->rights->docsemployes->supprimer) {
+    if (!$user->rights->sghr->docs->delete) {
       accessforbidden();
     }
 }

@@ -4,10 +4,10 @@ if (! $res && file_exists("../../main.inc.php")) $res=@include("../../main.inc.p
 if (! $res && file_exists("../../../main.inc.php")) $res=@include("../../../main.inc.php"); // For "custom" 
 
 
-dol_include_once('/docsemployes/class/type_document.class.php');
+dol_include_once('/sghr/docsemployes/class/type_document.class.php');
 dol_include_once('/core/class/html.form.class.php');
 
-$langs->load('docsemployes@docsemployes');
+$langs->load('docsemployes@sghr');
 
 $modname = $langs->trans("Liste_des_type_document");
 
@@ -21,7 +21,7 @@ $sortorder 			= ($_GET['sortorder']) ? $_GET['sortorder'] : "DESC";
 $id 				= $_GET['id'];
 $action   			= $_GET['action'];
 
-if (!$user->rights->docsemployes->lire) {
+if (!$user->rights->sghr->docs->read) {
 	accessforbidden();
 }
 
@@ -98,7 +98,7 @@ print '<form method="get" action="'.$_SERVER["PHP_SELF"].'">'."\n";
 					$item = $type_document->rows[$i];
 					print '<tr '.$bc[$var].' >';
 			    		print '<td align="center" style="">'; 
-			    			print '<a href="'.dol_buildpath('/docsemployes/type_document/card.php?id='.$item->rowid,2).'" >'.$item->name.'</a>';
+			    			print '<a href="'.dol_buildpath('/sghr/docsemployes/type_document/card.php?id='.$item->rowid,2).'" >'.$item->name.'</a>';
 			    		print '</td>';
 			    		print '<td></td>';
 					print '</tr>';

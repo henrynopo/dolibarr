@@ -102,7 +102,7 @@ if( ($id && empty($action)) || $action == "delete" ){
 
     // $h = 0;
     // $head = array();
-    // $head[$h][0] = dol_buildpath("/docsemployes/card.php?id=".$id, 1);
+    // $head[$h][0] = dol_buildpath("/sghr/docsemployes/card.php?id=".$id, 1);
     // $head[$h][1] = $langs->trans($modname);
     // $head[$h][2] = 'affichage';
     // $h++;
@@ -113,7 +113,7 @@ if( ($id && empty($action)) || $action == "delete" ){
         print $form->formconfirm("card.php?id=".$id."&page=".$page,$langs->trans('Confirmation') , $langs->trans('msgconfirmdelet'),"confirm_delete", 'index.php?page='.$page, 0, 1);
     }
 
-    if (!$user->rights->docsemployes->lire) {
+    if (!$user->rights->sghr->docs->read) {
         accessforbidden();
     }
 
@@ -217,15 +217,15 @@ if( ($id && empty($action)) || $action == "delete" ){
         print '<td colspan="3" id="files">';
         print '<div id="wrapper_doc"><ul>';
         $array_img=[
-            'RTF'   => dol_buildpath('/docsemployes/images/doc.png',2),
-            'doc'   => dol_buildpath('/docsemployes/images/doc.png',2),
-            'docx'  => dol_buildpath('/docsemployes/images/doc.png',2),
-            'ppt'   => dol_buildpath('/docsemployes/images/ppt.png',2),
-            'pptx'  => dol_buildpath('/docsemployes/images/ppt.png',2),
-            'xls'   => dol_buildpath('/docsemployes/images/xls.png',2),
-            'xlsx'  => dol_buildpath('/docsemployes/images/xls.png',2),
-            'txt'   => dol_buildpath('/docsemployes/images/text.png',2),
-            'sans'  => dol_buildpath('/docsemployes/images/sans.png',2),
+            'RTF'   => dol_buildpath('/sghr/docsemployes/images/doc.png',2),
+            'doc'   => dol_buildpath('/sghr/docsemployes/images/doc.png',2),
+            'docx'  => dol_buildpath('/sghr/docsemployes/images/doc.png',2),
+            'ppt'   => dol_buildpath('/sghr/docsemployes/images/ppt.png',2),
+            'pptx'  => dol_buildpath('/sghr/docsemployes/images/ppt.png',2),
+            'xls'   => dol_buildpath('/sghr/docsemployes/images/xls.png',2),
+            'xlsx'  => dol_buildpath('/sghr/docsemployes/images/xls.png',2),
+            'txt'   => dol_buildpath('/sghr/docsemployes/images/text.png',2),
+            'sans'  => dol_buildpath('/sghr/docsemployes/images/sans.png',2),
         ];
 
         $dir = $conf->docsemployes->multidir_output[$object->entity].'/'.$id.'/files/';
@@ -242,7 +242,7 @@ if( ($id && empty($action)) || $action == "delete" ){
                         $fileinfo = pathinfo($minifile);
                         $ext = $fileinfo['extension'];
                         if($ext == 'pdf'){
-                            $src_pdf =  dol_buildpath('/docsemployes/images/pdf.png',2);
+                            $src_pdf =  dol_buildpath('/sghr/docsemployes/images/pdf.png',2);
                             print ' <a href="'.$dt_files['url'].'" class="'.$dt_files["css"].'" mime="'.$dt_files['mime'].'" target="'.$dt_files["target"].'"  title="'.$minifile.'">' ;
                                 print '<img class="photo" alt="Fichier binaire" src="'.$src_pdf.'" border="0" name="image" >';
                             print '</a> ';

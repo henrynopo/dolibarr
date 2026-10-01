@@ -10,11 +10,11 @@ require_once DOL_DOCUMENT_ROOT.'/core/class/html.formfile.class.php';
 // require_once DOL_DOCUMENT_ROOT.'/type_document/class/type_document.class.php';
 
 
-dol_include_once('/docsemployes/class/docsemployes.class.php');
+dol_include_once('/sghr/docsemployes/class/docsemployes.class.php');
 dol_include_once('/core/class/html.form.class.php');
-dol_include_once('/docsemployes/class/type_document.class.php');
+dol_include_once('/sghr/docsemployes/class/type_document.class.php');
 
-$langs->load('docsemployes@docsemployes');
+$langs->load('docsemployes@sghr');
 
 $modname = $langs->trans("docsemployes");
 
@@ -58,24 +58,24 @@ if ($reshook < 0) setEventMessages($hookmanager->error, $hookmanager->errors, 'e
 
 
 $error  = false;
-if (!$user->rights->docsemployes->lire) {
+if (!$user->rights->sghr->docs->read) {
     accessforbidden();
 }
 
 if(in_array($action, ["add","edit"])) {
-    if (!$user->rights->docsemployes->creer) {
+    if (!$user->rights->sghr->docs->write) {
       accessforbidden();
     }
 }
 if($action == "delete") {
-    if (!$user->rights->docsemployes->supprimer) {
+    if (!$user->rights->sghr->docs->delete) {
       accessforbidden();
     }
 }
 
 if($id ){
     $docsemployes->fetch($id);
-    if ($user->id != $docsemployes->fk_user && empty($user->rights->docsemployes->creer)) {
+    if ($user->id != $docsemployes->fk_user && empty($user->rights->sghr->docs->write)) {
         accessforbidden();
     }
 }
@@ -180,7 +180,7 @@ print_fiche_titre($modname);
             var id = $(this).val();
             $.ajax({
                 data:{'id_user':id},
-                url:"<?php echo dol_buildpath('/docsemployes/get_info.php',2) ?>",
+                url:"<?php echo dol_buildpath('/sghr/docsemployes/get_info.php',2) ?>",
                 type:'POST',
                 success:function($data){
                     $('.destinataire').find('input').val($data);

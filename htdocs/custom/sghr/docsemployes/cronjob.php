@@ -2,7 +2,7 @@
 // $res=0;
 // if (! $res && file_exists("../../main.inc.php")) $res=@include("../../main.inc.php");       // For root directory
 // if (! $res && file_exists("../../../main.inc.php")) $res=@include("../../../main.inc.php"); // For "custom"
-// dol_include_once('/docsemployes/class/interventions_parc.class.php');
+// dol_include_once('/sghr/docsemployes/class/interventions_parc.class.php');
 // $intervention = new interventions_parc($db);
 // $intervention->checkInterventionsMails();
 // die();

@@ -33,7 +33,7 @@ require_once DOL_DOCUMENT_ROOT . "/core/lib/admin.lib.php";
 require_once '../lib/docsemployes.lib.php';
 
 // Translations
-$langs->load("docsemployes@docsemployes");
+$langs->load("docsemployes@sghr");
 
 // Access control
 if (! $user->admin) {
@@ -92,7 +92,7 @@ dol_fiche_head(
     'settings',
     $langs->trans("ModuleName"),
     0,
-    "docsemployes@docsemployes"
+    "docsemployes@sghr"
 );
 
 if(!dol_include_once('/abricot/inc.core.php')) {

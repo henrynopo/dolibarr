@@ -5,16 +5,16 @@ if (! $res) { $res = @include("../../../main.inc.php"); } // From "custom" direc
 // Libraries
 require_once DOL_DOCUMENT_ROOT . "/core/lib/admin.lib.php";
 require_once '../lib/docsemployes.lib.php';
-dol_include_once('/docsemployes/class/docsemployes.class.php');
+dol_include_once('/sghr/docsemployes/class/docsemployes.class.php');
 
 $docsemployes  = new docsemployes($db);
 // Translations
-$langs->load("docsemployes@docsemployes");
+$langs->load("docsemployes@sghr");
 $langs->load("propal");
 $langs->load("admin");
 
 // Access control
-if (! $user->rights->docsemployes->creer ) {
+if (! $user->rights->sghr->docs->write ) {
     accessforbidden();
 }
 
@@ -127,7 +127,7 @@ print_fiche_titre($langs->trans($page_name), $linkback);
 //     'setting',
 //     $langs->trans("Configuration"),
 //     0,
-//     "docsemployes@docsemployes"
+//     "docsemployes@sghr"
 // );
 
 // Setup page goes here
@@ -319,7 +319,7 @@ if (!empty($conf->global->DOCSEMPLOYES_SEND_EMAIL)) {
             // print '<div class="divlink">'.$thlink.'</div>';
             // print '<div></div>';
 
-            // print '<a href="'.dol_buildpath('/docsemployes/img/conf.png',2).'" target="_blank"><img src="'.dol_buildpath('/docsemployes/img/conf.png',2).'" alt="" class="" style="height:320px;margin: 10px 0 0;"></a>';
+            // print '<a href="'.dol_buildpath('/sghr/docsemployes/img/conf.png',2).'" target="_blank"><img src="'.dol_buildpath('/sghr/docsemployes/img/conf.png',2).'" alt="" class="" style="height:320px;margin: 10px 0 0;"></a>';
             // global $dolibarr_main_url_docsemployes_cronjob;
             // if(empty($dolibarr_main_url_docsemployes_cronjob)){
             //     print '<div class="pserrorcls">';
@@ -333,7 +333,7 @@ if (!empty($conf->global->DOCSEMPLOYES_SEND_EMAIL)) {
             print $langs->trans("TheLinkTheFileToMakeInYourServerToBeExecute").' '.$langs->trans("Everydays").':<br>';
             // $thlink .= ' '.$langs->trans("Everydays").'<br>.';
 
-            // $thlink = dol_buildpath('/docsemployes/cronjob.php');
+            // $thlink = dol_buildpath('/sghr/docsemployes/cronjob.php');
 
             $thlink = '';
 

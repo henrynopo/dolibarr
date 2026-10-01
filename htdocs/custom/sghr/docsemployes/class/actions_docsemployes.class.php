@@ -15,7 +15,7 @@
  * along with this program. If not, see <http://www.gnu.org/licenses/>.
  */
 
-dol_include_once('/docsemployes/class/docsemployes.class.php');
+dol_include_once('/sghr/docsemployes/class/docsemployes.class.php');
 dol_include_once('/compta/facture/class/facture.class.php');
 
 class Actionsdocsemployes{
@@ -45,7 +45,7 @@ class Actionsdocsemployes{
 		$error = 0; // Error counter
 		
 		$documents = new docsemployes($this->db);
-		$langs->load('docsemployes@docsemployes');
+		$langs->load('docsemployes@sghr');
 
 		// $client = 0;
 		// if(version_compare(DOL_VERSION, '4.0.0') >= 0){

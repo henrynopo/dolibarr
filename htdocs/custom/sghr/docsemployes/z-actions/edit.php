@@ -142,7 +142,7 @@ if ($action == 'update' && $request_method === 'POST') {
     });
 </script>
 <?php
-$dir_icon=dol_buildpath("/docsemployes/img",2);
+$dir_icon=dol_buildpath("/sghr/docsemployes/img",2);
 
 
 if($action == "edit" || $action == "deleteall"){
@@ -153,7 +153,7 @@ if($action == "edit" || $action == "deleteall"){
     }
     // $h = 0;
     // $head = array();
-    // $head[$h][0] = dol_buildpath("/docsemployes/card.php?id=".$id."&action=edit", 1);
+    // $head[$h][0] = dol_buildpath("/sghr/docsemployes/card.php?id=".$id."&action=edit", 1);
     // $head[$h][1] = $langs->trans($modname);
     // $head[$h][2] = 'affichage';
     // $h++;
@@ -261,16 +261,16 @@ if($action == "edit" || $action == "deleteall"){
             print '<div id="wrapper_doc">';
                 print '<ul>';
                     $array_img=[
-                        'pdf'   => dol_buildpath('/docsemployes/images/pdf.png',2),
-                        'doc'   => dol_buildpath('/docsemployes/images/doc.png',2),
-                        'RTF'   => dol_buildpath('/docsemployes/images/doc.png',2),
-                        'docx'  => dol_buildpath('/docsemployes/images/doc.png',2),
-                        'ppt'   => dol_buildpath('/docsemployes/images/ppt.png',2),
-                        'pptx'  => dol_buildpath('/docsemployes/images/ppt.png',2),
-                        'xls'   => dol_buildpath('/docsemployes/images/xls.png',2),
-                        'xlsx'  => dol_buildpath('/docsemployes/images/xls.png',2),
-                        'txt'   => dol_buildpath('/docsemployes/images/text.png',2),
-                        'sans'  => dol_buildpath('/docsemployes/images/sans.png',2),
+                        'pdf'   => dol_buildpath('/sghr/docsemployes/images/pdf.png',2),
+                        'doc'   => dol_buildpath('/sghr/docsemployes/images/doc.png',2),
+                        'RTF'   => dol_buildpath('/sghr/docsemployes/images/doc.png',2),
+                        'docx'  => dol_buildpath('/sghr/docsemployes/images/doc.png',2),
+                        'ppt'   => dol_buildpath('/sghr/docsemployes/images/ppt.png',2),
+                        'pptx'  => dol_buildpath('/sghr/docsemployes/images/ppt.png',2),
+                        'xls'   => dol_buildpath('/sghr/docsemployes/images/xls.png',2),
+                        'xlsx'  => dol_buildpath('/sghr/docsemployes/images/xls.png',2),
+                        'txt'   => dol_buildpath('/sghr/docsemployes/images/text.png',2),
+                        'sans'  => dol_buildpath('/sghr/docsemployes/images/sans.png',2),
                     ];
 
                     $dir = $conf->docsemployes->multidir_output[$object->entity].'/'.$id.'/files/';

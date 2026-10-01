@@ -9,10 +9,10 @@ include_once(DOL_DOCUMENT_ROOT.'/core/lib/files.lib.php');
 require_once DOL_DOCUMENT_ROOT.'/core/lib/usergroups.lib.php';
 
 
-dol_include_once('/docsemployes/class/docsemployes.class.php');
+dol_include_once('/sghr/docsemployes/class/docsemployes.class.php');
 dol_include_once('/core/class/html.form.class.php');
 
-$langs->load('docsemployes@docsemployes');
+$langs->load('docsemployes@sghr');
 
 $modname = $langs->trans("Liste_des_docsemployes");
 
@@ -41,7 +41,7 @@ $sortorder 			= GETPOST('sortorder', 'aZ09') ?: "DESC";
 $id 				= GETPOST('id', 'int');
 $action   			= GETPOST('action', 'aZ09');
 
-if (!$user->rights->docsemployes->lire) {
+if (!$user->rights->sghr->docs->read) {
 	accessforbidden();
 }
 
@@ -265,7 +265,7 @@ print '<form method="get" action="'.$_SERVER["PHP_SELF"].'">'."\n";
 
 						print '<tr '.$bc[$var].' >';
 				    		print '<td align="center" style="">'; 
-				    		print '<a href="'.dol_buildpath('/docsemployes/card.php?id='.$item->rowid,2).'" >';
+				    		print '<a href="'.dol_buildpath('/sghr/docsemployes/card.php?id='.$item->rowid,2).'" >';
 				    		print $item->number.' </a>';
 				    		print '</td>';
 				    		if(empty($id)){

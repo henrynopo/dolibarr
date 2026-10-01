@@ -79,8 +79,14 @@ class modSghr extends DolibarrModules
 		$this->module_parts = array(
 			'triggers' => 1,
 			'menus' => 1,
-			'hooks' => array('usercard'),
-			'css' => array('/sghr/css/sghr.css'),
+			'hooks' => array('usercard', 'docsemployesindex', 'docsemployescard', 'completetabs', 'main'),
+			'css' => array('/sghr/css/sghr.css', '/sghr/docsemployes/css/docsemployes.css'),
+			'js' => array('/sghr/docsemployes/js/docsemployes.js'),
+		);
+
+		// Employee documents tab (absorbed from docsemployes module, phase 2)
+		$this->tabs = array(
+			'user:+tab_docsemploye:tab_docsemploye:docsemployes@sghr:$user->hasRight("sghr","docs","read"):/sghr/docsemployes/index.php?id=__ID__',
 		);
 
 		$this->dirs = array("/sghr/temp");
@@ -169,6 +175,21 @@ class modSghr extends DolibarrModules
 		$this->rights[$r][0] = 501152;
 		$this->rights[$r][1] = 'Approve employee claims';
 		$this->rights[$r][2] = 'w'; $this->rights[$r][3] = 0; $this->rights[$r][4] = 'claims'; $this->rights[$r][5] = 'approve';
+		$r++;
+
+		// Employee documents permissions (absorbed from docsemployes module;
+		// ids kept so existing user-right bindings survive the module rename)
+		$this->rights[$r][0] = 677720088;
+		$this->rights[$r][1] = 'EmployeeDocsRead';
+		$this->rights[$r][2] = 'r'; $this->rights[$r][3] = 1; $this->rights[$r][4] = 'docs'; $this->rights[$r][5] = 'read';
+		$r++;
+		$this->rights[$r][0] = 677720089;
+		$this->rights[$r][1] = 'EmployeeDocsWrite';
+		$this->rights[$r][2] = 'w'; $this->rights[$r][3] = 0; $this->rights[$r][4] = 'docs'; $this->rights[$r][5] = 'write';
+		$r++;
+		$this->rights[$r][0] = 677720090;
+		$this->rights[$r][1] = 'EmployeeDocsDelete';
+		$this->rights[$r][2] = 'd'; $this->rights[$r][3] = 0; $this->rights[$r][4] = 'docs'; $this->rights[$r][5] = 'delete';
 
 		// ── Top menu ──────────────────────────────────────────────────────────
 		$this->menu[$r++] = array(
@@ -424,6 +445,16 @@ class modSghr extends DolibarrModules
 			'prefix' => '<span class="fas fa-coins fa-fw pictofixedwidth"></span>',
 			'picto' => 'fa-coins', 'perms' => '$user->admin', 'user' => 0
 		);
+
+		// Employee documents (absorbed from docsemployes module, phase 2)
+		$this->menu[$r++] = array(
+			'fk_menu' => 'fk_mainmenu=sghr', 'type' => 'left',
+			'titre' => 'EmployeeDocuments', 'mainmenu' => 'sghr', 'leftmenu' => 'sghr_docs',
+			'url' => '/sghr/docsemployes/index.php',
+			'langs' => 'docsemployes@sghr', 'position' => 1005, 'enabled' => 1,
+			'prefix' => '<span class="fas fa-passport fa-fw pictofixedwidth"></span>',
+			'picto' => 'fa-passport', 'perms' => '$user->hasRight("sghr","docs","read")', 'user' => 0
+		);
 	}
 
 	/**
@@ -445,6 +476,11 @@ class modSghr extends DolibarrModules
 			"UPDATE ".MAIN_DB_PREFIX."cronjobs SET module = 'sghr' WHERE module = 'sgpayroll'",
 			"UPDATE ".MAIN_DB_PREFIX."const SET name = REPLACE(name, 'SGPAYROLL_', 'SGHR_') WHERE name LIKE 'SGPAYROLL\_%'",
 			"UPDATE ".MAIN_DB_PREFIX."document_model SET nom = REPLACE(nom, '_sgpayroll', '_sghr') WHERE nom IN ('pdf_payslip_sgpayroll', 'pdf_ir8a_sgpayroll', 'pdf_summary_sgpayroll')",
+			// phase 2: docsemployes absorption - same id-preserving label migration
+			"UPDATE ".MAIN_DB_PREFIX."rights_def SET module = 'sghr' WHERE module = 'docsemployes'",
+			"UPDATE ".MAIN_DB_PREFIX."cronjobs SET module = 'sghr' WHERE module = 'docsemployes'",
+			"UPDATE ".MAIN_DB_PREFIX."cronjobs SET url = REPLACE(url, '/docsemployes/', '/sghr/docsemployes/') WHERE url LIKE '%/docsemployes/%'",
+			"DELETE FROM ".MAIN_DB_PREFIX."menu WHERE module = 'docsemployes'",
 		);
 		foreach ($migration as $sqlmig) {
 			$this->db->query($sqlmig);

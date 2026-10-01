@@ -81,7 +81,7 @@ if($action == "add"){
 
     // $h = 0;
     // $head = array();
-    // $head[$h][0] = dol_buildpath("/docsemployes/card.php?action=add", 1);
+    // $head[$h][0] = dol_buildpath("/sghr/docsemployes/card.php?action=add", 1);
     // $head[$h][1] = $langs->trans($modname);
     // $head[$h][2] = 'affichage';
     // $h++;

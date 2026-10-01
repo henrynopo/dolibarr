@@ -10,10 +10,10 @@ require_once DOL_DOCUMENT_ROOT.'/core/lib/usergroups.lib.php';
 
 
 
-dol_include_once('/docsemployes/class/docsemployes.class.php');
+dol_include_once('/sghr/docsemployes/class/docsemployes.class.php');
 dol_include_once('/core/class/html.form.class.php');
 
-$langs->load('docsemployes@docsemployes');
+$langs->load('docsemployes@sghr');
 
 $modname = $langs->trans("Liste_des_docsemployes");
 
@@ -49,7 +49,7 @@ $sortorder 			= ($_GET['sortorder']) ? $_GET['sortorder'] : "DESC";
 $id 				= $_GET['id'];
 $action   			= $_GET['action'];
 
-if (!$user->rights->docsemployes->lire) {
+if (!$user->rights->sghr->docs->read) {
 	accessforbidden();
 }
 
@@ -236,7 +236,7 @@ if ($objectuser->id)
 						    	$expiry = $date_f[2]."/".$date_f[1]."/".$date_f[0];
 								print '<tr '.$bc[$var].' >';
 						    		print '<td align="center" style="">'; 
-						    		print '<a href="'.dol_buildpath('/docsemployes/card.php?id='.$item->rowid,2).'" >';
+						    		print '<a href="'.dol_buildpath('/sghr/docsemployes/card.php?id='.$item->rowid,2).'" >';
 						    		print $item->number.' </a>';
 						    		print '</td>';
 						    		

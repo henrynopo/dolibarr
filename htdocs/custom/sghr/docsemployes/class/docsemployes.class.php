@@ -1,14 +1,14 @@
 <?php 
 require_once DOL_DOCUMENT_ROOT . '/core/class/commonobject.class.php'; 
 
-// dol_include_once('/docsemployes/class/docsemployes.class.php');
+// dol_include_once('/sghr/docsemployes/class/docsemployes.class.php');
 // require_once 'PHPMailer/src/SMTP.php';
 // require_once 'PHPMailer/src/PHPMailer.php';
 require_once DOL_DOCUMENT_ROOT.'/core/lib/admin.lib.php';
 require_once DOL_DOCUMENT_ROOT.'/core/class/CMailFile.class.php';
 
-// dol_include_once('/docsemployes/notifications/PHPMailer/src/SMTP.php');
-// dol_include_once('/docsemployes/notifications/PHPMailer/src/PHPMailer.php');
+// dol_include_once('/sghr/docsemployes/notifications/PHPMailer/src/SMTP.php');
+// dol_include_once('/sghr/docsemployes/notifications/PHPMailer/src/PHPMailer.php');
 
 
 class docsemployes extends Commonobject{ 
@@ -323,7 +323,7 @@ class docsemployes extends Commonobject{
 
             $result .= $linkstart;
             if ($withpicto) 
-                $result.= '<img height="16" src="'.DOL_URL_ROOT.'/docsemployes/img/object_docsemployes.png" >&nbsp;';
+                $result.= '<img height="16" src="'.DOL_URL_ROOT.'/sghr/docsemployes/img/object_docsemployes.png" >&nbsp;';
             if ($withpicto != 2) $result.= $this->ref;
         }
 
@@ -402,7 +402,7 @@ class docsemployes extends Commonobject{
     	if($exsql){
     		$type = $this->db->fetch_object($exsql)->type;
     	}
-    	return '<a href="'.dol_buildpath('/docsemployes/type_document/card.php?id='.$id,2).'">'.$type.'</a>';
+    	return '<a href="'.dol_buildpath('/sghr/docsemployes/type_document/card.php?id='.$id,2).'">'.$type.'</a>';
     }
 
     public function get_employe($id){
@@ -431,8 +431,8 @@ class docsemployes extends Commonobject{
 
     public function send_mail($email,$name,$subject,$title="Expiration de document"){
 
-    	dol_include_once('/docsemployes/notifications/PHPMailer/src/SMTP.php');
-		dol_include_once('/docsemployes/notifications/PHPMailer/src/PHPMailer.php');
+    	dol_include_once('/sghr/docsemployes/notifications/PHPMailer/src/SMTP.php');
+		dol_include_once('/sghr/docsemployes/notifications/PHPMailer/src/PHPMailer.php');
     	global $conf;
 		// ini_set( 'display_errors', 1 );
 		// error_reporting( E_ALL );
@@ -587,7 +587,7 @@ class docsemployes extends Commonobject{
 	{
 		global $conf, $langs;
 
-		$langs->load('docsemployes@docsemployes');
+		$langs->load('docsemployes@sghr');
 
 		$nbrtotal = $this->fetchAll();
 
@@ -664,8 +664,8 @@ class docsemployes extends Commonobject{
 
 									$item->substitutionarray['__NBRDAYS__'] = $dayors;
 									$item->substitutionarray['__EXPIRATEDAY__'] = $dateexpired;
-									$item->substitutionarray['__REFOFDOCS__'] = '<a href="'.dol_buildpath('/docsemployes/card.php?id='.$item->rowid,2).'" target="_blank">#'.$item->number.'</a> ';
-									// $item->substitutionarray['__VEHICULEINFO__'] = '<a href="'.dol_buildpath('/docsemployes/card.php?id='.$item->vehicule,2).'" >'.$vehicules->get_nom($item->vehicule,1).'</a> ';
+									$item->substitutionarray['__REFOFDOCS__'] = '<a href="'.dol_buildpath('/sghr/docsemployes/card.php?id='.$item->rowid,2).'" target="_blank">#'.$item->number.'</a> ';
+									// $item->substitutionarray['__VEHICULEINFO__'] = '<a href="'.dol_buildpath('/sghr/docsemployes/card.php?id='.$item->vehicule,2).'" >'.$vehicules->get_nom($item->vehicule,1).'</a> ';
 
 									$mail = $this->sendMailToAdmin($item,$title,$body);
 
@@ -694,8 +694,8 @@ class docsemployes extends Commonobject{
 
 									$item->substitutionarray['__NBRDAYS__'] = $dayors;
 									$item->substitutionarray['__EXPIRATEDAY__'] = $dateexpired;
-									$item->substitutionarray['__REFOFDOCS__'] = '<a href="'.dol_buildpath('/docsemployes/card.php?id='.$item->rowid,2).'" target="_blank">#'.$item->number.'</a> ';
-									// $item->substitutionarray['__VEHICULEINFO__'] = '<a href="'.dol_buildpath('/docsemployes/card.php?id='.$item->vehicule,2).'" >'.$vehicules->get_nom($item->vehicule,1).'</a> ';
+									$item->substitutionarray['__REFOFDOCS__'] = '<a href="'.dol_buildpath('/sghr/docsemployes/card.php?id='.$item->rowid,2).'" target="_blank">#'.$item->number.'</a> ';
+									// $item->substitutionarray['__VEHICULEINFO__'] = '<a href="'.dol_buildpath('/sghr/docsemployes/card.php?id='.$item->vehicule,2).'" >'.$vehicules->get_nom($item->vehicule,1).'</a> ';
 
 
 									$mail = $this->sendMailToAdmin($item,$title,$body);
@@ -719,8 +719,8 @@ class docsemployes extends Commonobject{
 									
 
 									$item->substitutionarray['__EXPIRATEDAY__'] = $dateexpired;
-									$item->substitutionarray['__REFOFDOCS__'] = '<a href="'.dol_buildpath('/docsemployes/card.php?id='.$item->rowid,2).'" target="_blank">#'.$item->number.'</a> ';
-									// $item->substitutionarray['__VEHICULEINFO__'] = '<a href="'.dol_buildpath('/docsemployes/card.php?id='.$item->vehicule,2).'" >'.$vehicules->get_nom($item->vehicule,1).'</a> ';
+									$item->substitutionarray['__REFOFDOCS__'] = '<a href="'.dol_buildpath('/sghr/docsemployes/card.php?id='.$item->rowid,2).'" target="_blank">#'.$item->number.'</a> ';
+									// $item->substitutionarray['__VEHICULEINFO__'] = '<a href="'.dol_buildpath('/sghr/docsemployes/card.php?id='.$item->vehicule,2).'" >'.$vehicules->get_nom($item->vehicule,1).'</a> ';
 
 
 									$mail = $this->sendMailToAdmin($item,$title,$body);
@@ -743,7 +743,7 @@ class docsemployes extends Commonobject{
 
     	global $langs, $conf;
 
-    	$langs->load('docsemployes@docsemployes');
+    	$langs->load('docsemployes@sghr');
 
     	$object->sujet = $title;
     	$object->body = $body;
@@ -839,7 +839,7 @@ class docsemployes extends Commonobject{
     {
         global $conf, $langs;
 
-        dol_include_once('/docsemployes/core/modules/moddocsemployes.class.php');
+        dol_include_once('/sghr/docsemployes/core/modules/moddocsemployes.class.php');
         $modcore = new moddocsemployes($this->db);
         
         $lastversion    = $modcore->version;
@@ -864,7 +864,7 @@ class docsemployes extends Commonobject{
 		if (!dolibarr_get_const($this->db,'DOCSEMPLOYES_NUMBEROFDAYSBEFORETOSENDMAIL',$conf->entity))
 			dolibarr_set_const($this->db,'DOCSEMPLOYES_NUMBEROFDAYSBEFORETOSENDMAIL',0,'chaine',0,'',$conf->entity);
 
-		dol_include_once('/docsemployes/core/modules/moddocsemployes.class.php');
+		dol_include_once('/sghr/docsemployes/core/modules/moddocsemployes.class.php');
         $modcore = new moddocsemployes($this->db);
 
 		$modcore->cronjobs[0]['entity']  	    = $conf->entity;
