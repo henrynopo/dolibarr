@@ -83,4 +83,4 @@ OdooConnectorSyncShipmentDates=根据货运更新刷新记账日期
 OdooConnectorSyncShipmentDatesHelp=独立的计划任务。当货运单数据在下方回溯窗口内发生变化时（例如 ShipsGo 更新 ATA），重新计算并更新关联的 Odoo 草稿客户发票和供应商账单的记账日期——即使发票较早、已超出主同步窗口。请在 主页 → 设置 → 计划任务 中创建/启用 "Odoo Connector shipment date refresh"（entity 1，方法 OdooSync::runShipmentDateSync，建议每小时）。已过账分录不受影响。
 OdooConnectorShipmentDateScanHours=货运更新回溯窗口（小时）
 OdooConnectorShipmentDateScanHoursHelp=检查最近多少小时内数据有变化的货运单。请保持不小于该刷新任务的执行间隔：重复扫描无害，日期已正确的草稿会被跳过。
-ModuleFamilyHaopie=HaoPie
+ModuleFamilyHaoPie=HaoPie

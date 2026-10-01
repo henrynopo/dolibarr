@@ -83,4 +83,4 @@ OdooConnectorSyncShipmentDates=Refresh accounting dates from shipment updates
 OdooConnectorSyncShipmentDatesHelp=Independent cron job. When a shipment's data changes within the lookback window below (e.g. ATA updated by ShipsGo), the accounting date of the linked Odoo DRAFT customer invoices and vendor bills is recomputed and updated - even for old invoices outside the main sync window. Create/enable the cron job "Odoo Connector shipment date refresh" in Home → Setup → Cron jobs (entity 1, method runShipmentDateSync of OdooSync, e.g. hourly). Posted moves are never touched.
 OdooConnectorShipmentDateScanHours=Shipment update lookback (hours)
 OdooConnectorShipmentDateScanHoursHelp=Shipments whose data changed within this many hours are examined. Keep it at least equal to the cron interval of the refresh job: overlapping runs are harmless, dates already correct are skipped.
-ModuleFamilyHaopie=HaoPie
+ModuleFamilyHaoPie=HaoPie

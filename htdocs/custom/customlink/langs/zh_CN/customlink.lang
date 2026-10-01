@@ -127,4 +127,4 @@ CUSTOMLINK_AllowedLinkTypesDesc=选择在添加链接时可选的对象类型。
 CUSTOMLINK_NoElementTypes=数据库中无可用对象类型。
 CUSTOMLINK_LinkNotAllowedByRules=当前规则不允许此关联（例如：每个销售订单仅能关联一个采购订单，每个发货单仅能关联一个销售订单和一张发票）。
 Parameter=参数
-ModuleFamilyHaopie=HaoPie
+ModuleFamilyHaoPie=HaoPie

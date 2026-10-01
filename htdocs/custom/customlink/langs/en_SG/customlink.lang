@@ -126,4 +126,4 @@ CUSTOMLINK_AllowedLinkTypes=Allowed link target types
 CUSTOMLINK_AllowedLinkTypesDesc=Select which element types can be chosen when adding a link. Leave all unchecked to allow all types.
 CUSTOMLINK_NoElementTypes=No element types available in database.
 Parameter=Parameter
-ModuleFamilyHaopie=HaoPie
+ModuleFamilyHaoPie=HaoPie

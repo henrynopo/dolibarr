@@ -378,4 +378,4 @@ SlyPatchCreateBundle=Create bundle
 SlyPatchRestoreBundle=Restore from bundle
 SlyPatchCreateBundleConfirmText=Bundle every file touched by any sly24 patch (deduped union) into one tar.gz? (Independent from Apply all — no patch is applied, just a snapshot of the current state.)
 SlyPatchRestoreBundleConfirmText=Extract every file from the latest bundle (%s) back into DOL_DOCUMENT_ROOT? (One-tar.gz rollback to the pre-applyall state — designed for the case when multiple patches touch the same file.)
-ModuleFamilyHaopie=HaoPie
+ModuleFamilyHaoPie=HaoPie

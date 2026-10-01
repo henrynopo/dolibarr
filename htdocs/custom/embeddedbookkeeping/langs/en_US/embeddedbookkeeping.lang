@@ -113,4 +113,4 @@ ErrorSameDebitCreditForBookkeeping=Debit and credit accounts must differ.
 ErrorBadJournalForBookkeeping=Could not resolve a journal code.
 ErrorCannotAllocatePieceNum=Could not allocate piece_num; bookkeeping table is unreachable.
 EBKCreateFailed=Failed to create bookkeeping entry.
-ModuleFamilyHaopie=HaoPie
+ModuleFamilyHaoPie=HaoPie

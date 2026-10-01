@@ -113,4 +113,4 @@ ErrorSameDebitCreditForBookkeeping=借贷账户必须不同。
 ErrorBadJournalForBookkeeping=无法解析日记账代码。
 ErrorCannotAllocatePieceNum=无法分配 piece_num；记账簿表不可达。
 EBKCreateFailed=写入分录失败。
-ModuleFamilyHaopie=HaoPie
+ModuleFamilyHaoPie=HaoPie

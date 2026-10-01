@@ -212,4 +212,4 @@ StrongAuthMethod                   =Method
 StrongAuthAuditExport              =Export CSV
 
 # totp2fa migration script
-ModuleFamilyHaopie=HaoPie
+ModuleFamilyHaoPie=HaoPie
