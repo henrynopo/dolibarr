@@ -80,8 +80,8 @@ class modSghr extends DolibarrModules
 			'triggers' => 1,
 			'menus' => 1,
 			'hooks' => array('usercard', 'docsemployesindex', 'docsemployescard', 'completetabs', 'main'),
-			'css' => array('/sghr/css/sghr.css', '/sghr/docsemployes/css/docsemployes.css'),
-			'js' => array('/sghr/docsemployes/js/docsemployes.js'),
+			'css' => array('/sghr/css/sghr.css', '/sghr/docsemployes/css/docsemployes.css', '/sghr/ecv/css/ecv.css'),
+			'js' => array('/sghr/docsemployes/js/docsemployes.js', '/sghr/ecv/js/ecv.js'),
 		);
 
 		// Employee documents tab (absorbed from docsemployes module, phase 2)
@@ -190,6 +190,21 @@ class modSghr extends DolibarrModules
 		$this->rights[$r][0] = 677720090;
 		$this->rights[$r][1] = 'EmployeeDocsDelete';
 		$this->rights[$r][2] = 'd'; $this->rights[$r][3] = 0; $this->rights[$r][4] = 'docs'; $this->rights[$r][5] = 'delete';
+		$r++;
+
+		// CV / skills management permissions (absorbed from ecv module;
+		// ids kept so existing user-right bindings survive the module rename)
+		$this->rights[$r][0] = 190961110;
+		$this->rights[$r][1] = 'CvRead';
+		$this->rights[$r][2] = 'r'; $this->rights[$r][3] = 1; $this->rights[$r][4] = 'cv'; $this->rights[$r][5] = 'read';
+		$r++;
+		$this->rights[$r][0] = 190961111;
+		$this->rights[$r][1] = 'CvWrite';
+		$this->rights[$r][2] = 'w'; $this->rights[$r][3] = 0; $this->rights[$r][4] = 'cv'; $this->rights[$r][5] = 'write';
+		$r++;
+		$this->rights[$r][0] = 190961112;
+		$this->rights[$r][1] = 'CvDelete';
+		$this->rights[$r][2] = 'd'; $this->rights[$r][3] = 0; $this->rights[$r][4] = 'cv'; $this->rights[$r][5] = 'delete';
 
 		// ── Top menu ──────────────────────────────────────────────────────────
 		$this->menu[$r++] = array(
@@ -455,6 +470,16 @@ class modSghr extends DolibarrModules
 			'prefix' => '<span class="fas fa-passport fa-fw pictofixedwidth"></span>',
 			'picto' => 'fa-passport', 'perms' => '$user->hasRight("sghr","docs","read")', 'user' => 0
 		);
+
+		// CV / skills management (absorbed from ecv module, phase 3)
+		$this->menu[$r++] = array(
+			'fk_menu' => 'fk_mainmenu=sghr', 'type' => 'left',
+			'titre' => 'CVManagement', 'mainmenu' => 'sghr', 'leftmenu' => 'sghr_cv',
+			'url' => '/sghr/ecv/index.php',
+			'langs' => 'ecv@sghr', 'position' => 1006, 'enabled' => 1,
+			'prefix' => '<span class="fas fa-file-alt fa-fw pictofixedwidth"></span>',
+			'picto' => 'fa-file-alt', 'perms' => '$user->hasRight("sghr","cv","read")', 'user' => 0
+		);
 	}
 
 	/**
@@ -481,6 +506,11 @@ class modSghr extends DolibarrModules
 			"UPDATE ".MAIN_DB_PREFIX."cronjobs SET module = 'sghr' WHERE module = 'docsemployes'",
 			"UPDATE ".MAIN_DB_PREFIX."cronjobs SET url = REPLACE(url, '/docsemployes/', '/sghr/docsemployes/') WHERE url LIKE '%/docsemployes/%'",
 			"DELETE FROM ".MAIN_DB_PREFIX."menu WHERE module = 'docsemployes'",
+			// phase 3: ecv absorption
+			"UPDATE ".MAIN_DB_PREFIX."rights_def SET module = 'sghr' WHERE module = 'ecv'",
+			"UPDATE ".MAIN_DB_PREFIX."cronjobs SET module = 'sghr' WHERE module = 'ecv'",
+			"UPDATE ".MAIN_DB_PREFIX."cronjobs SET url = REPLACE(url, '/ecv/', '/sghr/ecv/') WHERE url LIKE '%/ecv/%'",
+			"DELETE FROM ".MAIN_DB_PREFIX."menu WHERE module = 'ecv'",
 		);
 		foreach ($migration as $sqlmig) {
 			$this->db->query($sqlmig);

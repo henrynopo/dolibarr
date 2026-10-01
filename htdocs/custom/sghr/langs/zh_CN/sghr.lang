@@ -658,3 +658,4 @@ EmailBodyTemplateHelp=工资单邮件的自定义 HTML 正文，留空使用默�
 DateTo=至
 LeaveType=假期类型
 EmployeeDocuments=员工文档
+CVManagement=简历管理

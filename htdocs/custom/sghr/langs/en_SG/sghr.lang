@@ -677,3 +677,4 @@ EmailBodyTemplate=Email body template
 EmailBodyTemplateHelp=Custom HTML body for payslip emails. Leave empty to use the default template.
 DateTo=To
 EmployeeDocuments=Employee Documents
+CVManagement=CV Management

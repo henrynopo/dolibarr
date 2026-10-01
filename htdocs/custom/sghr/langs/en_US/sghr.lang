@@ -592,3 +592,4 @@ EmailBodyTemplateHelp=Custom HTML body for payslip emails. Leave empty to use th
 DateTo=To
 LeaveType=Leave type
 EmployeeDocuments=Employee Documents
+CVManagement=CV Management
