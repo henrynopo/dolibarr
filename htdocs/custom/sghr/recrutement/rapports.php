@@ -1,5 +1,8 @@
 <?php
 $res=0;
+if (! $res && file_exists("../../../main.inc.php")) $res=@include("../../../main.inc.php"); // sghr subdir depth
+if (! $res && file_exists("../../../../main.inc.php")) $res=@include("../../../../main.inc.php"); // sghr sub-subdir depth
+if (! $res && file_exists("../../../../../main.inc.php")) $res=@include("../../../../../main.inc.php"); // sghr deeper
 if (! $res && file_exists("../main.inc.php")) $res=@include("../main.inc.php");       // For root directory
 if (! $res && file_exists("../../main.inc.php")) $res=@include("../../main.inc.php"); // For "custom
 

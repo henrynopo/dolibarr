@@ -1,4 +1,7 @@
 <?php
+if (! $res && file_exists("../../../main.inc.php")) $res=@include("../../../main.inc.php"); // sghr subdir depth
+if (! $res && file_exists("../../../../main.inc.php")) $res=@include("../../../../main.inc.php"); // sghr sub-subdir depth
+if (! $res && file_exists("../../../../../main.inc.php")) $res=@include("../../../../../main.inc.php"); // sghr deeper
 $res = @include("../../main.inc.php"); // From htdocs directory
 if (! $res) { $res = @include("../../../main.inc.php"); } // From "custom" directory
 

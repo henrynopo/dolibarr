@@ -4,6 +4,9 @@ if (!defined('NOTOKENRENEWAL'))  define('NOTOKENRENEWAL', 1);
 if (!defined('NOCSRFCHECK'))     define('NOCSRFCHECK', 1);
 
 $res=0;
+if (! $res && file_exists("../../../main.inc.php")) $res=@include("../../../main.inc.php"); // sghr subdir depth
+if (! $res && file_exists("../../../../main.inc.php")) $res=@include("../../../../main.inc.php"); // sghr sub-subdir depth
+if (! $res && file_exists("../../../../../main.inc.php")) $res=@include("../../../../../main.inc.php"); // sghr deeper
 if (! $res && file_exists("../../../main.inc.php")) $res=@include("../../../main.inc.php");       // For root directory
 if (! $res && file_exists("../../../../main.inc.php")) $res=@include("../../../../main.inc.php"); // For "custom" 
 
@@ -30,7 +33,7 @@ $form           = new Form($db);
 $var                = true;
 $sortfield          = ($_GET['sortfield']) ? $_GET['sortfield'] : "rowid";
 $sortorder          = ($_GET['sortorder']) ? $_GET['sortorder'] : "DESC";
-$id                 = $_GET['id'];
+$id                 = (int) $_GET['id'];
 $action             = $_GET['action'];
 $action             = GETPOST('action');
 $id                 = GETPOST('id');

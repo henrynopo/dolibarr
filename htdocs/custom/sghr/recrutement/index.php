@@ -1,5 +1,8 @@
 <?php
 $res=0;
+if (! $res && file_exists("../../../main.inc.php")) $res=@include("../../../main.inc.php"); // sghr subdir depth
+if (! $res && file_exists("../../../../main.inc.php")) $res=@include("../../../../main.inc.php"); // sghr sub-subdir depth
+if (! $res && file_exists("../../../../../main.inc.php")) $res=@include("../../../../../main.inc.php"); // sghr deeper
 if (! $res && file_exists("../main.inc.php")) $res=@include("../main.inc.php");       // For root directory
 if (! $res && file_exists("../../main.inc.php")) $res=@include("../../main.inc.php"); // For "custom" 
 require_once DOL_DOCUMENT_ROOT.'/core/lib/admin.lib.php';
@@ -23,7 +26,7 @@ $form          = new Form($db);
 $var 				= true;
 $sortfield 			= ($_GET['sortfield']) ? $_GET['sortfield'] : "rowid";
 $sortorder 			= ($_GET['sortorder']) ? $_GET['sortorder'] : "DESC";
-$id 				= $_GET['id'];
+$id 				= (int) $_GET['id'];
 $action   			= $_GET['action'];
 
 $objdocs  = new postes($db);

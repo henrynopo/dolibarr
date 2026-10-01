@@ -1,5 +1,8 @@
 <?php
 $res=0;
+if (! $res && file_exists("../../../main.inc.php")) $res=@include("../../../main.inc.php"); // sghr subdir depth
+if (! $res && file_exists("../../../../main.inc.php")) $res=@include("../../../../main.inc.php"); // sghr sub-subdir depth
+if (! $res && file_exists("../../../../../main.inc.php")) $res=@include("../../../../../main.inc.php"); // sghr deeper
 if (! $res && file_exists("../../main.inc.php")) $res=@include("../../main.inc.php");       // For root directory
 if (! $res && file_exists("../../../main.inc.php")) $res=@include("../../../main.inc.php"); // For "custom" 
 
@@ -46,7 +49,7 @@ if ($reshook < 0) setEventMessages($hookmanager->error, $hookmanager->errors, 'e
 $var 				= true;
 $sortfield 			= ($_GET['sortfield']) ? $_GET['sortfield'] : "number";
 $sortorder 			= ($_GET['sortorder']) ? $_GET['sortorder'] : "DESC";
-$id 				= $_GET['id'];
+$id 				= (int) $_GET['id'];
 $action   			= $_GET['action'];
 
 if (!$user->rights->sghr->docs->read) {

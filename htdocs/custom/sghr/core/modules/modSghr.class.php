@@ -86,7 +86,7 @@ class modSghr extends DolibarrModules
 
 		// Employee documents tab (absorbed from docsemployes module, phase 2)
 		$this->tabs = array(
-			'user:+tab_docsemploye:tab_docsemploye:docsemployes@sghr:$user->hasRight("sghr","docs","read"):/sghr/docsemployes/index.php?id=__ID__',
+			'user:+tab_docsemploye:tab_docsemploye:docsemployes@sghr:$user->rights->sghr->docs->read:/sghr/docsemployes/index.php?id=__ID__',
 		);
 
 		$this->dirs = array("/sghr/temp");
@@ -483,7 +483,7 @@ class modSghr extends DolibarrModules
 			'url' => '/sghr/docsemployes/index.php',
 			'langs' => 'docsemployes@sghr', 'position' => 1005, 'enabled' => 1,
 			'prefix' => '<span class="fas fa-passport fa-fw pictofixedwidth"></span>',
-			'picto' => 'fa-passport', 'perms' => '$user->hasRight("sghr","docs","read")', 'user' => 0
+			'picto' => 'fa-passport', 'perms' => '$user->rights->sghr->docs->read', 'user' => 0
 		);
 
 		// CV / skills management (absorbed from ecv module, phase 3)
@@ -493,7 +493,7 @@ class modSghr extends DolibarrModules
 			'url' => '/sghr/ecv/index.php',
 			'langs' => 'ecv@sghr', 'position' => 1006, 'enabled' => 1,
 			'prefix' => '<span class="fas fa-file-alt fa-fw pictofixedwidth"></span>',
-			'picto' => 'fa-file-alt', 'perms' => '$user->hasRight("sghr","cv","read")', 'user' => 0
+			'picto' => 'fa-file-alt', 'perms' => '$user->rights->sghr->cv->read', 'user' => 0
 		);
 
 		// Candidate -> employee conversion (phase 4; recrutement integration)
