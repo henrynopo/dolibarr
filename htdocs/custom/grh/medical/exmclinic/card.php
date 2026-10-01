@@ -110,7 +110,7 @@ if ($action == 'update' && $request_method === 'POST') {
             'audition'    => $audition,
             'denture'     => $denture,
             'peux'        => $peux,
-            'da'          => $da
+            'da'          => $da,
             'entity'      => $entity
         );
 

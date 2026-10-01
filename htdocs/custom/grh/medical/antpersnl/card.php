@@ -54,7 +54,7 @@ if ($action == 'create' && $request_method === 'POST') {
         $antpersnl->accidents            = trim(GETPOST('accidents_'));
         $antpersnl->malad_pro             = trim(GETPOST('malad_pro_'));
         $antpersnl->da                = Intval(trim(GETPOST('daId')));
-        $antpersnl->entity = $conf->entity
+        $antpersnl->entity = $conf->entity;
 		$antpersnlID = $antpersnl->create();
 
 	    // If no SQL error we redirect to the request card

@@ -184,7 +184,7 @@ class utilisateur_info extends Commonobject{
        	if ($userid != "" && $userid != -1) {
         	$sql .=" AND u.rowid = ".$userid;
        	}
-        $sql .= ' AND u.entity IN (0,'.$conf->entity);
+        $sql .= ' AND u.entity IN (0,'.$conf->entity.')';
        	$sql .= " ORDER BY u.declar DESC " ;
 
     	$resql = $this->db->query($sql);

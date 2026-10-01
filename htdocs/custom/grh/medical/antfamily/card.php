@@ -95,7 +95,7 @@ if ($action == 'update' && $request_method === 'POST') {
         $data = array(
             'description'        => $description,
             'da'         => $da,
-            'entity'     = $entity,
+            'entity' => $entity,
 
         );
 

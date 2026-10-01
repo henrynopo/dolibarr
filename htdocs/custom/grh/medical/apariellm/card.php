@@ -95,7 +95,7 @@ if ($action == 'update' && $request_method === 'POST') {
         $entity = GETPOST('entity')?GETPOST('entity'):$conf->entity;
         $data = array(
             'description' => $description,
-            'da'          => $da
+            'da'          => $da,
             'entity'      => $entity
 
         );

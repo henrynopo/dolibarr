@@ -106,7 +106,7 @@ if ($action == 'update' && $request_method === 'POST') {
             'foie'           => $foie,
             'rate'           => $rate,
             'hern'           => $hern,
-            'da'              => $da
+            'da'              => $da,
             'entity'              => $entity
 
         );

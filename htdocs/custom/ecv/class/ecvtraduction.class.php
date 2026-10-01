@@ -385,4 +385,3 @@ class ecvtraduction extends Commonobject{
 } 
 
 
-?
