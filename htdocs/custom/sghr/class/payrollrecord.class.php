@@ -181,6 +181,15 @@ class SghrRecord extends CommonObject
 			}
 		}
 
+		// Unapprove: notify so monthly aggregates (CPF & Levies social contribution) are refreshed
+		if ($res >= 0 && $this->status === 'draft') {
+			$res_trigger = $this->call_trigger('SGHR_PAYROLLLINE_UNAPPROVED', $user);
+			if ($res_trigger < 0) {
+				$this->error = $this->db->lasterror();
+				$res = -1;
+			}
+		}
+
 		// Auto-update parent batch status
 		if ($res >= 0 && !empty($this->fk_payroll)) {
 			// Check if all lines are approved or paid

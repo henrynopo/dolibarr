@@ -52,8 +52,8 @@ class InterfaceAccountingHook extends DolibarrTriggers
 	{
 		if (!isModEnabled('sghr')) return 0;
 
-		// Only act on our custom event
-		if ($action !== 'SGHR_PAYROLLLINE_APPROVED') return 0;
+		// Only act on our custom events
+		if ($action !== 'SGHR_PAYROLLLINE_APPROVED' && $action !== 'SGHR_PAYROLLLINE_UNAPPROVED') return 0;
 
 		// ── Payroll line values (used by accounting, Salary sync and PDF) ───────
 		$gross        = (float)($object->gross_salary    ?? 0);
@@ -64,6 +64,12 @@ class InterfaceAccountingHook extends DolibarrTriggers
 		$payRef       = 'PAY-'.$object->pay_year.'-'.str_pad($object->pay_month, 2, '0', STR_PAD_LEFT);
 		$docDateTs    = mktime(0, 0, 0, (int)$object->pay_month, 28, (int)$object->pay_year);
 		$docDate      = date('Y-m-d', $docDateTs);
+
+		// Unapprove: refresh only the monthly CPF & Levies social contribution.
+		// Journal entries / salary sync / PDF created at approval time are left untouched.
+		if ($action === 'SGHR_PAYROLLLINE_UNAPPROVED') {
+			return $this->syncCpfLeviesSociales($object, $user);
+		}
 
 		$error = 0;
 
@@ -138,7 +144,28 @@ class InterfaceAccountingHook extends DolibarrTriggers
 			$sql_chk .= " AND entity = ".(int)$conf->entity;
 
 			$res_chk = $this->db->query($sql_chk);
-			if ($res_chk && $this->db->num_rows($res_chk) == 0) {
+			$obj_chk = $res_chk ? $this->db->fetch_object($res_chk) : null;
+			if ($obj_chk) {
+				// Record already exists for this employee+period: keep amount in sync while unpaid
+				$salaryRowid = (int) $obj_chk->rowid;
+				$sql_paye = "SELECT paye FROM ".MAIN_DB_PREFIX."salary WHERE rowid = ".$salaryRowid;
+				$res_paye = $this->db->query($sql_paye);
+				$obj_paye = $res_paye ? $this->db->fetch_object($res_paye) : null;
+				if ($obj_paye && (int) $obj_paye->paye == 1) {
+					dol_syslog('SGPayroll: Salary '.$salaryRowid.' already paid - amount not refreshed', LOG_WARNING);
+				} else {
+					$sql_sal  = "UPDATE ".MAIN_DB_PREFIX."salary SET";
+					$sql_sal .= " amount = ".price2num($netPay);
+					$sql_sal .= ", label = '".$this->db->escape('SG Payroll: '.$payRef.' (Net Pay)')."'";
+					$sql_sal .= ", datesp = '".$this->db->idate(dol_get_first_day($object->pay_year, $object->pay_month))."'";
+					$sql_sal .= ", dateep = '".$this->db->idate(dol_get_last_day($object->pay_year, $object->pay_month))."'";
+					$sql_sal .= ", fk_user_modif = ".(int) $user->id;
+					$sql_sal .= " WHERE rowid = ".$salaryRowid;
+					if (!$this->db->query($sql_sal)) {
+						dol_syslog('SGPayroll: Failed to update core Salary record: '.$this->db->lasterror(), LOG_ERR);
+					}
+				}
+			} else {
 				$salary->fk_user = $object->fk_user;
 				$salary->amount  = $netPay;
 				$salary->label   = 'SG Payroll: '.$payRef.' (Net Pay)';
@@ -203,7 +230,96 @@ class InterfaceAccountingHook extends DolibarrTriggers
 			}
 		}
 
+		// ── 4. Sync monthly Social Contribution (CPF & Levies) ────────────────
+		$this->syncCpfLeviesSociales($object, $user);
+
 		// $this->db->commit(); // Removed - handled by caller
+		return 1;
+	}
+
+	/**
+	 * Upsert the monthly "CPF & Levies" social contribution (compta/sociales).
+	 * Total = employee CPF + employer CPF + SDL + SHG over all approved/paid
+	 * payslip lines of the period — same basis as cpf_review.php "Grand Total".
+	 * One record per month, identified by dictionary type SGCPFLEVY + periode
+	 * + entity. Recomputed from scratch on every approve/unapprove so the
+	 * record follows later payroll edits. Records already paid are never touched.
+	 *
+	 * @param  CommonObject $object  Payroll line (uses pay_year, pay_month)
+	 * @param  User         $user    User
+	 * @return int          1=updated/created, 0=skipped, -1=error
+	 */
+	private function syncCpfLeviesSociales($object, User $user)
+	{
+		global $conf;
+
+		// Dictionary type (see sql/llx_sgpayroll_upgrade_7a_cpflevies_sociales.sql)
+		$sqlT = "SELECT id FROM ".MAIN_DB_PREFIX."c_chargesociales WHERE code = 'SGCPFLEVY' AND active = 1";
+		$resT = $this->db->query($sqlT);
+		if (!$resT || $this->db->num_rows($resT) == 0) {
+			dol_syslog('SGPayroll: dictionary type SGCPFLEVY missing (run sghr SQL upgrade) - social contribution not synced', LOG_WARNING);
+			return 0;
+		}
+		$fkType = (int) $this->db->fetch_object($resT)->id;
+
+		// Recompute the monthly total from scratch — idempotent on any approve/unapprove
+		$sqlSum  = "SELECT COALESCE(SUM(employee_cpf + employer_cpf + sdl_amount + shg_cdac + shg_ecf + shg_mbmf + shg_sinda), 0) AS total";
+		$sqlSum .= " FROM ".MAIN_DB_PREFIX."sgpayroll_payroll_line";
+		$sqlSum .= " WHERE pay_year = ".(int) $object->pay_year." AND pay_month = ".(int) $object->pay_month;
+		$sqlSum .= " AND status IN ('approved','paid') AND entity = ".(int) $conf->entity;
+		$resSum  = $this->db->query($sqlSum);
+		if (!$resSum) {
+			dol_syslog('SGPayroll: CPF & Levies sum failed: '.$this->db->lasterror(), LOG_ERR);
+			return -1;
+		}
+		$total = round((float) $this->db->fetch_object($resSum)->total, 2);
+
+		$periodeTs = dol_get_first_day($object->pay_year, $object->pay_month);
+		$nextYear  = ((int) $object->pay_month == 12) ? ((int) $object->pay_year + 1) : (int) $object->pay_year;
+		$nextMonth = ((int) $object->pay_month == 12) ? 1 : ((int) $object->pay_month + 1);
+		$dateEchTs = dol_mktime(12, 0, 0, $nextMonth, 14, $nextYear); // CPF/SDL statutory due date: 14th of following month
+		$libelle   = 'SG CPF&Levies '.$object->pay_year.'-'.str_pad((string) $object->pay_month, 2, '0', STR_PAD_LEFT);
+
+		$sqlF  = "SELECT rowid, paye, amount FROM ".MAIN_DB_PREFIX."chargesociales";
+		$sqlF .= " WHERE fk_type = ".$fkType." AND periode = '".$this->db->idate($periodeTs)."'";
+		$sqlF .= " AND entity = ".(int) $conf->entity;
+		$resF  = $this->db->query($sqlF);
+		if (!$resF) {
+			dol_syslog('SGPayroll: social contribution lookup failed: '.$this->db->lasterror(), LOG_ERR);
+			return -1;
+		}
+		$objF = $this->db->fetch_object($resF);
+
+		if ($objF) {
+			if ((int) $objF->paye == 1) {
+				dol_syslog('SGPayroll: social contribution '.$objF->rowid.' already paid - amount not refreshed', LOG_WARNING);
+				return 0;
+			}
+			if (abs((float) $objF->amount - $total) < 0.005) {
+				return 0; // unchanged
+			}
+			$sqlU  = "UPDATE ".MAIN_DB_PREFIX."chargesociales SET";
+			$sqlU .= " amount = ".price2num($total).", date_ech = '".$this->db->idate($dateEchTs)."'";
+			$sqlU .= ", libelle = '".$this->db->escape($libelle)."', fk_user_modif = ".(int) $user->id;
+			$sqlU .= " WHERE rowid = ".(int) $objF->rowid;
+			if (!$this->db->query($sqlU)) {
+				dol_syslog('SGPayroll: social contribution update failed: '.$this->db->lasterror(), LOG_ERR);
+				return -1;
+			}
+		} elseif ($total > 0) {
+			require_once DOL_DOCUMENT_ROOT.'/compta/sociales/class/chargesociales.class.php';
+			$charge = new ChargeSociales($this->db);
+			$charge->type     = $fkType;
+			$charge->label    = $libelle;
+			$charge->amount   = $total;
+			$charge->date_ech = $dateEchTs;
+			$charge->period   = $periodeTs; // create() reads ->period
+			if ($charge->create($user) < 0) {
+				dol_syslog('SGPayroll: social contribution create failed: '.$charge->error, LOG_ERR);
+				return -1;
+			}
+		}
+
 		return 1;
 	}
 }
