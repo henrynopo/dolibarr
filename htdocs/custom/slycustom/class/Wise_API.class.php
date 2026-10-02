@@ -1,5 +1,13 @@
 <?php
 
+// dolibarr_get_const lives in core/lib/admin.lib.php, which business contexts
+// (card hooks, cron jobs) do not load. Guard here so every Wise_* class is
+// load-safe everywhere — Wise_Incoming and Wise_Payment both require this
+// file first (same pattern as webhook/wise.php and ShipsGo_Update).
+if (!function_exists('dolibarr_get_const')) {
+	require_once DOL_DOCUMENT_ROOT.'/core/lib/admin.lib.php';
+}
+
 if (!class_exists('Wise_API', false)) {
 class Wise_API
 {
