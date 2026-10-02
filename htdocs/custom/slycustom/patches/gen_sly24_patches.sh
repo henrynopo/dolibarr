@@ -15,10 +15,13 @@ git diff "$BASE" -- htdocs/core/lib/ htdocs/core/class/commonobject.class.php ht
 git diff "$BASE" -- htdocs/core/class/menubase.class.php > "$PATCHDIR/sly24.0-menu-parent-match.patch" || true
 
 # compta multicurrency (paiement list arrayfields dropped: official since v24)
-git diff "$BASE" -- htdocs/compta/ajaxpayment.php htdocs/compta/facture/card.php htdocs/compta/facture/tpl/ htdocs/compta/facture/class/factureligne.class.php htdocs/compta/index.php htdocs/compta/paiement.php htdocs/compta/paiement/class/paiement.class.php htdocs/compta/bank/various_payment/ > "$PATCHDIR/sly24.0-compta-multicurrency.patch" || true
+# ajaxpayment.php reverted to official 24.0.1 on 2026-10-02: patch tail block
+# referenced undefined $multicurrency_result/$multicurrency_totalRemaining and
+# wiped the correct multicurrency breakdown (official LRR branch already covers it)
+git diff "$BASE" -- htdocs/compta/facture/card.php htdocs/compta/facture/tpl/ htdocs/compta/facture/class/factureligne.class.php htdocs/compta/index.php htdocs/compta/paiement.php htdocs/compta/paiement/card.php htdocs/compta/paiement/class/paiement.class.php htdocs/compta/bank/various_payment/ > "$PATCHDIR/sly24.0-compta-multicurrency.patch" || true
 
 git diff "$BASE" -- htdocs/commande/ > "$PATCHDIR/sly24.0-commande.patch" || true
-git diff "$BASE" -- htdocs/fourn/class/ htdocs/fourn/commande/ htdocs/fourn/facture/card.php htdocs/fourn/facture/paiement.php htdocs/fourn/facture/tpl/ > "$PATCHDIR/sly24.0-fourn-linkedobject.patch" || true
+git diff "$BASE" -- htdocs/fourn/class/ htdocs/fourn/commande/ htdocs/fourn/facture/card.php htdocs/fourn/facture/paiement.php htdocs/fourn/facture/tpl/ htdocs/fourn/paiement/ > "$PATCHDIR/sly24.0-fourn-linkedobject.patch" || true
 git diff "$BASE" -- htdocs/comm/propal/tpl/linkedobjectblock.tpl.php > "$PATCHDIR/sly24.0-comm-propal-linkedobject.patch" || true
 git diff "$BASE" -- htdocs/comm/remx.php > "$PATCHDIR/sly24.0-remx.patch" || true
 git diff "$BASE" -- htdocs/admin/ > "$PATCHDIR/sly24.0-admin.patch" || true

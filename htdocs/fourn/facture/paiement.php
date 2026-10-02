@@ -441,18 +441,24 @@ if ($action == 'create' || $action == 'confirm_paiement' || $action == 'add_paie
 
 							return subJson;
 						}
-						function callForResult(imgId)
+						function callForResult(imgId, multicurrency = 0)
 						{
 							console.log("callForResult Calculate total of payment");
 							var json = {};
 							var form = $("#payment_form");
+							var keyresult = "result";
 
 							json["invoice_type"] = $("#invoice_type").val();
-							json["amountPayment"] = $("#amountpayment").attr("value");
-							json["amounts"] = _elemToJson(form.find("input.amount"));
-							json["remains"] = _elemToJson(form.find("input.remain"));
-							json["multicurrency_amounts"] = _elemToJson(form.find("input.multicurrency_amount"));
-							json["multicurrency_remains"] = _elemToJson(form.find("input.multicurrency_remain"));
+							if (multicurrency) {
+								keyresult = "multicurrency_result";
+								json["multicurrency"] = 1;
+								json["multicurrency_amounts"] = _elemToJson(form.find("input.multicurrency_amount"));
+								json["multicurrency_remains"] = _elemToJson(form.find("input.multicurrency_remain"));
+							} else {
+								json["amountPayment"] = $("#amountpayment").attr("value");
+								json["amounts"] = _elemToJson(form.find("input.amount"));
+								json["remains"] = _elemToJson(form.find("input.remain"));
+							}
 							json["token"] = "'.currentToken().'";
 							if (imgId != null) {
 								json["imgClicked"] = imgId;
@@ -466,15 +472,7 @@ if ($action == 'create' || $action == 'confirm_paiement' || $action == 'add_paie
 
 								for (var key in json)
 								{
-									if (key == "multicurrency_result") {
-										if (json["multicurrency_makeRed"]) {
-											$("#"+key).addClass("error");
-										} else {
-											$("#"+key).removeClass("error");
-										}
-										json[key]=json["multicurrency_label"]+" "+json[key];
-										$("#"+key).text(json[key]);
-									} else if (key == "result") {
+									if (key == keyresult)	{
 										if (json["makeRed"]) {
 											$("#"+key).addClass("error");
 										} else {
@@ -498,10 +496,10 @@ if ($action == 'create' || $action == 'confirm_paiement' || $action == 'add_paie
 							callForResult();
 						});
 						$("#payment_form").find("input.multicurrency_amount").change(function() {
-							callForResult();
+							callForResult(null, 1);
 						});
 						$("#payment_form").find("input.multicurrency_amount").keyup(function() {
-							callForResult();
+							callForResult(null, 1);
 						});
 			';
 

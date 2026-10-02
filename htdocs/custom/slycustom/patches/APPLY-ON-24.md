@@ -266,3 +266,62 @@ fourn/facture/card.php）——已在 24 版 patch 内全部保留（抽检 git 
 5. supplierorderfromorder 必修后 CBN/PO-from-SO 页面不再白屏
 6. sfrs_reports 多币种列显示非 NULL（依赖 sly24.0-accountancy-sfrs.patch hook）
 7. shipment ETA/ATD 计算列在 en_SG 语言下显示数字而非错误文本
+
+---
+
+## 六、勘误（2026-10-02）：ajaxpayment.php 回退官方版
+
+**症状**：`/compta/paiement.php` 付款页外币「剩余支付金额」（`#multicurrency_result`）恒为空白，自动计算失效；生产日志刷
+`PHP Warning: Undefined variable $multicurrency_result / $multicurrency_totalRemaining in compta/ajaxpayment.php on line 228-230`。
+
+**根因**：sly24.0-compta-multicurrency.patch 移植时带入了 v22「并行双轨」版本的 19 行残留。其中文件尾部的
+`if (isModEnabled('multicurrency'))` 块引用 `$multicurrency_result`/`$multicurrency_totalRemaining`——这两个变量在 v24 官方
+重构（LRR：`GETPOSTINT('multicurrency')` 互斥分支，用 `$result`/`$totalRemaining`）后已不存在。该坏块在**每次**请求中用
+`price(null)` 把官方分支刚算好的 `multicurrency_result/resultnum/makeRed` 覆盖为空 → 前端显示空白。另 13 行为 GETPOST 后
+从未使用的死代码。
+
+**处置**：
+
+- `htdocs/compta/ajaxpayment.php` 完整回退官方 24.0.1 版（`git diff 24.0.1 --` 该文件 = 0 行差异），`php -l` 通过
+- `sly24.0-compta-multicurrency.patch` 重新生成：10 → 8 文件（ajaxpayment.php 一节移除），反向校验 `git apply --check -R -p2` 通过
+- `gen_sly24_patches.sh` 同步移除该路径，防止再生成时回归
+- §5.1 表中 commit `dc59edbcaaa` 的 stat（10 文件）为当时应用记录，按历史保留
+
+**已部署环境**：需将本修复后的 `compta/ajaxpayment.php` 同步到生产（slyfood）与 d-test 后清 error log 验证。
+
+### 6.1 供应商付款页（fourn/facture/paiement.php）外币 JS 协议升级（同日）
+
+**症状**：供应商付款页外币「剩余支付金额」（`#multicurrency_result`）恒空白。注意官方 24.0.1 该页**本无外币自动计算 JS**
+（仅本币单轨，外币单元格空挂）——外币功能是 SLY patch 从 v22 带入的有效增强，但用的还是 v22「单请求双轨」协议
+（不发 `multicurrency=1`、期望响应含 `multicurrency_result`/`multicurrency_label`），与 §六 修复后的官方互斥分支后端不匹配。
+
+**处置**：JS 升级为客户页（compta/paiement.php）的 v24 协议——`callForResult(imgId, multicurrency = 0)` + `keyresult` 模式；
+外币输入框 change/keyup 发 `multicurrency=1` + `multicurrency_amounts/remains`。供应商页无外币「支付金额」总输入框，
+故不发 `multicurrency_amountPayment`（后端此时返回外币合计，语义正确）。`sly24.0-fourn-linkedobject.patch` 已重新生成
+（7 文件不变，仅 paiement.php 节更新），`php -l` 与反向校验通过。
+
+### 6.2 供应商付款单卡片（fourn/paiement/card.php）双币分录列找回（同日）
+
+**症状**：`/fourn/paiement/card.php` 发票分录列表只剩本币金额，v22 的「外币在上、本币在下」双币显示（ExpectedToPay /
+PayedByThisPayment 两列）消失。
+
+**根因**：gen 脚本 fourn patch 清单遗漏 `htdocs/fourn/paiement/` 目录——该文件升级后保持官方 24.0.1 原样（官方版无任何
+multicurrency），SLY22 的 14 处定制整体静默丢失（又一例 3way 静默丢失，未入 §四 的 7 处清单——因为当时 diff 源就没包含它）。
+
+**处置**：从 SLY22.0.4 原样移植（循环内 fetch 发票取 multicurrency 字段，外币 ≠ 本币时 ExpectedToPay 显示
+`multicurrency_total_ttc`（无则 total_ttc×tx 折算）、PayedByThisPayment 显示 `amount×tx` 折算）；fourn patch 重生成为
+8 文件（新增 fourn/paiement/card.php），gen 脚本清单同步加 `htdocs/fourn/paiement/`。php -l 与反向校验通过。
+
+### 6.3 客户付款单卡片（compta/paiement/card.php）双币分录列找回（同日）
+
+与 §6.2 同因同修：gen 脚本清单有 `compta/paiement.php`（文件）与 `compta/paiement/class/`（目录）但漏了
+`compta/paiement/card.php`，SLY22 的双币定制静默丢失。已从 SLY22.0.4 原样移植：ExpectedToPay / PayedByThisPayment /
+**RemainderToPay 三列**双币显示（外币在上本币在下；外币判定条件含 `multicurrency_tx != 1.0`；外币剩余用
+`getRemainToPay(1)`）。compta-multicurrency patch 重生成为 9 文件（新增 card.php），gen 脚本同步。php -l 与反向校验通过。
+
+### 6.4 两张付款卡片的 Amount 字段双币显示补全（同日）
+
+§6.2/6.3 只移植了分录列表；卡片顶部的 **Amount 字段** v22 也是双币的（外币在上本币在下），本轮补上：付款关联银行行时，
+外币 = 银行账户 `currency_code`、外币金额 = `abs(bankline->amount)`（银行账户币种的实际发生额）；本币 = 付款对象 amount。
+银行账户/BankTransactionLine 段复用 Amount 区已 fetch 的 `$bankline`（`empty($bankline->id)` 才重新 fetch），不产生重复查询。
+两页 patch 已重生成，php -l 与反向校验通过。

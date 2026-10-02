@@ -469,7 +469,7 @@ index 2f27447b8db..12fe9b21150 100644
  		<td class="right"></td>
  	</tr>
 diff --git a/htdocs/fourn/facture/card.php b/htdocs/fourn/facture/card.php
-index 837f888..6704b7a 100644
+index 837f888f088..6704b7a39e0 100644
 --- a/htdocs/fourn/facture/card.php
 +++ b/htdocs/fourn/facture/card.php
 @@ -364,10 +364,25 @@ if (empty($reshook)) {
@@ -1151,7 +1151,7 @@ index 837f888..6704b7a 100644
  					print $langs->trans('RemainderToPayBackMulticurrency');
  					if ($resteapayeraffiche > 0) {
 diff --git a/htdocs/fourn/facture/paiement.php b/htdocs/fourn/facture/paiement.php
-index 20ef2a0728a..7b5d394bf56 100644
+index 20ef2a0728a..c2054da4e14 100644
 --- a/htdocs/fourn/facture/paiement.php
 +++ b/htdocs/fourn/facture/paiement.php
 @@ -191,7 +191,7 @@ if (empty($reshook)) {
@@ -1172,50 +1172,58 @@ index 20ef2a0728a..7b5d394bf56 100644
  				if ($multicurrency_amounts[$cursorfacid]) {
  					// Check amount
  					if ((abs((float) $multicurrency_amounts[$cursorfacid]) > abs((float) $multicurrency_amountsresttopay[$cursorfacid]))) {
-@@ -448,9 +448,11 @@ if ($action == 'create' || $action == 'confirm_paiement' || $action == 'add_paie
+@@ -441,16 +441,24 @@ if ($action == 'create' || $action == 'confirm_paiement' || $action == 'add_paie
+ 
+ 							return subJson;
+ 						}
+-						function callForResult(imgId)
++						function callForResult(imgId, multicurrency = 0)
+ 						{
+ 							console.log("callForResult Calculate total of payment");
+ 							var json = {};
  							var form = $("#payment_form");
++							var keyresult = "result";
  
  							json["invoice_type"] = $("#invoice_type").val();
 -            				json["amountPayment"] = $("#amountpayment").attr("value");
-+							json["amountPayment"] = $("#amountpayment").attr("value");
- 							json["amounts"] = _elemToJson(form.find("input.amount"));
- 							json["remains"] = _elemToJson(form.find("input.remain"));
-+							json["multicurrency_amounts"] = _elemToJson(form.find("input.multicurrency_amount"));
-+							json["multicurrency_remains"] = _elemToJson(form.find("input.multicurrency_remain"));
+-							json["amounts"] = _elemToJson(form.find("input.amount"));
+-							json["remains"] = _elemToJson(form.find("input.remain"));
++							if (multicurrency) {
++								keyresult = "multicurrency_result";
++								json["multicurrency"] = 1;
++								json["multicurrency_amounts"] = _elemToJson(form.find("input.multicurrency_amount"));
++								json["multicurrency_remains"] = _elemToJson(form.find("input.multicurrency_remain"));
++							} else {
++								json["amountPayment"] = $("#amountpayment").attr("value");
++								json["amounts"] = _elemToJson(form.find("input.amount"));
++								json["remains"] = _elemToJson(form.find("input.remain"));
++							}
  							json["token"] = "'.currentToken().'";
  							if (imgId != null) {
  								json["imgClicked"] = imgId;
-@@ -464,7 +466,15 @@ if ($action == 'create' || $action == 'confirm_paiement' || $action == 'add_paie
+@@ -464,7 +472,7 @@ if ($action == 'create' || $action == 'confirm_paiement' || $action == 'add_paie
  
  								for (var key in json)
  								{
 -									if (key == "result")	{
-+									if (key == "multicurrency_result") {
-+										if (json["multicurrency_makeRed"]) {
-+											$("#"+key).addClass("error");
-+										} else {
-+											$("#"+key).removeClass("error");
-+										}
-+										json[key]=json["multicurrency_label"]+" "+json[key];
-+										$("#"+key).text(json[key]);
-+									} else if (key == "result") {
++									if (key == keyresult)	{
  										if (json["makeRed"]) {
  											$("#"+key).addClass("error");
  										} else {
-@@ -487,6 +497,12 @@ if ($action == 'create' || $action == 'confirm_paiement' || $action == 'add_paie
+@@ -487,6 +495,12 @@ if ($action == 'create' || $action == 'confirm_paiement' || $action == 'add_paie
  						$("#payment_form").find("input.amount").keyup(function() {
  							callForResult();
  						});
 +						$("#payment_form").find("input.multicurrency_amount").change(function() {
-+							callForResult();
++							callForResult(null, 1);
 +						});
 +						$("#payment_form").find("input.multicurrency_amount").keyup(function() {
-+							callForResult();
++							callForResult(null, 1);
 +						});
  			';
  
  				print '	});'."\n";
-@@ -605,7 +621,7 @@ if ($action == 'create' || $action == 'confirm_paiement' || $action == 'add_paie
+@@ -605,7 +619,7 @@ if ($action == 'create' || $action == 'confirm_paiement' || $action == 'add_paie
  							print ' $(document).ready(function () {';
  							print ' 	$(".AutoFillAmount").on(\'click touchstart\', function(e){
  											e.preventDefault();
@@ -1224,7 +1232,7 @@ index 20ef2a0728a..7b5d394bf56 100644
  										});';
  							print '	});'."\n";
  							print '	</script>'."\n";
-@@ -639,7 +655,17 @@ if ($action == 'create' || $action == 'confirm_paiement' || $action == 'add_paie
+@@ -639,7 +653,17 @@ if ($action == 'create' || $action == 'confirm_paiement' || $action == 'add_paie
  						print '<thead>';
  						print '<tr class="liste_titre">';
  						print '<th>'.$langs->trans('Invoice').'</th>';
@@ -1243,7 +1251,7 @@ index 20ef2a0728a..7b5d394bf56 100644
  						if ($displayAllInvoices) {
  							print '<th class="center">' . $langs->trans('Type') . '</th>';
  						}
-@@ -665,8 +691,12 @@ if ($action == 'create' || $action == 'confirm_paiement' || $action == 'add_paie
+@@ -665,8 +689,12 @@ if ($action == 'create' || $action == 'confirm_paiement' || $action == 'add_paie
  						$total = 0;
  						$total_ttc = 0;
  						$totalrecu = 0;
@@ -1258,7 +1266,7 @@ index 20ef2a0728a..7b5d394bf56 100644
  						while ($i < $num) {
  							$objp = $db->fetch_object($resql);
  
-@@ -685,7 +715,7 @@ if ($action == 'create' || $action == 'confirm_paiement' || $action == 'add_paie
+@@ -685,7 +713,7 @@ if ($action == 'create' || $action == 'confirm_paiement' || $action == 'add_paie
  							$creditnotes = $invoice->getSumCreditNotesUsed();
  							$deposits = $invoice->getSumDepositsUsed();
  							$alreadypayed = price2num($paiement + $creditnotes + $deposits, 'MT');
@@ -1267,7 +1275,7 @@ index 20ef2a0728a..7b5d394bf56 100644
  
  							// Multicurrency Price
  							$multicurrency_payment = 0;
-@@ -697,7 +727,7 @@ if ($action == 'create' || $action == 'confirm_paiement' || $action == 'add_paie
+@@ -697,7 +725,7 @@ if ($action == 'create' || $action == 'confirm_paiement' || $action == 'add_paie
  								$multicurrency_creditnotes = $invoice->getSumCreditNotesUsed(1);
  								$multicurrency_deposits = $invoice->getSumDepositsUsed(1);
  								$multicurrency_alreadypayed = price2num($multicurrency_payment + $multicurrency_creditnotes + $multicurrency_deposits, 'MT');
@@ -1276,7 +1284,7 @@ index 20ef2a0728a..7b5d394bf56 100644
  							}
  
  							print '<tr data-row-type="'.$objp->type.'" class="oddeven'.(($invoice->id == $facid) ? ' highlight' : '').'">';
-@@ -712,6 +742,25 @@ if ($action == 'create' || $action == 'confirm_paiement' || $action == 'add_paie
+@@ -712,6 +740,25 @@ if ($action == 'create' || $action == 'confirm_paiement' || $action == 'add_paie
  							print '</div>';
  							print '</td>';
  
@@ -1302,7 +1310,7 @@ index 20ef2a0728a..7b5d394bf56 100644
  							// Ref supplier
  							//print '<td data-col="ref-supplier" >'.$objp->ref_supplier.'</td>';
  
-@@ -881,40 +930,50 @@ if ($action == 'create' || $action == 'confirm_paiement' || $action == 'add_paie
+@@ -881,40 +928,50 @@ if ($action == 'create' || $action == 'confirm_paiement' || $action == 'add_paie
  							$totalrecu += $objp->am;
  							$totalrecucreditnote += $creditnotes;
  							$totalrecudeposits += $deposits;
@@ -1421,3 +1429,103 @@ index 11099b0cce8..f7f00edbb5b 100644
  		<td class="right"></td>
  		<td class="right"></td>
  	</tr>
+diff --git a/htdocs/fourn/paiement/card.php b/htdocs/fourn/paiement/card.php
+index e21d842c69f..a190856744b 100644
+--- a/htdocs/fourn/paiement/card.php
++++ b/htdocs/fourn/paiement/card.php
+@@ -228,9 +228,31 @@ if ($result > 0) {
+ 	print '</td></tr>';
+ 	*/
+ 
+-	// Amount
+-	print '<tr><td>'.$langs->trans('Amount').'</td>';
+-	print '<td><span class="amount">'.price($object->amount, 0, $langs, 0, 0, -1, $conf->currency).'</span></td></tr>';
++	// Amount: show bank line currency (foreign) + base currency when payment is linked to a bank entry
++	$amount_base = price2num($object->amount, 'MT');
++	$amountcurrency_base = $conf->currency;
++	$amount_foreign = null;
++	$amountcurrency_foreign = null;
++	$bankline = null;
++
++	if (isModEnabled("bank") && !empty($object->fk_account) && !empty($object->bank_line)) {
++		$bankline = new AccountLine($db);
++		if ($bankline->fetch($object->bank_line) > 0 && !empty($bankline->fk_account)) {
++			$bankaccount = new Account($db);
++			if ($bankaccount->fetch($bankline->fk_account) > 0 && !empty($bankaccount->currency_code)) {
++				$amountcurrency_foreign = $bankaccount->currency_code;
++				// Use absolute bank movement amount for display
++				$amount_foreign = price2num(abs($bankline->amount), 'MT');
++			}
++		}
++	}
++
++	print '<tr><td>'.$langs->trans('Amount').'</td><td><span class="amount">';
++	if (!empty($amountcurrency_foreign) && $amountcurrency_foreign != $amountcurrency_base && $amount_foreign !== null) {
++		print dol_escape_htmltag($amountcurrency_foreign).' '.price($amount_foreign, 2, $langs, 1, -1, -1, '').'<br>';
++	}
++	print dol_escape_htmltag($amountcurrency_base).' '.price($amount_base, 2, $langs, 1, -1, -1, '');
++	print '</span></td></tr>';
+ 
+ 	// Status of validation of payment
+ 	if (getDolGlobalString('BILL_ADD_PAYMENT_VALIDATION')) {
+@@ -243,8 +265,12 @@ if ($result > 0) {
+ 	// Bank account
+ 	if (isModEnabled("bank")) {
+ 		if ($object->fk_account) {
+-			$bankline = new AccountLine($db);
+-			$bankline->fetch($object->bank_line);
++			if (!($bankline instanceof AccountLine)) {
++				$bankline = new AccountLine($db);
++			}
++			if (empty($bankline->id)) {
++				$bankline->fetch($object->bank_line);
++			}
+ 			if ($bankline->rappro) {
+ 				$allow_delete = 0;
+ 				$title_button = dol_escape_htmltag($langs->transnoentitiesnoconv("CantRemoveConciliatedPayment"));
+@@ -333,10 +359,41 @@ if ($result > 0) {
+ 				print '<td>'.$objp->ref_supplier."</td>\n";
+ 				// Third party
+ 				print '<td><a href="'.DOL_URL_ROOT.'/fourn/card.php?socid='.$objp->socid.'">'.img_object($langs->trans('ShowCompany'), 'company').' '.$objp->name.'</a></td>';
+-				// Expected to pay
+-				print '<td class="right">'.price($objp->total_ttc).'</td>';
+-				// Paid
+-				print '<td class="right">'.price($objp->amount).'</td>';
++
++				// Load full invoice to get multicurrency info
++				$invoice_sup = new FactureFournisseur($db);
++				$invoice_sup->fetch($objp->facid);
++
++				$show_multicurrency = 0;
++				$mc_total_ttc = 0;
++				$mc_paid_by_this = 0;
++				if (isModEnabled('multicurrency') && !empty($invoice_sup->multicurrency_code) && $invoice_sup->multicurrency_code != $conf->currency) {
++					$show_multicurrency = 1;
++					if (!empty($invoice_sup->multicurrency_total_ttc)) {
++						$mc_total_ttc = $invoice_sup->multicurrency_total_ttc;
++					} elseif (!empty($invoice_sup->multicurrency_tx)) {
++						$mc_total_ttc = price2num($objp->total_ttc * $invoice_sup->multicurrency_tx, 'MT');
++					}
++					if (!empty($invoice_sup->multicurrency_tx)) {
++						$mc_paid_by_this = price2num($objp->amount * $invoice_sup->multicurrency_tx, 'MT');
++					}
++				}
++
++				// Expected to pay: foreign currency on top, base currency below
++				print '<td class="right"><span class="amount">';
++				if ($show_multicurrency) {
++					print dol_escape_htmltag($invoice_sup->multicurrency_code).' '.price($mc_total_ttc, 2, $langs, 1, -1, -1, '').'<br>';
++				}
++				print dol_escape_htmltag($conf->currency).' '.price($objp->total_ttc, 2, $langs, 1, -1, -1, '');
++				print '</span></td>';
++
++				// Paid by this payment: foreign currency on top, base currency below
++				print '<td class="right"><span class="amount">';
++				if ($show_multicurrency) {
++					print dol_escape_htmltag($invoice_sup->multicurrency_code).' '.price($mc_paid_by_this, 2, $langs, 1, -1, -1, '').'<br>';
++				}
++				print dol_escape_htmltag($conf->currency).' '.price($objp->amount, 2, $langs, 1, -1, -1, '');
++				print '</span></td>';
+ 				// Status
+ 				print '<td class="right">'.$facturestatic->LibStatut($objp->paye, $objp->status, 6, 1).'</td>';
+ 				print "</tr>\n";
