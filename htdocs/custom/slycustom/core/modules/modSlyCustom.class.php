@@ -49,7 +49,7 @@ class modSlyCustom extends DolibarrModules
 		$this->descriptionlong = 'SLYCustomDescriptionLong';
 		$this->editor_name = 'SLY';
 		$this->editor_url = '';
-		$this->version = '2.3.2';
+		$this->version = '2.3.3';
 		$this->const_name = 'MAIN_MODULE_'.strtoupper($this->name);
 		$this->picto = 'generic';
 

@@ -5,6 +5,28 @@ Note: entries before 2.0.0 are a retroactive reconstruction from git history
 (the module shipped with the version constant 1.0.0 throughout); 2.0.0 is the
 first version managed through this file.
 
+2.3.3 (2026-10-02)
+- Hooks: PHP 8 warning cleanup for the ShipsGo delay computed extrafields
+  (production error-log noise, compta/facture/error_log).
+  Root cause: dol_eval() resolves a computed formula's $object to the PAGE
+  global, not the object being fetched. When compta/facture/card.php creates
+  an invoice from a shipment (fetch at card.php ~L3857 on the create form and
+  ~L1816 on submit), core Expedition::fetch() -> fetch_optionals() evaluates
+  the ATD/ATA delay formulas against the global $object — the Facture, whose
+  array_options has no options_atd/options_ata keys — raising one
+  "Undefined array key" warning per formula per request. Fix (module layer,
+  no core patch): doActions() now also pre-defaults the four ShipsGo date
+  keys on facture pages, so the formulas find the keys and short-circuit to
+  ''. No functional change: the delay fields are shipment-display only and
+  the invoice flow never consumed their values.
+- Hooks: fixed the dead list-side guard in printFieldListValue() — it gated
+  on the raw SQL row's $obj->element (never set on stdClass rows) and would
+  have set keys on the row, while dol_eval() reads the PAGE $object; it now
+  pre-defaults the keys on the list page's $object (element shipping/
+  expedition). No-op today when MAIN_STORE_COMPUTED_EXTRAFIELDS is on (the
+  list template then reads stored values and never evaluates); makes the
+  guard actually effective if that constant is ever turned off.
+
 2.3.2 (2026-10-02)
 - PDF templates: PHP 8 warning cleanup (production error-log noise).
   pdf_sly_invoice.modules.php: removed the dead 2020 product-extrafield

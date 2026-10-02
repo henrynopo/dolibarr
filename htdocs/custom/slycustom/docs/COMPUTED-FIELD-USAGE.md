@@ -41,13 +41,13 @@ $object->array_options['options_atd'] ? $object->array_options['options_atd']/86
 
 ## How to avoid the warning
 
-**Recommended:** ensure the keys exist **before** the formula is evaluated, so the expression never hits an undefined key.
+**Recommended:** ensure the keys exist **before** the formula is evaluated, so the expression never hits an undefined key. Note that `dol_eval()` resolves the formula's `$object` to the **page global `$object`** (see `global $object` in `dol_eval()`), not to the object being fetched — so the keys must be pre-set on whatever object the page has as its global `$object`.
 
 1. **SLY Custom (no core patch)**  
-   The module `slycustom` ensures shipment date keys exist on expedition objects before they are used in list/card:
-   - In **list**: `printFieldListValue` calls `ensureShipmentDateOptionKeys($obj)` for each expedition row so that when core evaluates the computed formula, `options_atd`, `options_etd`, `options_ata`, `options_eta` are already set (to `0` if missing).
-   - In **card**: `doActions` calls `ensureShipmentDateOptionKeys($object)` when the main object is an expedition.
-   - Core files (`core/lib/functions.lib.php`) are **not** modified; the fix is entirely in `custom/slycustom/class/actions_slycustom.class.php`.
+   The module `slycustom` ensures the shipment date keys exist on the page's global object before core evaluates the formulas:
+   - In **card** (`doActions`): `ensureShipmentDateOptionKeys($object)` when the main object is an expedition/shipment, and also when it is a **facture** — creating an invoice from a shipment (compta/facture/card.php) fetches the Expedition, whose `fetch_optionals()` then evaluates the delay formulas against the page global (the invoice), so the invoice needs the keys too.
+   - In **list** (`printFieldListValue`): `ensureShipmentDateOptionKeys($object)` on the list page's `$object` — raw rows carry extrafields as plain `options_*` properties, not in `array_options`, so pre-setting keys on the row object would be ineffective.
+   - Core files (`core/lib/functions.lib.php`) are **not** modified; the fix is entirely in `custom/slycustom/class/actions_slycustom.class.php` and the list facade trait.
 
 2. **Keep formulas simple**  
    Use the original form (no `empty`, no `??`, no extra parentheses), e.g.:

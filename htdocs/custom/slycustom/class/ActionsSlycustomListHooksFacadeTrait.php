@@ -259,11 +259,12 @@ trait ActionsSlycustomListHooksFacadeTrait
 		$insert_after = $parameters['insert_after'] ?? '';
 		$langs->load("slycustom@slycustom");
 
-		// Pre-default ShipsGo date extrafields on expedition list rows so
-		// computed-field formulas in extrafields do not raise a PHP 8.1+
-		// "Undefined array key" warning (formulas cannot use isset/??).
-		if (is_object($obj) && !empty($obj->element) && in_array($obj->element, array('shipping', 'expedition'), true)) {
-			$this->ensureShipmentDateOptionKeys($obj);
+		// Pre-default ShipsGo date extrafields on the list page's $object:
+		// dol_eval() resolves computed formulas against the page global $object
+		// (raw rows carry extrafields as plain properties, not in array_options),
+		// so the keys must exist there before the per-row evaluation.
+		if (is_object($object) && !empty($object->element) && in_array($object->element, array('shipping', 'expedition'), true)) {
+			$this->ensureShipmentDateOptionKeys($object);
 		}
 
 		if ($this->slyListPayment_shouldPrintListValue($parameters, $object)) {

@@ -183,6 +183,14 @@ class ActionsSlycustom
 			$this->injectShipmentLineTotals($object);
 		}
 
+		// Customer invoice page: creating an invoice from a shipment makes core
+		// Expedition::fetch() evaluate the ShipsGo delay formulas, and dol_eval()
+		// resolves the formula's $object to the page global — the Facture, whose
+		// array_options carries no shipment keys. Pre-set them there.
+		if (is_object($object) && !empty($object->element) && $object->element === 'facture') {
+			$this->ensureShipmentDateOptionKeys($object);
+		}
+
 		// Product/Service card: load SLYcustom so CustomsCode/CustomCode display as Plant No./厂号
 		if (is_object($object) && !empty($object->element) && in_array($object->element, array('product', 'service'), true)) {
 			$langs->load("slycustom@slycustom");
