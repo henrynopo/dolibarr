@@ -43,7 +43,7 @@ class ActionsSwitchThirdParty
         $actions_exclude = array('create', 'modif');
         if ($action == 'switchthirdparty' && GETPOST('socid')) {
 
-            if ($conf->global->EVENT_CHANGE_THIRDPARTY) {
+            if (!empty($conf->global->EVENT_CHANGE_THIRDPARTY)) {
                 $actioncomm = new ActionComm($this->db);
 
                 $actioncomm->type_code = 'AC_OTH_AUTO'; // Event insert into agenda automatically
@@ -272,7 +272,7 @@ class ActionsSwitchThirdParty
 
         if (($action == ''
             || !in_array($action, $actions_exclude))
-            && (in_array($object->element, $element_authorized) && $conf->global->{strtoupper($object->element).'_CHANGE_THIRDPARTY'})
+            && (in_array($object->element, $element_authorized) && !empty($conf->global->{strtoupper($object->element).'_CHANGE_THIRDPARTY'}))
         ) {
             $jsscript .= '<script>';
             $form = new Form($this->db);
@@ -294,7 +294,7 @@ class ActionsSwitchThirdParty
             $jsscript .= 'var changeTiers = true;' . PHP_EOL;
             if((int) DOL_VERSION > 7) {
                 if ((float) getDolGlobalString('EASYA_VERSION', '0') >= 2022.5) {
-                    $jsscript .= 'var pictoChangeTiers = "<span class=\''.$conf->global->MAIN_FONTAWESOME_ICON_STYLE.' fa-pencil-alt valignmiddle\' style=\'color: #444; font-size: 1em; margin-left:5px !important;\' alt=\'Modifier\' title=\'Modifier\'></span>";' . PHP_EOL;
+                    $jsscript .= 'var pictoChangeTiers = "<span class=\''.getDolGlobalString('MAIN_FONTAWESOME_ICON_STYLE').' fa-pencil-alt valignmiddle\' style=\'color: #444; font-size: 1em; margin-left:5px !important;\' alt=\'Modifier\' title=\'Modifier\'></span>";' . PHP_EOL;
                 } else {
                     $jsscript .= 'var pictoChangeTiers = "<span class=\'fa fa-pencil-alt marginleftonly pictoedit\' style=\'color: #444; font-size: 1em; margin-left:5px !important;\' alt=\'Modifier\' title=\'Modifier\'></span>";' . PHP_EOL;
                 }

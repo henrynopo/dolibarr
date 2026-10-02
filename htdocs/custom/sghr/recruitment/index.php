@@ -24,10 +24,11 @@ $postes2  	   = new JobPosition($db);
 $form          = new Form($db);
 
 $var 				= true;
-$sortfield 			= ($_GET['sortfield']) ? $_GET['sortfield'] : "rowid";
-$sortorder 			= ($_GET['sortorder']) ? $_GET['sortorder'] : "DESC";
-$id 				= (int) $_GET['id'];
-$action   			= $_GET['action'];
+$sortfield 			= GETPOST('sortfield', 'aZ09comma') ?: "rowid";
+$sortorder 			= GETPOST('sortorder', 'aZ09comma') ?: "DESC";
+$id 				= GETPOST('id', 'int');
+$action   			= GETPOST('action', 'aZ09');
+$id_recrutement 	= '';
 
 $objdocs  = new JobPosition($db);
 $modtxt = 'recrutement';
@@ -60,10 +61,14 @@ $srch_status    = GETPOST('srch_status');
 $srch_departement = GETPOST('srch_departement');
 $srch_nb_nouveauemploye     = GETPOST('srch_nb_nouveauemploye');
 $srch_date = GETPOST('srch_date');
-$date = explode('/',$srch_date);
-$date = $date[2].'-'.$date[1].'-'.$date[0];
+$date = '';
+if (!empty($srch_date)) {
+    $dateparts = explode('/', $srch_date);
+    if (count($dateparts) == 3) $date = $dateparts[2].'-'.$dateparts[1].'-'.$dateparts[0];
+}
 
 
+$filter = '';
 $filter .= (!empty($srch_label)) ? " AND label like '%".addslashes($srch_label)."%'" : "";
 
 $filter .= (!empty($srch_departement)) ? " AND Department = ".$srch_departement."" : "";

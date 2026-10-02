@@ -113,7 +113,7 @@ print '<tr '.$bc[$var].'><td>';
 print $langs->trans("PROPAL_CHANGE_THIRDPARTY").'</td><td>';
 print '<input size="64" type="hidden" name="PROPAL_CHANGE_THIRDPARTY" value="0">';
 print '<input size="64" type="checkbox" name="PROPAL_CHANGE_THIRDPARTY" value="1" ';
-print $conf->global->PROPAL_CHANGE_THIRDPARTY ? 'checked="checked"' : '';
+print !empty($conf->global->PROPAL_CHANGE_THIRDPARTY) ? 'checked="checked"' : '';
 print '>';
 print '</td></tr>';
 
@@ -122,7 +122,7 @@ print '<tr '.$bc[$var].'><td>';
 print $langs->trans("COMMANDE_CHANGE_THIRDPARTY").'</td><td>';
 print '<input size="64" type="hidden" name="COMMANDE_CHANGE_THIRDPARTY" value="0">';
 print '<input size="64" type="checkbox" name="COMMANDE_CHANGE_THIRDPARTY" value="1" ';
-print $conf->global->COMMANDE_CHANGE_THIRDPARTY ? 'checked="checked"' : '';
+print !empty($conf->global->COMMANDE_CHANGE_THIRDPARTY) ? 'checked="checked"' : '';
 print '>';
 print '</td></tr>';
 
@@ -131,7 +131,7 @@ print '<tr '.$bc[$var].'><td>';
 print $langs->trans("SHIPPING_CHANGE_THIRDPARTY").'</td><td>';
 print '<input size="64" type="hidden" name="SHIPPING_CHANGE_THIRDPARTY" value="0">';
 print '<input size="64" type="checkbox" name="SHIPPING_CHANGE_THIRDPARTY" value="1" ';
-print $conf->global->SHIPPING_CHANGE_THIRDPARTY ? 'checked="checked"' : '';
+print !empty($conf->global->SHIPPING_CHANGE_THIRDPARTY) ? 'checked="checked"' : '';
 print '>';
 print '</td></tr>';
 
@@ -140,7 +140,7 @@ print '<tr '.$bc[$var].'><td>';
 print $langs->trans("CONTRAT_CHANGE_THIRDPARTY").'</td><td>';
 print '<input size="64" type="hidden" name="CONTRAT_CHANGE_THIRDPARTY" value="0">';
 print '<input size="64" type="checkbox" name="CONTRAT_CHANGE_THIRDPARTY" value="1" ';
-print $conf->global->CONTRAT_CHANGE_THIRDPARTY ? 'checked="checked"' : '';
+print !empty($conf->global->CONTRAT_CHANGE_THIRDPARTY) ? 'checked="checked"' : '';
 print '>';
 print '</td></tr>';
 
@@ -149,7 +149,7 @@ print '<tr '.$bc[$var].'><td>';
 print $langs->trans("FACTURE_CHANGE_THIRDPARTY").'</td><td>';
 print '<input size="64" type="hidden" name="FACTURE_CHANGE_THIRDPARTY" value="0">';
 print '<input size="64" type="checkbox" name="FACTURE_CHANGE_THIRDPARTY" value="1" ';
-print $conf->global->FACTURE_CHANGE_THIRDPARTY ? 'checked="checked"' : '';
+print !empty($conf->global->FACTURE_CHANGE_THIRDPARTY) ? 'checked="checked"' : '';
 print '>';
 print '</td></tr>';
 
@@ -158,7 +158,7 @@ print '<tr '.$bc[$var].'><td>';
 print $langs->trans("FACTURE_CHANGE_THIRDPARTY_NOT_ONLY_DRAFT").'</td><td>';
 print '<input size="64" type="hidden" name="FACTURE_CHANGE_THIRDPARTY_NOT_ONLY_DRAFT" value="0">';
 print '<input size="64" type="checkbox" name="FACTURE_CHANGE_THIRDPARTY_NOT_ONLY_DRAFT" value="1" ';
-print $conf->global->FACTURE_CHANGE_THIRDPARTY_NOT_ONLY_DRAFT ? 'checked="checked"' : '';
+print !empty($conf->global->FACTURE_CHANGE_THIRDPARTY_NOT_ONLY_DRAFT) ? 'checked="checked"' : '';
 print '>';
 print '</td></tr>';
 
@@ -174,7 +174,7 @@ print '<tr '.$bc[$var].'><td>';
 print $langs->trans("SUPPLIER_PROPOSAL_CHANGE_THIRDPARTY").'</td><td>';
 print '<input size="64" type="hidden" name="SUPPLIER_PROPOSAL_CHANGE_THIRDPARTY" value="0">';
 print '<input size="64" type="checkbox" name="SUPPLIER_PROPOSAL_CHANGE_THIRDPARTY" value="1" ';
-print $conf->global->SUPPLIER_PROPOSAL_CHANGE_THIRDPARTY ? 'checked="checked"' : '';
+print !empty($conf->global->SUPPLIER_PROPOSAL_CHANGE_THIRDPARTY) ? 'checked="checked"' : '';
 print '>';
 print '</td></tr>';
 
@@ -183,7 +183,7 @@ print '<tr '.$bc[$var].'><td>';
 print $langs->trans("ORDER_SUPPLIER_CHANGE_THIRDPARTY").'</td><td>';
 print '<input size="64" type="hidden" name="ORDER_SUPPLIER_CHANGE_THIRDPARTY" value="0">';
 print '<input size="64" type="checkbox" name="ORDER_SUPPLIER_CHANGE_THIRDPARTY" value="1" ';
-print $conf->global->ORDER_SUPPLIER_CHANGE_THIRDPARTY ? 'checked="checked"' : '';
+print !empty($conf->global->ORDER_SUPPLIER_CHANGE_THIRDPARTY) ? 'checked="checked"' : '';
 print '>';
 print '</td></tr>';
 
@@ -193,7 +193,7 @@ if ((float) DOL_VERSION >= '14') {
     print $langs->trans("RECEPTION_CHANGE_THIRDPARTY") . '</td><td>';
     print '<input size="64" type="hidden" name="RECEPTION_CHANGE_THIRDPARTY" value="0">';
     print '<input size="64" type="checkbox" name="RECEPTION_CHANGE_THIRDPARTY" value="1" ';
-    print $conf->global->RECEPTION_CHANGE_THIRDPARTY ? 'checked="checked"' : '';
+    print !empty($conf->global->RECEPTION_CHANGE_THIRDPARTY) ? 'checked="checked"' : '';
     print '>';
     print '</td></tr>';
 }
@@ -203,7 +203,7 @@ print '<tr '.$bc[$var].'><td>';
 print $langs->trans("INVOICE_SUPPLIER_CHANGE_THIRDPARTY").'</td><td>';
 print '<input size="64" type="hidden" name="INVOICE_SUPPLIER_CHANGE_THIRDPARTY" value="0">';
 print '<input size="64" type="checkbox" name="INVOICE_SUPPLIER_CHANGE_THIRDPARTY" value="1" ';
-print $conf->global->INVOICE_SUPPLIER_CHANGE_THIRDPARTY ? 'checked="checked"' : '';
+print !empty($conf->global->INVOICE_SUPPLIER_CHANGE_THIRDPARTY) ? 'checked="checked"' : '';
 print '>';
 print '</td></tr>';
 
@@ -220,7 +220,7 @@ if (isset($user->rights->switchthirdparty) && is_object($user->rights->switchthi
     print $langs->trans("EVENT_CHANGE_THIRDPARTY").'</td><td>';
     print '<input size="64" type="hidden" name="EVENT_CHANGE_THIRDPARTY" value="0">';
     print '<input size="64" type="checkbox" name="EVENT_CHANGE_THIRDPARTY" value="1" ';
-    print $conf->global->EVENT_CHANGE_THIRDPARTY ? 'checked="checked"' : '';
+    print !empty($conf->global->EVENT_CHANGE_THIRDPARTY) ? 'checked="checked"' : '';
     print '>';
     print '</td></tr>';
 }
