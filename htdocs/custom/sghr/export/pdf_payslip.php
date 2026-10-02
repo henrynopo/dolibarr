@@ -15,7 +15,7 @@ if (!$res && file_exists("../../../main.inc.php"))   { $res = @include '../../..
 if (!$res && file_exists("../../../../main.inc.php")){ $res = @include '../../../../main.inc.php'; }
 if (!$res) die('Cannot load main.inc.php');
 
-dol_include_once('sghr/core/modules/sghr/pdf/pdf_payslip_sgpayroll.class.php');
+dol_include_once('sghr/core/modules/sgpayroll/pdf/pdf_payslip_sgpayroll.class.php');
 
 if (!isModEnabled("sghr")) accessforbidden();
 

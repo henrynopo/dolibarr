@@ -287,7 +287,7 @@ if ($action === 'approve' && $user->hasRight('sghr', 'payroll', 'approve') && $i
 		// Post-commit: never abort redirect. PDF vs email isolated so failures are not blamed together.
 		// Generate PDF before email so SGPayroll_Send can attach Payslip_MM_YYYY.pdf on first approve.
 		try {
-			dol_include_once('sghr/core/modules/sghr/pdf/pdf_payslip_sgpayroll.class.php');
+			dol_include_once('sghr/core/modules/sgpayroll/pdf/pdf_payslip_sgpayroll.class.php');
 			$pdfGen = new pdf_payslip_sgpayroll($db);
 			$payYear  = $payLine->pay_year;
 			$payMonth = str_pad((string)(int)$payLine->pay_month, 2, '0', STR_PAD_LEFT);

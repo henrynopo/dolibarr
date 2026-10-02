@@ -182,11 +182,18 @@ class InterfaceAccountingHook extends DolibarrTriggers
 			}
 		}
 
-		// ── 3. Save Payslip PDF to Employee Document Vault ─────────────────────
-		dol_include_once('sghr/core/modules/sghr/pdf/pdf_payslip_sgpayroll.class.php');
+		// ── 3. Sync monthly Social Contribution (CPF & Levies) ────────────────
+		// Runs before the PDF step: financial records must survive any PDF problem.
+		$this->syncCpfLeviesSociales($object, $user);
+
+		// ── 4. Save Payslip PDF to Employee Document Vault ─────────────────────
+		dol_include_once('sghr/core/modules/sgpayroll/pdf/pdf_payslip_sgpayroll.class.php');
 		require_once DOL_DOCUMENT_ROOT.'/core/lib/files.lib.php';
 
-		$pdfGen = new pdf_payslip_sgpayroll($this->db);
+		$pdfGen = class_exists('pdf_payslip_sgpayroll') ? new pdf_payslip_sgpayroll($this->db) : null;
+		if (!$pdfGen) {
+			dol_syslog('SGPayroll: pdf_payslip_sgpayroll class not found - PDF generation skipped', LOG_ERR);
+		}
 		
 		// Define relative path and absolute path
 		$relDir  = 'sghr/documents/'.$object->fk_user;
@@ -202,11 +209,14 @@ class InterfaceAccountingHook extends DolibarrTriggers
 		$relPath = $relDir.'/'.$filename;
 
 		// Save PDF
-		try {
-			$res_pdf = $pdfGen->generate($object->id, 'save', $absPath);
-		} catch (Exception $e) {
-			dol_syslog('SGPayroll: PDF Generation Exception: ' . $e->getMessage(), LOG_ERR);
-			$res_pdf = false;
+		$res_pdf = false;
+		if ($pdfGen) {
+			try {
+				$res_pdf = $pdfGen->generate($object->id, 'save', $absPath);
+			} catch (Throwable $e) {
+				dol_syslog('SGPayroll: PDF Generation Exception: ' . $e->getMessage(), LOG_ERR);
+				$res_pdf = false;
+			}
 		}
 
 		if ($res_pdf) {
@@ -229,9 +239,6 @@ class InterfaceAccountingHook extends DolibarrTriggers
 				}
 			}
 		}
-
-		// ── 4. Sync monthly Social Contribution (CPF & Levies) ────────────────
-		$this->syncCpfLeviesSociales($object, $user);
 
 		// $this->db->commit(); // Removed - handled by caller
 		return 1;
@@ -262,22 +269,34 @@ class InterfaceAccountingHook extends DolibarrTriggers
 		}
 		$fkType = (int) $this->db->fetch_object($resT)->id;
 
-		// Recompute the monthly total from scratch — idempotent on any approve/unapprove
-		$sqlSum  = "SELECT COALESCE(SUM(employee_cpf + employer_cpf + sdl_amount + shg_cdac + shg_ecf + shg_mbmf + shg_sinda), 0) AS total";
-		$sqlSum .= " FROM ".MAIN_DB_PREFIX."sgpayroll_payroll_line";
-		$sqlSum .= " WHERE pay_year = ".(int) $object->pay_year." AND pay_month = ".(int) $object->pay_month;
-		$sqlSum .= " AND status IN ('approved','paid') AND entity = ".(int) $conf->entity;
+		// Recompute the monthly total from scratch — idempotent on any approve/unapprove.
+		// pay_year/pay_month live on the batch table, lines reference it via fk_payroll.
+		// SDL uses the official organisation rule (floor to whole dollar), same as cpf_review.php.
+		$sqlSum  = "SELECT COALESCE(SUM(l.employee_cpf), 0) AS emp_cpf, COALESCE(SUM(l.employer_cpf), 0) AS er_cpf";
+		$sqlSum .= ", COALESCE(SUM(l.sdl_amount), 0) AS sdl";
+		$sqlSum .= ", COALESCE(SUM(l.shg_cdac + l.shg_ecf + l.shg_mbmf + l.shg_sinda), 0) AS shg";
+		$sqlSum .= " FROM ".MAIN_DB_PREFIX."sgpayroll_payroll_line as l";
+		$sqlSum .= " JOIN ".MAIN_DB_PREFIX."sgpayroll_payroll as p ON p.rowid = l.fk_payroll";
+		$sqlSum .= " WHERE p.pay_year = ".(int) $object->pay_year." AND p.pay_month = ".(int) $object->pay_month;
+		$sqlSum .= " AND l.status IN ('approved','paid') AND l.entity = ".(int) $conf->entity;
 		$resSum  = $this->db->query($sqlSum);
 		if (!$resSum) {
 			dol_syslog('SGPayroll: CPF & Levies sum failed: '.$this->db->lasterror(), LOG_ERR);
 			return -1;
 		}
-		$total = round((float) $this->db->fetch_object($resSum)->total, 2);
+		$objSum = $this->db->fetch_object($resSum);
+		dol_include_once('sghr/class/payrollcalc.class.php');
+		$total = round(
+			(float) $objSum->emp_cpf
+			+ (float) $objSum->er_cpf
+			+ SghrCalc::getOrganisationSDLTotalRounded((float) $objSum->sdl)
+			+ (float) $objSum->shg,
+			2
+		);
 
-		$periodeTs = dol_get_first_day($object->pay_year, $object->pay_month);
-		$nextYear  = ((int) $object->pay_month == 12) ? ((int) $object->pay_year + 1) : (int) $object->pay_year;
-		$nextMonth = ((int) $object->pay_month == 12) ? 1 : ((int) $object->pay_month + 1);
-		$dateEchTs = dol_mktime(12, 0, 0, $nextMonth, 14, $nextYear); // CPF/SDL statutory due date: 14th of following month
+		// Both the period end and the due date are the last day of the payroll month
+		$periodeTs = dol_get_last_day($object->pay_year, $object->pay_month);
+		$dateEchTs = $periodeTs;
 		$libelle   = 'SG CPF&Levies '.$object->pay_year.'-'.str_pad((string) $object->pay_month, 2, '0', STR_PAD_LEFT);
 
 		$sqlF  = "SELECT rowid, paye, amount FROM ".MAIN_DB_PREFIX."chargesociales";
