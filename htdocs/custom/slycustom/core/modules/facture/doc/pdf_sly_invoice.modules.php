@@ -388,8 +388,9 @@ class pdf_sly_invoice extends ModelePDFFactures
 		$outputlangs->loadLangs(array("main", "bills", "products", "dict", "companies", "compta"));
 
 		$pdfUseAlsoLangCode = getDolGlobalString('PDF_USE_ALSO_LANGUAGE_CODE');
+		global $outputlangsbis;
+		$outputlangsbis = null;
 		if (!empty($pdfUseAlsoLangCode) && $outputlangs->defaultlang != $pdfUseAlsoLangCode) {
-			global $outputlangsbis;
 			$outputlangsbis = new Translate('', $conf);
 			$outputlangsbis->setDefaultLang($pdfUseAlsoLangCode);
 			$outputlangsbis->loadLangs(array("main", "bills", "products", "dict", "companies", "compta"));
@@ -602,17 +603,6 @@ class pdf_sly_invoice extends ModelePDFFactures
 						$height_incoterms += 4;
 					}
 				}
-
-				//Add the code to load extrafield array in object. SLY 24/11/2020
-				$extrafields = new ExtraFields($this->db);
-				$extralabels = $extrafields->fetch_name_optionals_label($object->table_element);
-
-				// Add the code to load extrafield into object. SLY 24/11/2020
-				$object->fetch($rowid);
-				$object->fetch_optionals($rowid, $extralabels);
-
-				//Add the code to print the product extrafield. SLY 24/11/2020
-				$pdf->writeHTMLCell(190, 3, $this->posxdesc - 1, $tab_top - 5, $outputlangs->convToOutputCharset($product->array_options['options_my_product_extra']), 0, 1);
 
 				// Display notes
 				$notetoshow = empty($object->note_public) ? '' : $object->note_public;

@@ -5,6 +5,18 @@ Note: entries before 2.0.0 are a retroactive reconstruction from git history
 (the module shipped with the version constant 1.0.0 throughout); 2.0.0 is the
 first version managed through this file.
 
+2.3.2 (2026-10-02)
+- PDF templates: PHP 8 warning cleanup (production error-log noise).
+  pdf_sly_invoice.modules.php: removed the dead 2020 product-extrafield
+  block (undefined $product/$rowid, sample field name
+  options_my_product_extra, has written an empty cell for 5 years —
+  fetch(null) was a no-op thanks to the core guard, so removal is
+  behaviour-neutral); pdf_sly_invoice + pdf_cornas_SLY: initialise
+  $outputlangsbis = null before the conditional creation so _tableau()
+  calls stop raising "Undefined variable" when
+  PDF_USE_ALSO_LANGUAGE_CODE is not set (aligns with the correct pattern
+  already used in pdf_sly_order / pdf_sly_packinglist / pdf_sly_shipment).
+
 2.2.18 (2026-09-28)
 - patches: payment-table SUMMARY rows fixed (second round, same two files:
   sly24.0-compta-multicurrency.patch / compta/facture/card.php and

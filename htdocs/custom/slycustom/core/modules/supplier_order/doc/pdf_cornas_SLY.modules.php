@@ -202,8 +202,9 @@ class pdf_cornas_SLY extends ModelePDFSuppliersOrders
 		$outputlangs->loadLangs(array("main", "orders", "companies", "bills", "dict", "products"));
 
 		$pdfUseAlsoLangCode = getDolGlobalString('PDF_USE_ALSO_LANGUAGE_CODE');
+		global $outputlangsbis;
+		$outputlangsbis = null;
 		if (!empty($pdfUseAlsoLangCode) && $outputlangs->defaultlang != $pdfUseAlsoLangCode) {
-			global $outputlangsbis;
 			$outputlangsbis = new Translate('', $conf);
 			$outputlangsbis->setDefaultLang($pdfUseAlsoLangCode);
 			$outputlangsbis->loadLangs(array("main", "orders", "companies", "bills", "dict", "products"));
