@@ -111,6 +111,7 @@
 		LEFT JOIN ".$prefix."expedition exp ON exp.rowid = ee_cmd_ship.ship_id
 		LEFT JOIN ".$prefix."expedition_extrafields se ON se.fk_object = exp.rowid
 		WHERE ff.ref IS NOT NULL AND ff.entity IN (".$eSupplierInvoice.")
+			AND ff.fk_statut NOT IN (0, 3)
 			AND cf.rowid IS NOT NULL
 		GROUP BY ff.rowid, ffd.rowid
 		ORDER BY ff.rowid DESC

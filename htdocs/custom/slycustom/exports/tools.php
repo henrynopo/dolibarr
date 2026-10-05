@@ -136,6 +136,7 @@ function slyShipmentStatusPlainLabel($status, $langs)
 
 	// Core expedition/list.php uses 0/1/2 only:
 	// 0 Draft, 1 Validated, 2 Processed
+	// 3 = STATUS_SHIPMENT_IN_PROGRESS (declared in v24 core, no core flow sets it)
 	switch ($status) {
 		case 0:
 			return $langs->transnoentitiesnoconv('StatusSendingDraftShort');
@@ -145,6 +146,9 @@ function slyShipmentStatusPlainLabel($status, $langs)
 			return $langs->transnoentitiesnoconv('StatusSendingProcessedShort');
 		case -1:
 			return $langs->transnoentitiesnoconv('StatusSendingCanceledShort');
+		case 3:
+			$langs->load('slycustom@slycustom');
+			return $langs->transnoentitiesnoconv('SLYSendingStatusInProgress');
 		default:
 			return (string) $status;
 	}
@@ -1071,54 +1075,62 @@ function slyExportsGetStatusFilterOptions($activeTab, $field, $langs)
 	}
 	$opts = array('' => '');
 
-	if ($activeTab === 'so_details' || $activeTab === 'so_deposit_invoice_missing') {
+	// Options mirror each dataset's status domain: statuses excluded by the
+	// dataset SQL (draft/canceled/refused/abandoned) are not offered, so every
+	// option matches rows that can actually appear in the table above.
+	if ($activeTab === 'so_details') {
 		$langs->load('orders');
-		$opts['-1'] = $langs->trans('StatusOrderCanceledShort');
-		$opts['0'] = $langs->trans('StatusOrderDraftShort');
 		$opts['1'] = $langs->trans('StatusOrderValidated');
 		$opts['2'] = $langs->trans('StatusOrderSentShort');
 		$opts['3'] = $langs->trans('StatusOrderDelivered');
 		return $opts;
 	}
 
+	if ($activeTab === 'so_deposit_invoice_missing') {
+		$langs->load('orders');
+		$opts['1'] = $langs->trans('StatusOrderValidated');
+		$opts['2'] = $langs->trans('StatusOrderSentShort');
+		return $opts;
+	}
+
 	if ($activeTab === 'so_inv_details' || $activeTab === 'so_inv_receivable') {
 		$langs->load('bills');
-		$opts['0'] = $langs->trans('BillShortStatusDraft');
 		$opts['1'] = $langs->trans('BillShortStatusValidated');
 		$opts['2'] = $langs->trans('BillShortStatusPaid');
-		$opts['3'] = $langs->trans('BillShortStatusCanceled');
 		return $opts;
 	}
 
 	if ($activeTab === 'shipment_details') {
 		$langs->load('sendings');
-		$opts['-1'] = $langs->trans('StatusSendingCanceledShort');
-		$opts['0'] = $langs->trans('StatusSendingDraftShort');
 		$opts['1'] = $langs->trans('StatusSendingValidatedShort');
 		$opts['2'] = $langs->trans('StatusSendingProcessedShort');
+		$langs->load('slycustom@slycustom');
+		$opts['3'] = $langs->trans('SLYSendingStatusInProgress');
 		return $opts;
 	}
 
-	if ($activeTab === 'po_details' || $activeTab === 'po_deposit_invoice_missing') {
+	if ($activeTab === 'po_details') {
 		$langs->load('orders');
-		$opts['0'] = $langs->transnoentitiesnoconv('StatusSupplierOrderDraftShort');
 		$opts['1'] = $langs->transnoentitiesnoconv('StatusSupplierOrderValidatedShort');
 		$opts['2'] = $langs->transnoentitiesnoconv('StatusSupplierOrderApprovedShort');
 		$opts['3'] = $langs->transnoentitiesnoconv('StatusSupplierOrderOnProcessShort');
 		$opts['4'] = $langs->transnoentitiesnoconv('StatusSupplierOrderReceivedPartiallyShort');
 		$opts['5'] = $langs->transnoentitiesnoconv('StatusSupplierOrderReceivedAllShort');
-		$opts['6'] = $langs->transnoentitiesnoconv('StatusSupplierOrderCanceledShort');
-		$opts['7'] = $langs->transnoentitiesnoconv('StatusSupplierOrderCanceledShort');
-		$opts['9'] = $langs->transnoentitiesnoconv('StatusSupplierOrderRefusedShort');
+		return $opts;
+	}
+
+	if ($activeTab === 'po_deposit_invoice_missing') {
+		$langs->load('orders');
+		$opts['1'] = $langs->transnoentitiesnoconv('StatusSupplierOrderValidatedShort');
+		$opts['2'] = $langs->transnoentitiesnoconv('StatusSupplierOrderApprovedShort');
+		$opts['3'] = $langs->transnoentitiesnoconv('StatusSupplierOrderOnProcessShort');
 		return $opts;
 	}
 
 	if ($activeTab === 'po_inv_details' || $activeTab === 'po_inv_payable') {
 		$langs->load('bills');
-		$opts['0'] = $langs->trans('BillShortStatusDraft');
 		$opts['1'] = $langs->trans('BillShortStatusValidated');
 		$opts['2'] = $langs->trans('BillShortStatusPaid');
-		$opts['3'] = $langs->trans('BillShortStatusCanceled');
 		return $opts;
 	}
 

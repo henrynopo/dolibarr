@@ -144,7 +144,7 @@ function slyAllInOneValidate(&$db, &$langs, $prefix, $eCommande, $eInvoice, $eEx
 	FROM ".$prefix."commande c
 	LEFT JOIN ".$prefix."commande_extrafields cex ON cex.fk_object = c.rowid
 	WHERE c.entity IN (".$eCommande.")
-		AND c.fk_statut NOT IN (0, 3)
+		AND c.fk_statut NOT IN (0, -1)
 	HAVING po_cnt > 1
 		OR salesperson_cnt <> 1
 		OR billto_cnt > 1
@@ -328,7 +328,7 @@ function slyAllInOneValidate(&$db, &$langs, $prefix, $eCommande, $eInvoice, $eEx
 		) AS billto_cnt
 	FROM ".$prefix."expedition e
 	WHERE e.entity IN (".$eExpedition.")
-		AND e.fk_statut NOT IN (0, 3)
+		AND e.fk_statut NOT IN (0, -1)
 	HAVING so_cnt <> 1
 		OR billto_cnt > 1
 		OR invoice_cnt > 1
@@ -514,14 +514,14 @@ function slyAllInOneValidateV2(&$db, &$langs, $prefix, $eCommande, $eInvoice, $e
 
 	// Candidate refs.
 	$soRefById = $fetchRefMap(
-		"SELECT c.rowid, c.ref FROM ".$prefix."commande c WHERE c.entity IN (".$eCommande.") AND c.fk_statut NOT IN (0, 3)"
+		"SELECT c.rowid, c.ref FROM ".$prefix."commande c WHERE c.entity IN (".$eCommande.") AND c.fk_statut NOT IN (0, -1)"
 	);
 	$invRefById = $fetchRefMap(
 		"SELECT f.rowid, f.ref FROM ".$prefix."facture f WHERE f.entity IN (".$eInvoice.") AND f.fk_statut NOT IN (0, 3) AND f.ref IS NOT NULL AND f.ref <> ''"
 	);
 	$shipRefById = $fetchRefMap(
 		"SELECT e.rowid, e.ref FROM ".$prefix."expedition e WHERE e.entity IN (".$eExpedition.")
-			AND e.fk_statut NOT IN (0, 3, -1)
+			AND e.fk_statut NOT IN (0, -1)
 			AND e.ref IS NOT NULL AND e.ref <> ''"
 	);
 	$shipSailingStatusId = array(); // [ship_id] => int|null
@@ -562,13 +562,13 @@ function slyAllInOneValidateV2(&$db, &$langs, $prefix, $eCommande, $eInvoice, $e
 	$sqlSoPo = "SELECT so_id, po_id FROM (
 		SELECT ee.fk_target AS so_id, ee.fk_source AS po_id
 		FROM ".$prefix."element_element ee
-		INNER JOIN ".$prefix."commande c ON c.rowid = ee.fk_target AND c.entity IN (".$eCommande.") AND c.fk_statut NOT IN (0, 3)
+		INNER JOIN ".$prefix."commande c ON c.rowid = ee.fk_target AND c.entity IN (".$eCommande.") AND c.fk_statut NOT IN (0, -1)
 		INNER JOIN ".$prefix."commande_fournisseur cf ON cf.rowid = ee.fk_source AND cf.entity IN (".$eSupplierOrder.") AND cf.fk_statut NOT IN (0, 6, 7, 9)
 		WHERE ee.sourcetype = 'order_supplier' AND ee.targettype = 'commande'
 		UNION ALL
 		SELECT ee.fk_source AS so_id, ee.fk_target AS po_id
 		FROM ".$prefix."element_element ee
-		INNER JOIN ".$prefix."commande c ON c.rowid = ee.fk_source AND c.entity IN (".$eCommande.") AND c.fk_statut NOT IN (0, 3)
+		INNER JOIN ".$prefix."commande c ON c.rowid = ee.fk_source AND c.entity IN (".$eCommande.") AND c.fk_statut NOT IN (0, -1)
 		INNER JOIN ".$prefix."commande_fournisseur cf ON cf.rowid = ee.fk_target AND cf.entity IN (".$eSupplierOrder.") AND cf.fk_statut NOT IN (0, 6, 7, 9)
 		WHERE ee.sourcetype = 'commande' AND ee.targettype = 'order_supplier'
 	) t";
@@ -590,13 +590,13 @@ function slyAllInOneValidateV2(&$db, &$langs, $prefix, $eCommande, $eInvoice, $e
 		SELECT ee.fk_source AS so_id, ee.fk_target AS ship_id
 		FROM ".$prefix."element_element ee
 		INNER JOIN ".$prefix."commande c ON c.rowid = ee.fk_source AND c.entity IN (".$eCommande.")
-		INNER JOIN ".$prefix."expedition e ON e.rowid = ee.fk_target AND e.entity IN (".$eExpedition.") AND e.fk_statut NOT IN (0, 3, -1)
+		INNER JOIN ".$prefix."expedition e ON e.rowid = ee.fk_target AND e.entity IN (".$eExpedition.") AND e.fk_statut NOT IN (0, -1)
 		WHERE ee.sourcetype = 'commande' AND ee.targettype = 'shipping'
 		UNION ALL
 		SELECT ee.fk_target AS so_id, ee.fk_source AS ship_id
 		FROM ".$prefix."element_element ee
 		INNER JOIN ".$prefix."commande c ON c.rowid = ee.fk_target AND c.entity IN (".$eCommande.")
-		INNER JOIN ".$prefix."expedition e ON e.rowid = ee.fk_source AND e.entity IN (".$eExpedition.") AND e.fk_statut NOT IN (0, 3, -1)
+		INNER JOIN ".$prefix."expedition e ON e.rowid = ee.fk_source AND e.entity IN (".$eExpedition.") AND e.fk_statut NOT IN (0, -1)
 		WHERE ee.sourcetype = 'shipping' AND ee.targettype = 'commande'
 	) t";
 	$res = $db->query($sqlSoShip);
@@ -649,13 +649,13 @@ function slyAllInOneValidateV2(&$db, &$langs, $prefix, $eCommande, $eInvoice, $e
 	$sqlSoInv = "SELECT so_id, inv_id FROM (
 		SELECT ee.fk_source AS so_id, ee.fk_target AS inv_id
 		FROM ".$prefix."element_element ee
-		INNER JOIN ".$prefix."commande c ON c.rowid = ee.fk_source AND c.entity IN (".$eCommande.") AND c.fk_statut NOT IN (0, 3)
+		INNER JOIN ".$prefix."commande c ON c.rowid = ee.fk_source AND c.entity IN (".$eCommande.") AND c.fk_statut NOT IN (0, -1)
 		INNER JOIN ".$prefix."facture f ON f.rowid = ee.fk_target AND f.entity IN (".$eInvoice.") AND f.fk_statut NOT IN (0, 3) AND f.ref IS NOT NULL AND f.ref <> ''
 		WHERE ee.sourcetype = 'commande' AND ee.targettype = 'facture'
 		UNION ALL
 		SELECT ee.fk_target AS so_id, ee.fk_source AS inv_id
 		FROM ".$prefix."element_element ee
-		INNER JOIN ".$prefix."commande c ON c.rowid = ee.fk_target AND c.entity IN (".$eCommande.") AND c.fk_statut NOT IN (0, 3)
+		INNER JOIN ".$prefix."commande c ON c.rowid = ee.fk_target AND c.entity IN (".$eCommande.") AND c.fk_statut NOT IN (0, -1)
 		INNER JOIN ".$prefix."facture f ON f.rowid = ee.fk_source AND f.entity IN (".$eInvoice.") AND f.fk_statut NOT IN (0, 3) AND f.ref IS NOT NULL AND f.ref <> ''
 		WHERE ee.sourcetype = 'facture' AND ee.targettype = 'commande'
 	) t";
@@ -712,7 +712,7 @@ function slyAllInOneValidateV2(&$db, &$langs, $prefix, $eCommande, $eInvoice, $e
 	$sqlSoSales = "SELECT ec.element_id AS so_id, ec.fk_socpeople AS person_id
 		FROM ".$prefix."element_contact ec
 		INNER JOIN ".$prefix."c_type_contact tc ON tc.rowid = ec.fk_c_type_contact
-		INNER JOIN ".$prefix."commande c ON c.rowid = ec.element_id AND c.entity IN (".$eCommande.") AND c.fk_statut NOT IN (0, 3)
+		INNER JOIN ".$prefix."commande c ON c.rowid = ec.element_id AND c.entity IN (".$eCommande.") AND c.fk_statut NOT IN (0, -1)
 		WHERE tc.element = 'commande' AND tc.source = 'internal' AND tc.code = 'SALESREPFOLL' AND tc.active = 1";
 	$res = $db->query($sqlSoSales);
 	if ($res) {
@@ -730,7 +730,7 @@ function slyAllInOneValidateV2(&$db, &$langs, $prefix, $eCommande, $eInvoice, $e
 	$sqlSoBillto = "SELECT ec.element_id AS so_id, ec.fk_socpeople AS person_id
 		FROM ".$prefix."element_contact ec
 		INNER JOIN ".$prefix."c_type_contact tc ON tc.rowid = ec.fk_c_type_contact
-		INNER JOIN ".$prefix."commande c ON c.rowid = ec.element_id AND c.entity IN (".$eCommande.") AND c.fk_statut NOT IN (0, 3)
+		INNER JOIN ".$prefix."commande c ON c.rowid = ec.element_id AND c.entity IN (".$eCommande.") AND c.fk_statut NOT IN (0, -1)
 		WHERE tc.element = 'commande' AND tc.source = 'external' AND tc.code = 'BILLING' AND tc.active = 1";
 	$res = $db->query($sqlSoBillto);
 	if ($res) {

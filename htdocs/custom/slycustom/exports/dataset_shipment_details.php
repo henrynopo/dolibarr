@@ -56,7 +56,7 @@ return array(
 			LEFT JOIN ".$prefix."expedition_extrafields sex ON sex.fk_object = e.rowid
 			LEFT JOIN ".$prefix."expeditiondet_extrafields edex ON edex.fk_object = ed.rowid
 			WHERE e.entity IN (".$eExpedition.")
-				AND e.fk_statut NOT IN (0, 3, -1)
+				AND e.fk_statut NOT IN (0, -1)
 			ORDER BY e.rowid DESC
 			LIMIT 1500",
 			'columns' => array(

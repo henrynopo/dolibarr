@@ -72,7 +72,7 @@ return array(
 	LEFT JOIN ".$prefix."product p ON p.rowid = cd.fk_product
 	LEFT JOIN ".$prefix."c_units cu ON cu.rowid = cd.fk_unit
 	WHERE c.entity IN (".$eCommande.")
-		AND c.fk_statut NOT IN (0, 3)
+		AND c.fk_statut NOT IN (0, -1)
 	ORDER BY c.rowid DESC
 	LIMIT 1000",
 	'columns' => array(
