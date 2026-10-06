@@ -348,3 +348,17 @@ incluses` → `INCT=TTC` 单行翻译改动，无功能影响）。gen 脚本清
 `--check -R` 均通过。**注意**：d-test2 需同步新版 patch（旧版含 fr_FR 段，对无 fr_FR 的环境恒 conflict），bundle 重新生成。
 配套基线包 `sly24_langs_baseline.tar.gz`（9 文件，无 fr_FR）与 `sly24_fourn_baseline.tar.gz`（8 文件）用于生产恢复
 官方 24.0.1 基线后再 apply（生产 langs 为 v22 遗留内容，多文件 `patch failed at 行号` 的根因）。
+
+### 6.7 供应商付款页 Ref. vendor 列整体错位修复（2026-10-06）
+
+**症状**：`fourn/facture/paiement.php` 付款页发票表格**所有数据行**与表头错位一列（日期落在 Ref. vendor 表头下、金额依次
+左移），tfoot Total (incl GST) 行与数据行错开一列。
+
+**根因**：官方 22→24 删除了 RefSupplier 独立列——表头 `<th>` 与表体 `<td data-col="ref-supplier">` 均注释，ref_supplier
+改为 Invoice 单元格内小字副标题。SLY22 移植版表体 td 跟随官方 24 注释掉，但表头 `<th>` 仍按 SLY22 保留、tfoot colspan=5
+也计入该列：表头/tfoot 比每个数据行多一列（14 vs 13）。
+
+**处置**：按官方 24 方向对齐——注释表头 `<th>`（paiement.php ~L666），tfoot colspan 5 → 4（`displayAllInvoices` 时仍
+自动 +1，即 4/5），列数注释同步。ref_supplier 信息无丢失（仍显示于发票号下方副标题）。patch 重生成仅动 paiement.php
+节（2 hunk，行数不变 1585）；顺带修正旧版手误的 card.php 目标 index hash（`cb33d769b0e` → 真值 `cb33d769b0d`，与 §6.5
+记载一致）。`php -l` 与反向校验（`git apply --check -R -p2`，于 htdocs 目录）通过。

@@ -663,7 +663,7 @@ if ($action == 'create' || $action == 'confirm_paiement' || $action == 'add_paie
 							$sourceorderlabel = $langs->trans('Order');
 						}
 						print '<th>'.$sourceorderlabel.'</th>';
-						print '<th>'.$langs->trans('RefSupplier').'</th>';
+						//print '<th>'.$langs->trans('RefSupplier').'</th>';	// RefSupplier shown as subtitle into Invoice column (same as upstream 24)
 						if ($displayAllInvoices) {
 							print '<th class="center">' . $langs->trans('Type') . '</th>';
 						}
@@ -940,8 +940,8 @@ if ($action == 'create' || $action == 'confirm_paiement' || $action == 'add_paie
 
 						if ($i > 1) {
 							print '<tfoot>';
-							// Print total (Invoice, SourceOrder, RefSupplier, [Type], Date, DateMaxPayment = 5 or 6)
-							$colspan = 5;
+							// Print total (Invoice, SourceOrder, [Type], Date, DateMaxPayment = 4 or 5)
+							$colspan = 4;
 							if ($displayAllInvoices) {
 								$colspan++;
 							}

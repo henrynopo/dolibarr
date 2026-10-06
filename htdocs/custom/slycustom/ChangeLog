@@ -29,6 +29,14 @@ first version managed through this file.
   hunks) — both production and d-test pruned the fr_FR language pack, so
   the pre-prune segment could never apply ("No such file or directory").
   See APPLY-ON-24.md §6.6.
+- fourn/facture/paiement.php: drop the vestigial RefSupplier header column.
+  Upstream 24 removed the standalone column (body td commented, ref_supplier
+  shown as subtitle in the Invoice cell); the SLY22 port kept the header th
+  and the tfoot colspan counted it, so header/tfoot had one column more
+  than every data row — the whole table and its Total row shifted by one
+  column. Align on upstream 24 (th commented, colspan 5 -> 4, Type still
+  +1). Patch regenerated (paiement.php section only). See APPLY-ON-24.md
+  §6.7.
 
 2.3.3 (2026-10-02)
 - Hooks: PHP 8 warning cleanup for the ShipsGo delay computed extrafields

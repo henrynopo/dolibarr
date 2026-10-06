@@ -469,7 +469,7 @@ index 2f27447b8db..12fe9b21150 100644
  		<td class="right"></td>
  	</tr>
 diff --git a/htdocs/fourn/facture/card.php b/htdocs/fourn/facture/card.php
-index 837f888f088..cb33d769b0 100644
+index 837f888f088..cb33d769b0d 100644
 --- a/htdocs/fourn/facture/card.php
 +++ b/htdocs/fourn/facture/card.php
 @@ -273,7 +273,7 @@ if (empty($reshook)) {
@@ -1205,7 +1205,7 @@ index 837f888f088..cb33d769b0 100644
  					print $langs->trans('RemainderToPayBackMulticurrency');
  					if ($resteapayeraffiche > 0) {
 diff --git a/htdocs/fourn/facture/paiement.php b/htdocs/fourn/facture/paiement.php
-index 20ef2a0728a..c2054da4e14 100644
+index 20ef2a0728a..0d01cfbc3fe 100644
 --- a/htdocs/fourn/facture/paiement.php
 +++ b/htdocs/fourn/facture/paiement.php
 @@ -191,7 +191,7 @@ if (empty($reshook)) {
@@ -1301,7 +1301,7 @@ index 20ef2a0728a..c2054da4e14 100644
 +							$sourceorderlabel = $langs->trans('Order');
 +						}
 +						print '<th>'.$sourceorderlabel.'</th>';
-+						print '<th>'.$langs->trans('RefSupplier').'</th>';
++						//print '<th>'.$langs->trans('RefSupplier').'</th>';	// RefSupplier shown as subtitle into Invoice column (same as upstream 24)
  						if ($displayAllInvoices) {
  							print '<th class="center">' . $langs->trans('Type') . '</th>';
  						}
@@ -1387,8 +1387,8 @@ index 20ef2a0728a..c2054da4e14 100644
 -
 -							// type
 +							print '<tfoot>';
-+							// Print total (Invoice, SourceOrder, RefSupplier, [Type], Date, DateMaxPayment = 5 or 6)
-+							$colspan = 5;
++							// Print total (Invoice, SourceOrder, [Type], Date, DateMaxPayment = 4 or 5)
++							$colspan = 4;
  							if ($displayAllInvoices) {
  								$colspan++;
  							}
