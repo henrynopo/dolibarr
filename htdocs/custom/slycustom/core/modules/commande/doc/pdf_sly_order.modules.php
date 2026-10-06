@@ -544,6 +544,7 @@ class pdf_sly_order extends ModelePDFCommandes
 				$gap_after_header = 4;
 				$tab_top = (isset($this->pagehead_bottom_y) ? ($this->pagehead_bottom_y + $gap_after_header) : (90 + $top_shift + (isset($this->letterhead_height) ? $this->letterhead_height : 0)));
 				$tab_top_newpage = (getDolGlobalString('MAIN_PDF_DONOTREPEAT_HEAD') ? 10 : 42 + $top_shift + (isset($this->letterhead_height) ? $this->letterhead_height : 0));
+				$tab_height = $this->page_hauteur - $tab_top - $heightforfooter - $heightforfreetext;
 
 				// Displays notes
 				$notetoshow = empty($object->note_public) ? '' : $object->note_public;

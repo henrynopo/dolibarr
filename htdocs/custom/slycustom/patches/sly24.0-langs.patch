@@ -849,19 +849,6 @@ index 087eff8637e..834b719c40f 100644
  GeneratedFromSupplierTemplate=Generated from supplier invoice template %s
  SupplierInvoiceGeneratedFromTemplate=Supplier invoice %s Generated from supplier invoice template %s
 +SelectedDiscountWillBeAppliedWhenInvoiceIsCreated=Selected discount will be applied when the invoice is created.
-diff --git a/htdocs/langs/fr_FR/main.lang b/htdocs/langs/fr_FR/main.lang
-index 24995c17c23..7e130ad7f79 100644
---- a/htdocs/langs/fr_FR/main.lang
-+++ b/htdocs/langs/fr_FR/main.lang
-@@ -462,7 +462,7 @@ TotalLT2IN=Total SGST
- HT=HT
- TTC=TTC
- INCVATONLY=TVA incluse
--INCT=TVA+Taxes locales incluses
-+INCT=TTC
- VAT=TVA
- VATIN=IGST
- VATs=TVA
 diff --git a/htdocs/langs/zh_CN/receptions.lang b/htdocs/langs/zh_CN/receptions.lang
 index b056051ee6b..06ef016ef07 100644
 --- a/htdocs/langs/zh_CN/receptions.lang

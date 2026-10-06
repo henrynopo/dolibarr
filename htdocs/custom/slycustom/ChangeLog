@@ -5,6 +5,31 @@ Note: entries before 2.0.0 are a retroactive reconstruction from git history
 (the module shipped with the version constant 1.0.0 throughout); 2.0.0 is the
 first version managed through this file.
 
+2.3.4 (2026-10-05)
+- PDF templates: PHP 8 warning cleanup (production error-log noise,
+  commande/error_log).
+  pdf_sly_order.modules.php: add the missing $tab_height initialisation
+  after the dynamic $tab_top computation — the template was forked from
+  official eratosthene v14, which never initialised it either (official
+  only added the line between v14 and v24). The note deduction and
+  pdfTabTitles() now operate on a defined value; note that column
+  separators of border-left columns, previously drawn zero-length
+  (undefined -> null -> 0), now render as officially designed.
+  pdf_sly_packinglist.modules.php + pdf_sly_shipment.modules.php: define
+  the three posx layout properties (posxweightvol / posxqtyordered /
+  posxqtytoship, values taken from official pdf_rouget) that were lost
+  from the constructor when _tableau_tot / _pagehead were forked; values
+  feed legacy layout math only (the Total row prints via
+  printStdColumnContent), so no visual change.
+- Patches: sly24.0-fourn-linkedobject.patch regenerated with the 7
+  default_lang null-guards on fourn/facture/card.php (production
+  "Attempt to read property default_lang on null" at setabsolutediscount
+  PDF auto-regen; PHP 7 was silent). See APPLY-ON-24.md §6.5.
+- Patches: sly24.0-langs.patch drops its fr_FR/main.lang segment (11 -> 10
+  hunks) — both production and d-test pruned the fr_FR language pack, so
+  the pre-prune segment could never apply ("No such file or directory").
+  See APPLY-ON-24.md §6.6.
+
 2.3.3 (2026-10-02)
 - Hooks: PHP 8 warning cleanup for the ShipsGo delay computed extrafields
   (production error-log noise, compta/facture/error_log).

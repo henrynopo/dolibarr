@@ -140,6 +140,10 @@ class pdf_sly_packinglist extends ModelePdfExpedition
 		$this->marge_haute = getDolGlobalInt('MAIN_PDF_MARGIN_TOP', 10);
 		$this->marge_basse = getDolGlobalInt('MAIN_PDF_MARGIN_BOTTOM', 10);
 
+		$this->posxweightvol = $this->page_largeur - $this->marge_droite - 82;
+		$this->posxqtyordered = $this->page_largeur - $this->marge_droite - 60;
+		$this->posxqtytoship = $this->page_largeur - $this->marge_droite - 28;
+
 		$this->option_logo = 1; // Display logo
 
 		// Get source company

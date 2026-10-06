@@ -139,6 +139,10 @@ class pdf_sly_shipment extends ModelePdfExpedition
 		$this->marge_haute = isset($conf->global->MAIN_PDF_MARGIN_TOP) ? $conf->global->MAIN_PDF_MARGIN_TOP : 10;
 		$this->marge_basse = isset($conf->global->MAIN_PDF_MARGIN_BOTTOM) ? $conf->global->MAIN_PDF_MARGIN_BOTTOM : 10;
 
+		$this->posxweightvol = $this->page_largeur - $this->marge_droite - 82;
+		$this->posxqtyordered = $this->page_largeur - $this->marge_droite - 60;
+		$this->posxqtytoship = $this->page_largeur - $this->marge_droite - 28;
+
 		$this->option_logo = 1; // Display logo
 
 		// Get source company

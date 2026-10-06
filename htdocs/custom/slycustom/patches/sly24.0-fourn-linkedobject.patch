@@ -469,9 +469,27 @@ index 2f27447b8db..12fe9b21150 100644
  		<td class="right"></td>
  	</tr>
 diff --git a/htdocs/fourn/facture/card.php b/htdocs/fourn/facture/card.php
-index 837f888f088..6704b7a39e0 100644
+index 837f888f088..cb33d769b0 100644
 --- a/htdocs/fourn/facture/card.php
 +++ b/htdocs/fourn/facture/card.php
+@@ -273,7 +273,7 @@ if (empty($reshook)) {
+ 						$newlang = GETPOST('lang_id', 'aZ09');
+ 					}
+ 					if (getDolGlobalInt('MAIN_MULTILANGS') && empty($newlang)) {
+-						$newlang = $object->thirdparty->default_lang;
++						$newlang = $object->thirdparty->default_lang ?? '';
+ 					}
+ 					if (!empty($newlang)) {
+ 						$outputlangs = new Translate("", $conf);
+@@ -346,7 +346,7 @@ if (empty($reshook)) {
+ 			if (getDolGlobalInt('MAIN_MULTILANGS') && empty($newlang) && GETPOST('lang_id','aZ09'))
+ 				$newlang = GETPOST('lang_id','aZ09');
+ 			if (getDolGlobalInt('MAIN_MULTILANGS') && empty($newlang))
+-				$newlang = $object->thirdparty->default_lang;
++				$newlang = $object->thirdparty->default_lang ?? '';
+ 			if (!empty($newlang)) {
+ 				$outputlangs = new Translate("", $conf);
+ 				$outputlangs->setDefaultLang($newlang);
 @@ -364,10 +364,25 @@ if (empty($reshook)) {
  			$action = '';
  		}
@@ -502,6 +520,15 @@ index 837f888f088..6704b7a39e0 100644
  	} elseif ($action == 'confirm_paid' && $confirm == 'yes' && $usercancreate) {
  		$object->fetch($id);
  		$result = $object->setPaid($user);
+@@ -416,7 +431,7 @@ if (empty($reshook)) {
+ 				$newlang = GETPOST('lang_id', 'aZ09');
+ 			}
+ 			if (getDolGlobalInt('MAIN_MULTILANGS') && empty($newlang)) {
+-				$newlang = $object->thirdparty->default_lang;
++				$newlang = $object->thirdparty->default_lang ?? '';
+ 			}
+ 			if (!empty($newlang)) {
+ 				$outputlangs = new Translate("", $conf);
 @@ -539,71 +554,75 @@ if (empty($reshook)) {
  			setEventMessages($object->error, $object->errors, 'errors');
  		}
@@ -613,7 +640,7 @@ index 837f888f088..6704b7a39e0 100644
 +					$newlang = GETPOST('lang_id', 'aZ09');
 +				}
 +				if (getDolGlobalInt('MAIN_MULTILANGS') && empty($newlang)) {
-+					$newlang = $object->thirdparty->default_lang;
++					$newlang = $object->thirdparty->default_lang ?? '';
 +				}
 +				if (!empty($newlang)) {
 +					$outputlangs = new Translate("", $conf);
@@ -645,6 +672,33 @@ index 837f888f088..6704b7a39e0 100644
  			if (!getDolGlobalString('MAIN_DISABLE_PDF_AUTOUPDATE')) {
  				$outputlangs = $langs;
  				$result = $object->generateDocument($object->model_pdf, $outputlangs, $hidedetails, $hidedesc, $hideref);
+@@ -1801,7 +1827,7 @@ if (empty($reshook)) {
+ 						$newlang = GETPOST('lang_id', 'aZ09');
+ 					}
+ 					if (empty($newlang)) {
+-						$newlang = $object->thirdparty->default_lang;
++						$newlang = $object->thirdparty->default_lang ?? '';
+ 					}
+ 					if (!empty($newlang)) {
+ 						$outputlangs = new Translate("", $conf);
+@@ -1949,7 +1975,7 @@ if (empty($reshook)) {
+ 					$newlang = GETPOST('lang_id', 'aZ09');
+ 				}
+ 				if (getDolGlobalInt('MAIN_MULTILANGS') && empty($newlang)) {
+-					$newlang = $object->thirdparty->default_lang;
++					$newlang = $object->thirdparty->default_lang ?? '';
+ 				}
+ 				if (!empty($newlang)) {
+ 					$outputlangs = new Translate("", $conf);
+@@ -2049,7 +2075,7 @@ if (empty($reshook)) {
+ 						$newlang = GETPOST('lang_id', 'aZ09');
+ 					}
+ 					if (getDolGlobalInt('MAIN_MULTILANGS') && empty($newlang)) {
+-						$newlang = $object->thirdparty->default_lang;
++						$newlang = $object->thirdparty->default_lang ?? '';
+ 					}
+ 					if (!empty($newlang)) {
+ 						$outputlangs = new Translate("", $conf);
 @@ -2803,12 +2829,22 @@ if ($action == 'create') {
  		}
  

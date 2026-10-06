@@ -325,3 +325,26 @@ multicurrency），SLY22 的 14 处定制整体静默丢失（又一例 3way 静
 外币 = 银行账户 `currency_code`、外币金额 = `abs(bankline->amount)`（银行账户币种的实际发生额）；本币 = 付款对象 amount。
 银行账户/BankTransactionLine 段复用 Amount 区已 fetch 的 `$bankline`（`empty($bankline->id)` 才重新 fetch），不产生重复查询。
 两页 patch 已重生成，php -l 与反向校验通过。
+
+### 6.5 供应商发票卡片 default_lang null 守卫（2026-10-05）
+
+**症状**：生产 error_log `Attempt to read property "default_lang" on null`（fourn/facture/card.php:614）。`setabsolutediscount`
+后 PDF 自动重生成块读 `$object->thirdparty->default_lang`，该 action 分支未加载 thirdparty——PHP 7 静默返回 null（按默认语言
+出 PDF），PHP 8 起 E_WARNING 进 error_log。官方原版同款写法全文件共 7 处（276/349/434/614/1830/1978/2078 附近）。
+
+**处置**：7 处统一改 `$object->thirdparty->default_lang ?? ''`（null 合并 isset 语义，thirdparty 已加载时行为完全不变）。
+`sly24.0-fourn-linkedobject.patch` 重新生成：8 文件不变，card.php 节 25 → 31 hunk（6 处守卫新增独立 hunk，
+setabsolutediscount 重写块内 1 处随原有 hunk），diff 基线仍为官方 blob `837f888f088`，目标 hash `cb33d769b0d`。
+`php -l` 与反向校验（`git apply --check -R -p2`）通过。**注意**：d-test2 若已应用旧版需先 `-R` 卸载再应用新版（或基线
+重放），bundle（sha 7dbda9b5）需重新生成。
+
+### 6.6 langs patch 移除 fr_FR 段（2026-10-05）
+
+**症状**：生产 apply/dry-run 报 `langs/fr_FR/main.lang: No such file or directory`——生产与本地均已精简语言包
+（仅留 en_US / en_SG / zh_CN），fr_FR 目录不存在，而 patch 仍保留精简**之前**生成的 fr_FR 段（`INCT=TVA+Taxes locales
+incluses` → `INCT=TTC` 单行翻译改动，无功能影响）。gen 脚本清单本就无 fr_FR（精简时已清），仅 patch 文件残留。
+
+**处置**：`sly24.0-langs.patch` 移除 fr_FR 段：11 → 10 段 / 10 → 9 文件；对基线正向 `--check` 与本地 repo 反向
+`--check -R` 均通过。**注意**：d-test2 需同步新版 patch（旧版含 fr_FR 段，对无 fr_FR 的环境恒 conflict），bundle 重新生成。
+配套基线包 `sly24_langs_baseline.tar.gz`（9 文件，无 fr_FR）与 `sly24_fourn_baseline.tar.gz`（8 文件）用于生产恢复
+官方 24.0.1 基线后再 apply（生产 langs 为 v22 遗留内容，多文件 `patch failed at 行号` 的根因）。
