@@ -5,6 +5,46 @@ Note: entries before 2.0.0 are a retroactive reconstruction from git history
 (the module shipped with the version constant 1.0.0 throughout); 2.0.0 is the
 first version managed through this file.
 
+2.3.6 (unreleased)
+- Core patch: sly24.0-core.patch adds the atd/ata/etd/eta pre-defaulting
+  block inside the render-time `if ($computed)` branch in
+  core/class/commonobject.class.php (~8859) — the module-layer
+  ensureShipmentDateOptionKeys() hook (introduced 2.3.3, broadened 2.3.5)
+  fires too late for cross-element computed-formula evaluation. Once a
+  Commande / Facture / SupplierOrder card or list pulls a linked Expedition
+  (fetchObjectLinked() etc.), Dolibarr 24 evaluates the ATD/ATA delay
+  formula (registered on 'expedition') against the page global whose
+  array_options has no shipment keys, raising
+  "Undefined array key options_atd/ata" warnings at lines like
+  commande/error_log and fourn/commande/error_log. Pre-seed is
+  element-agnostic (is_array check + array_key_exists) and never persists
+  — core save filters by declared elementtype. See APPLY-ON-24.md §6.7.
+- fourn/facture/card.php: null-guard `$societe->default_lang` in the
+  document list (line ~4584) — production
+  "Attempt to read property default_lang on null" when $societe is null
+  in the documents tab; sly24.0-fourn-linkedobject.patch gained one hunk.
+  See APPLY-ON-24.md §6.9.
+
+2.3.5 (2026-10-06)
+- Hooks: the ShipsGo date-key pre-defaulting (2.3.3) is now unconditional
+  on the page-global object instead of enumerating elements. Reports kept
+  arriving one element at a time — sales order card (linked-objects block
+  fetchObjectLinked() full-fetches every linked Expedition) and supplier
+  order card (same at fourn/commande/card.php ~L2932; element
+  'order_supplier' was never in the list) — because any page that fetches
+  an Expedition during rendering evaluates the delay formulas against its
+  own global $object, which cannot guard itself. Keys are only added when
+  absent and are never persisted (core saves only extrafields declared for
+  the element). Module layer, no core patch.
+- Core patch: expedition/class/expedition.class.php setClosed() guards the
+  order-line shipped-qty lookup with ?? 0 (official 24.0.1 reads
+  $order->expeditions[$lineid] with no key guard — loadExpeditions(STATUS_
+  CLOSED) only creates keys for lines with shipped qty, so service lines /
+  partial shipments raised two "Undefined array key <rowid>" warnings per
+  classify-closed; behaviour unchanged, missing key already compared as a
+  mismatch). First SLY change on this file; sly24.0-other-modules.patch
+  regenerated (+1 section, 16 lines). See APPLY-ON-24.md §6.8.
+
 2.3.4 (2026-10-05)
 - PDF templates: PHP 8 warning cleanup (production error-log noise,
   commande/error_log).

@@ -8859,6 +8859,20 @@ abstract class CommonObject
 		if ($computed) {
 			global $objectoffield;
 			$objectoffield = $this;
+			// SLY24 patch — pre-seed shipment date options referenced by cross-element
+			// computed formulas (ATD/ATA delay formula registered on 'expedition' is
+			// evaluated here against any object whose own extrafields don't include
+			// those keys — commande/facture card + linked-object fetches). Without
+			// this PHP 8 raises "Undefined array key options_atd/ata" warnings. Only
+			// adds keys when absent and never persists (extrafields save still
+			// filters by declared elementtype).
+			if (is_array($this->array_options ?? null)) {
+				foreach (array('options_atd', 'options_etd', 'options_ata', 'options_eta') as $k) {
+					if (!array_key_exists($k, $this->array_options)) {
+						$this->array_options[$k] = 0;
+					}
+				}
+			}
 			// Make the eval of compute string
 			//var_dump($computed);
 			$value = dol_eval((string) $computed, 1, 0, '2');

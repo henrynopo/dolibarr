@@ -362,3 +362,49 @@ incluses` → `INCT=TTC` 单行翻译改动，无功能影响）。gen 脚本清
 自动 +1，即 4/5），列数注释同步。ref_supplier 信息无丢失（仍显示于发票号下方副标题）。patch 重生成仅动 paiement.php
 节（2 hunk，行数不变 1585）；顺带修正旧版手误的 card.php 目标 index hash（`cb33d769b0e` → 真值 `cb33d769b0d`，与 §6.5
 记载一致）。`php -l` 与反向校验（`git apply --check -R -p2`，于 htdocs 目录）通过。
+
+### 6.8 expedition setClosed() 订单行发运量缺键警告修复（2026-10-06）
+
+**症状**：生产 error_log `Undefined array key 11560` ×2（expedition/class/expedition.class.php:2974/2976）。入口有二：①Shipment
+卡片/列表「classify closed」；②**compta/facture 验证发票**——`interface_20_modWorkflow_WorkflowManager` 触发器在
+`WORKFLOW_SHIPPING_CLASSIFY_CLOSED_INVOICE`（deprecated 变体，生产在用）开启时对每个关联 Shipment 调
+`setClosed()`，警告因此在 compta 页面请求内落 log。**官方 24.0.1 原版 bug**：`setClosed()` 用
+`$order->expeditions[$lineid]` 按订单行 rowid 取已关闭发运量，而 `loadExpeditions(STATUS_CLOSED)` 只为有发运量的行建键
+——服务行、未发运/部分发运行无键 → PHP 8 每行两条警告。行为本就正确（null≠qty 判不匹配、不误关订单），纯噪音。
+
+**处置**：2974/2976 两处 `?? 0` 守卫（语义等价：缺键原本按 null 参与 `!=`，与 0 的比较结论一致，不影响
+`shipments_match_order` 判定与订单自动关闭逻辑）。该文件**首个** SLY 改动（此前与 24.0.1 零差异），
+`sly24.0-other-modules.patch` 重生成：2052 → 2068 行（+1 节 / 1 hunk / 16 行，其余节零变动）。`php -l` 与反向校验
+（`git apply --check -R -p2`，htdocs 目录）通过。**注意**：d-test2 已应用旧 other-modules patch 的需 `-R` 卸载再重放；
+生产需同步 expedition/class/expedition.class.php。同日模块层配套（不进 patch）：slycustom doActions 的 ShipsGo 键预置改为对
+页面全局对象**无条件**执行（原按 element 枚举，facture→commande→order_supplier 逐例报障逐例补——供应商订单卡
+fourn/commande/card.php ~L2932 的关联对象块同样完整 fetch 关联 Expedition，element=`order_supplier` 不在清单内；凡渲染期
+fetch Expedition 的页面都会以自身全局 `$object` 求值公式）。键仅在缺失时添加、不入库（core 只保存该 element 已声明的
+extrafields）。ChangeLog 2.3.5。
+
+### 6.9 core patch：computed formula 渲染期 atd/ata/etd/eta 缺键告警修复（2026-10-07）
+
+**症状**：commande/error_log、compta/facture/error_log、fourn/commande/error_log 持续刷
+`Undefined array key "options_atd"/"options_ata"`（09:10–25 段峰），`expedition/error_log` 不出现。slycustom 2.3.5
+已把 `ensureShipmentDateOptionKeys()` 提为对页面全局 `$object` 无条件，但**仍触发**——根因：slycustom doActions
+钩子的执行时机是页面进入控制流时；computed-field 公式在 `commonobject.class.php:8860` 的 `dol_eval()` 里**渲染期**
+被求值，对象是 `printExtraFields()` 当前正在迭代的局部 `$object`，而不是 slycustom 钩子里的页面全局
+`$object`。当 invoice/commande 卡片或 supplier order 卡片 fetch 关联 Expedition 后渲染其
+`array_options`，公式（注册在 `expedition` 元素上）会被 evaluate 到这张当前对象的 `array_options`——而
+commande/facture/order_supplier 自身不声明 atd/ata 键。
+
+**处置**：在 `core/class/commonobject.class.php:8859` 的 `if ($computed)` 分支内，`$objectoffield = $this;`
+之后立刻对 `$this->array_options` 做 atd/ata/etd/eta 预填（`is_array(...) ?? null` 守卫 + `array_key_exists`
+判存在，`isset` 失败键补 0）。补丁段独立、可独立 forward/reverse dry-run 通过。`sly24.0-core.patch`
+8857,8 → 8857,22（+14 行）。`php -l` 与反向校验通过。**注**：doActions 钩子期预填**不取消**（仍有部分列表渲染路径
+依赖），两层叠加。
+
+### 6.10 fourn/facture/card.php:4584 `$societe->default_lang` null 守卫（2026-10-07）
+
+**症状**：`compta/facture/card.php` 某路径下日志里 "Attempt to read property default_lang on null"；与 6.5 的
+`$object->thirdparty->default_lang` 是**不同位置**——本处是 `$formfile->showdocuments(..., $societe->default_lang)`
+的尾参，`$societe`（供应商 societe 实例）未初始化即被解引用。生产报告行号 3396，本地仓库因其他改动使
+该语句位于 4584；hunk header 用本地坐标，加载到生产后由 patch 工具自动 remap。
+
+**处置**：单 hunk 改 `$societe->default_lang` → `is_object($societe) ? $societe->default_lang : ''`。
+`sly24.0-fourn-linkedobject.patch` +1 节（7 行），正反 `git apply --check` 通过。ChangeLog 2.3.6。
