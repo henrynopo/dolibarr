@@ -135,7 +135,16 @@ git apply --ignore-whitespace htdocs/custom/slycustom/patches/sly24.0-accountanc
 
 # 14. 语言包（SLY 翻译）
 git apply --ignore-whitespace htdocs/custom/slycustom/patches/sly24.0-langs.patch
+
+# 15. slycustom 模块钩子（发货单 extrafield 日期默认今天；其它 24 部署无需此步）
+git apply --ignore-whitespace htdocs/custom/slycustom/patches/sly24.0-slycustom-shipment-eta-default.patch
 ```
+
+**sly24.0-slycustom-shipment-eta-default.patch**：24 升级后，发货单（`expedition`）的日期类 extrafield（eta、etd 等）创建/编辑页默认显示 **1970-01-01**，而 SLY22.0.4 是默认当天。根因：[extrafields.class.php:3008-3010](htdocs/core/class/extrafields.class.php#L3008) 的 `setOptionalsFromPost` 把空日期存为 `''`，落到 `llxsf_expedition_extrafields.options_xxx`（DEFAULT 0 的 INT 列）就成 `0`；[commonobject.class.php:9788-9799](htdocs/core/class/commonobject.class.php#L9788) 读出 `0` → `selectDate(0, ..., $emptydate=2, ...)` → 走 [html.form.class.php:8506](htdocs/core/class/html.form.class.php#L8506) 的合法时间戳分支 → 1970-01-01。
+
+本 patch 在 `custom/slycustom/class/ActionsSlycustomShippingCardHooksTrait.php` 末尾追加 `showOptionals` 钩子，对 `$object->element == 'shipping'` 且 `$mode ∈ {create, edit}` 时遍历 date 类 extrafield，把空值/0/`'0'` 预置为 `dol_now('tzuser')`；触发点 [commonobject.class.php:9608](htdocs/core/class/commonobject.class.php#L9608) 在 foreach 渲染之前。view 模式不注入，历史值保留可见。
+
+测试：生产 slyfood.com `expedition/card.php?action=create` 新建页 ETD/ETA 自动显示当天；编辑老 shipment 时 ETA 历史 0 值也显示当天。
 
 **数据库（一次性）**：
 - `archive/sly22.0-expedition-extrafields.sql`（ShipsGo 扩展字段）——22 升级时已执行过的库无需重跑；新库执行一次（24.0.1 启用 slycustom 模块时由 `sql/llx_slycustom_*.sql` 自动建表/补扩展字段，**不要**重复跑 archive 下的 SQL 以防与 24 字典冲突）
@@ -408,3 +417,79 @@ commande/facture/order_supplier 自身不声明 atd/ata 键。
 
 **处置**：单 hunk 改 `$societe->default_lang` → `is_object($societe) ? $societe->default_lang : ''`。
 `sly24.0-fourn-linkedobject.patch` +1 节（7 行），正反 `git apply --check` 通过。ChangeLog 2.3.6。
+
+### 6.11 dol_eval_standard 内 `$object` 兜底 array_options + ShipsGo 四键预填——缺键告警的真正根治（2026-10-08）
+
+**背景**：6.9 的 commonobject 8859 预填上传生产后告警**仍在**（上传经 FTP 确认、文件一致、PHP 8.2.24 无
+OPcache，排除缓存与上传问题）。
+
+**根因（深挖后定位）**：`dol_eval_standard()` 里 `global $object` 绑定的是**页面全局 `$object`**，而公式
+`$object->array_options['options_atd']` 引用的正是这个变量。三条 eval 路径全部命中它：
+`fetch_optionals()`（commonobject:6885，卡片加载必经）、`showOutputField()`（8878，渲染）、
+insert/updateExtraFields（7029/7519）。8859 的预填只作用于 `showOutputField` 的 `$this`，对 fetch_optionals
+路径求值时的页面全局毫无作用。全局 `$object` 有三种状态，三种都会告警：
+1. `null`（部分列表/AJAX 上下文）→ 现有 SLY null-guard 造出的 `stdClass` **没有 array_options 属性**；
+2. 同上 stdClass → `isset($object->array_options)` false，`$object->array_options` 为 null 降级；
+3. **真实对象**（Commande/Facture 卡片，最常见）→ `array_options` 是数组但**没有** shipment 四键——
+   之前给 `$obj` 做过同类兜底，`$object` 一直漏着。
+
+**处置**：`sly24.0-core.patch` 的 `@@ -12313,9 +12331,52 @@` hunk（原 +23 → +52，净 +29 行）：
+1. `if (!isset($object->array_options) || !is_array(...)) { $object->array_options = array(); }` 兜底；
+2. `foreach (array('options_atd','options_etd','options_ata','options_eta') as $slyk)` 缺键补 0
+   （0 使公式三元保持假分支输出 `''`；循环变量用 `$slyk`，**不可用 `$s`**——那是被求值的公式字符串本身）；
+3. 下游 hunk `@@ -16155,9 +16216,11` 与 `@@ -16166,14 +16229,13`（new 起点 +29）。
+
+键不持久化：core 的 extrafield 保存只遍历该元素声明的 attributes，不遍历 array_options 内容；与
+fetch_optionals 自带的 `null` 预填同模式。**模拟验证**（PHP 8.2 CLI，error_reporting E_ALL +
+set_error_handler 捕获）：null / stdClass / Commande 型（有 array_options 无 shipment 键）/ Expedition 型
+（有真实 atd/etd）四场景两公式全部**零警告**，第四场景正确算出 1.0 天延迟。正反 `git apply --check` 与
+`php -l` 通过。6.9 的 8859 预填与 slycustom 钩子预填**保留不撤**（纵深防御，列表 per-row `$obj` 路径仍依赖）。
+
+### 6.12 compta/facture/card.php 客户发票 `$object->thirdparty->default_lang` null 守卫（2026-10-08）
+
+**症状**：生产 `compta/facture/error_log` 报 line 3396 "Attempt to read property default_lang on null"。与 6.10 的
+fourn `$societe` 是**不同文件不同变量**——本处是客户发票 addine/updateing 等 action 后重生成 PDF 的路径：
+`$object->fetch($id)` 只 reload 主记录，`->thirdparty` 保持 null 即被解引用。
+
+**处置**：本地 842 与 3396 两处同结构代码（action 后 PDF 重生成分支）一并加
+`is_object($object->thirdparty) ? $object->thirdparty->default_lang : ''` 守卫——842 是孪生路径，同样暴露，
+一起修避免二次往返。`sly24.0-compta-multicurrency.patch` 该文件 section 新增两 hunk
+（`@@ -819,7 +842,7 @@`、`@@ -3374,7 +3396,7 @@`，净增 0 行，下游 hunk 坐标不动）。正反 dry-run + `php -l`
+通过。其余 12 处 `$object->thirdparty->default_lang`（335/370/658/775/934/2394/2489/2542/2770/2949/3095/3136）
+在页面渲染早期 `fetch_thirdparty()` 已加载的路径上，不修（YAGNI）。
+
+### 6.13 ai/admin/custom_prompt.php `bookkeepingsuggest` 缺键守卫（2026-10-08）
+
+**症状**：`Undefined array key "picto"/"label"`（ai/admin/custom_prompt.php:377）。EmbeddedBookkeeping 往
+`AI_CONFIGURATIONS_PROMPT` 常量写入自定义 function 键 `bookkeepingsuggest`，但核心 `getListOfAIFeatures()`
+（ai/lib/ai.lib.php）是硬编码列表、无 hook 扩展点——页面 377 行对配置键直接索引
+`$arrayofaifeatures[$confkey]['picto']/['label']` 即告警。
+
+**处置**：单行守卫 `($arrayofaifeatures[$confkey]['picto'] ?? '')` + label 缺失时回退 `$confkey`
+（`$langs->trans` 对未翻译键原样输出，正好显示键名）。通用防御：任何模块注册的自定义 AI function 键都不再炸。
+新 section（该文件首次入 patch）按字母序**置于最前**（ai < conf），加进
+`sly24.0-misc-cron-other.patch`（`@@ -374,7 +374,7 @@`，净增 0）。正反 dry-run + `php -l` 通过。
+
+### 6.14 core/tpl/extrafields_list_search_sql.tpl.php 日期范围过滤缺键守卫（2026-10-08）
+
+**症状**：`expedition/error_log` 报 line 72 `Undefined array key "end"`（11:54/11:56）。列表搜索对
+date/datetime/timestamp 型 extrafield 提交**只有一端**的日期范围（`start` 有 `end` 无，或反之）时，
+72/74/76 行直接索引 `$crit['start']`/`$crit['end']` 即告警。上游 24.0.1 假设两端总是一起提交。
+
+**处置**：提取 `$critstart`/`$critend` 局部变量（`isset(...) ? ... : null` 守卫），三分支
+（BETWEEN / >= / <=）全部改用局部变量，语义不变。新 section（该文件首次入 patch）按字母序插在
+`core/modules/payment/mod_payment_ant.php` 与 `core/tpl/list_print_total.tpl.php` 之间，加进
+`sly24.0-core.patch`（`@@ -69,12 +69,16 @@`，净 +4）。正反 dry-run + `php -l` 通过。
+**附带发现**：core/tpl/ajaxrow.tpl.php 的 `$fk_element` 修复（commit 3f95862a230）只改了本地文件、
+**未进任何 patch**——生产是手工上传的，下次重放 patch 体系会丢失，待补录。
+
+### 6.15 fourn/facture/card.php `$amountdeposit[$tva_tx] +=` 缺键守卫（2026-10-08）
+
+**症状**：`fourn/facture/error_log` 报 line 1295 `Undefined array key "0.000"`（12:19-12:24 三次）。
+从订单创建供应商发票选"可变百分比押金"（typeamount=variable）时，循环内
+`$amountdeposit[$tva_tx] += ...` 对**首次出现的税率键**（0% 税率行，键名字符串 "0.000"）先读后写触发
+PHP 8 警告。**官方不对称 bug**：客户侧 compta/facture/card.php:1896-1897 有
+`if (empty($amountdeposit[$tva_tx])) { $amountdeposit[$tva_tx] = 0; }` 守卫，供应商侧漏了同样的三行。
+
+**处置**：补上与客户侧完全一致的官方模式守卫（3 行）。`sly24.0-fourn-linkedobject.patch` 该文件
+section 新增 hunk `@@ -1273,6 +1292,9 @@`，其后 26 个 hunk new 起点 +3。正反 dry-run + `php -l` 通过。

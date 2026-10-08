@@ -80,5 +80,59 @@ trait ActionsSlycustomShippingCardHooksTrait
 
 		return 0;
 	}
+
+	/**
+	 * Overloading the showOptionals hook.
+	 *
+	 * Shipment extrafield date inputs used to default to "today" in v22 but in v24 they
+	 * display 1970-01-01 because the value 0 reaches selectDate() and is treated as a
+	 * legitimate Unix timestamp (see core/class/html.form.class.php:8506 — the comment
+	 * "set_time est un timestamps (0 possible)"). The 0 originates from:
+	 *   - POST → setOptionalsFromPost:3010 returns dol_mktime(12,0,0,0,0,0) = '' (empty),
+	 *     then showOptionals:9793 sees !is_numeric('') → jdate('') = 0 → value=0.
+	 *   - DB row stored with options_xxx = 0 (the empty POST value written into an INT
+	 *     column becomes 0 in subsequent SELECTs).
+	 *
+	 * We pre-seed $array_options with dol_now('tzuser') for any date-typed shipment
+	 * extrafield whose current value is unset, '', 0, or '0'. The hook fires once per
+	 * showOptionals call, before the foreach renders each field. Both create/edit modes
+	 * benefit; view mode is skipped so historical values remain visible.
+	 *
+	 * Hook signature: $parameters = array('mode','params','keysuffix','display_type').
+	 *
+	 * @param array        $parameters Hook parameters
+	 * @param CommonObject $object     Object (here: Expedition = element 'shipping')
+	 * @param string       $action     Current action
+	 * @param HookManager  $hookmanager Hook manager
+	 * @return int 0 on success
+	 */
+	public function showOptionals($parameters, &$object, &$action, $hookmanager)
+	{
+		global $extrafields;
+
+		if (empty($object->element) || $object->element != 'shipping') {
+			return 0;
+		}
+		if (empty($parameters['mode']) || !in_array($parameters['mode'], array('create', 'edit'))) {
+			return 0;
+		}
+		if (!is_object($extrafields) || empty($extrafields->attributes[$object->table_element]['type'])) {
+			return 0;
+		}
+
+		$today = dol_now('tzuser');
+		foreach ($extrafields->attributes[$object->table_element]['type'] as $key => $type) {
+			if ($type !== 'date') {
+				continue;
+			}
+			$opt_key = 'options_'.$key;
+			$current = isset($object->array_options[$opt_key]) ? $object->array_options[$opt_key] : null;
+			if ($current === null || $current === '' || $current === 0 || $current === '0') {
+				$object->array_options[$opt_key] = $today;
+			}
+		}
+
+		return 0;
+	}
 }
 
