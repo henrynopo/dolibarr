@@ -123,5 +123,16 @@
 <Version Number="18.0.+2.2.0" MonthVersion="2023-09">
 	<change type='chg'>V 18 compatibility</change>
 </Version>
+<Version Number="24.0.+2.3.0" MonthVersion="2026-10">
+	<change type='chg'>V24 compatibility (migrated into HaoSG custom stack, family HaoSG)</change>
+	<change type='fix'>Security hardening: permission checks on entry points, CSRF tokens, XSS output escaping</change>
+	<change type='add'>Admin setup: tag/link feature toggles + allowed link target types selector</change>
+	<change type='add'>Business link rules per source type (SO/PO/Shipment/Invoice, max 1 link) with validation in addlink</change>
+	<change type='chg'>multicompany support: entity column on element_tag</change>
+	<change type='fix'>PHP 8 hook compatibility (resprints/results properties)</change>
+	<change type='fix'>Dictionary labels fixed: Contract, BOM, Sales order, Manufacturing order, Vendor proposals, Equipment series</change>
+	<change type='add'>Admin setup: one-click dictionary label sync button (no re-enable, config kept)</change>
+	<change type='chg'>English lang cleanup: French leftovers removed (Shipment, Supplier order, brief labels, stale menu hint)</change>
+</Version>
 <Dolibarr minVersion="10.0.0" maxPhpVersion="8"/>
 </changelog>

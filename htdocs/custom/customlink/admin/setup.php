@@ -59,6 +59,17 @@ if ($action == 'update') {
 	}
 }
 
+// Sync dictionary display labels to module's authoritative list (button below)
+if ($action == 'syncdict') {
+	$result = customlink_sync_dictionary_labels($db);
+	if (!empty($result['error'])) {
+		setEventMessages($result['error'], null, 'errors');
+	} else {
+		setEventMessages($langs->trans("CustomlinkSyncDictDone", $result['updated']), null, 'mesgs');
+	}
+	$action = '';
+}
+
 // Default to enabled when constant not set (e.g. first install)
 $enable_tag = (getDolGlobalString('CUSTOMLINK_ENABLE_TAG') !== '0');
 $enable_link = (getDolGlobalString('CUSTOMLINK_ENABLE_LINK') !== '0');
@@ -149,9 +160,19 @@ print '</div>';
 print '</form>';
 print '</div>';
 
-print '<p class="margin-top-2">'.$langs->trans("SettingIsOnToolsMenu").'</p>';
-
 dol_fiche_end();
+
+// Dictionary label sync section (independent form, POST + CSRF token)
+print '<br>';
+print load_fiche_titre($langs->trans("CustomlinkSyncDict"));
+print '<form action="'.$_SERVER["PHP_SELF"].'" method="POST">';
+print '<input type="hidden" name="token" value="'.newToken().'">';
+print '<input type="hidden" name="action" value="syncdict">';
+print '<table class="noborder centpercent">';
+print '<tr class="oddeven"><td>'.$langs->trans("CustomlinkSyncDictDesc").'</td>';
+print '<td class="right"><input type="submit" class="button" value="'.$langs->trans("CustomlinkSyncDict").'"></td></tr>';
+print '</table>';
+print '</form>';
 
 /*
  *  Infos pour le support

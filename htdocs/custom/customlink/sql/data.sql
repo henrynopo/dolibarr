@@ -29,18 +29,18 @@ insert into llx_c_element_type ( type, label, classpath, subelement, module, tra
 insert into llx_c_element_type ( type, label, classpath, subelement, module, translatefile, classfile, className, incore) values 
 							('propal', 'Proposal', 'comm/propal/class', 'propal', 'propal', 'propal', 'propal', 'Propal', 1);
 insert into llx_c_element_type ( type, label, classpath, subelement, module, translatefile, classfile, className, incore) values 
-							('commande', 'Order', 'commande/class', 'commande', 'commande', 'orders', 'commande', 'Commande', 1);
+							('commande', 'Sales order', 'commande/class', 'commande', 'commande', 'orders', 'commande', 'Commande', 1);
 insert into llx_c_element_type ( type, label, classpath, subelement, module, translatefile, classfile, className, incore) values 
 							('facture', 'Bill', 'compta/facture/class', 'facture', 'facture', 'bills', 'facture', 'Facture', 1);
 insert into llx_c_element_type ( type, label, classpath, subelement, module, translatefile, classfile, className, incore) values 
 							('fichinter', 'Intervention', 'fichinter/class', 'ficheinter', 'fichinter', 'fichinter', 'fichinter', 'Fichinter', 1);
-insert into llx_c_element_type ( type, label, classpath, subelement, module, translatefile, classfile, className, incore) values 
-							('contrat', 'Contrat', 'contrat/class', 'contrat', 'contrat', 'contrat', 'contrat', 'Contrat', 1);
+insert into llx_c_element_type ( type, label, classpath, subelement, module, translatefile, classfile, className, incore) values
+							('contrat', 'Contract', 'contrat/class', 'contrat', 'contrat', 'contracts', 'contrat', 'Contrat', 1);
 insert into llx_c_element_type ( type, label, classpath, subelement, module, translatefile, classfile, className, incore) values 
 							('order_supplier', 'SupplierOrder', 'fourn/class', 'fournisseur', 'fournisseur', 'orders', 'fournisseur.commande', 'CommandeFournisseur', 1);
 insert into llx_c_element_type ( type, label, classpath, subelement, module, translatefile, classfile, className, incore) values 
 							('invoice_supplier', 'SupplierInvoice', 'fourn/class', 'fournisseur', 'fournisseur', 'bills', 'fournisseur.facture', 'FactureFournisseur', 1);
-insert into llx_c_element_type ( type, label, classpath, subelement, module, translatefile, classfile, className, incore) values 
+insert into llx_c_element_type ( type, label, classpath, subelement, module, translatefile, classfile, className, incore) values
 							('shipping', 'Shipping', 'expedition/class', 'expedition', 'expedition', 'expedition', 'expedition', 'Expedition', 1);
 
 -- contact type of societe
@@ -51,11 +51,11 @@ insert into llx_c_type_contact ( rowid, element, source, code, libelle, active, 
 
 
 insert into llx_c_element_type ( type, label, classpath, subelement, module, translatefile, classfile, className, incore) values 
-									('equipement', 'Equipement', 'equipement/class', 'equipement', 'equipement', 'equipement', 'equipement', 'Equipement', 0);
+									('equipement', 'Equipment', 'equipement/class', 'equipement', 'equipement', 'equipement', 'equipement', 'Equipement', 0);
 insert into llx_c_element_type ( type, label, classpath, subelement, module, translatefile, classfile, className, incore) values 
-									('equipement_equipevent', 'Equipevent', 'equipement/class', 'equipement', 'equipement', 'equipement', 'equipement', 'Equipevent', 0);
+									('equipement_equipevent', 'Equipment event', 'equipement/class', 'equipement', 'equipement', 'equipement', 'equipement', 'Equipevent', 0);
 insert into llx_c_element_type ( type, label, classpath, subelement, module, translatefile, classfile, className, incore) values 
-									('equipement_equipconso', 'Equipconso', 'equipement/class', 'equipement', 'equipement', 'equipement', 'equipement', 'Equipconso', 0);
+									('equipement_equipconso', 'Equipment consumable', 'equipement/class', 'equipement', 'equipement', 'equipement', 'equipement', 'Equipconso', 0);
 
 insert into llx_c_element_type ( type, label, classpath, subelement, module, translatefile, classfile, className, incore) values 
 									('factory', 'Factory', 'factory/class', 'factory', 'factory', 'factory', 'factory', 'Factory', 0);
@@ -64,8 +64,8 @@ insert into llx_c_element_type ( type, label, classpath, subelement, module, tra
 									('ticketsup', 'TicketSup', 'ticketsup/class', 'ticketsup', 'ticketsup', 'ticketsup', 'ticketsup', 'ticketsup', 0);
 
 insert into llx_c_element_type ( type, label, classpath, subelement, module, translatefile, classfile, className, incore) values 
-									('supplier_proposal', 'SupplierProposal', 'supplier_proposal/class', 'supplier_proposal', 'supplier_proposal', 'supplier_proposal', 'supplier_proposal', 'supplier_proposal', 1);
+									('supplier_proposal', 'Vendor proposals', 'supplier_proposal/class', 'supplier_proposal', 'supplier_proposal', 'supplier_proposal', 'supplier_proposal', 'supplier_proposal', 1);
 insert into llx_c_element_type ( type, label, classpath, subelement, module, translatefile, classfile, className, incore) values 
-									('bom', 'bom', 'bom/class', 'bom', 'bom', 'bom', 'bom', 'bom', 1);
+									('bom', 'BOM', 'bom/class', 'bom', 'bom', 'bom', 'bom', 'bom', 1);
 insert into llx_c_element_type ( type, label, classpath, subelement, module, translatefile, classfile, className, incore) values 
-									('mrp', 'mrp', 'mrp/class', 'mrp', 'mrp', 'mrp', 'mo', 'mrp', 1);
+									('mrp', 'ManufacturingOrder', 'mrp/class', 'mrp', 'mrp', 'mrp', 'mo', 'mrp', 1);

@@ -215,6 +215,48 @@ function customlink_validate_link_allowed($db, $type_source, $fk_source, $type_t
 }
 
 /**
+ * Sync c_element_type dictionary labels to the module's authoritative list.
+ * Fixes display names without a full data.sql reload (no re-enable, config kept).
+ * Keep in sync with sql/data.sql labels.
+ *
+ * @param DoliDB $db Database handler
+ * @return array array('updated' => int, 'error' => string) error empty when ok
+ */
+function customlink_sync_dictionary_labels($db)
+{
+	// type => fields to force (label, and translatefile where the core lang file changed)
+	$map = array(
+		'commande' => array('label' => 'Sales order'),
+		'contrat' => array('label' => 'Contract', 'translatefile' => 'contracts'),
+		'bom' => array('label' => 'BOM'),
+		'mrp' => array('label' => 'ManufacturingOrder'),
+		'supplier_proposal' => array('label' => 'Vendor proposals'),
+		'equipement' => array('label' => 'Equipment'),
+		'equipement_equipevent' => array('label' => 'Equipment event'),
+		'equipement_equipconso' => array('label' => 'Equipment consumable'),
+	);
+
+	$updated = 0;
+	$err = '';
+	foreach ($map as $type => $fields) {
+		$sets = array();
+		foreach ($fields as $col => $val) {
+			$sets[] = $col." = '".$db->escape($val)."'";
+		}
+		$sql = "UPDATE ".MAIN_DB_PREFIX."c_element_type SET ".implode(', ', $sets);
+		$sql .= " WHERE type = '".$db->escape($type)."'";
+		$resql = $db->query($sql);
+		if ($resql) {
+			$updated += (int) $db->affected_rows($resql);
+		} else {
+			$err = $db->lasterror;
+			break;
+		}
+	}
+	return array('updated' => $updated, 'error' => $err);
+}
+
+/**
  *	Return list of type
  *
  *	@param  string	$selected	   Preselected type
