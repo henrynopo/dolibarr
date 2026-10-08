@@ -69,12 +69,16 @@ if (!empty($extrafieldsobjectkey) && !empty($search_array_options) && is_array($
 				}
 				$sqlMoreWhere .= " AND ".$db->sanitize($extrafieldsobjectprefix.$tmpkey)." = '".$db->idate($crit)."'";
 			} elseif (is_array($crit)) {
-				if (!is_null($crit['start']) && $crit['start'] !== '' && !is_null($crit['end']) && $crit['end'] !== '') {
-					$sqlMoreWhere .= " AND (".$db->sanitize($extrafieldsobjectprefix.$tmpkey)." BETWEEN '". $db->idate($crit['start']). "' AND '".$db->idate($crit['end']) . "')";
-				} elseif (!is_null($crit['start']) && $crit['start'] !== '') {
-					$sqlMoreWhere .= " AND (".$db->sanitize($extrafieldsobjectprefix.$tmpkey)." >= '". $db->idate($crit['start'])."')";
-				} elseif (!is_null($crit['end']) && $crit['end'] !== '') {
-					$sqlMoreWhere .= " AND (".$db->sanitize($extrafieldsobjectprefix.$tmpkey)." <= '". $db->idate($crit['end'])."')";
+				// SLY24: partial date-range filters submit only one of start/end; reading the
+				// missing key raises "Undefined array key start/end" warnings in PHP 8.1+.
+				$critstart = (isset($crit['start']) ? $crit['start'] : null);
+				$critend = (isset($crit['end']) ? $crit['end'] : null);
+				if (!is_null($critstart) && $critstart !== '' && !is_null($critend) && $critend !== '') {
+					$sqlMoreWhere .= " AND (".$db->sanitize($extrafieldsobjectprefix.$tmpkey)." BETWEEN '". $db->idate($critstart). "' AND '".$db->idate($critend) . "')";
+				} elseif (!is_null($critstart) && $critstart !== '') {
+					$sqlMoreWhere .= " AND (".$db->sanitize($extrafieldsobjectprefix.$tmpkey)." >= '".$db->idate($critstart)."')";
+				} elseif (!is_null($critend) && $critend !== '') {
+					$sqlMoreWhere .= " AND (".$db->sanitize($extrafieldsobjectprefix.$tmpkey)." <= '".$db->idate($critend)."')";
 				}
 			}
 		} elseif (in_array($typ, array('boolean'))) {

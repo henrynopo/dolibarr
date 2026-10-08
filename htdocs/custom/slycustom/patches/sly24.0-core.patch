@@ -777,7 +777,7 @@ index b9ef9d3c5fb..727d385f99f 100644
  			'__MYCOMPANY_FULLADDRESS__' => (method_exists($mysoc, 'getFullAddress') ? $mysoc->getFullAddress(1, ', ') : ''),	// $mysoc may be stdClass
  			'__MYCOMPANY_ADDRESS__' => $mysoc->address,
  			'__MYCOMPANY_VATNUMBER__' => $mysoc->tva_intra,
-@@ -12313,9 +12331,23 @@ function dol_eval_standard($s, $hideerrors = 1, $onlysimplestring = '1')
+@@ -12313,9 +12331,52 @@ function dol_eval_standard($s, $hideerrors = 1, $onlysimplestring = '1')
  	global $objectoffield;	// To allow the use of $objectoffield in computed fields
  	global $object;
  
@@ -785,6 +785,35 @@ index b9ef9d3c5fb..727d385f99f 100644
 +	if (!isset($object) || $object === null) {
 +		$object = new stdClass();
 +		$object->lines = array();
++	}
++	// SLY: Guarantee $object->array_options is an array so computed formulas
++	// referencing $object->array_options['options_xxx'] never raise
++	// "Undefined array key options_xxx" warnings in PHP 8.1+. Computed formulas
++	// run against the PAGE global $object (see 'global $object' above): when a
++	// commande/facture/fourn page fetches a linked Expedition, the ShipsGo
++	// delay formula (registered on 'expedition') is evaluated against the page
++	// global whose array_options carries no shipment keys, and the null-guard
++	// stdClass above has no array_options property at all. slycustom seeds the
++	// four ShipsGo keys via ensureShipmentDateOptionKeys() in card/list hooks;
++	// this array fallback is defence-in-depth for eval paths no hook covers.
++	if (!isset($object->array_options) || !is_array($object->array_options)) {
++		$object->array_options = array();
++	}
++	// SLY: Seed the four ShipsGo shipment-date keys when missing, so cross-element
++	// computed formulas ($object->array_options['options_atd'] ...) never raise
++	// "Undefined array key" in PHP 8.1+. Real page-global objects (Commande,
++	// Facture...) already have an array_options array but no shipment keys; only
++	// backfilling the array (above) would still leave the warnings in place.
++	// Key value 0 keeps the formulas' ternary on the false branch ('' result) and
++	// the keys are never persisted: core extrafield saves iterate the attributes
++	// declared for the element, not the array_options content. Loop var is $slyk
++	// because $s is the formula string being evaluated.
++	if (is_array($object->array_options)) {
++		foreach (array('options_atd', 'options_etd', 'options_ata', 'options_eta') as $slyk) {
++			if (!array_key_exists($slyk, $object->array_options)) {
++				$object->array_options[$slyk] = 0;
++			}
++		}
 +	}
 +
  	// Old variables (deprecated since v23)
@@ -801,7 +830,7 @@ index b9ef9d3c5fb..727d385f99f 100644
  	}
  
  	$isObBufferActive = false;  	// When true, the ObBuffer must be cleaned in the exception handler
-@@ -16155,9 +16187,11 @@ function forgeSQLFromUniversalSearchCriteria($filter, &$errorstr = '', $noand =
+@@ -16155,9 +16216,11 @@ function forgeSQLFromUniversalSearchCriteria($filter, &$errorstr = '', $noand =
  	if (!dolCheckFilters($filter, $errorstr, $firstandlastparenthesis)) {
  		if ($noerror) {
  			return '1 = 2';
@@ -815,7 +844,7 @@ index b9ef9d3c5fb..727d385f99f 100644
  	}
  
  	// Test the filter syntax
-@@ -16166,14 +16200,13 @@ function forgeSQLFromUniversalSearchCriteria($filter, &$errorstr = '', $noand =
+@@ -16166,14 +16229,13 @@ function forgeSQLFromUniversalSearchCriteria($filter, &$errorstr = '', $noand =
  
  	// If the string result contains something else than '()', the syntax was wrong
  	if (preg_match('/[^\(\)]/', $t)) {
@@ -1608,6 +1637,32 @@ index dcdb2072aac..8687bd33f23 100644
  
  		return  $numFinal;
  	}
+diff --git a/htdocs/core/tpl/extrafields_list_search_sql.tpl.php b/htdocs/core/tpl/extrafields_list_search_sql.tpl.php
+--- a/htdocs/core/tpl/extrafields_list_search_sql.tpl.php
++++ b/htdocs/core/tpl/extrafields_list_search_sql.tpl.php
+@@ -69,12 +69,16 @@
+ 				}
+ 				$sqlMoreWhere .= " AND ".$db->sanitize($extrafieldsobjectprefix.$tmpkey)." = '".$db->idate($crit)."'";
+ 			} elseif (is_array($crit)) {
+-				if (!is_null($crit['start']) && $crit['start'] !== '' && !is_null($crit['end']) && $crit['end'] !== '') {
+-					$sqlMoreWhere .= " AND (".$db->sanitize($extrafieldsobjectprefix.$tmpkey)." BETWEEN '". $db->idate($crit['start']). "' AND '".$db->idate($crit['end']) . "')";
+-				} elseif (!is_null($crit['start']) && $crit['start'] !== '') {
+-					$sqlMoreWhere .= " AND (".$db->sanitize($extrafieldsobjectprefix.$tmpkey)." >= '".$db->idate($crit['start'])."')";
+-				} elseif (!is_null($crit['end']) && $crit['end'] !== '') {
+-					$sqlMoreWhere .= " AND (".$db->sanitize($extrafieldsobjectprefix.$tmpkey)." <= '".$db->idate($crit['end'])."')";
++				// SLY24: partial date-range filters submit only one of start/end; reading the
++				// missing key raises "Undefined array key start/end" warnings in PHP 8.1+.
++				$critstart = (isset($crit['start']) ? $crit['start'] : null);
++				$critend = (isset($crit['end']) ? $crit['end'] : null);
++				if (!is_null($critstart) && $critstart !== '' && !is_null($critend) && $critend !== '') {
++					$sqlMoreWhere .= " AND (".$db->sanitize($extrafieldsobjectprefix.$tmpkey)." BETWEEN '". $db->idate($critstart). "' AND '".$db->idate($critend) . "')";
++				} elseif (!is_null($critstart) && $critstart !== '') {
++					$sqlMoreWhere .= " AND (".$db->sanitize($extrafieldsobjectprefix.$tmpkey)." >= '".$db->idate($critstart)."')";
++				} elseif (!is_null($critend) && $critend !== '') {
++					$sqlMoreWhere .= " AND (".$db->sanitize($extrafieldsobjectprefix.$tmpkey)." <= '".$db->idate($critend)."')";
+ 				}
+ 			}
+ 		} elseif (in_array($typ, array('boolean'))) {
 diff --git a/htdocs/core/tpl/list_print_total.tpl.php b/htdocs/core/tpl/list_print_total.tpl.php
 index 8674f3c0f04..c9d3db2578c 100644
 --- a/htdocs/core/tpl/list_print_total.tpl.php

@@ -1,3 +1,15 @@
+diff --git a/htdocs/ai/admin/custom_prompt.php b/htdocs/ai/admin/custom_prompt.php
+--- a/htdocs/ai/admin/custom_prompt.php
++++ b/htdocs/ai/admin/custom_prompt.php
+@@ -374,7 +374,7 @@
+ 			$out .= '<table class="noborder centpercent">';
+ 			$out .= '<thead>';
+ 			$out .= '<tr class="liste_titre">';
+-			$out .= '<td class="titlefield">'.$arrayofaifeatures[$confkey]['picto'].' '.$langs->trans($arrayofaifeatures[$confkey]['label']);
++			$out .= '<td class="titlefield">'.($arrayofaifeatures[$confkey]['picto'] ?? '').' '.$langs->trans((string) ($arrayofaifeatures[$confkey]['label'] ?? $confkey));
+ 			$out .= '<a class="deletefielda reposition marginleftonly right" href="'.$_SERVER["PHP_SELF"].'?action=deleteproperty&token='.newToken().'&key='.urlencode($confkey).'">'.img_delete().'</a>';
+ 			$out .= '</td>';
+ 			$out .= '<td></td>';
 diff --git a/htdocs/conf/.htaccess b/htdocs/conf/.htaccess
 index 3c281cca474..4ae364cc6e5 100644
 --- a/htdocs/conf/.htaccess

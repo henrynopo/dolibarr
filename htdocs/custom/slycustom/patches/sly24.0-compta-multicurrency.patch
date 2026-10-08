@@ -204,6 +204,15 @@ index 6459b777913..eeee2603526 100644
  	} elseif ($action == 'valid' && $usercancreate) {
  		// Validation
  		$object->fetch($id);
+@@ -819,7 +842,7 @@
+ 						$newlang = GETPOST('lang_id', 'aZ09');
+ 					}
+ 					if (getDolGlobalInt('MAIN_MULTILANGS') && empty($newlang)) {
+-						$newlang = $object->thirdparty->default_lang;
++						$newlang = is_object($object->thirdparty) ? $object->thirdparty->default_lang : '';
+ 					}
+ 					if (!empty($newlang)) {
+ 						$outputlangs = new Translate("", $conf);
 @@ -675,20 +698,18 @@ if (empty($reshook)) {
  			setEventMessages($object->error, $object->errors, 'errors');
  		}
@@ -304,6 +313,15 @@ index 6459b777913..eeee2603526 100644
  			}
  		}
  	} elseif ($action == 'setref' && $usercancreate) {
+@@ -3374,7 +3396,7 @@
+ 						$newlang = GETPOST('lang_id', 'aZ09');
+ 					}
+ 					if (getDolGlobalInt('MAIN_MULTILANGS') && empty($newlang)) {
+-						$newlang = $object->thirdparty->default_lang;
++						$newlang = is_object($object->thirdparty) ? $object->thirdparty->default_lang : '';
+ 					}
+ 					if (!empty($newlang)) {
+ 						$outputlangs = new Translate("", $conf);
 @@ -4930,8 +4952,19 @@ if ($action == 'create') {
  
  	if ($object->paye || $object->status == $object::STATUS_CLOSED) {

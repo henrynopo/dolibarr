@@ -374,7 +374,7 @@ if ($action == 'edit' || $action == 'create' || $action == 'deleteproperty') {
 			$out .= '<table class="noborder centpercent">';
 			$out .= '<thead>';
 			$out .= '<tr class="liste_titre">';
-			$out .= '<td class="titlefield">'.$arrayofaifeatures[$confkey]['picto'].' '.$langs->trans($arrayofaifeatures[$confkey]['label']);
+			$out .= '<td class="titlefield">'.($arrayofaifeatures[$confkey]['picto'] ?? '').' '.$langs->trans((string) ($arrayofaifeatures[$confkey]['label'] ?? $confkey));
 			$out .= '<a class="deletefielda reposition marginleftonly right" href="'.$_SERVER["PHP_SELF"].'?action=deleteproperty&token='.newToken().'&key='.urlencode($confkey).'">'.img_delete().'</a>';
 			$out .= '</td>';
 			$out .= '<td></td>';

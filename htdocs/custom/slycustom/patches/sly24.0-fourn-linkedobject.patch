@@ -658,7 +658,17 @@ index 837f888f088..cb33d769b0d 100644
  			}
  		}
  	} elseif ($action == 'confirm_converttoreduc' && $confirm == 'yes' && $usercancreate) {
-@@ -1491,6 +1510,13 @@ if (empty($reshook)) {
+@@ -1273,6 +1292,9 @@
+ 											if ($qualified) {
+ 												$totalamount += $lines[$i]->total_ht; // Fixme : is it not for the customer ? Shouldn't we take total_ttc ?
+ 												$tva_tx = $lines[$i]->tva_tx;
++												if (empty($amountdeposit[$tva_tx])) {
++													$amountdeposit[$tva_tx] = 0;
++												}
+ 												$amountdeposit[$tva_tx] += ($lines[$i]->total_ht * (float) $valuedeposit) / 100;
+ 											}
+ 										}
+@@ -1491,6 +1513,13 @@ if (empty($reshook)) {
  		} else {
  			$db->commit();
  
@@ -672,7 +682,7 @@ index 837f888f088..cb33d769b0d 100644
  			if (!getDolGlobalString('MAIN_DISABLE_PDF_AUTOUPDATE')) {
  				$outputlangs = $langs;
  				$result = $object->generateDocument($object->model_pdf, $outputlangs, $hidedetails, $hidedesc, $hideref);
-@@ -1801,7 +1827,7 @@ if (empty($reshook)) {
+@@ -1801,7 +1830,7 @@ if (empty($reshook)) {
  						$newlang = GETPOST('lang_id', 'aZ09');
  					}
  					if (empty($newlang)) {
@@ -681,7 +691,7 @@ index 837f888f088..cb33d769b0d 100644
  					}
  					if (!empty($newlang)) {
  						$outputlangs = new Translate("", $conf);
-@@ -1949,7 +1975,7 @@ if (empty($reshook)) {
+@@ -1949,7 +1978,7 @@ if (empty($reshook)) {
  					$newlang = GETPOST('lang_id', 'aZ09');
  				}
  				if (getDolGlobalInt('MAIN_MULTILANGS') && empty($newlang)) {
@@ -690,7 +700,7 @@ index 837f888f088..cb33d769b0d 100644
  				}
  				if (!empty($newlang)) {
  					$outputlangs = new Translate("", $conf);
-@@ -2049,7 +2075,7 @@ if (empty($reshook)) {
+@@ -2049,7 +2078,7 @@ if (empty($reshook)) {
  						$newlang = GETPOST('lang_id', 'aZ09');
  					}
  					if (getDolGlobalInt('MAIN_MULTILANGS') && empty($newlang)) {
@@ -699,7 +709,7 @@ index 837f888f088..cb33d769b0d 100644
  					}
  					if (!empty($newlang)) {
  						$outputlangs = new Translate("", $conf);
-@@ -2803,12 +2829,22 @@ if ($action == 'create') {
+@@ -2803,12 +2832,22 @@ if ($action == 'create') {
  		}
  
  		if (!empty($societe->id) && $societe->id > 0) {
@@ -723,7 +733,7 @@ index 837f888f088..cb33d769b0d 100644
  			include DOL_DOCUMENT_ROOT.'/core/tpl/object_discounts.tpl.php';
  
  			print '</td></tr>';
-@@ -2827,7 +2863,7 @@ if ($action == 'create') {
+@@ -2827,7 +2866,7 @@ if ($action == 'create') {
  		// Payment term
  		print '<tr><td class="nowrap">'.$langs->trans('PaymentConditionsShort').'</td><td>';
  		print img_picto('', 'payment', 'class="pictofixedwidth"');
@@ -732,7 +742,7 @@ index 837f888f088..cb33d769b0d 100644
  		print '</td></tr>';
  
  		// Due date
-@@ -3102,6 +3138,9 @@ if ($action == 'create') {
+@@ -3102,6 +3141,9 @@ if ($action == 'create') {
  
  		if ($object->paid) {
  			$resteapayer = 0;
@@ -742,7 +752,7 @@ index 837f888f088..cb33d769b0d 100644
  		}
  		$resteapayeraffiche = $resteapayer;
  
-@@ -3511,11 +3550,32 @@ if ($action == 'create') {
+@@ -3511,11 +3553,32 @@ if ($action == 'create') {
  
  			// Relative and absolute discounts
  			print '<!-- Discounts -->'."\n";
@@ -775,7 +785,7 @@ index 837f888f088..cb33d769b0d 100644
  			include DOL_DOCUMENT_ROOT.'/core/tpl/object_discounts.tpl.php';
  
  			print '</td></tr>';
-@@ -3548,9 +3608,10 @@ if ($action == 'create') {
+@@ -3548,9 +3611,10 @@ if ($action == 'create') {
  			print '</tr></table>';
  			print '</td><td>';
  			if ($action == 'editconditions') {
@@ -788,7 +798,7 @@ index 837f888f088..cb33d769b0d 100644
  			}
  			print "</td>";
  			print '</tr>';
-@@ -3721,15 +3782,14 @@ if ($action == 'create') {
+@@ -3721,15 +3785,14 @@ if ($action == 'create') {
  
  			print '<tr>';
  			print '<td class="titlefieldmiddle">' . $langs->trans('AmountHT') . '</td>';
@@ -805,7 +815,7 @@ index 837f888f088..cb33d769b0d 100644
  			if (GETPOST('calculationrule')) {
  				$calculationrule = GETPOST('calculationrule', 'alpha');
  			} else {
-@@ -3740,21 +3800,36 @@ if ($action == 'create') {
+@@ -3740,21 +3803,36 @@ if ($action == 'create') {
  			} else {
  				$calculationrulenum = 2;
  			}
@@ -856,7 +866,7 @@ index 837f888f088..cb33d769b0d 100644
  			}
  			print '</tr>';
  
-@@ -3773,10 +3848,10 @@ if ($action == 'create') {
+@@ -3773,10 +3851,10 @@ if ($action == 'create') {
  
  			print '<tr>';
  			print '<td>' . $langs->trans('AmountTTC') . '</td>';
@@ -868,7 +878,7 @@ index 837f888f088..cb33d769b0d 100644
  			print '</tr>';
  
  			print '</table>';
-@@ -3800,6 +3875,7 @@ if ($action == 'create') {
+@@ -3800,6 +3878,7 @@ if ($action == 'create') {
  				$nbrows++;
  				$nbcols++;
  			}
@@ -876,7 +886,7 @@ index 837f888f088..cb33d769b0d 100644
  			if (isModEnabled('incoterm')) {
  				$nbrows++;
  			}
-@@ -3827,6 +3903,8 @@ if ($action == 'create') {
+@@ -3827,6 +3906,8 @@ if ($action == 'create') {
  			$sql .= ' WHERE pf.fk_facturefourn = '.((int) $object->id);
  			$sql .= ' ORDER BY p.datep, p.tms';
  
@@ -885,7 +895,7 @@ index 837f888f088..cb33d769b0d 100644
  			$result = $db->query($sql);
  			if ($result) {
  				$num = $db->num_rows($result);
-@@ -3841,6 +3919,9 @@ if ($action == 'create') {
+@@ -3841,6 +3922,9 @@ if ($action == 'create') {
  				if (isModEnabled("bank")) {
  					print '<td class="right">'.$langs->trans('BankAccount').'</td>';
  				}
@@ -895,7 +905,7 @@ index 837f888f088..cb33d769b0d 100644
  				// Action
  				print '<td></td>';
  				// Amount
-@@ -3889,7 +3970,10 @@ if ($action == 'create') {
+@@ -3889,7 +3973,10 @@ if ($action == 'create') {
  							}
  							print '</td>';
  						}
@@ -907,7 +917,7 @@ index 837f888f088..cb33d769b0d 100644
  						print '<td class="center">';
  						if ($object->status == FactureFournisseur::STATUS_VALIDATED && $object->paid == 0 && $user->socid == 0) {
  							print '<a href="'.$_SERVER["PHP_SELF"].'?id='.$object->id.'&action=deletepayment&token='.newToken().'&paiement_id='.$objp->rowid.'">';
-@@ -3898,16 +3982,17 @@ if ($action == 'create') {
+@@ -3898,16 +3985,17 @@ if ($action == 'create') {
  						}
  						print '</td>';
  						// Amount
@@ -929,7 +939,7 @@ index 837f888f088..cb33d769b0d 100644
  				}
  
  				/*
-@@ -3930,7 +4015,7 @@ if ($action == 'create') {
+@@ -3930,7 +4018,7 @@ if ($action == 'create') {
  
  			if ($object->type != FactureFournisseur::TYPE_CREDIT_NOTE) {
  				// Total already paid
@@ -938,7 +948,7 @@ index 837f888f088..cb33d769b0d 100644
  				print '<span class="opacitymedium">';
  				if ($object->type != FactureFournisseur::TYPE_DEPOSIT) {
  					print $langs->trans('AlreadyPaidNoCreditNotesNoDeposits');
-@@ -3939,9 +4024,12 @@ if ($action == 'create') {
+@@ -3939,9 +4027,12 @@ if ($action == 'create') {
  				}
  				print '</span>';
  				print '</td>';
@@ -954,7 +964,7 @@ index 837f888f088..cb33d769b0d 100644
  
  				//$resteapayer = $object->total_ttc - $totalpaid;
  				$resteapayeraffiche = $resteapayer;
-@@ -3953,9 +4041,9 @@ if ($action == 'create') {
+@@ -3953,9 +4044,9 @@ if ($action == 'create') {
  				$depositamount = 0;
  
  				$sql = "SELECT re.rowid, re.amount_ht, re.amount_tva, re.amount_ttc,";
@@ -966,7 +976,7 @@ index 837f888f088..cb33d769b0d 100644
  				$resql = $db->query($sql);
  				if ($resql) {
  					$num = $db->num_rows($resql);
-@@ -3964,6 +4052,22 @@ if ($action == 'create') {
+@@ -3964,6 +4055,22 @@ if ($action == 'create') {
  					while ($i < $num) {
  						$obj = $db->fetch_object($resql);
  						$invoice->fetch($obj->fk_invoice_supplier_source);
@@ -989,7 +999,7 @@ index 837f888f088..cb33d769b0d 100644
  						print '<tr><td colspan="'.$nbcols.'" class="right">';
  						if ($invoice->type == FactureFournisseur::TYPE_CREDIT_NOTE) {
  							print $langs->trans("CreditNote").' ';
-@@ -3972,15 +4076,21 @@ if ($action == 'create') {
+@@ -3972,15 +4079,21 @@ if ($action == 'create') {
  							print $langs->trans("Deposit").' ';
  						}
  						print $invoice->getNomUrl(0);
@@ -1018,7 +1028,7 @@ index 837f888f088..cb33d769b0d 100644
  						print '</tr>';
  						$i++;
  						if ($invoice->type == FactureFournisseur::TYPE_CREDIT_NOTE) {
-@@ -3996,46 +4106,52 @@ if ($action == 'create') {
+@@ -3996,46 +4109,52 @@ if ($action == 'create') {
  
  				// Pay partially 'escompte'
  				if (($object->status == FactureFournisseur::STATUS_CLOSED || $object->status == FactureFournisseur::STATUS_ABANDONED) && $object->close_code == 'discount_vat') {
@@ -1084,7 +1094,7 @@ index 837f888f088..cb33d769b0d 100644
  					$text = $langs->trans("HelpAbandonOther");
  					if ($object->close_note) {
  						$text .= '<br><br><b>'.$langs->trans("Reason").'</b>:'.$object->close_note;
-@@ -4045,25 +4161,29 @@ if ($action == 'create') {
+@@ -4045,25 +4164,29 @@ if ($action == 'create') {
  					print $form->textwithpicto($langs->trans("Abandoned"), $text, - 1);
  					print '</span>';
  					print '</td>';
@@ -1122,7 +1132,7 @@ index 837f888f088..cb33d769b0d 100644
  				print '<span class="opacitymedium">';
  				print $langs->trans('RemainderToPay');
  				if ($resteapayeraffiche < 0) {
-@@ -4071,13 +4191,15 @@ if ($action == 'create') {
+@@ -4071,13 +4194,15 @@ if ($action == 'create') {
  				}
  				print '</span>';
  				print '</td>';
@@ -1144,7 +1154,7 @@ index 837f888f088..cb33d769b0d 100644
  					print '<span class="opacitymedium">';
  					print $langs->trans('RemainderToPayMulticurrency');
  					if ($resteapayeraffiche < 0) {
-@@ -4093,35 +4215,42 @@ if ($action == 'create') {
+@@ -4093,35 +4218,42 @@ if ($action == 'create') {
  				$cssforamountpaymentcomplete = 'amountpaymentneutral';
  
  				// Total already paid back

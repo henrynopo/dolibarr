@@ -12336,6 +12336,35 @@ function dol_eval_standard($s, $hideerrors = 1, $onlysimplestring = '1')
 		$object = new stdClass();
 		$object->lines = array();
 	}
+	// SLY: Guarantee $object->array_options is an array so computed formulas
+	// referencing $object->array_options['options_xxx'] never raise
+	// "Undefined array key options_xxx" warnings in PHP 8.1+. Computed formulas
+	// run against the PAGE global $object (see 'global $object' above): when a
+	// commande/facture/fourn page fetches a linked Expedition, the ShipsGo
+	// delay formula (registered on 'expedition') is evaluated against the page
+	// global whose array_options carries no shipment keys, and the null-guard
+	// stdClass above has no array_options property at all. slycustom seeds the
+	// four ShipsGo keys via ensureShipmentDateOptionKeys() in card/list hooks;
+	// this array fallback is defence-in-depth for eval paths no hook covers.
+	if (!isset($object->array_options) || !is_array($object->array_options)) {
+		$object->array_options = array();
+	}
+	// SLY: Seed the four ShipsGo shipment-date keys when missing, so cross-element
+	// computed formulas ($object->array_options['options_atd'] ...) never raise
+	// "Undefined array key" in PHP 8.1+. Real page-global objects (Commande,
+	// Facture...) already have an array_options array but no shipment keys; only
+	// backfilling the array (above) would still leave the warnings in place.
+	// Key value 0 keeps the formulas' ternary on the false branch ('' result) and
+	// the keys are never persisted: core extrafield saves iterate the attributes
+	// declared for the element, not the array_options content. Loop var is $slyk
+	// because $s is the formula string being evaluated.
+	if (is_array($object->array_options)) {
+		foreach (array('options_atd', 'options_etd', 'options_ata', 'options_eta') as $slyk) {
+			if (!array_key_exists($slyk, $object->array_options)) {
+				$object->array_options[$slyk] = 0;
+			}
+		}
+	}
 
 	// Old variables (deprecated since v23)
 	if (getDolGlobalString('MAIN_ALLOW_OLD_VAR_OBJ_IN_DOL_EVAL')) {
