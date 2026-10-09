@@ -158,6 +158,35 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   whole document and answer confidently from it.
 - **`sources` was dropped when building the scored list**, so the footer rendered
   empty even with the wiring in place. Caught by the same dry-run.
+- **THE production "AI 无法回答" root cause: PHP was killing the request mid-flight.**
+  The LLM call is allowed to run for **90 seconds** (`EBKAiChatHelper`), but neither
+  Dolibarr core nor this module ever raises PHP's `max_execution_time`, so the host
+  default applies (commonly 30-60s on shared/cPanel hosting). On any such host **every
+  single question was killed before the response was written**. `widget.js` then saw
+  HTTP 200 with a truncated body, `JSON.parse()` threw, and it displayed its fallback
+  string — "⚠ 无法回答，请检查 AI 配置" — which blames a configuration that was in fact
+  fine and sent the user hunting through the setup page. That fallback string is itself
+  the tell: the module's own failure text is returned as valid JSON and renders
+  normally, so seeing the generic message meant PHP died, not that the AI was
+  misconfigured. `chat.php` now requests a 300s budget.
+- **A PHP fatal on this endpoint produced no usable output at all.** A
+  `register_shutdown_function` responder now emits valid JSON carrying the real
+  `error_get_last()` message and file:line, so any future fatal is diagnosable from
+  the browser instead of degrading to the generic message. All six early-return
+  branches were routed through a single `ebkChatJsonExit()` helper that flips the
+  response flag — without it the shutdown handler would have appended a **second** JSON
+  document to an already-written response. Verified by simulation: the normal path and
+  each early exit emit exactly one document, and a deliberately triggered fatal
+  produces parseable JSON. **Caveat:** this only helps when the host has
+  `display_errors=Off` (Dolibarr's production requirement). With `display_errors=On`
+  PHP prints the raw error *before* the response body and the JSON stops parsing.
+- **The assistant was never audited.** The guard read
+  `if (!empty($user->id) && function_exists('ai_log_request'))` and only reached
+  `require_once ai/lib/ai.lib.php` *inside* that block — but nothing on the EBK path
+  loads `ai.lib.php`, so `ai_log_request` did not exist yet, the condition was always
+  false, and **every EBK question was silently missing from `llx_ai_request_log`**. The
+  admin audit page looked healthy and simply had no EBK rows, which is what lets a gap
+  like this survive. The require now happens before the test.
 - **The assistant never appeared outside three card pages — root cause found and
   fixed.** `printCommonFooter` is the right hook and `llxFooter()` calls it
   unconditionally, but `HookManager::initHooks()` only *instantiates* a module's

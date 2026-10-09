@@ -29,11 +29,74 @@ if (!$res) {
     exit;
 }
 
+// --- Time budget + last-resort responder ---------------------------------
+/**
+ * Emit the JSON response and end the request.
+ *
+ * Single exit point on purpose: it flips EBK_CHAT_RESPONDED so the shutdown
+ * handler below knows a response already went out. Every early return in this
+ * file goes through here - an early `exit` that skipped the flag would make the
+ * shutdown handler append a SECOND JSON document to the same response.
+ *
+ * @param  array  $payload      Response body
+ * @param  int    $httpStatus   HTTP status line
+ * @return void  (exits)
+ */
+function ebkChatJsonExit($payload, $httpStatus = 200)
+{
+	$GLOBALS['EBK_CHAT_RESPONDED'] = true;
+	if (!headers_sent()) {
+		if ($httpStatus !== 200) {
+			header('HTTP/1.1 '.$httpStatus);
+		}
+		header('Content-Type: application/json; charset=utf-8');
+		header('X-Content-Type-Options: nosniff');
+	}
+	echo json_encode($payload, JSON_UNESCAPED_UNICODE | JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT);
+	exit;
+}
+
+// The LLM call is allowed to run for 90s (see EBKAiChatHelper). Core never
+// raises PHP's max_execution_time, so on a host with the usual 30-60s default
+// this script was killed mid-request for EVERY question. The browser then got a
+// truncated body, JSON.parse() failed, and widget.js showed its generic
+// "无法回答，请检查 AI 配置" — which blames a setting that was in fact fine.
+// Give this endpoint enough room to finish its job.
+@ini_set('max_execution_time', '300');
+@set_time_limit(300);
+
+// And make sure that a future fatal is still diagnosable: if we die before the
+// JSON echo, emit a valid response carrying the actual error instead of
+// letting the browser fall back to the generic message.
+$GLOBALS['EBK_CHAT_RESPONDED'] = false;
+register_shutdown_function(function () {
+	if (!empty($GLOBALS['EBK_CHAT_RESPONDED'])) {
+		return;
+	}
+	$err = '未知错误（PHP 在返回结果前终止，且 error_get_last() 没有信息）';
+	$e = error_get_last();
+	if (is_array($e) && !empty($e['message'])) {
+		$err = $e['message'].'（'.basename(isset($e['file']) ? $e['file'] : '?').':'.(isset($e['line']) ? $e['line'] : 0).'）';
+	}
+	if (!headers_sent()) {
+		header('HTTP/1.1 500 Internal Server Error');
+		header('Content-Type: application/json; charset=utf-8');
+	}
+	$GLOBALS['EBK_CHAT_RESPONDED'] = true;
+	echo json_encode(array(
+		'ok'     => false,
+		'answer' => "抱歉，AI 助手请求被服务器中断。\n\n原因：".$err."\n\n"
+			."排查顺序：\n"
+			."1. 若是「Maximum execution time」，PHP 时限仍低于本模块请求的 300 秒，"
+			."请在 php.ini 或主机面板把 max_execution_time 调到 300 以上\n"
+			."2. 若是「Allowed memory size」，请调高 memory_limit（本模块会载入全量科目表）\n"
+			."3. 其他 PHP 致命错误请到 error_log 搜 [EBK] 查看完整堆栈",
+		'error'  => $err,
+	), JSON_UNESCAPED_UNICODE);
+});
+
 if (empty($user) || empty($user->id)) {
-    header('HTTP/1.1 401 Unauthorized');
-    header('Content-Type: application/json');
-    echo json_encode(array('ok' => false, 'error' => 'not_logged_in'));
-    exit;
+    ebkChatJsonExit(array('ok' => false, 'error' => 'not_logged_in'), 401);
 }
 
 global $conf, $langs, $db, $user;
@@ -53,31 +116,19 @@ $docType  = isset($payload['doc_type']) ? (string) $payload['doc_type'] : '';
 $token    = isset($payload['token']) ? (string) $payload['token'] : (string) GETPOST('token', 'none');
 
 if ($question === '' && $context === '') {
-    header('HTTP/1.1 400 Bad Request');
-    header('Content-Type: application/json');
-    echo json_encode(array('ok' => false, 'error' => 'question_or_context_required'));
-    exit;
+    ebkChatJsonExit(array('ok' => false, 'error' => 'question_or_context_required'), 400);
 }
 
 if ($token === '' || $token !== newToken()) {
-    header('HTTP/1.1 403 Forbidden');
-    header('Content-Type: application/json');
-    echo json_encode(array('ok' => false, 'error' => 'bad_token'));
-    exit;
+    ebkChatJsonExit(array('ok' => false, 'error' => 'bad_token'), 403);
 }
 
 if (!isModEnabled('embeddedbookkeeping')) {
-    header('HTTP/1.1 503 Service Unavailable');
-    header('Content-Type: application/json');
-    echo json_encode(array('ok' => false, 'error' => 'module_disabled'));
-    exit;
+    ebkChatJsonExit(array('ok' => false, 'error' => 'module_disabled'), 503);
 }
 
 if (empty($user->rights->embeddedbookkeeping->ai_suggest) && empty($user->admin)) {
-    header('HTTP/1.1 403 Forbidden');
-    header('Content-Type: application/json');
-    echo json_encode(array('ok' => false, 'error' => 'no_permission'));
-    exit;
+    ebkChatJsonExit(array('ok' => false, 'error' => 'no_permission'), 403);
 }
 
 $langs->loadLangs(array('embeddedbookkeeping@embeddedbookkeeping'));
@@ -265,8 +316,13 @@ if ($llmFailed) {
 // the same place as the core AI Assistant and the MCP server (ai/admin/log_viewer.php).
 // The helper is a no-op unless AI_LOG_REQUESTS is on, and it truncates both
 // payloads at 60 000 chars, so nothing unbounded lands in the DB.
+// Load first, THEN test. The guard used to sit on the outside of the
+// require_once, so function_exists('ai_log_request') was always false on this
+// path (nothing else here loads ai/lib/ai.lib.php) and every EBK question was
+// silently NOT audited - the admin's audit page looked fine and simply had no
+// EBK rows. require_once is a no-op if the core already pulled it in.
+require_once DOL_DOCUMENT_ROOT.'/ai/lib/ai.lib.php';
 if (!empty($user->id) && function_exists('ai_log_request')) {
-    require_once DOL_DOCUMENT_ROOT.'/ai/lib/ai.lib.php';
     ai_log_request(
         $db,
         $user,
@@ -651,11 +707,12 @@ if (!empty($conf->global->EMBEDDEDBOOKKEEPING_AI_DEBUG) && !empty($user->admin))
         'doc_ref'    => $docRef,
         'page'       => $pageInfo,
         'ctx_len'    => strlen($contextBlock),
+        'sys_len'    => strlen($sysPrompt),
+        'chart_len'  => strlen($chartBlock),
+        'kb_len'     => strlen($kbBlock),
+        'time_limit' => ini_get('max_execution_time'),
         'server_ts'  => time(),
     );
 }
 
-header('Content-Type: application/json; charset=utf-8');
-header('X-Content-Type-Options: nosniff');
-echo json_encode($out, JSON_UNESCAPED_UNICODE | JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT);
-exit;
+ebkChatJsonExit($out);
