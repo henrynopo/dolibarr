@@ -69,10 +69,22 @@ class modEmbeddedBookkeeping extends DolibarrModules
 				'js' => array(),
 				'hooks' => array(
 					'data' => array(
-						'invoicecard',         // compta/facture/card.php — customer invoice card
-						'invoicesuppliercard', // fourn/facture/card.php — supplier invoice card
-						'expensereportcard',   // expensereport/card.php — expense report card
-						'globalcard',          // any card.php that includes the globalcard context
+						// 'all' is what actually makes printCommonFooter fire everywhere.
+						// initHooks() instantiates the actions class once per PAGE context, and
+						// it only matches a module whose declared list contains that context (or
+						// 'all'). Declaring bare context names like 'invoicecard' therefore only
+						// worked on those three cards - on every other page (the whole core
+						// Accountancy module included) the class was never instantiated, so
+						// executeHooks('printCommonFooter') found nothing and the assistant
+						// vanished. The specific contexts below are kept as documentation and
+						// to narrow the Actions class instantiation where it matters; the
+						// methods themselves re-check $parameters['currentcontext'] before
+						// doing anything.
+						'all',                    // global floating assistant (printCommonFooter)
+						'invoicecard',            // compta/facture/card.php - customer invoice card
+						'invoicesuppliercard',    // fourn/facture/card.php - supplier invoice card
+						'expensereportcard',      // expensereport/card.php - expense report card
+						'printCommonFooter',      // llxFooter() - floating AI assistant on every page
 					),
 					'entity' => '0',
 				),
@@ -90,6 +102,35 @@ class modEmbeddedBookkeeping extends DolibarrModules
 		$this->langfiles = array("embeddedbookkeeping@embeddedbookkeeping");
 		$this->warnings_activation = array();
 		$this->const = array();
+
+		// Constants to materialise in `llx_const` at enable time. Names
+		// prefixed with `EMBEDDEDBOOKKEEPING_` so they are clearly owned by
+		// this module. The bookkeeping-suggest prompts (PRE / POST) live
+		// here on purpose — see init() migration block below for the
+		// historical "this used to be parked in the system AI module's
+		// AI_CONFIGURATIONS_PROMPT JSON" note.
+		//
+		// The CUSTOM_* quartet backs the 'ebk_custom' provider — a fully
+		// independent LLM config the admin can enable WITHOUT touching the
+		// system AI module's own settings. service/url/model default to
+		// empty so the seed is harmless until the admin actually fills
+		// them in (resolveAdapter() returns null for an incomplete config
+		// and the bookkeeping tab falls back to manual entry).
+		$this->conf = array(
+			'EMBEDDEDBOOKKEEPING_AI_PROMPT_PRE'  => array('type'=>'chaine', 'value'=>''),
+			'EMBEDDEDBOOKKEEPING_AI_PROMPT_POST' => array('type'=>'chaine', 'value'=>''),
+			'EMBEDDEDBOOKKEEPING_AI_CUSTOM_SERVICE' => array('type'=>'chaine', 'value'=>'chatgpt'),
+			'EMBEDDEDBOOKKEEPING_AI_CUSTOM_KEY'     => array('type'=>'chaine', 'value'=>''),
+			'EMBEDDEDBOOKKEEPING_AI_CUSTOM_URL'     => array('type'=>'chaine', 'value'=>''),
+			'EMBEDDEDBOOKKEEPING_AI_CUSTOM_MODEL'   => array('type'=>'chaine', 'value'=>''),
+			// Offline knowledge base (custom/embeddedbookkeeping/knowledge/*.md):
+			// enabled by default, 6000-char budget, no company notes yet. Like all
+			// module constants these are materialised on enable(), so the module
+			// has to be disabled/re-enabled once for them to exist.
+			'EMBEDDEDBOOKKEEPING_AI_KNOWLEDGE_ENABLED'  => array('type'=>'chaine', 'value'=>'1'),
+			'EMBEDDEDBOOKKEEPING_AI_KNOWLEDGE_MAXCHARS' => array('type'=>'chaine', 'value'=>'6000'),
+			'EMBEDDEDBOOKKEEPING_AI_KNOWLEDGE_EXTRA'    => array('type'=>'chaine', 'value'=>''),
+		);
 
 		// Tabs on the three supported cards. Format (6 fields, colon-separated):
 		//   objecttype:+tabcode:Title:langfile@module:permission-condition:url
@@ -130,7 +171,7 @@ class modEmbeddedBookkeeping extends DolibarrModules
 		$this->rights[$r][0] = $this->numero.sprintf("%02d", $r + 1);
 		$this->rights[$r][1] = 'EBKRightAiSuggest';
 		$this->rights[$r][2] = 'w';
-		$this->rights[$r][3] = 0;
+		$this->rights[$r][3] = 1; // auto-grant to admins via _init() — see CLAUDE.md §2
 		$this->rights[$r][4] = 'ai';
 		$this->rights[$r][5] = 'suggest';
 		$r++;
@@ -182,7 +223,6 @@ class modEmbeddedBookkeeping extends DolibarrModules
 			'EMBEDDEDBOOKKEEPING_DEFAULT_DATE_CREDIT_NOTE' => 'document',
 			'EMBEDDEDBOOKKEEPING_DEFAULT_DATE_REPLACEMENT' => 'document',
 			'EMBEDDEDBOOKKEEPING_AI_PROVIDER'       => 'ai_module',
-			'EMBEDDEDBOOKKEEPING_AI_CLAUDE_MODEL'   => 'claude-sonnet-4-5',
 			'EMBEDDEDBOOKKEEPING_AI_DEBUG'          => '0',
 			'EMBEDDEDBOOKKEEPING_AI_MAX_LINES'      => '1',
 			'EMBEDDEDBOOKKEEPING_AI_CONFIDENCE_THRESHOLD' => '0.6',
@@ -194,6 +234,52 @@ class modEmbeddedBookkeeping extends DolibarrModules
 					$this->error = $this->db->lasterror;
 					return 0;
 				}
+			}
+		}
+
+		// One-shot migration: the bookkeeping-suggest prompt used to live
+		// inside the system AI module's `AI_CONFIGURATIONS_PROMPT` JSON
+		// under the function key `bookkeepingsuggest` — a design that
+		// violated CLAUDE.md §1 "独立与完整性 / 卸载不影响核心" by polluting
+		// another module's namespace. The 2026-10 refactor moved it into
+		// EBK's own `EMBEDDEDBOOKKEEPING_AI_PROMPT_PRE/_POST` constants.
+		//
+		// This block runs every enable() call but is idempotent:
+		//   1. If the system AI module's JSON still has `bookkeepingsuggest`
+		//      and our new constants are still empty, COPY the values across
+		//      so the admin's edit is preserved across the upgrade.
+		//   2. UNSET the `bookkeepingsuggest` key from the JSON so the
+		//      system AI module's UI no longer shows the migrated entry.
+		//   3. If our new constants are non-empty (admin already saved
+		//      since the upgrade), just UNSET the JSON key without
+		//      overwriting the admin's work.
+		//
+		// Each dolibarr_set_const() call is scoped to the current entity
+		// to honor multicompany.
+		$aiConfigsJson = (string) dolibarr_get_const($this->db, 'AI_CONFIGURATIONS_PROMPT', (int) $conf->entity);
+		if ($aiConfigsJson !== '') {
+			$aiConfigs = json_decode($aiConfigsJson, true);
+			if (is_array($aiConfigs) && isset($aiConfigs['bookkeepingsuggest']) && is_array($aiConfigs['bookkeepingsuggest'])) {
+				$migrated = $aiConfigs['bookkeepingsuggest'];
+				unset($aiConfigs['bookkeepingsuggest']);
+
+				// Copy across only if our new constant is still empty
+				// (admin hasn't already saved since the upgrade). This
+				// prevents the migration from clobbering a newer edit.
+				if (empty(dolibarr_get_const($this->db, 'EMBEDDEDBOOKKEEPING_AI_PROMPT_PRE', (int) $conf->entity))
+					&& !empty($migrated['prePrompt'])) {
+					dolibarr_set_const($this->db, 'EMBEDDEDBOOKKEEPING_AI_PROMPT_PRE', (string) $migrated['prePrompt'], 'chaine', 0, '', (int) $conf->entity);
+				}
+				if (empty(dolibarr_get_const($this->db, 'EMBEDDEDBOOKKEEPING_AI_PROMPT_POST', (int) $conf->entity))
+					&& !empty($migrated['postPrompt'])) {
+					dolibarr_set_const($this->db, 'EMBEDDEDBOOKKEEPING_AI_PROMPT_POST', (string) $migrated['postPrompt'], 'chaine', 0, '', (int) $conf->entity);
+				}
+
+				// Persist the JSON without our key (other function keys
+				// the admin configured elsewhere in the system AI module
+				// are preserved untouched).
+				$newJson = json_encode($aiConfigs, JSON_UNESCAPED_UNICODE);
+				dolibarr_set_const($this->db, 'AI_CONFIGURATIONS_PROMPT', $newJson, 'chaine', 0, '', (int) $conf->entity);
 			}
 		}
 

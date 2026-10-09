@@ -57,25 +57,14 @@ REST API 的 `POST create` 仍走 `writePair()`（总额两条，向后兼容）
 
 ## AI Provider
 
-### `ai_module`（默认，推荐）
+### `ai_module`（默认，唯一推荐）
 
 复用 Dolibarr 原生 `htdocs/ai/` 模块。需要：
 - `ai` 模块已启用
-- 在 `ai/admin/setup.php` 至少配置一个 service（chatgpt/groq/mistral/custom）
+- 在 `ai/admin/setup.php` 至少配置一个 service（chatgpt / groq / mistral / google / custom / anthropic-compat）
 - Provider key 存在
 
-提示词内置在 `AiModuleProvider::resolveSystemPrompt()`；`AiModuleProvider::suggest()` 调用 `Ai::generateContent()`，自动从回复中提取首个 JSON 对象。
-
-### `claude`
-
-直连 Anthropic Messages API。需要的全局常量：
-
-| 常量 | 用途 |
-|---|---|
-| `EMBEDDEDBOOKKEEPING_ANTHROPIC_KEY` | 加密存储（Dolibarr `_KEY` 后缀规则） |
-| `EMBEDDEDBOOKKEEPING_AI_CLAUDE_MODEL` | 默认 `claude-sonnet-4-5` |
-
-`ClaudeProvider::suggest()` 通过核心 `getURLContent()` 发出 HTTPS POST，复用 Dolibarr 的代理 / 超时设置。
+`AiModuleProvider::suggest()` 调用核心 `Ai::generateContent($userPrompt, 'auto', 'bookkeepingsuggest', ...)`，由核心 AI 模块从 `AI_CONFIGURATIONS_PROMPT.bookkeepingsuggest` 派发 prePrompt / postPrompt。记账分录提示词的编辑入口在本模块的 `admin/setup.php`「Provider & AI」Tab；其它 service / key / 模型配置都在系统 AI 模块自身的设置页。
 
 ## 写入审计
 
@@ -83,7 +72,7 @@ REST API 的 `POST create` 仍走 `writePair()`（总额两条，向后兼容）
 
 ```json
 {
-  "ebk_source": "manual" | "ai:claude" | "ai:ai_module",
+  "ebk_source": "manual" | "ai:ai_module",
   "ebk_form_version": 1,
   "ebk_entity": 1,
   "ebk_module": "embeddedbookkeeping@1.0.0",
@@ -169,7 +158,7 @@ REST API 的 `POST create` 仍走 `writePair()`（总额两条，向后兼容）
 | `class/EBKAccountLookup.class.php` | 账户下拉数据源 |
 | `class/EBKEntryProposal.class.php` | 总额对值对象（REST API writePair 路径） |
 | `class/api_embeddedbookkeeping.class.php` | REST API |
-| `class/ai/*` | AI Provider 工厂 + ai_module/claude/null |
+| `class/ai/*` | AI Provider 工厂 + ai_module/null |
 | `ajax/suggest_entries.php` | AI 建议 AJAX 端点（Tab 预填复用） |
 | `admin/setup.php` | 配置页 |
 

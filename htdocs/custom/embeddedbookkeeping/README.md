@@ -31,15 +31,37 @@
 
 1. 拷贝 `custom/embeddedbookkeeping/` 到 `htdocs/custom/`。
 2. Dolibarr → 设置 → 模块/应用 → 启用 **EmbeddedBookkeeping**。
+   > 上传代码后必须**停用再启用一次**：hook 列表与本模块常量由
+   > `insert_module_parts()` 在 `enable()` 时写入，光传文件不生效。
 3. 设置 → 模块 → EmbeddedBookkeeping → 配置：
    - 日记账代码：销售 `VT` / 采购 `AC` / 费用报销 `EX`
-   - AI Provider：`disabled` / `ai_module` / `claude`
-   - Anthropic Key（`claude` 模式时填写，会被 Dolibarr 自动加密）
+   - AI Provider：`disabled` / `ai_module` / `ebk_custom`
+   - 知识库：启用开关、单次注入字符上限、公司内部会计约定（每次提问都会附加）
 4. 给用户分配权限（管理员默认自动获得）：
    - `embeddedbookkeeping→bookkeeping→read` — 看到按钮
    - `embeddedbookkeeping→bookkeeping→write` — 写入分录
    - `embeddedbookkeeping→ai→suggest` — 请求 AI 建议
    - `embeddedbookkeeping→admin→setup` — 配置页
+
+## AI 浮窗助手（右下角）
+
+浮窗由 `printCommonFooter` hook 注入**每一个页面**，可拖动、可缩放、位置与开合状态
+跨页面保持（对话内容不保留，关窗即清空）。
+
+助手会读当前页面：发票/报销单明细、核心会计模块的记账凭证（借贷行、辅助核算、
+合计与不平衡告警）、会计科目卡片，或筛选条件；再配合 `knowledge/` 里的离线知识库
+（Dolibarr 用法、SFRS/FRS、IRAS GST 与所得税、科目映射惯例、凭证自查清单）
+给出带出处的答案。公司特有规则写在配置页的「公司内部会计约定」里。
+每轮问答写入核心 `llx_ai_request_log`（provider=`ebk`），与核心 AI 助手、MCP
+Server 共用同一个审计页 `ai/admin/log_viewer.php`。
+
+> 助手是**只读**的：它读页面、给建议，不会替你提交任何表单。
+>
+> 助手**不能上网**。Dolibarr 核心的 LLM 适配层只发送 system + user 两条消息，
+> 没有 tool calling，核心 MCP 也只有 Server 端（本模块不提供检索工具）。所以凡是
+> 税率、门槛、期限这类会变的数字，一律以 `knowledge/*.md` 的离线资料为准，并由助手
+> 在回答里附上 **人工复核入口**——请自行打开它给出的 iras.gov.sg / asc.acra.gov.sg
+> 页面核对，**不要**把「助手引用了官方链接」当成「该链接上的内容今天仍然有效」。
 
 ## 数据流
 

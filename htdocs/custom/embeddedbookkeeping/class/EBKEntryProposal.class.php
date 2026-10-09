@@ -24,7 +24,7 @@ require_once DOL_DOCUMENT_ROOT.'/core/class/commonobject.class.php';
  * Value object. Not a CommonObject — we do not persist proposals, only the
  * resulting bookkeeping rows. The object is constructed in:
  *   - class/api_embeddedbookkeeping.class.php (REST API create endpoint)
- *   - AiModuleProvider::suggest() / ClaudeProvider::suggest() (AI path, after JSON decode)
+ *   - AiModuleProvider::suggest() (AI path, after JSON decode)
  * The 1.0 card-modal path was removed in 1.1.0; the bookkeeping tab uses
  * EBKEntryDraft (N rows) + EBKBookkeepingWriter::writeEntry() instead.
  */

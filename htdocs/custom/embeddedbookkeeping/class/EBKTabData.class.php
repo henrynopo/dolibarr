@@ -40,10 +40,12 @@ if (!class_exists('EBKTabData', false)) {
 class EBKTabData
 {
 	/**
-	 * Per-line account map for one invoice / expense report. ONE JOIN query,
-	 * mirroring accountancy/customer/index.php (and its supplier twin):
-	 * bound account (fk_code_ventilation) + product/thirdparty codes + the
-	 * four accounting_account rowid joins used by getAccountingCodeToBind().
+	 * Per-line account map for one invoice / expense report. Builds rows from
+	 * the $object->lines array (already fetched by core with correct column
+	 * names) — no manual SQL on the detail tables. The bound account is loaded
+	 * via a single batched JOIN on fk_code_ventilation; suggested accounts
+	 * are resolved via the same AccountingAccount::getAccountingCodeToBind()
+	 * that the core ventilation pages use.
 	 *
 	 * @param  DoliDB        $db
 	 * @param  CommonObject  $object   Fetched Facture | FactureFournisseur | ExpenseReport (lines loaded)
@@ -57,97 +59,95 @@ class EBKTabData
 		$entity = (int) $conf->entity;
 		$isSupplier = ($docType === 'supplier_invoice');
 		$isExpense  = ($docType === 'expense_report');
-		$buySide = $isSupplier || $isExpense; // income accounts for customer, expense accounts otherwise
+		$buySide = $isSupplier || $isExpense;
 
 		// Chart of accounts rowid in llx_accounting_system (empty = chart not configured → no suggestions)
 		$chartaccountcode = dol_getIdFromCode($db, getDolGlobalString('CHARTOFACCOUNTS'), 'accounting_system', 'rowid', 'pcg_version');
 
-		if ($isExpense) {
-			$sql = "SELECT d.rowid, d.fk_product, d.product_type, d.comments AS description, d.qty,";
-			$sql .= " d.total_ht, d.total_tva, d.total_localtax1, d.total_localtax2, d.total_ttc,";
-			$sql .= " d.tva_tx, d.vat_src_code, 0 AS info_bits, d.fk_code_ventilation";
-			$sql .= ", p.accountancy_code_buy, p.accountancy_code_buy_intra, p.accountancy_code_buy_export";
-			$sql .= ", ab.account_number AS bound_number, ab.label AS bound_label";
-			$sql .= " FROM ".MAIN_DB_PREFIX."expensereport_det AS d";
-			$sql .= " LEFT JOIN ".MAIN_DB_PREFIX."product AS p ON p.rowid = d.fk_product";
-			$sql .= " LEFT JOIN ".MAIN_DB_PREFIX."accounting_account AS ab ON ab.rowid = d.fk_code_ventilation AND ab.active = 1 AND ab.entity IN (0, ".((int) $entity).")";
-			$sql .= " WHERE d.fk_expensereport = ".((int) $object->id);
-			$sql .= " ORDER BY d.rang, d.rowid";
-		} else {
-			$lineTable = $isSupplier ? "facture_fourn_det" : "facturedet";
-			$fkColumn  = $isSupplier ? "fk_facture_fourn" : "fk_facture";
-			$codeCol   = $isSupplier ? "accountancy_code_buy" : "accountancy_code_sell";
-
-			$sql = "SELECT fd.rowid, fd.fk_product, fd.product_type, fd.description, fd.qty,";
-			$sql .= " fd.total_ht, fd.total_tva, fd.total_localtax1, fd.total_localtax2, fd.total_ttc,";
-			$sql .= " fd.tva_tx, fd.vat_src_code, fd.info_bits, fd.fk_code_ventilation";
-			$sql .= ", p.".$codeCol.", p.".$codeCol."_intra, p.".$codeCol."_export";
-			$sql .= ", s.accountancy_code_sell AS company_code_sell, s.accountancy_code_buy AS company_code_buy";
-			$sql .= ", ab.account_number AS bound_number, ab.label AS bound_label";
-			$sql .= " FROM ".MAIN_DB_PREFIX.$lineTable." AS fd";
-			$sql .= " LEFT JOIN ".MAIN_DB_PREFIX."product AS p ON p.rowid = fd.fk_product";
-			$sql .= " LEFT JOIN ".MAIN_DB_PREFIX."societe AS s ON s.rowid = ".((int) $object->socid);
-			$sql .= " LEFT JOIN ".MAIN_DB_PREFIX."accounting_account AS ab ON ab.rowid = fd.fk_code_ventilation AND ab.active = 1 AND ab.entity IN (0, ".((int) $entity).")";
-			if ($chartaccountcode > 0) {
-				$sql .= " LEFT JOIN ".MAIN_DB_PREFIX."accounting_account AS aa ON aa.account_number = p.".$codeCol." AND aa.fk_pcg_version = ".((int) $chartaccountcode)." AND aa.active = 1 AND aa.entity IN (0, ".((int) $entity).")";
-				$sql .= " LEFT JOIN ".MAIN_DB_PREFIX."accounting_account AS aa2 ON aa2.account_number = p.".$codeCol."_intra AND aa2.fk_pcg_version = ".((int) $chartaccountcode)." AND aa2.active = 1 AND aa2.entity IN (0, ".((int) $entity).")";
-				$sql .= " LEFT JOIN ".MAIN_DB_PREFIX."accounting_account AS aa3 ON aa3.account_number = p.".$codeCol."_export AND aa3.fk_pcg_version = ".((int) $chartaccountcode)." AND aa3.active = 1 AND aa3.entity IN (0, ".((int) $entity).")";
-				$sql .= " LEFT JOIN ".MAIN_DB_PREFIX."accounting_account AS aa4 ON aa4.account_number = s.".$codeCol." AND aa4.fk_pcg_version = ".((int) $chartaccountcode)." AND aa4.active = 1 AND aa4.entity IN (0, ".((int) $entity).")";
-			} else {
-				$sql .= ", NULL AS aa, NULL AS aa2, NULL AS aa3, NULL AS aa4"; // chart not configured — keep column shape
+		// Collect line rowids for a single batched JOIN to get bound account numbers.
+		$lineIds = array();
+		$lineIndex = array(); // rowid => array key
+		$idx = 0;
+		foreach ($object->lines as $line) {
+			$lid = (int) ($line->rowid ?? $line->id ?? 0);
+			if ($lid > 0) {
+				$lineIds[] = $lid;
+				$lineIndex[$lid] = $idx;
 			}
-			$sql .= " WHERE fd.".$fkColumn." = ".((int) $object->id);
-			$sql .= " ORDER BY fd.rang, fd.rowid";
+			$idx++;
 		}
 
-		$resql = $db->query($sql);
-		if (!$resql) {
-			dol_syslog(__METHOD__." err=".$db->lasterror, LOG_ERR);
-			return array();
+		// Batched lookup of bound accounts: one query for all lines, keyed by rowid.
+		$boundAccounts = array(); // rowid => array(number, label)
+		if (!empty($lineIds)) {
+			$table = $isExpense ? 'expensereport_det' : ($isSupplier ? 'facture_fourn_det' : 'facturedet');
+			$sql = "SELECT d.rowid, ab.account_number, ab.label";
+			$sql .= " FROM ".MAIN_DB_PREFIX.$table." AS d";
+			$sql .= " LEFT JOIN ".MAIN_DB_PREFIX."accounting_account AS ab ON ab.rowid = d.fk_code_ventilation AND ab.active = 1 AND ab.entity IN (0, ".$entity.")";
+			$sql .= " WHERE d.rowid IN (".implode(',', $lineIds).")";
+			$resql = $db->query($sql);
+			if ($resql) {
+				while ($obj = $db->fetch_object($resql)) {
+					$boundAccounts[(int) $obj->rowid] = array(
+						'number' => ($obj->account_number ?? ''),
+						'label'  => ($obj->label ?? ''),
+					);
+				}
+				$db->free($resql);
+			}
 		}
 
-		// Lightweight societe objects for the core resolver (no fetch loop — property
-		// assignment only, exactly the accountancy/customer/index.php trick).
-		$thirdparty = is_object($object->thirdparty) ? $object->thirdparty : null;
-		$buyer  = new Societe($db);
-		$seller = new Societe($db);
-		if ($isSupplier || $isExpense) {
-			// supplier: buyer = my company, seller = vendor; expense: both my company
-			$buyer->country_code  = $mysoc->country_code;
-			$seller->country_code = $isExpense ? $mysoc->country_code : (string) ($thirdparty ? $thirdparty->country_code : '');
-		} else {
-			$buyer->country_code  = (string) ($thirdparty ? $thirdparty->country_code : '');
-			$seller->country_code = $mysoc->country_code;
-		}
-		$thirdpartyProductCode = '';
-		if ($thirdparty && property_exists($thirdparty, $buySide ? 'accountancy_code_buy' : 'accountancy_code_sell')) {
-			$thirdpartyProductCode = (string) ($buySide ? $thirdparty->accountancy_code_buy : $thirdparty->accountancy_code_sell);
-		}
-		$buyer->code_compta_product  = $isSupplier || $isExpense ? '' : $thirdpartyProductCode;
-		$seller->code_compta_product = $isSupplier ? $thirdpartyProductCode : '';
-
-		$aaResolver = new AccountingAccount($db);
-		$type = $isSupplier ? 'supplier' : 'customer';
-
+		// --- Build row arrays from $object->lines (core-fetched, correct column names) ---
 		$rows = array();
-		$i = 0;
-		while ($obj = $db->fetch_object($resql)) {
+		foreach ($object->lines as $line) {
+			$lid = (int) ($line->rowid ?? $line->id ?? 0);
+			if ($lid <= 0) {
+				continue;
+			}
+
+			// Description: expense uses 'comments', invoices use 'description'
+			$description = '';
+			if ($isExpense) {
+				$description = (string) ($line->comments ?? '');
+			} else {
+				$description = (string) ($line->description ?? '');
+			}
+
+			$bound = isset($boundAccounts[$lid]) ? $boundAccounts[$lid] : array('number' => '', 'label' => '');
+
+			// Read tax amounts from the line using property_exists (graceful for missing columns)
+			// Core InvoiceLine/SupplierInvoiceLine have: total_tva, total_localtax1, total_localtax2
+			// Core ExpenseReport line has: total_tva, total_localtax1, total_localtax2
+			$totalTva      = property_exists($line, 'total_tva')      ? (float) $line->total_tva      : 0.0;
+			$totalLocalTax1 = property_exists($line, 'total_localtax1') ? (float) $line->total_localtax1 : 0.0;
+			$totalLocalTax2 = property_exists($line, 'total_localtax2') ? (float) $line->total_localtax2 : 0.0;
+			$totalHt       = property_exists($line, 'total_ht')        ? (float) $line->total_ht        : 0.0;
+			$totalTtc      = property_exists($line, 'total_ttc')       ? (float) $line->total_ttc       : 0.0;
+			$qty           = property_exists($line, 'qty')              ? (float) $line->qty              : 0.0;
+			$tvaTx         = property_exists($line, 'tva_tx')          ? (float) $line->tva_tx          : 0.0;
+			$vatSrcCode    = property_exists($line, 'vat_src_code')    ? (string) $line->vat_src_code   : '';
+			$infoBits      = property_exists($line, 'info_bits')       ? (int) $line->info_bits        : 0;
+			$fkProduct     = property_exists($line, 'fk_product')      ? (int) $line->fk_product        : 0;
+			$productType   = property_exists($line, 'product_type')    ? (int) $line->product_type      : 0;
+			$fkTypeFees    = property_exists($line, 'fk_c_type_fees')  ? (int) $line->fk_c_type_fees  : 0;
+
 			$row = array(
-				'rowid'            => (int) $obj->rowid,
-				'fk_product'       => (int) $obj->fk_product,
-				'product_type'     => (int) $obj->product_type,
-				'description'      => (string) ($obj->description !== null && $obj->description !== '' ? $obj->description : ''),
-				'qty'              => (float) $obj->qty,
-				'total_ht'         => (float) $obj->total_ht,
-				'total_tva'        => (float) $obj->total_tva,
-				'total_localtax1'  => (float) $obj->total_localtax1,
-				'total_localtax2'  => (float) $obj->total_localtax2,
-				'total_ttc'        => (float) $obj->total_ttc,
-				'tva_tx'           => (float) $obj->tva_tx,
-				'vat_src_code'     => (string) $obj->vat_src_code,
-				'npr'              => ((int) $obj->info_bits & 1) == 1,
-				'bound_number'     => (string) ($obj->bound_number ?? ''),
-				'bound_label'      => (string) ($obj->bound_label ?? ''),
+				'rowid'            => $lid,
+				'fk_product'       => $fkProduct,
+				'fk_c_type_fees'   => $fkTypeFees,
+				'product_type'     => $productType,
+				'description'      => $description,
+				'qty'              => $qty,
+				'total_ht'         => $totalHt,
+				'total_tva'        => $totalTva,
+				'total_localtax1'  => $totalLocalTax1,
+				'total_localtax2'  => $totalLocalTax2,
+				'total_ttc'        => $totalTtc,
+				'tva_tx'           => $tvaTx,
+				'vat_src_code'     => $vatSrcCode,
+				'npr'              => ($infoBits & 1) === 1,
+				'bound_number'     => $bound['number'],
+				'bound_label'      => $bound['label'],
 				'suggested_number' => '',
 				'suggested_label'  => '',
 				'status'           => 'missing',
@@ -155,37 +155,47 @@ class EBKTabData
 
 			if (!empty($row['bound_number'])) {
 				$row['status'] = 'bound';
-			} elseif (!$isExpense && $chartaccountcode > 0) {
-				// Suggested account via the CORE resolver — same chain as the ventilation pages:
-				// global default constant -> product code -> thirdparty product code (opt-in).
+			} elseif (!$isExpense && !empty($chartaccountcode)) {
+				// Resolve suggested account via the CORE resolver.
 				$product = new Product($db);
-				$product->id = $row['fk_product'];
-				$product->product_type = $row['product_type'] >= 0 ? $row['product_type'] : 0;
-				$codeCol = $buySide ? 'accountancy_code_buy' : 'accountancy_code_sell';
-				$product->{$codeCol}          = (string) $obj->{$codeCol};
-				$product->{$codeCol.'_intra'} = (string) $obj->{$codeCol.'_intra'};
-				$product->{$codeCol.'_export'} = (string) $obj->{$codeCol.'_export'};
+				$product->id = $fkProduct;
+				$product->product_type = $productType;
 
-				// Real (unfetched) invoice instance — required by the core resolver:
-				// it reads $facture::TYPE_DEPOSIT / TYPE_CREDIT_NOTE and may do
-				// `new $facture($db)` for credit-note-of-deposit lookups.
+				$codeCol = $buySide ? 'accountancy_code_buy' : 'accountancy_code_sell';
+				if ($fkProduct > 0 && property_exists($line, $codeCol)) {
+					$product->{$codeCol}          = (string) ($line->{$codeCol} ?? '');
+					$product->{$codeCol.'_intra'} = (string) ($line->{$codeCol.'_intra'} ?? '');
+					$product->{$codeCol.'_export'} = (string) ($line->{$codeCol.'_export'} ?? '');
+				}
+
 				$factureLite = $isSupplier ? new FactureFournisseur($db) : new Facture($db);
 				$factureLite->id = (int) $object->id;
-				$factureLite->type = isset($object->type) ? $object->type : 0;
+				$factureLite->type = isset($object->type) ? (int) $object->type : 0;
 				if (!empty($object->fk_facture_source)) {
-					$factureLite->fk_facture_source = $object->fk_facture_source;
+					$factureLite->fk_facture_source = (int) $object->fk_facture_source;
 				}
 				$lineLite = $isSupplier ? new SupplierInvoiceLine($db) : new FactureLigne($db);
-				$lineLite->desc = $row['description'];
-				$lineLite->product_type = $row['product_type'];
+				$lineLite->desc = $description;
+				$lineLite->product_type = $productType;
 
-				$accountingAccount = array(
-					'dom' => isset($obj->aa) ? (int) $obj->aa : 0,
-					'intra' => isset($obj->aa2) ? (int) $obj->aa2 : 0,
-					'export' => isset($obj->aa3) ? (int) $obj->aa3 : 0,
-					'thirdparty' => isset($obj->aa4) ? (int) $obj->aa4 : 0,
-				);
-				$resolved = $aaResolver->getAccountingCodeToBind($buyer, $seller, $product, $factureLite, $lineLite, $accountingAccount, $type);
+				$thirdparty = is_object($object->thirdparty) ? $object->thirdparty : null;
+				$buyer  = new Societe($db);
+				$seller = new Societe($db);
+				if ($isSupplier) {
+					$buyer->country_code  = $mysoc->country_code;
+					$seller->country_code = (string) ($thirdparty ? $thirdparty->country_code : '');
+				} else {
+					$buyer->country_code  = (string) ($thirdparty ? $thirdparty->country_code : '');
+					$seller->country_code = $mysoc->country_code;
+				}
+				$buyer->code_compta_product  = '';
+				$seller->code_compta_product = (string) ($thirdparty && property_exists($thirdparty, $buySide ? 'accountancy_code_buy' : 'accountancy_code_sell')
+					? ($buySide ? $thirdparty->accountancy_code_buy : $thirdparty->accountancy_code_sell) : '');
+
+				$accountingAccount = array('dom' => 0, 'intra' => 0, 'export' => 0, 'thirdparty' => 0);
+
+				$aaResolver = new AccountingAccount($db);
+				$resolved = $aaResolver->getAccountingCodeToBind($buyer, $seller, $product, $factureLite, $lineLite, $accountingAccount, $isSupplier ? 'supplier' : 'customer');
 				$number = '';
 				if (is_array($resolved)) {
 					$number = (string) (!empty($resolved['code_p']) ? $resolved['code_p']
@@ -198,9 +208,7 @@ class EBKTabData
 				}
 			}
 			$rows[] = $row;
-			$i++;
 		}
-		$db->free($resql);
 
 		// Batch-resolve labels of all suggested accounts (ONE query, not one per line).
 		$suggestedNumbers = array();
@@ -213,7 +221,7 @@ class EBKTabData
 			$labels = self::labelsForAccounts($db, array_keys($suggestedNumbers), $entity);
 			foreach ($rows as $k => $r) {
 				if ($r['suggested_number'] !== '') {
-					$rows[$k]['suggested_label'] = isset($labels[$r['suggested_number']]) ? $labels[$r['suggested_number']] : '';
+					$rows[$k]['suggested_label'] = $labels[$r['suggested_number']] ?? '';
 				}
 			}
 		}
@@ -272,64 +280,117 @@ class EBKTabData
 	}
 
 	/**
-	 * VAT + localtax amounts grouped by resolved VAT account, one group per
-	 * account. Uses core getTaxesFromId() (cached per tax key) exactly like
-	 * the core journals; NPR lines are skipped (their taxes fold into the
-	 * product line row in defaultDraft()).
+	 * Tax amounts grouped by (account, tax_rate) key, one row per unique pair —
+	 * the same logic the core journals use. Resolves VAT / LT1 / LT2 accounts
+	 * individually from the tax dictionary, skipping any component whose amount is
+	 * below the rounding threshold. NPR lines are excluded (their taxes travel
+	 * with the product row in defaultDraft()).
 	 *
-	 * @param  DoliDB       $db
-	 * @param  array        $lineRows  Output of lineRows()
-	 * @param  string       $docType
-	 * @param  Societe      $buyer
-	 * @param  Societe      $seller
-	 * @return array<int,array{account:string,label:string,amount:float,label_operation:string}> Credit- or debit-positive amounts
+	 * Grouping key format: "account_number|rate[|ltN]"  (ltN suffix = localtax)
+	 *
+	 * @param  DoliDB  $db
+	 * @param  array   $lineRows  Output of lineRows()
+	 * @param  string  $docType
+	 * @param  Societe $buyer
+	 * @param  Societe $seller
+	 * @return array<int,array{account:string,label:string,amount:float,label_operation:string}>
 	 */
 	public static function vatGroups($db, $lineRows, $docType, $buyer, $seller)
 	{
+		global $conf;
+
 		$buySide = ($docType !== 'customer_invoice');
-		$constFallback = $buySide ? 'ACCOUNTING_VAT_BUY_ACCOUNT' : 'ACCOUNTING_VAT_SOLD_ACCOUNT';
-		$taxCache = array();
-		$groups = array();
+
+		// Per-localtax fallback accounts (same constants the core journals read)
+		$lt1Fallback = $buySide ? 'ACCOUNTING_LT1_BUY_ACCOUNT' : 'ACCOUNTING_LT1_SOLD_ACCOUNT';
+		$lt2Fallback = $buySide ? 'ACCOUNTING_LT2_BUY_ACCOUNT' : 'ACCOUNTING_LT2_SOLD_ACCOUNT';
+
+		$vatCache = array(); // tax_key => account_number from getTaxesFromId()
+		$groups   = array(); // "account|rate" => array(amount, label_operation)
 
 		foreach ($lineRows as $line) {
-			if ($line['npr']) {
-				continue; // NPR: taxes carried by the product line itself
+			if (!empty($line['npr'])) {
+				continue; // NPR: taxes travel with the product line
 			}
-			$taxAmount = (float) $line['total_tva'] + (float) $line['total_localtax1'] + (float) $line['total_localtax2'];
-			if (abs($taxAmount) < 0.005) {
-				continue;
-			}
+
 			$taxKey = $line['tva_tx'].(!empty($line['vat_src_code']) ? ' ('.$line['vat_src_code'].')' : '');
-			if (!isset($taxCache[$taxKey])) {
-				$vatdata = getTaxesFromId($taxKey, $buyer, $seller, 0);
-				$account = '';
-				if (is_array($vatdata) && empty($vatdata['error'])) {
-					$account = trim((string) ($buySide ? ($vatdata['accountancy_code_buy'] ?? '') : ($vatdata['accountancy_code_sell'] ?? '')));
+
+			// --- VAT (total_tva) ---
+			$vat = (float) $line['total_tva'];
+			if (abs($vat) >= 0.005) {
+				if (!isset($vatCache[$taxKey])) {
+					$vatdata = getTaxesFromId($taxKey, $buyer, $seller, 0);
+					$acct = '';
+					if (is_array($vatdata) && empty($vatdata['error'])) {
+						$acct = trim((string) ($buySide
+							? ($vatdata['accountancy_code_buy'] ?? '')
+							: ($vatdata['accountancy_code_sell'] ?? '')));
+					}
+					$vatCache[$taxKey] = $acct;
 				}
-				if ($account === '') {
-					$account = getDolGlobalString($constFallback);
+				$acct = $vatCache[$taxKey];
+				if ($acct !== '') {
+					$gk = $acct.'|'.$line['tva_tx'];
+					if (!isset($groups[$gk])) {
+						$groups[$gk] = array('account' => $acct, 'amount' => 0.0, 'label_operation' => 'VAT '.$line['tva_tx'].'%');
+					}
+					$groups[$gk]['amount'] += $vat;
 				}
-				$taxCache[$taxKey] = $account;
 			}
-			$account = $taxCache[$taxKey];
-			if ($account === '') {
-				continue;
+
+			// --- Localtax 1 (total_localtax1) ---
+			$lt1 = (float) $line['total_localtax1'];
+			if (abs($lt1) >= 0.005) {
+				if (!isset($vatCache[$taxKey.'|lt1'])) {
+					$vatdata = getTaxesFromId($taxKey, $buyer, $seller, 0);
+					$acct = trim((string) ($vatdata['accountancy_code_buy'] ?? $vatdata['accountancy_code_sell'] ?? ''));
+					if ($acct === '') {
+						$acct = getDolGlobalString($lt1Fallback, '');
+					}
+					$vatCache[$taxKey.'|lt1'] = $acct;
+				}
+				$acct = $vatCache[$taxKey.'|lt1'];
+				if ($acct !== '') {
+					$gk = $acct.'|lt1|'.$line['tva_tx'];
+					if (!isset($groups[$gk])) {
+						$groups[$gk] = array('account' => $acct, 'amount' => 0.0, 'label_operation' => 'VAT '.$line['tva_tx'].'% LT1');
+					}
+					$groups[$gk]['amount'] += $lt1;
+				}
 			}
-			if (!isset($groups[$account])) {
-				$groups[$account] = array(
-					'account' => $account,
-					'label' => '',
-					'amount' => 0.0,
-					'label_operation' => 'VAT',
-				);
+
+			// --- Localtax 2 (total_localtax2) ---
+			$lt2 = (float) $line['total_localtax2'];
+			if (abs($lt2) >= 0.005) {
+				if (!isset($vatCache[$taxKey.'|lt2'])) {
+					$vatdata = getTaxesFromId($taxKey, $buyer, $seller, 0);
+					$acct = trim((string) ($vatdata['accountancy_code_buy'] ?? $vatdata['accountancy_code_sell'] ?? ''));
+					if ($acct === '') {
+						$acct = getDolGlobalString($lt2Fallback, '');
+					}
+					$vatCache[$taxKey.'|lt2'] = $acct;
+				}
+				$acct = $vatCache[$taxKey.'|lt2'];
+				if ($acct !== '') {
+					$gk = $acct.'|lt2|'.$line['tva_tx'];
+					if (!isset($groups[$gk])) {
+						$groups[$gk] = array('account' => $acct, 'amount' => 0.0, 'label_operation' => 'VAT '.$line['tva_tx'].'% LT2');
+					}
+					$groups[$gk]['amount'] += $lt2;
+				}
 			}
-			$groups[$account]['amount'] += $taxAmount;
-			$groups[$account]['label_operation'] .= (substr($groups[$account]['label_operation'], -1) === '%') ? ', '.$line['tva_tx'].'%' : ' '.$line['tva_tx'].'%';
 		}
 
+		// Resolve account labels in one batch.
+		$accountNumbers = array();
+		foreach ($groups as $g) {
+			$accountNumbers[$g['account']] = true;
+		}
+		$labels = self::labelsForAccounts($db, array_keys($accountNumbers), (int) $conf->entity);
+
 		$out = array();
-		foreach ($groups as $account => $g) {
-			$g['label'] = EBKAccountLookup::labelForAccount($db, $account, 0);
+		foreach ($groups as $g) {
+			$g['label'] = $labels[$g['account']] ?? '';
 			$out[] = $g;
 		}
 		return $out;
@@ -384,6 +445,18 @@ class EBKTabData
 		$lineSide = $isCustomer ? 'C' : 'D';
 		$counterSide = $isCustomer ? 'D' : 'C';
 
+		// US/non-VAT-country mode: when the constant is set, taxes stay on the product
+		// row instead of being dispatched to their own tax account rows. This mirrors
+		// the same flag that the core journals respect (purchasesjournal /
+		// expensereportsjournal). For customer invoices the flag does not exist in
+		// core, so it is always false there.
+		$doNotDispatchTaxes = false;
+		if ($docType === 'expense_report') {
+			$doNotDispatchTaxes = getDolGlobalInt('ACCOUNTING_EXPENSEREPORT_DO_NOT_DISPATCH_TAXES') === 1;
+		} elseif ($docType === 'supplier_invoice') {
+			$doNotDispatchTaxes = getDolGlobalInt('ACCOUNTING_PURCHASES_DO_NOT_DISPATCH_TAXES') === 1;
+		}
+
 		// 1. Counter row: |sum(total_ttc)| — sign applied by addRow(side)
 		$sumTtc = 0.0;
 		foreach ($lineRows as $line) {
@@ -400,7 +473,8 @@ class EBKTabData
 			$counter['subledger_label']
 		);
 
-		// 2. Per-line rows (HT; NPR lines carry their own taxes)
+		// 2. Per-line rows — in US/non-VAT mode taxes stay on the product row;
+		//   otherwise only NPR lines carry their own taxes (non-NPR taxes go to vatGroups rows)
 		$lastLineIndex = -1;
 		foreach ($lineRows as $line) {
 			$account = '';
@@ -413,8 +487,11 @@ class EBKTabData
 				$label = $line['suggested_label'];
 			}
 			$amount = (float) $line['total_ht'];
-			if ($line['npr']) {
-				$amount += (float) $line['total_tva'] + (float) $line['total_localtax1'] + (float) $line['total_localtax2'];
+			if (!empty($line['npr']) || $doNotDispatchTaxes) {
+				// NPR: taxes travel with product row; US mode: all taxes stay with product row
+				$amount += (float) $line['total_tva']
+					+ (float) $line['total_localtax1']
+					+ (float) $line['total_localtax2'];
 			}
 			if (abs($amount) < 0.005 && $account === '') {
 				continue; // fully empty line (null amounts), nothing to book
@@ -430,16 +507,18 @@ class EBKTabData
 			$lastLineIndex = count($draft->rows) - 1;
 		}
 
-		// 3. Grouped VAT rows
-		foreach ($vatGroups as $g) {
-			$draft->addRow(
-				$g['account'],
-				$g['label'],
-				abs($g['amount']),
-				$lineSide,
-				dol_trunc($g['label_operation'], 60, 'right', 'UTF-8', 1),
-				0
-			);
+		// 3. Grouped VAT rows — skipped when US/non-VAT mode is active
+		if (!$doNotDispatchTaxes) {
+			foreach ($vatGroups as $g) {
+				$draft->addRow(
+					$g['account'],
+					$g['label'],
+					abs($g['amount']),
+					$lineSide,
+					dol_trunc($g['label_operation'], 60, 'right', 'UTF-8', 1),
+					0
+				);
+			}
 		}
 
 		// 4. Fold any residual (data drift) onto the last line row so the entry

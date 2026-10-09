@@ -16,7 +16,6 @@
 require_once DOL_DOCUMENT_ROOT.'/custom/embeddedbookkeeping/class/ai/EBKAiSuggester.interface.php';
 require_once DOL_DOCUMENT_ROOT.'/custom/embeddedbookkeeping/class/ai/NullProvider.class.php';
 require_once DOL_DOCUMENT_ROOT.'/custom/embeddedbookkeeping/class/ai/AiModuleProvider.class.php';
-require_once DOL_DOCUMENT_ROOT.'/custom/embeddedbookkeeping/class/ai/ClaudeProvider.class.php';
 
 if (!class_exists('EBKAiProviderFactory', false)) {
 
@@ -24,7 +23,9 @@ class EBKAiProviderFactory
 {
 	/**
 	 * @return EBKAiSuggester A provider that always answers — NullProvider when disabled,
-	 *                        the chosen one when configured, NullProvider-with-warning when mis-configured.
+	 *                        AiModuleProvider otherwise. AiModuleProvider is robust to
+	 *                        "ai module not enabled" — it falls back to NullProvider internally
+	 *                        with a structured warning. So returning it here always works.
 	 */
 	public static function resolve()
 	{
@@ -34,17 +35,13 @@ class EBKAiProviderFactory
 		if ($choice === '' || $choice === 'disabled') {
 			return new NullProvider('disabled');
 		}
-		if ($choice === 'claude') {
-			$key = (string) getDolGlobalString('EMBEDDEDBOOKKEEPING_ANTHROPIC_KEY');
-			if ($key === '') {
-				return new NullProvider('claude_key_missing');
-			}
-			return new ClaudeProvider();
-		}
-		if ($choice === 'ai_module') {
-			// AiModuleProvider is robust to "ai module not enabled" — it falls back to
-			// NullProvider internally with a structured warning. So returning it here
-			// always works.
+		if ($choice === 'ai_module' || $choice === 'ebk_custom') {
+			// Both providers end up in AiModuleProvider: it branches on the very
+			// same constant when it resolves credentials (resolveAdapter() →
+			// resolveAdapterAiModule / resolveAdapterEbkCustom). Returning
+			// NullProvider for 'ebk_custom' — as this factory used to — only
+			// happened to work because the chat path falls back to the adapter
+			// anyway, while logging a bogus "unknown_provider" warning.
 			return new AiModuleProvider();
 		}
 		// Unknown value — be permissive and fall back to NullProvider.

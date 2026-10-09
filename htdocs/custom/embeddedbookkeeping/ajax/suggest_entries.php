@@ -91,7 +91,7 @@ if (!isModEnabled('embeddedbookkeeping')) {
 	echo json_encode(array('ok' => false, 'warning' => 'module_disabled'));
 	exit;
 }
-if (empty($user->rights->embeddedbookkeeping->ai->suggest) && empty($user->admin)) {
+if (empty($user->rights->embeddedbookkeeping->ai_suggest) && empty($user->admin)) {
 	header('HTTP/1.1 403 Forbidden');
 	header('Content-Type: application/json');
 	echo json_encode(array('ok' => false, 'warning' => 'no_ai_permission'));
