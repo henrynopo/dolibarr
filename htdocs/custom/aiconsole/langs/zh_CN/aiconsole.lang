@@ -1,0 +1,132 @@
+# AI Console 模块 - 简体中文
+# Copyright (c) 2026 HaoSG Group
+
+CHARSET=UTF-8
+
+ModuleAIConsoleName=AI 控制台
+ModuleAIConsoleDesc=AI 模块配置的只读控制台，逐项分栏
+Module500400Name=AI 控制台
+Module500400Desc=AI 模块配置的只读控制台，逐项分栏
+
+# 权限文案（键名即描述文件中的字面串）
+View the AI console overview=查看 AI 控制台概览
+Read Dolibarr logs through the MCP log tool=通过 MCP 日志工具读取 Dolibarr 日志
+
+# 菜单项标题（须与 modaiconsole.class.php 中的 'titre' 键一致）
+AiConsole=AI 控制台
+AiConsoleOverview=概览
+AiConsoleProvider=服务商设置
+AiConsoleAssistant=AI 助手
+AiConsoleMcp=MCP 服务器
+AiConsoleTools=工具访问控制
+AiConsolePrompt=自定义提示词
+AiConsoleLog=请求日志
+AiConsoleLogToolNav=AI 日志工具
+
+# 分栏标题（须与 modaiconsole.class.php 中 getSections() 的 'titlelang' 键一致）
+AiConsoleTitle=AI 控制台
+AiConsoleProviderTitle=服务商设置
+AiConsoleAssistantTitle=AI 助手
+AiConsoleMcpTitle=MCP 服务器
+AiConsoleToolsTitle=工具访问控制
+AiConsolePromptTitle=自定义提示词
+AiConsoleLogTitle=请求日志
+
+AiConsoleReadOnly=（只读）
+AiConsoleFeature=功能
+AiConsoleSetting=设置项
+AiConsoleStatus=状态
+AiConsoleDetail=详情
+AiConsoleAction=操作
+AiConsoleConfigure=前往核心 AI 配置页修改
+AiConsoleDetailView=查看详情
+AiConsoleReadOnlyHint=本模块只读，不写入任何设置。点击右上角按钮即可跳到该页面对应的核心配置页进行修改。
+AiConsoleHelp=本页面按功能分栏展示 AI 模块当前的配置情况，所有分栏都在这一页内切换。修改设置请用每栏右上角的按钮跳转到核心配置页。
+AiConsoleFooterNote=本模块不写入任何常量（AI 日志工具开关除外）、不存储任何数据。停用本模块只会移除菜单入口，AI 模块的配置不受影响。
+AiConsoleModuleDisabled=AI 模块尚未启用。请在模块列表中启用后再配置。
+
+AiConsoleToolAccess=工具访问控制
+AiConsoleCustomPrompt=自定义提示词
+AiConsoleRequestLog=请求日志
+
+AiConsoleNoProvider=未选择服务商
+AiConsoleKeySet=API Key 已配置
+AiConsoleKeyMissing=缺少 API Key
+AiConsoleKeyGenerated=已生成 API Key
+AiConsoleKeyNotGenerated=未生成 API Key
+AiConsoleEnabled=已启用
+AiConsoleDisabled=未启用
+AiConsoleConfigured=已配置
+AiConsoleNotConfigured=未配置
+AiConsoleNoServiceUser=未选择服务账号
+AiConsoleServiceUserMissing=用户 #%s 已不存在
+AiConsoleChatInterface=对话界面
+AiConsolePromptDesc=发给 LLM 服务商的提示词覆盖
+AiConsoleAllowedSplit=按调用方区分的放行工具
+AiConsoleToolsAllowed=放行 %s / %s 个业务工具
+AiConsoleSystemTools=另有 %s 个系统工具始终可用
+AiConsoleAssistantTools=助手：%s / %s
+AiConsoleMcpTools=MCP 服务器：%s / %s
+AiConsoleLogCount=已记录 %s 条请求
+AiConsoleLogEmpty=暂无请求记录
+AiConsoleLastRequest=最近请求 %s
+
+# 分栏内的细节展示（v1.2.0）
+AiConsoleKeyNeverShown=已加密存储，任何页面都不会回显其内容
+AiConsoleModelOverride=模型覆盖
+AiConsoleNoOverride=未覆盖，沿用服务商默认模型
+AiConsoleOverrideSet=已覆盖
+AiConsoleUseDefault=使用默认
+AiConsoleModeText=仅文本
+AiConsoleModeNative=云端快速（需服务商支持）
+AiConsoleModeWhisper=本地 Whisper 转写
+AiConsolePrivacyOn=已开启：发给服务商前先遮蔽个人信息
+AiConsolePrivacyOff=未开启：个人信息会原样发给服务商
+AiConsoleConfirmNever=从不确认
+AiConsoleConfirmWriteOnly=仅写操作前确认
+AiConsoleConfirmAlways=每次都确认
+AiConsoleAllowListOpen=留空 = 放行全部工具
+AiConsoleSystemToolsHelp=系统工具在核心中豁免放行清单，任何账号都能调用，无法关闭
+AiConsoleAllowListWarning=留空即放行全部工具（含写操作），核心默认就是留空。请到核心配置页显式收紧后再启用 AI 助手与 MCP 服务器。
+AiConsoleToolName=工具
+AiConsoleToolType=类型
+AiConsoleToolDescription=说明
+AiConsoleColAssistant=助手
+AiConsoleColMcp=MCP 服务器
+AiConsoleToolOtherGroup=其它
+AiConsoleNoTools=未发现任何 MCP 工具。请确认核心 ai 模块的 MCP 服务器已启用。
+AiConsolePromptFunction=功能代码
+AiConsolePromptPre=前置提示词
+AiConsolePromptPost=后置提示词
+AiConsolePromptBlacklist=黑名单词数
+AiConsoleNoPrompt=尚未配置任何自定义提示词。
+AiConsoleRetentionDays=保留最近 %s 天
+AiConsoleRetentionForever=永久保留
+AiConsoleRecentLog=最近 20 条请求
+AiConsoleLogDate=时间
+AiConsoleLogProvider=服务商
+AiConsoleLogDuration=耗时
+AiConsoleLogError=错误
+
+# MCP 日志工具（v1.1.0）
+AiConsoleLogToolSection=通过 MCP 开放 AI 日志读取
+AiConsoleLogToolWarning=本模块可让 AI 调用方通过 MCP 读取 Dolibarr 诊断日志。需同时满足三项：调用方持有 API Key、调用账号具备 aiconsole->mcp_logtool->read 权限、下方开关已打开。前两项在别处配置，本页只控制第三项。
+AiConsoleGate=闸门
+AiConsoleGateConfig=配置开关
+AiConsoleGateRight=账号权限
+AiConsoleGateRightMissing=没有任何用户组给该账号授予 aiconsole->mcp_logtool->read 权限
+AiConsoleGateMcp=MCP 服务器
+AiConsoleGateMcpDetail=需已开启 AI_MCP_ENABLED 并配置服务账号
+AiConsoleOpen=已开
+AiConsoleClosed=已关
+AiConsoleLogToolEnable=开启 AI 日志读取
+AiConsoleLogToolDisable=关闭 AI 日志读取
+AiConsoleLogToolSwitchHint=关闭状态下该工具根本不会被实例化：不会出现在 AI 工具列表中，MCP 端点也无法对外声明它。
+AiConsoleLogToolSwitchDone=AI 日志读取现已%s。
+AiConsoleLogToolSwitchFailed=开关保存失败。
+AiConsolePreviewIntro=预览调用方会收到的内容。此处直接运行工具本身，因此下方输出就是 MCP 调用方拿到的原始结果，经过同样的脱敏与同样的上限约束。
+AiConsolePreviewSource=数据源
+AiConsolePreviewHours=回溯时长（小时）
+AiConsolePreviewLimit=最大行数
+AiConsolePreviewRun=预览
+AiConsolePreviewResult=预览输出

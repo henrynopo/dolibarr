@@ -1,0 +1,132 @@
+# AI Console module - English
+# Copyright (c) 2026 HaoSG Group
+
+CHARSET=UTF-8
+
+ModuleAIConsoleName=AI Console
+ModuleAIConsoleDesc=Read-only console for the AI module configuration, tab by tab
+Module500400Name=AI Console
+Module500400Desc=Read-only console for the AI module configuration, tab by tab
+
+# Permission labels (keys are the literal descriptor strings)
+View the AI console overview=View the AI console overview
+Read Dolibarr logs through the MCP log tool=Read Dolibarr logs through the MCP log tool
+
+# Menu entry titles (must match the 'titre' keys in modaiconsole.class.php)
+AiConsole=AI Console
+AiConsoleOverview=Overview
+AiConsoleProvider=Provider settings
+AiConsoleAssistant=AI assistant
+AiConsoleMcp=MCP server
+AiConsoleTools=Tool access control
+AiConsolePrompt=Custom prompts
+AiConsoleLog=Request log
+AiConsoleLogToolNav=AI log tool
+
+# Section headings (must match the 'titlelang' keys in getSections())
+AiConsoleTitle=AI Console
+AiConsoleProviderTitle=Provider settings
+AiConsoleAssistantTitle=AI assistant
+AiConsoleMcpTitle=MCP server
+AiConsoleToolsTitle=Tool access control
+AiConsolePromptTitle=Custom prompts
+AiConsoleLogTitle=Request log
+
+AiConsoleReadOnly=(read-only)
+AiConsoleFeature=Feature
+AiConsoleSetting=Setting
+AiConsoleStatus=Status
+AiConsoleDetail=Detail
+AiConsoleAction=Action
+AiConsoleConfigure=Edit on the core AI page
+AiConsoleDetailView=View detail
+AiConsoleReadOnlyHint=This module is read-only and writes no setting. The button above opens the core configuration page where this topic is actually edited.
+AiConsoleHelp=This console shows how the AI module is currently configured, one section per topic, all switched inside this one page. Use the button at the top right of a section to edit its settings on the core configuration page.
+AiConsoleFooterNote=This module writes no constant (the AI log tool switch aside) and stores no data. Disabling it only removes the menu entries; the AI module configuration is left untouched.
+AiConsoleModuleDisabled=The AI module is not enabled. Enable it from the module list to configure its settings.
+
+AiConsoleToolAccess=Tool access control
+AiConsoleCustomPrompt=Custom prompts
+AiConsoleRequestLog=Request log
+
+AiConsoleNoProvider=No provider selected
+AiConsoleKeySet=API key set
+AiConsoleKeyMissing=API key missing
+AiConsoleKeyGenerated=API key generated
+AiConsoleKeyNotGenerated=No API key
+AiConsoleEnabled=Enabled
+AiConsoleDisabled=Disabled
+AiConsoleConfigured=Configured
+AiConsoleNotConfigured=Not configured
+AiConsoleNoServiceUser=No service user
+AiConsoleServiceUserMissing=User #%s no longer exists
+AiConsoleChatInterface=Chat interface
+AiConsolePromptDesc=Prompt overrides sent to the LLM provider
+AiConsoleAllowedSplit=Allowed tools, per caller
+AiConsoleToolsAllowed=%s of %s business tools
+AiConsoleSystemTools=%s system tools always available
+AiConsoleAssistantTools=Assistant: %s of %s
+AiConsoleMcpTools=MCP server: %s of %s
+AiConsoleLogCount=%s logged requests
+AiConsoleLogEmpty=No request logged yet
+AiConsoleLastRequest=Last request %s
+
+# Per-section detail readouts (v1.2.0)
+AiConsoleKeyNeverShown=Stored encrypted; never echoed back on any page
+AiConsoleModelOverride=Model overrides
+AiConsoleNoOverride=Not overridden, the provider default model is used
+AiConsoleOverrideSet=Overridden
+AiConsoleUseDefault=Default
+AiConsoleModeText=Text only
+AiConsoleModeNative=Cloud fast (requires provider support)
+AiConsoleModeWhisper=Local Whisper transcription
+AiConsolePrivacyOn=On: personal data is masked before leaving Dolibarr
+AiConsolePrivacyOff=Off: personal data is sent to the provider as is
+AiConsoleConfirmNever=Never ask
+AiConsoleConfirmWriteOnly=Ask before write operations only
+AiConsoleConfirmAlways=Always ask
+AiConsoleAllowListOpen=Empty = every tool is allowed
+AiConsoleSystemToolsHelp=System tools are exempt from the allow-list in core: any account can call them and they cannot be switched off
+AiConsoleAllowListWarning=An empty list allows every tool, write operations included, and that is the core default. Tighten it explicitly on the core configuration page before enabling the AI assistant or the MCP server.
+AiConsoleToolName=Tool
+AiConsoleToolType=Type
+AiConsoleToolDescription=Description
+AiConsoleColAssistant=Assistant
+AiConsoleColMcp=MCP server
+AiConsoleToolOtherGroup=Other
+AiConsoleNoTools=No MCP tool discovered. Check that the core ai module has its MCP server enabled.
+AiConsolePromptFunction=Function code
+AiConsolePromptPre=Pre-prompt
+AiConsolePromptPost=Post-prompt
+AiConsolePromptBlacklist=Blacklisted terms
+AiConsoleNoPrompt=No custom prompt configured yet.
+AiConsoleRetentionDays=Keeps the last %s days
+AiConsoleRetentionForever=Kept forever
+AiConsoleRecentLog=Last 20 requests
+AiConsoleLogDate=Date
+AiConsoleLogProvider=Provider
+AiConsoleLogDuration=Duration
+AiConsoleLogError=Error
+
+# MCP log tool (v1.1.0)
+AiConsoleLogToolSection=AI log access via MCP
+AiConsoleLogToolWarning=This module can let an AI caller read Dolibarr diagnostics over MCP. Access requires the caller's API key, the calling account to hold aiconsole->mcp_logtool->read, and the switch below to be on. All three must be satisfied; the first two are configured elsewhere.
+AiConsoleGate=Gate
+AiConsoleGateConfig=Configuration switch
+AiConsoleGateRight=Account right
+AiConsoleGateRightMissing=No group grants this account the aiconsole->mcp_logtool->read right
+AiConsoleGateMcp=MCP server
+AiConsoleGateMcpDetail=AI_MCP_ENABLED must be on and a service account configured
+AiConsoleOpen=Open
+AiConsoleClosed=Closed
+AiConsoleLogToolEnable=Enable AI log access
+AiConsoleLogToolDisable=Disable AI log access
+AiConsoleLogToolSwitchHint=While disabled, the tool is not even constructed: it does not appear in the AI tool list and the MCP endpoint cannot advertise it.
+AiConsoleLogToolSwitchDone=AI log access is now %s.
+AiConsoleLogToolSwitchFailed=The switch could not be saved.
+AiConsolePreviewIntro=Preview what a caller receives. This runs the tool itself, so the output below is exactly what an MCP caller gets back, with the same redaction and the same limits.
+AiConsolePreviewSource=Source
+AiConsolePreviewHours=Lookback (hours)
+AiConsolePreviewLimit=Maximum rows
+AiConsolePreviewRun=Preview
+AiConsolePreviewResult=Preview output
