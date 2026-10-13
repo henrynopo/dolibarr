@@ -1,0 +1,1051 @@
+diff --git a/htdocs/custom/slycustom/langs/en_US/slycustom.lang b/htdocs/custom/slycustom/langs/en_US/slycustom.lang
+index 558955a12d7..2d4c7350eab 100644
+--- a/htdocs/custom/slycustom/langs/en_US/slycustom.lang
++++ b/htdocs/custom/slycustom/langs/en_US/slycustom.lang
+@@ -191,7 +191,7 @@ WISE_PROFILE_ID=Wise profile id
+ WISE_PROFILE_IDTooltip=Numeric id of the Wise profile. Auto-filled by the "Test connection" button when the token is valid.
+ WISE_SIGNATURE_KEY=Webhook signature key
+ WISE_SIGNATURE_KEY_FOUND=Verification enabled (verification_key.pem found)
+-WISE_SIGNATURE_KEY_MISSING=Bootstrap mode: save the subscription public key to DOL_DATA_ROOT/wise_webhook/verification_key.pem to enforce signature verification (unsigned deliveries are currently accepted with a warning)
++WISE_SIGNATURE_KEY_MISSING=Bootstrap mode: no signature verification key. Deliveries are NOT ingested unless the source IP allowlist (WISE_WEBHOOK_IPCHECK) is enabled. Save the subscription public key to DOL_DATA_ROOT/wise_webhook/verification_key.pem to ingest.
+ WISE_QUEUE_STATUS=Incoming payments queue
+ WISE_SO_REF_PATTERN=SO reference extraction pattern
+ WISE_SO_REF_PATTERNTooltip=Optional manual override. Effective pattern resolution: this field > derived from the order numbering mask (Sales Orders setup > Orders numbering, e.g. COMMANDE_SAPHIR_MASK) > built-in default. Leave empty to stay automatic.
+@@ -224,8 +224,11 @@ WISE_OUTGOING_ENABLEDTooltip=When ON, supplier invoices expose Wise transfer pre
+ SLYCUSTOM_TAB_SHIPSGO=ShipsGo
+ SLYCUSTOM_SHIPSGO_SECTION=ShipsGo connection
+ WISE_WEBHOOK_IPCHECK=Webhook source IP allowlist
+-WISE_WEBHOOK_IPCHECKTooltip=Reject webhook deliveries whose source IP is outside the Wise egress networks (45.129.54.0/24, 45.129.55.0/24 per docs.wise.com). Interim hardening while the signature public key is not available; combines with signature verification when both are on.
+-WISE_IPCHECK_ACTIVE=Source IP allowlist active (interim protection).
++WISE_WEBHOOK_IPCHECKTooltip=Reject webhook deliveries whose source IP is outside the Wise egress networks (45.129.54.0/24, 45.129.55.0/24 per docs.wise.com). While no verification key is available this is the authentication that lets deliveries be ingested at all; once the key is saved, signature verification takes over. Only REMOTE_ADDR is checked, so a reverse proxy or CDN in front of the site will block every delivery.
++WISE_WEBHOOK_IPLIST=Additional source IPs / CIDRs
++WISE_WEBHOOK_IPLISTTooltip=One IP or CIDR per line, e.g. 18.184.0.0/16. Lines starting with # are comments; invalid lines are dropped silently. This list is ADDED to the hardcoded baseline (Wise documented ranges + AWS /16s seen in production); it is not a replacement. Useful when Wise starts delivering from a new range: copy the source IP from a rejected/ dump and add the appropriate /16 here. The textarea is only shown when the source IP allowlist is enabled.
++WiseIplistInactive=Enable the source IP allowlist above to edit the additional addresses.
++WISE_IPCHECK_ACTIVE=Source IP allowlist active: deliveries from the Wise egress networks are ingested even without signature verification (interim mode).
+ WISE_SIGNATURE_KEYTooltip=The subscription public key Wise generates automatically. Look for it on the subscription detail page in Wise Settings > Developer tools > Webhooks, then save it to DOL_DATA_ROOT/wise_webhook/verification_key.pem (or use the fetch button when the subscriptions API is reachable).
+ 
+ # Wise reconcile page
+@@ -236,7 +239,7 @@ WiseAllocate=Allocate
+ WiseConfirmRecord=Confirm and record payment
+ WiseIgnore=Ignore this credit
+ WiseReenrich=Re-fetch statement details
+-WiseNoCandidate=No invoice candidate found. Record the payment manually from the invoice card, or ignore this credit.
++WiseNoCandidate=No invoice candidate found. Pick the invoice yourself below, or ignore this credit.
+ WiseMatchedSOs=Matched sales orders
+ WiseLowConfidence=Amount-only match - review carefully
+ WiseRecordedAs=Recorded as payment
+@@ -377,3 +380,99 @@ SlyPatchCreateBundleConfirmText=Bundle every file touched by any sly24 patch (de
+ SlyPatchRestoreBundleConfirmText=Extract every file from the latest bundle (%s) back into DOL_DOCUMENT_ROOT? (One-tar.gz rollback to the pre-applyall state — designed for the case when multiple patches touch the same file.)
+ ModuleFamilyHaoSG=HaoSG
+ SLYSendingStatusInProgress=In transit
++WiseStatusPrepared=Drafts pending confirmation
++WiseSaveDraft=Save as draft
++WiseDiscardDraft=Discard draft
++WiseDraftSaved=Draft saved. Nothing was posted to accounting yet.
++WiseDraftDiscarded=Draft discarded.
++WiseDraft=Draft allocation
++WiseDraftUnallocated=unallocated
++WiseDraftSavedOn=Saved on
++WiseDraftSavedBy=by user
++WiseDraftSectionTitle=Current draft allocation (editable)
++WiseDraftRowMissing=Invoice no longer open in this entity — re-pick before recording
++WiseGoToPaymentCard=Open in native payment card
++WiseAllocateFill=Fill the remainder of this invoice with the credit amount
++WiseErrNotFound=This credit no longer exists in this entity.
++WISE_EVENTS_STORED=Webhook events stored
++WISE_EVENTS_STOREDTooltip=Count of rows in the Wise webhook event table for this entity. Zero means no delivery was ever ingested — but it cannot tell you whether Wise sent anything, because a delivery dropped before ingestion leaves no row.
++WISE_EVENTS_NONE=No event ever stored
++WISE_CRON_STATUS=Enrichment scheduled job
++WISE_CRON_STATUSTooltip=Shipped disabled. Without it, credits stay NEW forever and reference numbers are never filled in. Enable it under Home → Setup → Scheduled jobs.
++WiseCronMissing=Not registered — disable and re-enable the module
++WISE_DUMP_DIR=Webhook diagnostic dumps
++WISE_DUMP_DIRTooltip=Files written by webhook/wise.php for every delivery, including ones rejected before ingestion. This is the only evidence that survives a dropped delivery. Requires slycustom 2.3.6 or later.
++WISE_SYSLOG=Wise webhook log file
++WISE_SYSLOGTooltip=dol_syslog() does nothing unless the syslog module is enabled. Without it the webhook produces no log at all.
++WiseDumpDirMissing=Directory %s does not exist yet
++WiseLogReadable=readable
++WiseLogUnreadable=missing or unreadable
++WISE_DIAG_GUIDE=How to check whether Wise is really pushing
++WiseDiagStep1=1. Test the URL from this server
++WiseDiagStep1Desc=Click "Run self-test" below. It POSTs to %s from the server itself and reports the HTTP status. A 404 means the file is not on disk; a timeout means DNS, TLS or the web server is blocking it. It never writes anything into the payment tables.
++WiseDiagStep2=2. Test it from your own browser
++WiseDiagStep2Desc=Paste the webhook URL into your browser address bar. You should get a JSON answer. Getting nothing at all means something between the internet and PHP is dropping the request (a WAF or Cloudflare rule, which would also block Wise).
++WiseDiagStep3=3. Look at the dump directory above
++WiseDiagStep3Desc=After steps 1 and 2, reload this page. A new file in the dump directory proves a request reached the receiver; "bootstrap": true in it means it was accepted without signature verification.
++WiseDiagStep4=4. Ask Wise to send one
++WiseDiagStep4Desc=In the Wise dashboard, re-save the webhook subscription: Wise immediately sends a test notification. Then reload this page and check the dump count and the event count above. If neither moves, the subscription never became active on Wise's side — check that the URL has no query string.
++WISE_RUN_SELF_TEST=Run webhook self-test
++WiseDiagUrl=URL
++WiseDiagResult=Result
++WiseDiagBody=Response body
++WiseDiagErrHelp=The request did not complete. The URL is not reachable from the server itself: check that the domain resolves, that the SSL certificate is valid, and that no firewall blocks outgoing requests.
++WiseDiagHttp200Help=HTTP 200 means the receiver answered. With no verification key yet this is the bootstrap acknowledgement and the delivery was NOT ingested — turn on the IP allowlist or save the signature key.
++WiseDiagHttp403Help=HTTP 403 is the IP allowlist rejecting the request, because the self-test comes from the server itself and not from a Wise address. This confirms the allowlist is armed.
++WiseDiagHttp404Help=HTTP 404: the receiver file was not found at that URL. Check that the module files were uploaded and that the path matches exactly.
++WiseDiagHttp5xxHelp=HTTP 5xx: PHP failed to run the receiver. Check the PHP error log in cPanel (Metrics → Errors).
++WiseLastEvent=Last event
++WiseCronState=Status
++WiseCronRuns=Runs
++WiseCronLastRun=Last run
++WiseNewestFile=Newest
++WiseFiles=files
++WiseRejectedCount=%s deliveries were rejected by the source IP allowlist (see the rejected/ subfolder) — add the sender's address to the list in webhook/wise.php
++WiseCronNextRun=Next run
++Configured=Configured
++WiseManualPick=Pick the invoice manually
++WiseManualNote=Only open customer invoices (unpaid, status validated or in progress) are listed, most recent first. Filter by SO ref or invoice ref - SO2501-0012, SO25010012 and SO2501_0012 all match. A manual pick goes through exactly the same status, currency and over-allocation checks as an automatic candidate. Amounts are left blank unless the filter narrows the list to a single invoice; leave one blank to skip that invoice.
++WiseManualFilterRef=Invoice ref or SO ref
++WiseManualFilterSoc=Thirdparty
++WiseManualFilter=Filter
++WiseManualNone=No open invoice matches this filter.
++WiseManualCount=open invoice(s) listed
++WiseManualTruncated=More than 200 open invoices exist. Narrow the filter to reach older ones.
++WiseManualShow=Pick the invoice manually instead
++WiseManualSoCol=Sales order
++RecordNotFound=Credit not found in this entity.
++Fees=Fees
++WiseDumpsTitle=Wise webhook dumps
++WiseDumpsHelp=Every delivery Wise sent is kept here (newest first) for diagnosis and recovery. Replay re-ingests the stored body through the normal webhook path (idempotent - duplicates are skipped). Delete only removes the dump file; already-ingested events stay in the database. Truncated dumps (unverified deliveries kept as a 2 KB head slice) cannot be replayed.
++WiseDumpBucketAccepted=Accepted deliveries
++WiseDumpBucketRejected=Rejected deliveries (blocked by IP allowlist)
++WiseDumpDelivery=Delivery ID
++WiseDumpSourceIp=Source IP
++WiseDumpReplay=Replay
++WiseDumpDelete=Delete
++WiseDumpIngested=Already ingested
++WiseDumpTruncated=Truncated
++WiseDumpTruncatedHelp=This unverified delivery was stored as a 2 KB head slice, so the body is incomplete and cannot be replayed.
++WiseDumpPending=Not ingested
++WiseDumpReplayedOk=Replay OK:
++WiseDumpReplayFailed=Replay failed:
++WiseDumpDeleted=Dump deleted.
++WiseDumpDeleteFailed=Delete failed:
++WiseDumpNoDumps=No dumps stored for this entity.
++WiseDumpConfirmDelete=Delete this dump file? (already-ingested events are NOT touched)
++WiseProcess=Process
++WiseOpenDraft=Open draft
++WiseView=View
++WiseAutoRecord=Auto-record
++WiseAutoRecordConfirm=Enrich from the statement API and record this credit against its single matched invoice?
++WiseAutoRecordOk=Auto-recorded, payment
++WiseErrAutoState=Row already processed or has a saved draft.
++WiseErrAutoNoRef=Statement lookup found no payment reference - record manually.
++WiseErrAutoNoSo=The reference matched no sales order - record manually.
++WiseErrAutoMulti=The sales order has more than one open invoice - allocate manually.
++WiseErrAutoCur=The invoice currency differs from the credit currency.
++WiseErrAutoOver=The credit exceeds the invoice remaining balance - allocate manually.
+diff --git a/htdocs/custom/slycustom/langs/zh_CN/slycustom.lang b/htdocs/custom/slycustom/langs/zh_CN/slycustom.lang
+index c2bd4d08e12..d721dca5484 100644
+--- a/htdocs/custom/slycustom/langs/zh_CN/slycustom.lang
++++ b/htdocs/custom/slycustom/langs/zh_CN/slycustom.lang
+@@ -191,7 +191,7 @@ WISE_PROFILE_ID=Wise profile id
+ WISE_PROFILE_IDTooltip=Wise 配置文件的数字 id。令牌有效时可通过"测试连接"按钮自动填入。
+ WISE_SIGNATURE_KEY=Webhook 验签公钥
+ WISE_SIGNATURE_KEY_FOUND=已启用验签（verification_key.pem 已就位）
+-WISE_SIGNATURE_KEY_MISSING=引导模式：请将订阅公钥保存到 DOL_DATA_ROOT/wise_webhook/verification_key.pem 以启用强制验签（当前未签名请求会被接受并记录警告）
++WISE_SIGNATURE_KEY_MISSING=引导模式：没有验签公钥。除非已启用来源 IP 白名单（WISE_WEBHOOK_IPCHECK），否则推送一律不入库。请将订阅公钥保存到 DOL_DATA_ROOT/wise_webhook/verification_key.pem 才会入账。
+ WISE_QUEUE_STATUS=待核对收款队列
+ WISE_SO_REF_PATTERN=SO 编号提取正则
+ WISE_SO_REF_PATTERNTooltip=可选的手工覆盖。生效优先级：本字段 > 从 SO 编号掩码自动派生（销售订单设置 > 订单编号，如 COMMANDE_SAPHIR_MASK）> 内置默认。留空即保持自动。
+@@ -224,8 +224,11 @@ WISE_OUTGOING_ENABLEDTooltip=开启后，供应商发票卡片提供 Wise 转账
+ SLYCUSTOM_TAB_SHIPSGO=ShipsGo 物流
+ SLYCUSTOM_SHIPSGO_SECTION=ShipsGo 连接设置
+ WISE_WEBHOOK_IPCHECK=Webhook 来源 IP 白名单
+-WISE_WEBHOOK_IPCHECKTooltip=拒绝来源 IP 不在 Wise 出口网段（45.129.54.0/24、45.129.55.0/24，见 docs.wise.com）的推送。在拿到验签公钥前的过渡加固；与验签同时开启时叠加生效。
+-WISE_IPCHECK_ACTIVE=来源 IP 白名单已启用（过渡保护）。
++WISE_WEBHOOK_IPCHECKTooltip=拒绝来源 IP 不在 Wise 出口网段（45.129.54.0/24、45.129.55.0/24，见 docs.wise.com）的推送。在没有验签公钥时，只有开启此项推送才会被入库；公钥保存后由验签接管。只认 REMOTE_ADDR，若站点前面有反向代理或 CDN，所有推送都会被拒。
++WISE_WEBHOOK_IPLIST=补充来源 IP / 网段
++WISE_WEBHOOK_IPLISTTooltip=每行一个 IP 或 CIDR，例 18.184.0.0/16。以 # 开头的行视为注释；不合法的行会被静默丢弃。本列表在硬编码白名单（Wise 文档网段 + 生产上出现过的 AWS /16）**之上**追加，不替换之。Wise 启用新出口段时，从 rejected/ 下的 dump 里复制源 IP、加上对应 /16 即可。文本域仅在白名单开启时显示。
++WiseIplistInactive=先在上一项开启来源 IP 白名单才能编辑此处的补充地址。
++WISE_IPCHECK_ACTIVE=来源 IP 白名单已启用：来自 Wise 出口网段的推送即使未验签也会入库（过渡模式）。
+ WISE_SIGNATURE_KEYTooltip=Wise 为每条订阅自动生成的公钥。在 Wise 设置 > Developer tools > Webhooks 的订阅详情页寻找，保存到 DOL_DATA_ROOT/wise_webhook/verification_key.pem（订阅 API 可达时也可用拉取按钮）。
+ 
+ # Wise 收款核对页
+@@ -236,7 +239,7 @@ WiseAllocate=分摊金额
+ WiseConfirmRecord=确认并生成付款
+ WiseIgnore=忽略此笔收款
+ WiseReenrich=重新拉取对账单明细
+-WiseNoCandidate=未找到候选发票。可在发票卡片手工记付款，或忽略此笔收款。
++WiseNoCandidate=未找到任何候选发票。请在下方手动指定，或忽略这笔收款。
+ WiseMatchedSOs=匹配到的销售订单
+ WiseLowConfidence=仅金额匹配——请仔细核对
+ WiseRecordedAs=已生成为付款
+@@ -372,3 +375,99 @@ SlyPatchCreateBundleConfirmText=把所有 sly24 patch 影响的文件（去重 u
+ SlyPatchRestoreBundleConfirmText=从最新 Bundle（%s）解出全部原始文件到 DOL_DOCUMENT_ROOT？（一键回到 Apply all 之前的状态，专为多 patch 触碰同一文件的回退而设计。）
+ ModuleFamilyHaoSG=HaoSG
+ SLYSendingStatusInProgress=在途
++WiseStatusPrepared=待确认草稿
++WiseSaveDraft=保存为草稿
++WiseDiscardDraft=丢弃草稿
++WiseDraftSaved=草稿已保存，尚未写入任何会计数据。
++WiseDraftDiscarded=草稿已丢弃。
++WiseDraft=草稿分摊
++WiseDraftUnallocated=未分摊
++WiseDraftSavedOn=保存于
++WiseDraftSavedBy=保存人
++WiseDraftSectionTitle=当前草稿分摊（可直接修改）
++WiseDraftRowMissing=该发票在本实体下已非未收状态 — 入账前请重新选择
++WiseGoToPaymentCard=跳到原生付款卡打开
++WiseAllocateFill=用本笔收款额填到该发票剩余金额
++WiseErrNotFound=该入账记录在本实体下已不存在。
++WISE_EVENTS_STORED=Webhook 事件入库数
++WISE_EVENTS_STOREDTooltip=本实体下 Wise webhook 事件表的行数。为 0 表示从未有任何投递走到入库这一步——但它无法区分"Wise 没推"和"推了但在入库前被丢弃"，因为后者不留任何行。
++WISE_EVENTS_NONE=从未有任何事件入库
++WISE_CRON_STATUS=明细补全计划任务
++WISE_CRON_STATUSTooltip=模块激活时该任务默认停用。不开的话入账记录会一直停在 NEW，参考号永远补不回来。请到 首页 → 配置 → 计划任务 里启用。
++WiseCronMissing=未注册 —— 请停用再重新启用一次模块
++WISE_DUMP_DIR=Webhook 诊断 dump
++WISE_DUMP_DIRTooltip=webhook/wise.php 为每一次投递写的诊断文件，包括入库前就被拒的那些。这是投递被丢弃后唯一还留得下的证据。需要 slycustom 2.3.6 及以上。
++WISE_SYSLOG=Wise webhook 日志文件
++WISE_SYSLOGTooltip=dol_syslog() 在 syslog 模块未启用时完全不做事。不开这个模块，webhook 不会产生任何日志。
++WiseDumpDirMissing=目录 %s 尚不存在
++WiseLogReadable=可读
++WiseLogUnreadable=不存在或不可读
++WISE_DIAG_GUIDE=如何确认 Wise 到底有没有在推
++WiseDiagStep1=1. 从本服务器自测这个 URL
++WiseDiagStep1Desc=点下面的"运行 webhook 自检"。它会从服务器自己 POST 到 %s 并回报 HTTP 状态码。404 = 文件没传到服务器；超时 = DNS、证书或 web 服务器挡住了请求。它不会往付款表里写任何东西。
++WiseDiagStep2=2. 从你自己电脑的浏览器再测一次
++WiseDiagStep2Desc=把 webhook 完整 URL 粘到浏览器地址栏，应该得到一个 JSON 回应。什么都拿不到 = 互联网到 PHP 之间有东西在丢请求（多半是 WAF 或 Cloudflare 规则，而它同样会拦掉 Wise）。
++WiseDiagStep3=3. 看上面的 dump 目录
++WiseDiagStep3Desc=做完第 1、2 步后刷新本页。dump 目录里多出新文件就证明请求到达了接收端；文件里 "bootstrap": true 表示这次投递是未经签名验证就被收下的。
++WiseDiagStep4=4. 让 Wise 自己推一条
++WiseDiagStep4Desc=去 Wise 后台把 webhook 订阅重新保存一次，Wise 会立刻发一条测试通知。然后刷新本页，看上面的 dump 数量和事件入库数有没有变化。如果两个都没动，说明订阅在 Wise 侧从未真正生效 —— 重点检查 URL 里是不是带了 query 参数。
++WISE_RUN_SELF_TEST=运行 webhook 自检
++WiseDiagUrl=URL
++WiseDiagResult=结果
++WiseDiagBody=响应内容
++WiseDiagErrHelp=请求没能完成。这个 URL 从服务器自身都访问不到：请检查域名是否解析、SSL 证书是否有效、是否有防火墙拦出站请求。
++WiseDiagHttp200Help=HTTP 200 表示接收端有回应。目前还没有验签公钥，这属于 bootstrap 确认回应，投递并未入库 —— 请打开 IP 白名单或保存签名公钥。
++WiseDiagHttp403Help=HTTP 403 是 IP 白名单在拦：自检请求来自服务器自己，不是 Wise 的地址。这反过来证明白名单已生效。
++WiseDiagHttp404Help=HTTP 404：该 URL 下找不到接收端文件。请确认模块文件已上传，且路径完全一致。
++WiseDiagHttp5xxHelp=HTTP 5xx：PHP 执行接收端时出错。请到 cPanel 的 Metrics → Errors 查看 PHP 错误日志。
++WiseLastEvent=最近一次
++WiseCronState=状态
++WiseCronRuns=已运行
++WiseCronLastRun=上次运行
++WiseNewestFile=最新文件
++WiseFiles=个文件
++WiseRejectedCount=有 %s 次投递被来源 IP 白名单拒绝（见 rejected 子目录）—— 把来源地址加进 webhook/wise.php 的白名单
++WiseCronNextRun=下次运行
++Configured=已配置
++WiseManualPick=手动指定发票
++WiseManualNote=只列出未收客户发票（未付款、状态为已验证或进行中），按日期倒序。支持用 SO 号或发票号筛选，SO2501-0012、SO25010012、SO2501_0012 都能匹配到。手动指定的发票会经过与自动候选完全一致的开票状态、币种、超额校验。金额默认留空（筛选到只剩一张发票时才会自动填入显然的金额），留空即跳过该发票。
++WiseManualFilterRef=发票号或 SO 号
++WiseManualFilterSoc=客户名
++WiseManualFilter=筛选
++WiseManualNone=没有符合筛选条件的未收发票。
++WiseManualCount=张未收发票
++WiseManualTruncated=未收发票超过 200 张，请用筛选缩小范围以找到更早的发票。
++WiseManualShow=改为手动指定发票
++WiseManualSoCol=销售订单
++RecordNotFound=在本实体下找不到该收款记录。
++Fees=手续费
++WiseDumpsTitle=Wise Webhook 投递存档
++WiseDumpsHelp=Wise 的每次投递原文都保留在此（最新在前），用于诊断和补救。「重放」走正常 webhook 入口重新入库（幂等——重复投递自动跳过）。「删除」只删存档文件，已入库的事件不受影响。已截断的存档（未验证投递只保留 2 KB 头部）无法重放。
++WiseDumpBucketAccepted=已接受的投递
++WiseDumpBucketRejected=被拒绝的投递（IP 白名单拦截）
++WiseDumpDelivery=投递 ID
++WiseDumpSourceIp=来源 IP
++WiseDumpReplay=重放入库
++WiseDumpDelete=删除
++WiseDumpIngested=已入库
++WiseDumpTruncated=已截断
++WiseDumpTruncatedHelp=该未验证投递只保留了 2 KB 头部切片，报文不完整，无法重放。
++WiseDumpPending=未入库
++WiseDumpReplayedOk=重放成功：
++WiseDumpReplayFailed=重放失败：
++WiseDumpDeleted=存档已删除。
++WiseDumpDeleteFailed=删除失败：
++WiseDumpNoDumps=当前实体没有存档文件。
++WiseDumpConfirmDelete=确认删除该存档文件？（已入库的事件不受影响）
++WiseProcess=处理
++WiseOpenDraft=处理草稿
++WiseView=查看
++WiseAutoRecord=自动入账
++WiseAutoRecordConfirm=从对账单 API 补参考号，并把这笔收款自动入账到唯一匹配的发票？
++WiseAutoRecordOk=已自动入账，付款号
++WiseErrAutoState=该记录已处理或已有保存的草稿。
++WiseErrAutoNoRef=对账单未找到付款参考号——请手动分摊入账。
++WiseErrAutoNoSo=参考号未匹配到任何销售订单——请手动分摊入账。
++WiseErrAutoMulti=该销售订单有多张未收发票——请手动分摊入账。
++WiseErrAutoCur=发票币种与收款币种不一致。
++WiseErrAutoOver=收款金额超过发票未收余额——请手动分摊入账。
+diff --git a/htdocs/custom/slycustom/wise/reconcile.php b/htdocs/custom/slycustom/wise/reconcile.php
+index 23b1084f62e..d86e980c2ae 100644
+--- a/htdocs/custom/slycustom/wise/reconcile.php
++++ b/htdocs/custom/slycustom/wise/reconcile.php
+@@ -29,6 +29,7 @@ if (!$res) {
+ }
+ 
+ require_once DOL_DOCUMENT_ROOT.'/custom/slycustom/class/Wise_Incoming.class.php';
++require_once DOL_DOCUMENT_ROOT.'/compta/facture/class/facture.class.php';
+ 
+ $langs->loadLangs(array('bills', 'banks', 'compta', 'slycustom@slycustom'));
+ 
+@@ -38,23 +39,35 @@ if (!$user->admin && !$user->hasRight('slycustom', 'wise', 'read')) {
+ }
+ 
+ $action = GETPOST('action', 'aZ09');
++// The allocation form posts a single fixed action plus a `step` token chosen by
++// the button pressed, so the button labels stay translatable.
++if ($action == 'allocate') {
++	$action = (GETPOST('step', 'aZ09') === 'save_draft') ? 'save_draft' : 'record';
++}
+ $rowid = (int) GETPOST('rowid', 'int');
+ 
+ // Recording a payment writes bookkeeping entries: require the wise write
+-// right, not just the queue view right (admins pass).
+-if ($action == 'record' && !$user->admin && !$user->hasRight('slycustom', 'wise', 'write')) {
++// right, not just the queue view right (admins pass). Saving / discarding a
++// draft also writes, so it takes the same right.
++if (in_array($action, array('record', 'save_draft', 'discard_draft', 'auto_record'), true)
++	&& !$user->admin && !$user->hasRight('slycustom', 'wise', 'write')) {
+ 	accessforbidden();
+ 	exit;
+ }
+ $statusFilter = GETPOST('status', 'aZ09');
+-if (!in_array($statusFilter, array(WiseIncomingPayment::STATUS_NEW, WiseIncomingPayment::STATUS_ENRICHED, WiseIncomingPayment::STATUS_RECORDED, WiseIncomingPayment::STATUS_IGNORED), true)) {
++if (!in_array($statusFilter, array(
++	WiseIncomingPayment::STATUS_NEW,
++	WiseIncomingPayment::STATUS_ENRICHED,
++	WiseIncomingPayment::STATUS_PREPARED,
++	WiseIncomingPayment::STATUS_RECORDED,
++	WiseIncomingPayment::STATUS_IGNORED), true)) {
+ 	$statusFilter = '';
+ }
+ 
+ $wp = new WiseIncomingPayment($db);
+ 
+ /**
+- * Map a recordPayment() error code to a translated message.
++ * Map the recordPayment() / saveDraft() error code to a translated message.
+  *
+  * @param  int    $code Error code (<0)
+  * @return string
+@@ -63,6 +76,7 @@ function wiseRecordErrorLabel($code)
+ {
+ 	global $langs;
+ 	switch ($code) {
++		case -1: return $langs->trans("WiseErrNotFound");
+ 		case -2: return $langs->trans("WiseErrAlready");
+ 		case -3: return $langs->trans("WiseErrAlloc");
+ 		case -5:
+@@ -71,10 +85,41 @@ function wiseRecordErrorLabel($code)
+ 		case -8: return $langs->trans("WiseErrOverAlloc");
+ 		case -9: return $langs->trans("WiseErrOverCredit");
+ 		case -10: return $langs->trans("WiseErrCreate");
++		case -20: return $langs->trans("WiseErrAutoState");
++		case -21: return $langs->trans("WiseErrAutoNoRef");
++		case -22: return $langs->trans("WiseErrAutoNoSo");
++		case -23: return $langs->trans("WiseErrAutoMulti");
++		case -24: return $langs->trans("WiseErrAutoCur");
++		case -25: return $langs->trans("WiseErrAutoOver");
+ 		default: return $langs->trans("Error").' ('.$code.')';
+ 	}
+ }
+ 
++/**
++ * Read the checkbox/amount allocation form into array(invoice rowid => amount).
++ * Rows with an empty or non-positive amount are dropped.
++ *
++ * @return array
++ */
++function wiseParseAllocations()
++{
++	$facs = GETPOST('fac', 'array');
++	$amounts = GETPOST('amount', 'array');
++	$allocations = array();
++	if (!is_array($facs) || !is_array($amounts)) {
++		return $allocations;
++	}
++	foreach ($facs as $facid => $on) {
++		$facid = (int) $facid;
++		$amtRaw = isset($amounts[$facid]) ? trim((string) $amounts[$facid]) : '';
++		$amt = price2num($amtRaw);
++		if ($facid > 0 && $amtRaw !== '' && $amt !== '' && is_numeric($amt) && (float) $amt > 0) {
++			$allocations[$facid] = (float) $amt;
++		}
++	}
++	return $allocations;
++}
++
+ /*
+  * Actions (POST with CSRF token; redirect after work to avoid resubmission)
+  */
+@@ -124,6 +169,47 @@ if ($action == 'enrich' && $rowid > 0) {
+ 	exit;
+ }
+ 
++if ($action == 'save_draft' && $rowid > 0) {
++	if (GETPOST('token', 'none') !== newToken()) {
++		setEventMessages($langs->trans("Error"), null, 'errors');
++	} else {
++		$row = $wp->fetchRow($rowid);
++		if (!$row || (int) $row['entity'] !== (int) $conf->entity) {
++			accessforbidden();
++			exit;
++		}
++		$allocations = wiseParseAllocations();
++		if (empty($allocations)) {
++			setEventMessages($langs->trans("WiseErrAlloc"), null, 'errors');
++		} else {
++			$r = $wp->saveDraft($rowid, $allocations, (int) $user->id);
++			if ($r === 0) {
++				setEventMessages($langs->trans("WiseDraftSaved"), null, 'mesgs');
++			} else {
++				setEventMessages(wiseRecordErrorLabel($r), null, 'errors');
++			}
++		}
++	}
++	header('Location: '.$_SERVER["PHP_SELF"].'?rowid='.$rowid.'&status='.dol_escape_htmltag($statusFilter));
++	exit;
++}
++
++if ($action == 'discard_draft' && $rowid > 0) {
++	if (GETPOST('token', 'none') !== newToken()) {
++		setEventMessages($langs->trans("Error"), null, 'errors');
++	} else {
++		$row = $wp->fetchRow($rowid);
++		if (!$row || (int) $row['entity'] !== (int) $conf->entity) {
++			accessforbidden();
++			exit;
++		}
++		$r = $wp->discardDraft($rowid);
++		setEventMessages($r === 0 ? $langs->trans("WiseDraftDiscarded") : wiseRecordErrorLabel($r), null, $r === 0 ? 'mesgs' : 'errors');
++	}
++	header('Location: '.$_SERVER["PHP_SELF"].'?rowid='.$rowid.'&status='.dol_escape_htmltag($statusFilter));
++	exit;
++}
++
+ if ($action == 'record' && $rowid > 0) {
+ 	if (GETPOST('token', 'none') !== newToken()) {
+ 		setEventMessages($langs->trans("Error"), null, 'errors');
+@@ -133,16 +219,14 @@ if ($action == 'record' && $rowid > 0) {
+ 			accessforbidden();
+ 			exit;
+ 		}
+-		$facs = GETPOST('fac', 'array');
+-		$amounts = GETPOST('amount', 'array');
+-		$allocations = array();
+-		if (is_array($facs) && is_array($amounts)) {
+-			foreach ($facs as $facid => $on) {
+-				$facid = (int) $facid;
+-				$amtRaw = isset($amounts[$facid]) ? trim((string) $amounts[$facid]) : '';
+-				$amt = price2num($amtRaw);
+-				if ($facid > 0 && $amtRaw !== '' && $amt !== '' && is_numeric($amt) && (float) $amt > 0) {
+-					$allocations[$facid] = (float) $amt;
++		// No checkbox ticked on the form: fall back to the saved draft, so a
++		// draft can be confirmed as-is from the list page.
++		$allocations = wiseParseAllocations();
++		if (empty($allocations)) {
++			$draft = $wp->getDraft($row);
++			if ($draft) {
++				foreach ($draft['items'] as $item) {
++					$allocations[(int) $item['facid']] = (float) $item['amount'];
+ 				}
+ 			}
+ 		}
+@@ -151,21 +235,53 @@ if ($action == 'record' && $rowid > 0) {
+ 		} else {
+ 			$pid = $wp->recordPayment($rowid, $allocations, $user);
+ 			if ($pid > 0) {
++				// Success: jump straight to the native payment card. The PRG
++				// message is set before redirect; if the operator pops back here
++				// the message will still be visible.
+ 				setEventMessages($langs->trans("WiseRecordedAs").' #'.$pid, null, 'mesgs');
++				header('Location: '.DOL_URL_ROOT.'/compta/paiement/card.php?id='.(int) $pid);
++				exit;
+ 			} else {
+ 				setEventMessages(wiseRecordErrorLabel($pid), null, 'errors');
+ 			}
+ 		}
+ 	}
++	// Failure path (or no allocation): stay on the detail so the operator can fix it.
+ 	header('Location: '.$_SERVER["PHP_SELF"].'?rowid='.$rowid.'&status='.dol_escape_htmltag($statusFilter));
+ 	exit;
+ }
+ 
++if ($action == 'auto_record' && $rowid > 0) {
++	if (GETPOST('token', 'none') !== newToken()) {
++		setEventMessages($langs->trans("Error"), null, 'errors');
++	} else {
++		$row = $wp->fetchRow($rowid);
++		if (!$row || (int) $row['entity'] !== (int) $conf->entity) {
++			accessforbidden();
++			exit;
++		}
++		$pid = $wp->autoRecord($rowid, $user);
++		if ($pid > 0) {
++			setEventMessages($langs->trans("WiseAutoRecordOk").' #'.$pid, null, 'mesgs');
++			header('Location: '.DOL_URL_ROOT.'/compta/paiement/card.php?id='.(int) $pid);
++			exit;
++		} else {
++			setEventMessages(wiseRecordErrorLabel($pid), null, 'errors');
++		}
++	}
++	// Failure path: stay on the queue so the operator can review and pick manually.
++	header('Location: '.$_SERVER["PHP_SELF"].'?status='.dol_escape_htmltag($statusFilter));
++	exit;
++}
++
+ /*
+  * View
+  */
+ llxHeader('', $langs->trans("WiseReconcileTitle"), '', '', 0, 0, '', '', '', 'mod-slycustom page-wise_reconcile');
+-print load_fiche_titre($langs->trans("WiseReconcileTitle"), '', 'payment');
++// Auto-fill button helper: writes min(credit, remaining) into the matching
++// amount[N] field. Mirrors the affordance on Dolibarr's own payment card.
++print '<script type="text/javascript">function wiseFillAmount(facid, credit, remaining) { var f = document.getElementById("amount_" + facid); if (!f) return false; var take = Math.min(credit, remaining); f.value = (Math.round(take * 100) / 100).toFixed(2); f.focus(); return false; }</script>';
++print load_fiche_titre($langs->trans("WiseReconcileTitle"), '<a class="butAction" href="'.dol_buildpath('/custom/slycustom/wise/dumps.php', 1).'?mainmenu=tools">'.$langs->trans("WiseDumpsTitle").'</a>', 'payment');
+ 
+ // Status quick filters with counts
+ $counts = array();
+@@ -179,6 +295,7 @@ if ($resql) {
+ 	$db->free($resql);
+ }
+ $statusList = array(
++	WiseIncomingPayment::STATUS_PREPARED => $langs->trans("WiseStatusPrepared"),
+ 	WiseIncomingPayment::STATUS_NEW => $langs->trans("WiseStatusNew"),
+ 	WiseIncomingPayment::STATUS_ENRICHED => $langs->trans("WiseStatusEnriched"),
+ 	WiseIncomingPayment::STATUS_RECORDED => $langs->trans("WiseStatusRecorded"),
+@@ -222,23 +339,197 @@ if ($rowid > 0) {
+ 			}
+ 		}
+ 
+-		// Default allocation (FIFO on same-currency candidates only)
++		// Prefill the allocation: the saved draft wins, otherwise FIFO across
++		// the same-currency candidates.
++		$draft = $wp->getDraft($row);
+ 		$defaults = array();
+-		$creditLeft = (float) $row['amount'];
+-		foreach ($candidates as $c) {
+-			if ($c['currency'] === strtoupper((string) $row['currency']) && $c['remaining'] > 0 && $creditLeft > 0.009) {
+-				$take = min($c['remaining'], $creditLeft);
+-				$defaults[$c['id']] = $take;
+-				$creditLeft -= $take;
++		if ($draft) {
++			foreach ($draft['items'] as $item) {
++				$defaults[(int) $item['facid']] = (float) $item['amount'];
++			}
++		} else {
++			$creditLeft = (float) $row['amount'];
++			foreach ($candidates as $c) {
++				if ($c['currency'] === strtoupper((string) $row['currency']) && $c['remaining'] > 0 && $creditLeft > 0.009) {
++					$take = min($c['remaining'], $creditLeft);
++					$defaults[$c['id']] = $take;
++					$creditLeft -= $take;
++				}
++			}
++		}
++
++		// ---- Manual invoice picker ---------------------------------------------
++		// findInvoiceCandidates() only ever returns invoices it recognised. When it
++		// recognises nothing, the allocation table has zero rows, the record buttons
++		// never render, and the only remaining action was "ignore" — which posts
++		// nothing at all and silently drops the credit. validateAllocations()
++		// already checks entity / paye / statut / type / currency / remaining
++		// independently of the candidate set, so widening the UI is all that is
++		// needed: anything picked here goes through the same validation. Also
++		// offered when candidates exist but the engine picked the wrong invoice.
++		//
++		// The filter takes an SO ref as readily as an invoice ref: customers quote
++		// the sales order in the payment reference, not the invoice number. SO refs
++		// get the same separator-insensitive matching the engine uses, so
++		// SO2501-0012 / SO25010012 / SO2501_0012 all hit.
++		$manualInvoices = array();
++		$manualTruncated = false;
++		$manualRef = trim((string) GETPOST('manref', 'alphanohtml'));
++		$manualSoc = trim((string) GETPOST('mansoc', 'alphanohtml'));
++		// PREPARED with a saved draft: the draft invoices are not in $candidates
++		// (they were hand-picked, or the engine context has moved on), so expand
++		// the manual picker by default — otherwise the operator has no way to
++		// re-see the row that the draft picked and edit it.
++		$hasDraft = $draft && !empty($draft['items']);
++		$showManual = empty($candidates) || GETPOST('showmanual', 'int') > 0 || $hasDraft;
++
++		// ---- Current draft rows ------------------------------------------------
++		// The draft itself is the source of truth for what was allocated. Batch-
++		// load the draft invoice ids via the same multicurrency-aware SQL the
++		// manual picker uses, so ref/currency/remaining/date match exactly. The
++		// row is always rendered editable: the operator is editing a saved
++		// draft, not posting a payment, so locking the amount away when the
++		// invoice has meanwhile been paye=1 forces a full draft discard.
++		// validateAllocations() still refuses the allocation at save time if
++		// the invoice is truly closed — that is the real safety net.
++		$draftInvoices = array();
++		$draftMissing = array();
++		if ($hasDraft) {
++			$draftFacIds = array();
++			foreach ($draft['items'] as $item) {
++				$facid = (int) $item['facid'];
++				if ($facid > 0) {
++					$draftFacIds[] = $facid;
++				}
++			}
++			$draftFacIds = array_values(array_unique($draftFacIds));
++			if (!empty($draftFacIds)) {
++				$sql = 'SELECT f.rowid, f.ref, f.fk_soc, f.multicurrency_code, f.datef, f.paye, f.fk_statut,';
++				$sql .= " CASE WHEN COALESCE(f.multicurrency_code, '') <> '' THEN f.multicurrency_total_ttc ELSE f.total_ttc END AS total_cur,";
++				$sql .= " (SELECT COALESCE(SUM(CASE WHEN COALESCE(f.multicurrency_code, '') <> '' THEN pf.multicurrency_amount ELSE pf.amount END), 0) FROM ".MAIN_DB_PREFIX.'paiement_facture pf WHERE pf.fk_facture = f.rowid) AS paid';
++				$sql .= ' FROM '.MAIN_DB_PREFIX.'facture f';
++				$sql .= ' WHERE f.rowid IN ('.implode(',', $draftFacIds).')';
++				$sql .= ' AND f.entity = '.(int) $conf->entity;
++				$resql = $db->query($sql);
++				$foundIds = array();
++				if ($resql) {
++					while ($obj = $db->fetch_object($resql)) {
++						$draftInvoices[(int) $obj->rowid] = $obj;
++						$foundIds[] = (int) $obj->rowid;
++					}
++					$db->free($resql);
++				}
++				foreach ($draftFacIds as $fid) {
++					if (!in_array($fid, $foundIds, true)) {
++						$draftMissing[] = $fid;
++					}
++				}
++			}
++		}
++		if ($showManual) {
++			// Invoice-currency amounts: for a multicurrency invoice f.total_ttc is
++			// the company-currency conversion, the face value is multicurrency_total_ttc
++			// and payments land in pf.multicurrency_amount. Mixing the columns once
++			// showed every foreign-currency Remain-to-pay wrong by the FX rate.
++			$sql = 'SELECT f.rowid, f.ref, f.fk_soc, f.multicurrency_code, f.datef,';
++			$sql .= " CASE WHEN COALESCE(f.multicurrency_code, '') <> '' THEN f.multicurrency_total_ttc ELSE f.total_ttc END AS total_cur,";
++			$sql .= " (SELECT COALESCE(SUM(CASE WHEN COALESCE(f.multicurrency_code, '') <> '' THEN pf.multicurrency_amount ELSE pf.amount END), 0) FROM ".MAIN_DB_PREFIX.'paiement_facture pf WHERE pf.fk_facture = f.rowid) AS paid';
++			$sql .= ' FROM '.MAIN_DB_PREFIX.'facture f';
++			$sql .= ' WHERE f.entity = '.(int) $conf->entity." AND f.paye = 0 AND f.fk_statut IN (1, 2) AND f.type = 0";
++			if ($manualRef !== '') {
++				$esc = $db->escape($manualRef);
++				$flat = $db->escape(str_replace(array('_', '-'), '', strtoupper($manualRef)));
++				$sql .= ' AND (f.ref LIKE \'%'.$esc.'%\'';
++				$sql .= ' OR f.rowid IN (SELECT ee.fk_target';
++				$sql .= ' FROM '.MAIN_DB_PREFIX.'element_element ee';
++				$sql .= ' JOIN '.MAIN_DB_PREFIX.'commande c ON c.rowid = ee.fk_source';
++				$sql .= ' WHERE ee.sourcetype = \'commande\' AND ee.targettype = \'facture\'';
++				$sql .= ' AND (c.ref LIKE \'%'.$esc.'%\' OR c.ref_client LIKE \'%'.$esc.'%\'';
++				$sql .= ' OR REPLACE(UPPER(REPLACE(c.ref, \'_\', \'-\')), \'-\', \'\') = \''.$flat.'\'';
++				$sql .= ' OR REPLACE(UPPER(REPLACE(c.ref_client, \'_\', \'-\')), \'-\', \'\') = \''.$flat.'\')))';
++			}
++			if ($manualSoc !== '') {
++				$sql .= ' AND f.fk_soc IN (SELECT s.rowid FROM '.MAIN_DB_PREFIX.'societe s';
++				$sql .= ' WHERE s.nom LIKE \'%'.$db->escape($manualSoc).'%\')';
++			}
++			// Ranking: same currency first, then the smallest gap between the
++			// invoice remaining and this credit (an exact match sorts first —
++			// that is almost always the invoice the customer is paying), then
++			// newest. Wrong-currency invoices stay visible but sink below every
++			// same-currency row; validateAllocations() still rejects them (-7).
++			$cur = $db->escape(strtoupper((string) $row['currency']));
++			$curExpr = "(UPPER(COALESCE(NULLIF(f.multicurrency_code, ''), '".$db->escape((string) $conf->currency)."')) <> '".$cur."')";
++			// 201 rows so "there are more" can be reported instead of silently cut.
++			$sql .= ' ORDER BY '.$curExpr.' ASC, ABS((total_cur - paid) - '.((float) $row['amount']).') ASC, f.datef DESC LIMIT 201';
++			$resql = $db->query($sql);
++			if ($resql) {
++				while ($obj = $db->fetch_object($resql)) {
++					$manualInvoices[] = $obj;
++				}
++				$db->free($resql);
++			}
++			if (count($manualInvoices) > 200) {
++				$manualTruncated = true;
++				$manualInvoices = array_slice($manualInvoices, 0, 200);
++			}
++			// Third-party names and originating SO refs, both batch-loaded: no query
++			// may run inside the rendering loop.
++			$manualSocNames = array();
++			$manualSoRefs = array();
++			if (!empty($manualInvoices)) {
++				$manualInvIds = array();
++				$manualSocIds = array();
++				foreach ($manualInvoices as $inv) {
++					$manualInvIds[] = (int) $inv->rowid;
++					if (!empty($inv->fk_soc)) {
++						$manualSocIds[] = (int) $inv->fk_soc;
++					}
++				}
++				if (!empty($manualSocIds)) {
++					$sql = 'SELECT rowid, nom FROM '.MAIN_DB_PREFIX.'societe';
++					$sql .= ' WHERE rowid IN ('.implode(',', array_unique($manualSocIds)).')';
++					$resql = $db->query($sql);
++					if ($resql) {
++						while ($obj = $db->fetch_object($resql)) {
++							$manualSocNames[(int) $obj->rowid] = $obj->nom;
++						}
++						$db->free($resql);
++					}
++				}
++				$sql = 'SELECT ee.fk_target, c.ref FROM '.MAIN_DB_PREFIX.'element_element ee';
++				$sql .= ' JOIN '.MAIN_DB_PREFIX.'commande c ON c.rowid = ee.fk_source';
++				$sql .= ' WHERE ee.sourcetype = \'commande\' AND ee.targettype = \'facture\'';
++				$sql .= ' AND ee.fk_target IN ('.implode(',', $manualInvIds).')';
++				$resql = $db->query($sql);
++				if ($resql) {
++					while ($obj = $db->fetch_object($resql)) {
++						$manualSoRefs[(int) $obj->fk_target][] = $obj->ref;
++					}
++					$db->free($resql);
++				}
++			}
++			// A filter that narrows to exactly one invoice can prefill the obvious
++			// amount; a wider list must stay blank so a credit is never silently
++			// spread over invoices nobody looked at.
++			if (count($manualInvoices) == 1) {
++				$onlyId = (int) $manualInvoices[0]->rowid;
++				$facOnly = new Facture($db);
++				if ($facOnly->fetch($onlyId) > 0 && (int) $facOnly->entity === (int) $conf->entity) {
++					$onlyRemaining = (float) $facOnly->getRemainToPay(1);
++				} else {
++					$onlyRemaining = (float) $manualInvoices[0]->total_ttc - (float) $manualInvoices[0]->paid;
++				}
++				$defaults[$onlyId] = min($onlyRemaining, (float) $row['amount']);
+ 			}
+ 		}
+ 
+ 		$canRecord = ($row['status'] !== WiseIncomingPayment::STATUS_RECORDED);
++		$canWrite = ($user->admin || $user->hasRight('slycustom', 'wise', 'write'));
+ 
+ 		print '<div class="div-table-responsive-no-min">';
+ 		print '<table class="noborder centpercent">';
+ 		print '<tr class="liste_titre"><td colspan="4">'.$langs->trans("WiseCreditDetail").' #'.$row['rowid'].'</td></tr>';
+-		print '<tr class="oddeven"><td class="titlefield">'.$langs->trans("Date").'</td><td>'.dol_escape_htmltag($row['occurred_at']).' UTC</td>';
++		print '<tr class="oddeven"><td class="titlefield">'.$langs->trans("Date").'</td><td>'.($row['occurred_at'] ? dol_print_date(WiseIncomingPayment::sqlUtcToTimestamp($row['occurred_at']), 'dayhour', 'tzuserrel') : '-').'</td>';
+ 		print '<td>'.$langs->trans("Amount").'</td><td><strong>'.dol_escape_htmltag($row['currency']).' '.price($row['amount']).'</strong></td></tr>';
+ 		print '<tr class="oddeven"><td>'.$langs->trans("Ref").'</td><td>'.($row['ref_text'] !== '' ? dol_escape_htmltag($row['ref_text']) : '<span class="opacitymedium">'.$langs->trans("None").'</span>').'</td>';
+ 		print '<td>'.$langs->trans("ThirdParty").'</td><td>'.($row['counterparty'] !== '' ? dol_escape_htmltag($row['counterparty']) : '<span class="opacitymedium">'.$langs->trans("None").'</span>').'</td></tr>';
+@@ -247,18 +538,139 @@ if ($rowid > 0) {
+ 		if ($row['status'] === WiseIncomingPayment::STATUS_RECORDED && $row['fk_paiement']) {
+ 			print '<tr class="oddeven"><td>'.$langs->trans("Payment").'</td><td colspan="3"><a href="'.DOL_URL_ROOT.'/compta/paiement/card.php?id='.(int) $row['fk_paiement'].'">'.$langs->trans("WiseRecordedAs").' #'.(int) $row['fk_paiement'].'</a></td></tr>';
+ 		}
++		if ($draft) {
++			print '<tr class="oddeven"><td>'.$langs->trans("WiseDraft").'</td><td colspan="3"><span class="'.($draft['unallocated'] > 0.009 ? 'warning' : '').'">'
++				.dol_escape_htmltag($draft['currency'].' '.price($draft['total']).' / '.price($draft['credit']))
++				.($draft['unallocated'] > 0.009 ? ' &mdash; '.dol_escape_htmltag($langs->trans("WiseDraftUnallocated")).' '.price($draft['unallocated']) : '')
++				.'</span><br><span class="opacitymedium">'.dol_escape_htmltag($langs->trans("WiseDraftSavedOn").' '.$draft['date_draft'].' ('.$langs->trans("WiseDraftSavedBy").' #'.(int) $draft['user'].')').'</span></td></tr>';
++		}
+ 		if ($row['note_private'] !== '') {
+ 			print '<tr class="oddeven"><td>'.$langs->trans("Note").'</td><td colspan="3">'.dol_escape_htmltag($row['note_private']).'</td></tr>';
+ 		}
+ 		print '</table></div>';
+ 		print '<br>';
+ 
++		// Manual picker filter. Its own GET form: it only narrows the picker list and
++		// must not be submitted as an allocation. Kept outside the POST form below
++		// because nested forms are invalid HTML and a GET submit inside the POST
++		// form would fire action=allocate with no step.
++		if ($showManual) {
++			print '<br><form method="GET" action="'.$_SERVER["PHP_SELF"].'">';
++			print '<input type="hidden" name="rowid" value="'.(int) $rowid.'">';
++			print '<input type="hidden" name="status" value="'.dol_escape_htmltag($statusFilter).'">';
++			print '<input type="hidden" name="showmanual" value="1">';
++			print '<div class="div-table-responsive-no-min"><table class="noborder centpercent">';
++			print '<tr class="liste_titre"><td colspan="6">'.$langs->trans("WiseManualPick");
++			print ' <span class="opacitymedium">(<a href="'.$_SERVER["PHP_SELF"].'?rowid='.(int) $rowid.'&status='.urlencode($statusFilter).'&manref='.urlencode($manualRef).'&mansoc='.urlencode($manualSoc).'">'.dol_escape_htmltag($langs->trans("Hide")).'</a>)</span>';
++			print '</td></tr>';
++			print '<tr><td class="titlefield">'.$langs->trans("WiseManualFilterRef").'</td><td>';
++			print '<input type="text" class="flat maxwidth200" name="manref" value="'.dol_escape_htmltag($manualRef).'"></td>';
++			print '<td>'.$langs->trans("WiseManualFilterSoc").'</td><td>';
++			print '<input type="text" class="flat maxwidth200" name="mansoc" value="'.dol_escape_htmltag($manualSoc).'"></td>';
++			print '<td class="right">';
++			print '<input class="button button-save" type="submit" value="'.dol_escape_htmltag($langs->trans("WiseManualFilter")).'">';
++			print '</td></tr>';
++			print '<tr><td colspan="6"><span class="opacitymedium">'.dol_escape_htmltag($langs->trans("WiseManualNote")).'</span></td></tr>';
++			print '</table></div></form>';
++		}
++
+ 		// Candidates + allocation form
+ 		print '<form method="POST" action="'.$_SERVER["PHP_SELF"].'">';
+ 		print '<input type="hidden" name="token" value="'.newToken().'">';
+-		print '<input type="hidden" name="action" value="record">';
++		print '<input type="hidden" name="action" value="allocate">';
+ 		print '<input type="hidden" name="rowid" value="'.$row['rowid'].'">';
+ 		print '<input type="hidden" name="status" value="'.dol_escape_htmltag($statusFilter).'">';
++
++		// ---- Current draft rows (rendered before the candidate/manual table) ---
++		// Lets the operator edit the draft inline instead of being forced through
++		// the manual picker (which may not even list the same invoice again).
++		$draftSocNames = array();
++		if (!empty($draftInvoices)) {
++			$draftSocIds = array();
++			foreach ($draftInvoices as $din) {
++				if (!empty($din->fk_soc)) {
++					$draftSocIds[] = (int) $din->fk_soc;
++				}
++			}
++			if (!empty($draftSocIds)) {
++				$sql = 'SELECT rowid, nom FROM '.MAIN_DB_PREFIX.'societe';
++				$sql .= ' WHERE rowid IN ('.implode(',', array_unique($draftSocIds)).')';
++				$resql = $db->query($sql);
++				if ($resql) {
++					while ($obj = $db->fetch_object($resql)) {
++						$draftSocNames[(int) $obj->rowid] = $obj->nom;
++					}
++					$db->free($resql);
++				}
++			}
++		}
++		if (!empty($draftInvoices) || !empty($draftMissing)) {
++			print '<div class="div-table-responsive-no-min">';
++			print '<table class="noborder centpercent">';
++			print '<tr class="liste_titre"><td colspan="7">'.dol_escape_htmltag($langs->trans("WiseDraftSectionTitle"));
++			if ($hasDraft) {
++				print ' <span class="opacitymedium">'.dol_escape_htmltag($draft['currency'].' '.price($draft['total']).' / '.price($draft['credit']).' &mdash; '.$langs->trans("WiseDraftSavedOn").' '.$draft['date_draft']).'</span>';
++			}
++			print '</td></tr>';
++			print '<tr class="liste_titre"><td></td><td>'.$langs->trans("Invoice").'</td><td>'.$langs->trans("ThirdParty").'</td><td>'.$langs->trans("Date").'</td>';
++			print '<td class="right">'.$langs->trans("Amount").'</td><td class="right">'.$langs->trans("RemainToPay").'</td><td class="right">'.$langs->trans("WiseAllocate").'</td></tr>';
++			foreach ($draft['items'] as $item) {
++				$facid = (int) $item['facid'];
++				$prefill = price2num((float) $item['amount'], 'MT');
++				$din = isset($draftInvoices[$facid]) ? $draftInvoices[$facid] : null;
++				$stillOpen = $din && (int) $din->paye === 0 && in_array((int) $din->fk_statut, array(0, 1, 2), true);
++				$invCur = $din && !empty($din->multicurrency_code) ? strtoupper($din->multicurrency_code) : strtoupper((string) $conf->currency);
++				$invTotal = $din ? (float) $din->total_cur : 0.0;
++				$remaining = $din ? ((float) $din->total_cur - (float) $din->paid) : 0.0;
++				$socLabel = $din && !empty($draftSocNames[(int) $din->fk_soc]) ? $draftSocNames[(int) $din->fk_soc] : '';
++				print '<tr class="oddeven">';
++				if ($din) {
++					// Closed rows (paye=1 or fk_statut outside 0/1/2) are shown
++					// read-only with a warning — the operator must re-pick
++					// before submitting, since validateAllocations() will
++					// refuse the allocation at save time anyway.
++					$rowChecked = $stillOpen && $canRecord ? ' checked' : '';
++					$rowDisabled = ($stillOpen && $canRecord) ? '' : ' disabled';
++					$warning = !$stillOpen ? ' '.img_warning($langs->trans("WiseDraftRowMissing")) : '';
++					print '<td><input type="checkbox" name="fac['.$facid.']" value="1"'.$rowChecked.$rowDisabled.'></td>';
++					print '<td><a href="'.DOL_URL_ROOT.'/compta/facture/card.php?facid='.$facid.'">'.dol_escape_htmltag($din->ref).'</a>'.$warning.'</td>';
++					print '<td>'.dol_escape_htmltag($socLabel !== '' ? $socLabel : (string) $din->fk_soc).'</td>';
++					print '<td>'.dol_escape_htmltag($din->datef).'</td>';
++					print '<td class="right">'.dol_escape_htmltag($invCur).' '.price($invTotal).'</td>';
++					print '<td class="right">'.dol_escape_htmltag($invCur).' '.price($remaining).'</td>';
++					// AJAX fill: clicking the button writes min(credit, remaining)
++					// into the amount[N] field, mirroring Dolibarr's own payment
++					// card. The button is disabled when the row is not editable.
++					print '<td class="right nowraponall">';
++					if ($rowDisabled === '') {
++						print '<input type="text" class="flat maxwidth75 right" name="amount['.$facid.']" id="amount_'.$facid.'" value="'.dol_escape_htmltag($prefill).'"> ';
++						print '<button type="button" class="button" onclick="return wiseFillAmount('.$facid.', '.((float) $row['amount']).', '.((float) $remaining).');" title="'.dol_escape_htmltag($langs->trans("WiseAllocateFill")).'">&laquo;</button>';
++					} else {
++						print '<input type="text" class="flat maxwidth75 right" value="'.dol_escape_htmltag($prefill).'" disabled> ';
++						print '<button type="button" class="button" disabled>&laquo;</button>';
++					}
++					print '</td>';
++				} else {
++					// Invoice no longer in this entity / deleted. Keep the row
++					// visible so the operator sees what the draft pinned, but
++					// block the form from posting an allocation against a
++					// non-existent invoice.
++					print '<td></td>';
++					print '<td>#'.$facid.' '.img_warning($langs->trans("WiseDraftRowMissing")).'</td>';
++					print '<td>'.dol_escape_htmltag($socLabel).'</td>';
++					print '<td>-</td>';
++					print '<td class="right">-</td>';
++					print '<td class="right">-</td>';
++					print '<td class="right"><input type="text" class="flat maxwidth75 right" value="'.dol_escape_htmltag($prefill).'" disabled></td>';
++				}
++				print '</tr>';
++			}
++			if (!empty($draftMissing)) {
++				print '<tr class="oddeven"><td colspan="7" class="warning">'.dol_escape_htmltag($langs->trans("WiseDraftRowMissing").' '.implode(', ', array_map('intval', $draftMissing))).'</td></tr>';
++			}
++			print '</table></div><br>';
++		}
++
+ 		print '<div class="div-table-responsive-no-min">';
+ 		print '<table class="noborder centpercent">';
+ 		print '<tr class="liste_titre">';
+@@ -276,7 +688,17 @@ if ($rowid > 0) {
+ 				print '<td>'.dol_escape_htmltag($c['datef']).'</td>';
+ 				print '<td class="right">'.dol_escape_htmltag($c['currency']).' '.price($c['total_ttc']).'</td>';
+ 				print '<td class="right">'.dol_escape_htmltag($c['currency']).' '.price($c['remaining']).'</td>';
+-				print '<td class="right"><input type="text" class="flat maxwidth75 right" name="amount['.(int) $c['id'].']" value="'.dol_escape_htmltag($prefill).'"'.($canRecord ? '' : ' disabled').'></td>';
++				// « button writes min(credit, remaining) into the amount box
++				// on demand. Mirrors Dolibarr's own payment card.
++				print '<td class="right nowraponall">';
++				if ($canRecord) {
++					print '<input type="text" class="flat maxwidth75 right" name="amount['.(int) $c['id'].']" id="amount_'.(int) $c['id'].'" value="'.dol_escape_htmltag($prefill).'"> ';
++					print '<button type="button" class="button" onclick="return wiseFillAmount('.(int) $c['id'].', '.((float) $row['amount']).', '.((float) $c['remaining']).');" title="'.dol_escape_htmltag($langs->trans("WiseAllocateFill")).'">&laquo;</button>';
++				} else {
++					print '<input type="text" class="flat maxwidth75 right" value="'.dol_escape_htmltag($prefill).'" disabled> ';
++					print '<button type="button" class="button" disabled>&laquo;</button>';
++				}
++				print '</td>';
+ 				print '</tr>';
+ 			}
+ 		} else {
+@@ -290,29 +712,110 @@ if ($rowid > 0) {
+ 			}
+ 			print '<br><span class="opacitymedium">'.$langs->trans("WiseMatchedSOs").': '.implode(', ', $soRefs).'</span>';
+ 		}
++
++		// Manual picker: rendered inside the same form, so a hand-picked invoice
++		// flows through wiseParseAllocations() and validateAllocations() exactly
++		// like an engine candidate — same checks, same draft storage.
++		if ($showManual) {
++			print '<br><div class="div-table-responsive-no-min">';
++			print '<table class="noborder centpercent">';
++			print '<tr><td></td><td>'.$langs->trans("Invoice").'</td><td>'.$langs->trans("WiseManualSoCol").'</td><td>'.$langs->trans("ThirdParty").'</td><td>'.$langs->trans("Date").'</td>';
++			print '<td class="right">'.$langs->trans("Amount").'</td><td class="right">'.$langs->trans("RemainToPay").'</td><td class="right">'.$langs->trans("WiseAllocate").'</td></tr>';
++			if (empty($manualInvoices)) {
++				print '<tr><td colspan="8"><span class="opacitymedium">'.$langs->trans("WiseManualNone").'</span></td></tr>';
++			}
++			foreach ($manualInvoices as $inv) {
++				$invId = (int) $inv->rowid;
++				$invCur = !empty($inv->multicurrency_code) ? strtoupper($inv->multicurrency_code) : strtoupper((string) $conf->currency);
++				$invTotal = (float) $inv->total_cur;
++				// Recompute the remain via the official function: the batch SQL
++				// above only sums paiement_facture and understates the remain
++				// for any invoice that has already consumed a deposit or credit
++				// note. Up to 200 fetches on this page; the hand-rolled SQL
++				// was correct on day 1 and wrong the moment IS267808 absorbed
++				// a USD deposit — switch the authoritative source.
++				$fac = new Facture($db);
++				if ($fac->fetch($invId) > 0 && (int) $fac->entity === (int) $conf->entity) {
++					$remaining = (float) $fac->getRemainToPay(1);
++				} else {
++					$remaining = (float) $inv->total_cur - (float) $inv->paid;
++				}
++				$socLabel = !empty($manualSocNames[(int) $inv->fk_soc]) ? $manualSocNames[(int) $inv->fk_soc] : (string) $inv->fk_soc;
++				$soCells = '';
++				if (!empty($manualSoRefs[$invId])) {
++					foreach ($manualSoRefs[$invId] as $soRef) {
++						$soCells .= ($soCells !== '' ? ', ' : '').dol_escape_htmltag($soRef);
++					}
++				}
++				print '<tr class="oddeven">';
++				print '<td><input type="checkbox" name="fac['.$invId.']" value="1"'.($canRecord ? '' : ' disabled').'></td>';
++				print '<td><a href="'.DOL_URL_ROOT.'/compta/facture/card.php?facid='.$invId.'">'.dol_escape_htmltag($inv->ref).'</a></td>';
++				print '<td>'.($soCells !== '' ? $soCells : '<span class="opacitymedium">-</span>').'</td>';
++				print '<td>'.dol_escape_htmltag($socLabel).'</td>';
++				print '<td>'.dol_escape_htmltag($inv->datef).'</td>';
++				print '<td class="right">'.dol_escape_htmltag($invCur).' '.price($invTotal).'</td>';
++				print '<td class="right">'.dol_escape_htmltag($invCur).' '.price($remaining).'</td>';
++				// Amount deliberately left blank: with up to 200 rows a FIFO prefill
++				// would silently spread the credit across unrelated invoices. The
++				// « button next to the field writes min(credit, remaining) on
++				// demand — same affordance as Dolibarr's own payment card.
++				print '<td class="right nowraponall">';
++				if ($canRecord) {
++					print '<input type="text" class="flat maxwidth75 right" name="amount['.$invId.']" id="amount_'.$invId.'" value="'.(isset($defaults[$invId]) ? dol_escape_htmltag(price2num($defaults[$invId], 'MT')) : '').'"> ';
++					print '<button type="button" class="button" onclick="return wiseFillAmount('.$invId.', '.((float) $row['amount']).', '.((float) $remaining).');" title="'.dol_escape_htmltag($langs->trans("WiseAllocateFill")).'">&laquo;</button>';
++				} else {
++					print '<input type="text" class="flat maxwidth75 right" value="" disabled> ';
++					print '<button type="button" class="button" disabled>&laquo;</button>';
++				}
++				print '</td>';
++				print '</tr>';
++			}
++			print '</table></div>';
++			print '<div class="opacitymedium"><span class="'.($manualTruncated ? 'warning' : '').'">';
++			print count($manualInvoices).' '.dol_escape_htmltag($langs->trans("WiseManualCount"));
++			print $manualTruncated ? ' &mdash; '.dol_escape_htmltag($langs->trans("WiseManualTruncated")) : '';
++			print '</span></div>';
++		} elseif (!empty($candidates)) {
++			print '<br><a class="opacitymedium" href="'.$_SERVER["PHP_SELF"].'?rowid='.(int) $rowid.'&status='.urlencode($statusFilter).'&showmanual=1">';
++			print dol_escape_htmltag($langs->trans("WiseManualShow"));
++			print '</a>';
++		}
++
+ 		print '<br><div class="tabsAction">';
+-		if ($canRecord && !empty($candidates)) {
+-			print '<input class="butAction" type="submit" value="'.$langs->trans("WiseConfirmRecord").'">';
++		if ($canRecord && $canWrite) {
++			// <button> not <input type=submit>: the wire value must stay a fixed
++			// ASCII token (GETPOST 'action'/'step' are filtered), not a translated label.
++			print '<button class="butAction" type="submit" name="step" value="save_draft">'.$langs->trans("WiseSaveDraft").'</button> ';
++			print '<button class="butAction" type="submit" name="step" value="record">'.$langs->trans("WiseConfirmRecord").'</button>';
+ 		}
+ 		print '</div>';
+ 		print '</form>';
+ 
+-		// Ignore / re-enrich
++		// Discard draft / ignore / re-enrich
+ 		if ($canRecord) {
+ 			print '<div class="tabsAction">';
++			if ($draft && $canWrite) {
++				print '<form method="POST" action="'.$_SERVER["PHP_SELF"].'" style="display:inline;">';
++				print '<input type="hidden" name="token" value="'.newToken().'">';
++				print '<input type="hidden" name="action" value="discard_draft">';
++				print '<input type="hidden" name="rowid" value="'.$row['rowid'].'">';
++				print '<input type="hidden" name="status" value="'.dol_escape_htmltag($statusFilter).'">';
++				print '<button class="butActionDelete" type="submit" name="step" value="discard_draft">'.$langs->trans("WiseDiscardDraft").'</button>';
++				print '</form> ';
++			}
+ 			print '<form method="POST" action="'.$_SERVER["PHP_SELF"].'" style="display:inline;">';
+ 			print '<input type="hidden" name="token" value="'.newToken().'">';
+ 			print '<input type="hidden" name="action" value="ignore">';
+ 			print '<input type="hidden" name="rowid" value="'.$row['rowid'].'">';
+ 			print '<input type="hidden" name="status" value="'.dol_escape_htmltag($statusFilter).'">';
+-			print '<input class="butActionDelete" type="submit" value="'.$langs->trans("WiseIgnore").'">';
++			print '<button class="butActionDelete" type="submit" name="step" value="ignore">'.$langs->trans("WiseIgnore").'</button>';
+ 			print '</form> ';
+ 			print '<form method="POST" action="'.$_SERVER["PHP_SELF"].'" style="display:inline;">';
+ 			print '<input type="hidden" name="token" value="'.newToken().'">';
+ 			print '<input type="hidden" name="action" value="enrich">';
+ 			print '<input type="hidden" name="rowid" value="'.$row['rowid'].'">';
+ 			print '<input type="hidden" name="status" value="'.dol_escape_htmltag($statusFilter).'">';
+-			print '<input class="butAction" type="submit" value="'.$langs->trans("WiseReenrich").'">';
++			print '<button class="butAction" type="submit" name="step" value="enrich">'.$langs->trans("WiseReenrich").'</button>';
+ 			print '</form>';
+ 			print '</div>';
+ 		}
+@@ -337,27 +840,53 @@ print '<div class="div-table-responsive-no-min">';
+ print '<table class="noborder centpercent">';
+ print '<tr class="liste_titre">';
+ print '<td>#</td><td>'.$langs->trans("Date").'</td><td>'.$langs->trans("Amount").'</td><td>'.$langs->trans("Currency").'</td>';
+-print '<td>'.$langs->trans("Ref").'</td><td>'.$langs->trans("ThirdParty").'</td><td>'.$langs->trans("Status").'</td></tr>';
++print '<td>'.$langs->trans("Ref").'</td><td>'.$langs->trans("ThirdParty").'</td><td>'.$langs->trans("Status").'</td>';
++print '<td class="right">'.$langs->trans("Actions").'</td></tr>';
+ if ($resql) {
+ 	$num = 0;
++	$canWriteAny = ($user->admin || $user->hasRight('slycustom', 'wise', 'write')) ? true : false;
+ 	while ($obj = $db->fetch_object($resql)) {
+ 		$num++;
++		$detailUrl = $_SERVER["PHP_SELF"].'?rowid='.(int) $obj->rowid.'&status='.dol_escape_htmltag($statusFilter);
++		// One visible entry point per row: NEW/ENRICHED/PREPARED open the
++		// processing view (enrich -> allocate -> record live there), terminal
++		// states only get a read-only view.
++		if ($obj->status === WiseIncomingPayment::STATUS_PREPARED) {
++			$rowAction = '<a class="butAction" href="'.$detailUrl.'">'.$langs->trans("WiseOpenDraft").'</a>';
++		} elseif (in_array($obj->status, array(WiseIncomingPayment::STATUS_RECORDED, WiseIncomingPayment::STATUS_IGNORED), true)) {
++			$rowAction = '<a class="butAction" href="'.$detailUrl.'">'.$langs->trans("WiseView").'</a>';
++		} else {
++			$rowAction = '<a class="butAction" href="'.$detailUrl.'">'.$langs->trans("WiseProcess").'</a>';
++		}
++		// One-click auto-record next to "Process": only offered while the row is
++		// still open; autoRecord() itself refuses anything it would have to guess.
++		if ($canWriteAny && in_array($obj->status, array(WiseIncomingPayment::STATUS_NEW, WiseIncomingPayment::STATUS_ENRICHED), true)) {
++			$rowAction = '<form method="POST" style="display:inline" action="'.$_SERVER["PHP_SELF"].'">'
++				.'<input type="hidden" name="token" value="'.newToken().'">'
++				.'<input type="hidden" name="action" value="auto_record">'
++				.'<input type="hidden" name="rowid" value="'.(int) $obj->rowid.'">'
++				.'<input type="hidden" name="status" value="'.dol_escape_htmltag($statusFilter).'">'
++				.'<button type="submit" class="butAction" onclick="return confirm(\''.dol_escape_js($langs->trans("WiseAutoRecordConfirm")).'\');">'.$langs->trans("WiseAutoRecord").'</button></form> '
++				.$rowAction;
++		}
++		$occTs = WiseIncomingPayment::sqlUtcToTimestamp($obj->occurred_at);
+ 		print '<tr class="oddeven">';
+-		print '<td><a href="'.$_SERVER["PHP_SELF"].'?rowid='.(int) $obj->rowid.'&status='.dol_escape_htmltag($statusFilter).'">'.(int) $obj->rowid.'</a></td>';
+-		print '<td>'.dol_escape_htmltag($obj->occurred_at).' UTC</td>';
++		print '<td><a href="'.$detailUrl.'">#'.(int) $obj->rowid.'</a></td>';
++		print '<td>'.($occTs ? dol_print_date($occTs, 'dayhour', 'tzuserrel') : dol_escape_htmltag($obj->occurred_at)).'</td>';
+ 		print '<td class="right">'.price((float) $obj->amount).'</td>';
+ 		print '<td>'.dol_escape_htmltag($obj->currency).'</td>';
+ 		print '<td>'.($obj->ref_text !== '' ? dol_escape_htmltag($obj->ref_text) : '<span class="opacitymedium">-</span>').'</td>';
+ 		print '<td>'.($obj->counterparty !== '' ? dol_escape_htmltag($obj->counterparty) : '<span class="opacitymedium">-</span>').'</td>';
+ 		print '<td>'.dol_escape_htmltag($obj->status).'</td>';
++		print '<td class="right">'.$rowAction.'</td>';
+ 		print '</tr>';
+ 	}
+ 	$db->free($resql);
+ 	if ($num === 0) {
+-		print '<tr class="oddeven"><td colspan="7"><span class="opacitymedium">'.$langs->trans("None").'</span></td></tr>';
++		print '<tr class="oddeven"><td colspan="8"><span class="opacitymedium">'.$langs->trans("None").'</span></td></tr>';
+ 	}
+ } else {
+-	print '<tr class="oddeven"><td colspan="7" class="error">'.dol_escape_htmltag($db->lasterror).'</td></tr>';
++	print '<tr class="oddeven"><td colspan="8" class="error">'.dol_escape_htmltag($db->lasterror).'</td></tr>';
+ }
+ print '</table></div>';
+ 
