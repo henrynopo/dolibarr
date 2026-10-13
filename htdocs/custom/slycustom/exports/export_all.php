@@ -32,426 +32,6 @@ $eExpedition = getEntity('expedition');
 $eSupplierOrder = getEntity('supplier_order');
 $eSupplierInvoice = getEntity('supplier_invoice');
 
-/**
- * Validate before triggering sequential downloads.
- *
- * For ALL-in-One, we want to avoid exporting inconsistent linkage data
- * (multiple PO per SO, multiple shipments per invoice, etc.).
- */
-function slyAllInOneValidate(&$db, &$langs, $prefix, $eCommande, $eInvoice, $eExpedition, $eSupplierOrder, $eSupplierInvoice)
-{
-	$errors = array(
-		// Each rule keeps an associative set of refs to avoid duplicates.
-		'so_details' => array(
-			'po_cnt_gt_1' => array(),
-			'salesperson_cnt_ne_1' => array(),
-			'billto_cnt_gt_1' => array(),
-			'shipment_cnt_gt_1' => array(),
-			'consignee_ship_contact_cnt_gt_1' => array(),
-		),
-		'so_inv_details' => array(
-			'so_cnt_gt_1' => array(),
-			'shipment_cnt_gt_1' => array(),
-			'billto_cnt_gt_1' => array(),
-		),
-		'shipment_details' => array(
-			'so_cnt_ne_1' => array(),
-			'billto_cnt_gt_1' => array(),
-			'customer_ship_contact_cnt_gt_1' => array(),
-			'invoice_cnt_gt_1' => array(),
-		),
-		'po_details' => array(
-			'so_cnt_gt_1' => array(),
-			'purchase_cnt_ne_1' => array(),
-		),
-		'po_inv_details' => array(
-			'po_cnt_gt_1' => array(),
-		),
-	);
-
-	/**
-	 * Helper: push unique ref.
-	 */
-	$pushRef = static function (array &$arr, $ref) {
-		$ref = (string) $ref;
-		if ($ref !== '') $arr[$ref] = 1;
-	};
-
-	$sqlSo = "SELECT
-		c.ref,
-		(
-			SELECT COUNT(DISTINCT t.po_id)
-			FROM (
-				SELECT ee.fk_source AS po_id
-				FROM ".$prefix."element_element ee
-				INNER JOIN ".$prefix."commande_fournisseur cf ON cf.rowid = ee.fk_source AND cf.entity IN (".$eSupplierOrder.")
-				WHERE ee.fk_target = c.rowid
-					AND ee.targettype = 'commande'
-					AND ee.sourcetype = 'order_supplier'
-				UNION ALL
-				SELECT ee.fk_target AS po_id
-				FROM ".$prefix."element_element ee
-				INNER JOIN ".$prefix."commande_fournisseur cf ON cf.rowid = ee.fk_target AND cf.entity IN (".$eSupplierOrder.")
-				WHERE ee.fk_source = c.rowid
-					AND ee.sourcetype = 'commande'
-					AND ee.targettype = 'order_supplier'
-			) t
-		) AS po_cnt,
-		(
-			SELECT COUNT(DISTINCT ec.fk_socpeople)
-			FROM ".$prefix."element_contact ec
-			INNER JOIN ".$prefix."c_type_contact tc ON tc.rowid = ec.fk_c_type_contact
-			WHERE ec.element_id = c.rowid
-				AND tc.element = 'commande'
-				AND tc.source = 'internal'
-				AND tc.code = 'SALESREPFOLL'
-				AND tc.active = 1
-		) AS salesperson_cnt,
-		(
-			SELECT COUNT(DISTINCT ec.fk_socpeople)
-			FROM ".$prefix."element_contact ec
-			INNER JOIN ".$prefix."c_type_contact tc ON tc.rowid = ec.fk_c_type_contact
-			WHERE ec.element_id = c.rowid
-				AND tc.element = 'commande'
-				AND tc.source = 'external'
-				AND tc.code = 'BILLING'
-				AND tc.active = 1
-		) AS billto_cnt,
-		(
-			SELECT COUNT(DISTINCT exp.rowid)
-			FROM (
-				SELECT ee.fk_target AS ship_id
-				FROM ".$prefix."element_element ee
-				WHERE ee.sourcetype = 'commande'
-					AND ee.targettype = 'shipping'
-					AND ee.fk_source = c.rowid
-				UNION ALL
-				SELECT ee.fk_source AS ship_id
-				FROM ".$prefix."element_element ee
-				WHERE ee.sourcetype = 'shipping'
-					AND ee.targettype = 'commande'
-					AND ee.fk_target = c.rowid
-			) s
-			INNER JOIN ".$prefix."expedition exp ON exp.rowid = s.ship_id AND exp.entity IN (".$eExpedition.")
-		) AS shipment_cnt,
-		(
-			CASE
-				WHEN cex.ConsigneeAppointedBy IS NULL OR TRIM(cex.ConsigneeAppointedBy) = '' THEN 0
-				WHEN cex.ConsigneeAppointedBy LIKE '%,%' OR cex.ConsigneeAppointedBy LIKE '%;%' THEN 2
-				ELSE 1
-			END
-		) AS consignee_ship_contact_cnt
-	FROM ".$prefix."commande c
-	LEFT JOIN ".$prefix."commande_extrafields cex ON cex.fk_object = c.rowid
-	WHERE c.entity IN (".$eCommande.")
-		AND c.fk_statut NOT IN (0, -1)
-	HAVING po_cnt > 1
-		OR salesperson_cnt <> 1
-		OR billto_cnt > 1
-		OR shipment_cnt > 1
-		OR consignee_ship_contact_cnt > 1
-	";
-
-	$resql = $db->query($sqlSo);
-	if ($resql) {
-		while ($obj = $db->fetch_object($resql)) {
-			$poCnt = (int) $obj->po_cnt;
-			$salespersonCnt = (int) $obj->salesperson_cnt;
-			$billtoCnt = (int) $obj->billto_cnt;
-			$shipmentCnt = (int) $obj->shipment_cnt;
-			$consigneeShipContactCnt = (int) $obj->consignee_ship_contact_cnt;
-
-			if ($poCnt > 1) $pushRef($errors['so_details']['po_cnt_gt_1'], $obj->ref);
-			if ($salespersonCnt !== 1) $pushRef($errors['so_details']['salesperson_cnt_ne_1'], $obj->ref);
-			if ($billtoCnt > 1) $pushRef($errors['so_details']['billto_cnt_gt_1'], $obj->ref);
-			if ($shipmentCnt > 1) $pushRef($errors['so_details']['shipment_cnt_gt_1'], $obj->ref);
-			if ($consigneeShipContactCnt > 1) $pushRef($errors['so_details']['consignee_ship_contact_cnt_gt_1'], $obj->ref);
-		}
-		$db->free($resql);
-	} else {
-		$errors['so_details']['__sql_error__'] = array('__SQL_ERROR__:' . $db->lasterror());
-	}
-
-	$sqlSoInv = "SELECT
-		f.ref,
-		(
-			SELECT COUNT(DISTINCT t.so_id)
-			FROM (
-				SELECT ee.fk_source AS so_id
-				FROM ".$prefix."element_element ee
-				WHERE ee.sourcetype = 'commande'
-					AND ee.targettype = 'facture'
-					AND ee.fk_target = f.rowid
-				UNION ALL
-				SELECT ee.fk_target AS so_id
-				FROM ".$prefix."element_element ee
-				WHERE ee.sourcetype = 'facture'
-					AND ee.targettype = 'commande'
-					AND ee.fk_source = f.rowid
-			) t
-			INNER JOIN ".$prefix."commande c2 ON c2.rowid = t.so_id AND c2.entity IN (".$eCommande.")
-		) AS so_cnt,
-		(
-			SELECT COUNT(DISTINCT exp.rowid)
-			FROM (
-				SELECT ee_cmd_ship.ship_id
-				FROM (
-					SELECT ee1.fk_source AS cmd_id, ee1.fk_target AS ship_id
-					FROM ".$prefix."element_element ee1
-					WHERE ee1.sourcetype = 'commande'
-						AND ee1.targettype = 'shipping'
-					UNION ALL
-					SELECT ee2.fk_target AS cmd_id, ee2.fk_source AS ship_id
-					FROM ".$prefix."element_element ee2
-					WHERE ee2.sourcetype = 'shipping'
-						AND ee2.targettype = 'commande'
-				) ee_cmd_ship
-				INNER JOIN (
-					SELECT ee.fk_source AS so_id
-					FROM ".$prefix."element_element ee
-					WHERE ee.sourcetype = 'commande'
-						AND ee.targettype = 'facture'
-						AND ee.fk_target = f.rowid
-					UNION ALL
-					SELECT ee.fk_target AS so_id
-					FROM ".$prefix."element_element ee
-					WHERE ee.sourcetype = 'facture'
-						AND ee.targettype = 'commande'
-						AND ee.fk_source = f.rowid
-				) so_ids ON so_ids.so_id = ee_cmd_ship.cmd_id
-			) s
-			INNER JOIN ".$prefix."expedition exp ON exp.rowid = s.ship_id AND exp.entity IN (".$eExpedition.")
-		) AS shipment_cnt,
-		(
-			SELECT COUNT(DISTINCT ec.fk_socpeople)
-			FROM ".$prefix."element_contact ec
-			INNER JOIN ".$prefix."c_type_contact tc ON tc.rowid = ec.fk_c_type_contact
-			WHERE ec.element_id = f.rowid
-				AND tc.element = 'facture'
-				AND tc.source = 'external'
-				AND tc.code = 'BILLING'
-				AND tc.active = 1
-		) AS billto_cnt
-	FROM ".$prefix."facture f
-	WHERE f.entity IN (".$eInvoice.")
-		AND f.fk_statut NOT IN (0, 3)
-	HAVING so_cnt > 1
-		OR shipment_cnt > 1
-		OR billto_cnt > 1
-	";
-
-	$resql = $db->query($sqlSoInv);
-	if ($resql) {
-		while ($obj = $db->fetch_object($resql)) {
-			$soCnt = (int) $obj->so_cnt;
-			$shipmentCnt = (int) $obj->shipment_cnt;
-			$billtoCnt = (int) $obj->billto_cnt;
-
-			if ($soCnt > 1) $pushRef($errors['so_inv_details']['so_cnt_gt_1'], $obj->ref);
-			if ($shipmentCnt > 1) $pushRef($errors['so_inv_details']['shipment_cnt_gt_1'], $obj->ref);
-			if ($billtoCnt > 1) $pushRef($errors['so_inv_details']['billto_cnt_gt_1'], $obj->ref);
-		}
-		$db->free($resql);
-	} else {
-		$errors['so_inv_details']['__sql_error__'] = array('__SQL_ERROR__:' . $db->lasterror());
-	}
-
-	$sqlShipment = "SELECT
-		e.ref,
-		(
-			SELECT COUNT(DISTINCT t.so_id)
-			FROM (
-				SELECT ee.fk_source AS so_id
-				FROM ".$prefix."element_element ee
-				WHERE ee.sourcetype = 'commande'
-					AND ee.targettype = 'shipping'
-					AND ee.fk_target = e.rowid
-				UNION ALL
-				SELECT ee.fk_target AS so_id
-				FROM ".$prefix."element_element ee
-				WHERE ee.sourcetype = 'shipping'
-					AND ee.targettype = 'commande'
-					AND ee.fk_source = e.rowid
-			) t
-			INNER JOIN ".$prefix."commande c2 ON c2.rowid = t.so_id AND c2.entity IN (".$eCommande.")
-		) AS so_cnt,
-		(
-			SELECT COUNT(DISTINCT fi.rowid)
-			FROM (
-				SELECT DISTINCT ee_inv.fk_target AS inv_id
-				FROM ".$prefix."element_element ee_inv
-				INNER JOIN (
-					SELECT ee.fk_source AS so_id
-					FROM ".$prefix."element_element ee
-					WHERE ee.sourcetype = 'commande'
-						AND ee.targettype = 'shipping'
-						AND ee.fk_target = e.rowid
-					UNION ALL
-					SELECT ee.fk_target AS so_id
-					FROM ".$prefix."element_element ee
-					WHERE ee.sourcetype = 'shipping'
-						AND ee.targettype = 'commande'
-						AND ee.fk_source = e.rowid
-				) so_ids ON so_ids.so_id = ee_inv.fk_source
-				WHERE ee_inv.sourcetype = 'commande'
-					AND ee_inv.targettype = 'facture'
-			) inv_ids
-			INNER JOIN ".$prefix."facture fi ON fi.rowid = inv_ids.inv_id AND fi.entity IN (".$eInvoice.")
-		) AS invoice_cnt,
-		(
-			SELECT COUNT(DISTINCT ec.fk_socpeople)
-			FROM ".$prefix."element_contact ec
-			INNER JOIN ".$prefix."c_type_contact tc ON tc.rowid = ec.fk_c_type_contact
-			INNER JOIN (
-				SELECT DISTINCT ee_inv.fk_target AS inv_id
-				FROM ".$prefix."element_element ee_inv
-				INNER JOIN (
-					SELECT ee.fk_source AS so_id
-					FROM ".$prefix."element_element ee
-					WHERE ee.sourcetype = 'commande'
-						AND ee.targettype = 'shipping'
-						AND ee.fk_target = e.rowid
-					UNION ALL
-					SELECT ee.fk_target AS so_id
-					FROM ".$prefix."element_element ee
-					WHERE ee.sourcetype = 'shipping'
-						AND ee.targettype = 'commande'
-						AND ee.fk_source = e.rowid
-				) so_ids ON so_ids.so_id = ee_inv.fk_source
-				WHERE ee_inv.sourcetype = 'commande'
-					AND ee_inv.targettype = 'facture'
-			) inv_ids ON inv_ids.inv_id = ec.element_id
-			WHERE tc.element = 'facture'
-				AND tc.source = 'external'
-				AND tc.code = 'BILLING'
-				AND tc.active = 1
-		) AS billto_cnt
-	FROM ".$prefix."expedition e
-	WHERE e.entity IN (".$eExpedition.")
-		AND e.fk_statut NOT IN (0, -1)
-	HAVING so_cnt <> 1
-		OR billto_cnt > 1
-		OR invoice_cnt > 1
-	";
-
-	$resql = $db->query($sqlShipment);
-	if ($resql) {
-		while ($obj = $db->fetch_object($resql)) {
-			$soCnt = (int) $obj->so_cnt;
-			$billtoCnt = (int) $obj->billto_cnt;
-			$invoiceCnt = (int) $obj->invoice_cnt;
-
-			if ($soCnt !== 1) $pushRef($errors['shipment_details']['so_cnt_ne_1'], $obj->ref);
-			if ($billtoCnt > 1) $pushRef($errors['shipment_details']['billto_cnt_gt_1'], $obj->ref);
-			if ($invoiceCnt > 1) $pushRef($errors['shipment_details']['invoice_cnt_gt_1'], $obj->ref);
-		}
-		$db->free($resql);
-	} else {
-		$errors['shipment_details']['__sql_error__'] = array('__SQL_ERROR__:' . $db->lasterror());
-	}
-
-	$sqlPo = "SELECT
-		cf.ref,
-		(
-			SELECT COUNT(DISTINCT t.so_id)
-			FROM (
-				SELECT ee1.fk_target AS so_id
-				FROM ".$prefix."element_element ee1
-				WHERE ee1.sourcetype = 'order_supplier'
-					AND ee1.targettype = 'commande'
-					AND ee1.fk_source = cf.rowid
-				UNION ALL
-				SELECT ee2.fk_source AS so_id
-				FROM ".$prefix."element_element ee2
-				WHERE ee2.sourcetype = 'commande'
-					AND ee2.targettype = 'order_supplier'
-					AND ee2.fk_target = cf.rowid
-			) t
-			INNER JOIN ".$prefix."commande c2 ON c2.rowid = t.so_id AND c2.entity IN (".$eCommande.")
-		) AS so_cnt,
-		(
-			SELECT COUNT(DISTINCT ec.fk_socpeople)
-			FROM ".$prefix."element_contact ec
-			INNER JOIN ".$prefix."c_type_contact tc ON tc.rowid = ec.fk_c_type_contact
-			WHERE ec.element_id = cf.rowid
-				AND tc.element = 'order_supplier'
-				AND tc.source = 'internal'
-				AND tc.code = 'SALESREPFOLL'
-				AND tc.active = 1
-		) AS purchase_cnt
-	FROM ".$prefix."commande_fournisseur cf
-	WHERE cf.entity IN (".$eSupplierOrder.")
-		AND cf.fk_statut NOT IN (0, 6, 7, 9)
-	HAVING so_cnt > 1
-		OR purchase_cnt <> 1
-	";
-
-	$resql = $db->query($sqlPo);
-	if ($resql) {
-		while ($obj = $db->fetch_object($resql)) {
-			$soCnt = (int) $obj->so_cnt;
-			$purchaseCnt = (int) $obj->purchase_cnt;
-
-			if ($soCnt > 1) $pushRef($errors['po_details']['so_cnt_gt_1'], $obj->ref);
-			if ($purchaseCnt !== 1) $pushRef($errors['po_details']['purchase_cnt_ne_1'], $obj->ref);
-		}
-		$db->free($resql);
-	} else {
-		$errors['po_details']['__sql_error__'] = array('__SQL_ERROR__:' . $db->lasterror());
-	}
-
-	$sqlPoInv = "SELECT
-		ff.ref,
-		(
-			SELECT COUNT(DISTINCT t.po_id)
-			FROM (
-				SELECT ee1.fk_source AS po_id
-				FROM ".$prefix."element_element ee1
-				WHERE ee1.sourcetype = 'order_supplier'
-					AND (ee1.targettype = 'invoice_supplier' OR ee1.targettype = 'facture_fourn')
-					AND ee1.fk_target = ff.rowid
-				UNION ALL
-				SELECT ee2.fk_target AS po_id
-				FROM ".$prefix."element_element ee2
-				WHERE (ee2.sourcetype = 'invoice_supplier' OR ee2.sourcetype = 'facture_fourn')
-					AND ee2.targettype = 'order_supplier'
-					AND ee2.fk_source = ff.rowid
-			) t
-			INNER JOIN ".$prefix."commande_fournisseur po ON po.rowid = t.po_id AND po.entity IN (".$eSupplierOrder.")
-		) AS po_cnt,
-	FROM ".$prefix."facture_fourn ff
-	WHERE ff.entity IN (".$eSupplierInvoice.")
-		AND ff.fk_statut NOT IN (0, 3)
-	HAVING po_cnt > 1
-	";
-
-	$resql = $db->query($sqlPoInv);
-	if ($resql) {
-		while ($obj = $db->fetch_object($resql)) {
-			$poCnt = (int) $obj->po_cnt;
-
-			if ($poCnt > 1) $pushRef($errors['po_inv_details']['po_cnt_gt_1'], $obj->ref);
-		}
-		$db->free($resql);
-	} else {
-		$errors['po_inv_details']['__sql_error__'] = array('__SQL_ERROR__:' . $db->lasterror());
-	}
-
-	// Convert inner sets to arrays.
-	foreach ($errors as $dataset => $rules) {
-		foreach ($rules as $rule => $set) {
-			if ($rule === '__sql_error__') {
-				// Keep SQL error message(s) as-is (do not convert to array_keys()).
-				continue;
-			}
-			if (is_array($set)) {
-				$errors[$dataset][$rule] = array_keys($set);
-			}
-		}
-	}
-
-	return $errors;
-}
 
 /**
  * New ALL-in-One validation (V2).
@@ -492,9 +72,9 @@ function slyAllInOneValidateV2(&$db, &$langs, $prefix, $eCommande, $eInvoice, $e
 		),
 	);
 
-	$pushRef = static function (array &$arr, $ref) {
+	$pushRef = static function (array &$arr, $ref, $id = null) {
 		$ref = (string) $ref;
-		if ($ref !== '') $arr[$ref] = 1;
+		if ($ref !== '') $arr[$ref] = $id !== null ? (int) $id : true;
 	};
 
 	// Helper: build ref map (rowid => ref).
@@ -868,11 +448,11 @@ function slyAllInOneValidateV2(&$db, &$langs, $prefix, $eCommande, $eInvoice, $e
 		$shipmentCnt = isset($soToShip[$soId]) ? count($soToShip[$soId]) : 0;
 		$consigneeCnt = isset($soConsigneeShipContactCnt[$soId]) ? (int) $soConsigneeShipContactCnt[$soId] : 0;
 
-		if ($poCnt > 1) $pushRef($errors['so_details']['po_cnt_gt_1'], $soRef);
-		if ($salesCnt !== 1) $pushRef($errors['so_details']['salesperson_cnt_ne_1'], $soRef);
-		if ($billtoCnt > 1) $pushRef($errors['so_details']['billto_cnt_gt_1'], $soRef);
-		if ($shipmentCnt > 1) $pushRef($errors['so_details']['shipment_cnt_gt_1'], $soRef);
-		if ($consigneeCnt > 1) $pushRef($errors['so_details']['consignee_ship_contact_cnt_gt_1'], $soRef);
+		if ($poCnt > 1) $pushRef($errors['so_details']['po_cnt_gt_1'], $soRef, $soId);
+		if ($salesCnt !== 1) $pushRef($errors['so_details']['salesperson_cnt_ne_1'], $soRef, $soId);
+		if ($billtoCnt > 1) $pushRef($errors['so_details']['billto_cnt_gt_1'], $soRef, $soId);
+		if ($shipmentCnt > 1) $pushRef($errors['so_details']['shipment_cnt_gt_1'], $soRef, $soId);
+		if ($consigneeCnt > 1) $pushRef($errors['so_details']['consignee_ship_contact_cnt_gt_1'], $soRef, $soId);
 	}
 
 	// ---------------------------
@@ -887,9 +467,9 @@ function slyAllInOneValidateV2(&$db, &$langs, $prefix, $eCommande, $eInvoice, $e
 
 		$billtoCnt = isset($invBilltoPeople[$invId]) ? count($invBilltoPeople[$invId]) : 0;
 
-		if ($soCnt > 1) $pushRef($errors['so_inv_details']['so_cnt_gt_1'], $invRef);
-		if ($shipmentCnt > 1) $pushRef($errors['so_inv_details']['shipment_cnt_gt_1'], $invRef);
-		if ($billtoCnt > 1) $pushRef($errors['so_inv_details']['billto_cnt_gt_1'], $invRef);
+		if ($soCnt > 1) $pushRef($errors['so_inv_details']['so_cnt_gt_1'], $invRef, $invId);
+		if ($shipmentCnt > 1) $pushRef($errors['so_inv_details']['shipment_cnt_gt_1'], $invRef, $invId);
+		if ($billtoCnt > 1) $pushRef($errors['so_inv_details']['billto_cnt_gt_1'], $invRef, $invId);
 	}
 
 	// ---------------------------
@@ -899,7 +479,7 @@ function slyAllInOneValidateV2(&$db, &$langs, $prefix, $eCommande, $eInvoice, $e
 		// Use bidirectional element_element mapping (commande <-> shipping).
 		$linkedSoIds = isset($shipToSo[$shipId]) ? array_keys($shipToSo[$shipId]) : array();
 		$soCnt = count($linkedSoIds);
-		if ($soCnt !== 1) $pushRef($errors['shipment_details']['so_cnt_ne_1'], $shipRef);
+		if ($soCnt !== 1) $pushRef($errors['shipment_details']['so_cnt_ne_1'], $shipRef, $shipId);
 
 		// For invoice/bill-to linkage checks, only apply to shipments that are not yet arrived:
 		// SailingStatusId != 3/4 (see SailingStatusId in llx_expedition_extrafields).
@@ -910,16 +490,16 @@ function slyAllInOneValidateV2(&$db, &$langs, $prefix, $eCommande, $eInvoice, $e
 		if (!$isArrived) {
 			$invSet = isset($shipToInv[$shipId]) ? $shipToInv[$shipId] : array();
 			$invoiceCnt = count($invSet);
-			if ($invoiceCnt > 1) $pushRef($errors['shipment_details']['invoice_cnt_gt_1'], $shipRef);
+			if ($invoiceCnt > 1) $pushRef($errors['shipment_details']['invoice_cnt_gt_1'], $shipRef, $shipId);
 
 			// Bill-to contacts on the shipment itself (Customer invoice contact for shipment).
 			$billtoCnt = isset($shipBilltoPeople[$shipId]) ? count($shipBilltoPeople[$shipId]) : 0;
-			if ($billtoCnt > 1) $pushRef($errors['shipment_details']['billto_cnt_gt_1'], $shipRef);
+			if ($billtoCnt > 1) $pushRef($errors['shipment_details']['billto_cnt_gt_1'], $shipRef, $shipId);
 
 			// Customer shipping contact(s) (consignee shipment):
 			// Use shipment's own contacts (no linked-SO aggregation).
 			$customerShipContactCnt = (int) ($shipCustomerShipContactCnt[$shipId] ?? 0);
-			if ($customerShipContactCnt > 1) $pushRef($errors['shipment_details']['customer_ship_contact_cnt_gt_1'], $shipRef);
+			if ($customerShipContactCnt > 1) $pushRef($errors['shipment_details']['customer_ship_contact_cnt_gt_1'], $shipRef, $shipId);
 		}
 	}
 
@@ -932,8 +512,8 @@ function slyAllInOneValidateV2(&$db, &$langs, $prefix, $eCommande, $eInvoice, $e
 
 		$personCnt = isset($poPurchasePeople[$poId]) ? count($poPurchasePeople[$poId]) : 0;
 
-		if ($soCnt > 1) $pushRef($errors['po_details']['so_cnt_gt_1'], $poRef);
-		if ($personCnt !== 1) $pushRef($errors['po_details']['purchase_cnt_ne_1'], $poRef);
+		if ($soCnt > 1) $pushRef($errors['po_details']['so_cnt_gt_1'], $poRef, $poId);
+		if ($personCnt !== 1) $pushRef($errors['po_details']['purchase_cnt_ne_1'], $poRef, $poId);
 	}
 
 	// ---------------------------
@@ -953,14 +533,17 @@ function slyAllInOneValidateV2(&$db, &$langs, $prefix, $eCommande, $eInvoice, $e
 		}
 		$purchaseCnt = count($personSet);
 
-		if ($poCnt > 1) $pushRef($errors['po_inv_details']['po_cnt_gt_1'], $poInvRef);
+		if ($poCnt > 1) $pushRef($errors['po_inv_details']['po_cnt_gt_1'], $poInvRef, $poInvId);
 	}
 
-	// Convert inner sets to arrays of refs.
+	// Keep inner sets as ref => rowid maps (pushRef already stored id when known,
+// or `true` when id was not available). The renderer uses the id for direct
+// card.php?id= links and falls back to list.php?search_ref= when id is missing.
 	foreach ($errors as $dataset => $rules) {
 		foreach ($rules as $rule => $set) {
 			if (is_array($set)) {
-				$errors[$dataset][$rule] = array_keys($set);
+				// Leave structure unchanged: ref => rowid|true.
+				continue;
 			}
 		}
 	}
@@ -995,33 +578,57 @@ if ($confirm !== 1) {
 	print '<span style="opacity:0.9;">'.$langs->trans('SLYAllInOneCheckHelp').'</span>';
 	print '</div>';
 
-	$renderRule = static function ($datasetKey, $label, array $refs) use ($langs) {
+	$cardUrlByDataset = array(
+		'so_details'       => DOL_URL_ROOT.'/commande/card.php?id=',
+		'so_inv_details'   => DOL_URL_ROOT.'/compta/facture/card.php?id=',
+		'po_details'       => DOL_URL_ROOT.'/fourn/commande/card.php?id=',
+		'po_inv_details'   => DOL_URL_ROOT.'/fourn/facture/card.php?id=',
+		'shipment_details' => DOL_URL_ROOT.'/expedition/card.php?id=',
+	);
+	$listUrlByDataset = array(
+		'so_details'       => DOL_URL_ROOT.'/commande/list.php?search_ref=',
+		'so_inv_details'   => DOL_URL_ROOT.'/compta/facture/list.php?search_ref=',
+		'po_details'       => DOL_URL_ROOT.'/fourn/commande/list.php?search_ref=',
+		'po_inv_details'   => DOL_URL_ROOT.'/fourn/facture/list.php?search_ref=',
+		'shipment_details' => DOL_URL_ROOT.'/expedition/list.php?search_ref=',
+	);
+
+	$renderRule = static function ($datasetKey, $label, array $refs) use ($langs, $cardUrlByDataset, $listUrlByDataset) {
 		if (empty($refs)) {
 			print '<li style="margin:6px 0;"><b>'.$label.':</b> <span style="color:#28a745;"><b>'.$langs->trans('SLYAllInOnePassedNone').'</b></span></li>';
 			return;
 		}
-		$cnt = count($refs);
-		sort($refs);
+
+		// Normalize to [ref => rowid|0] so we can sort by ref consistently and
+		// pick the direct card link whenever rowid is known.
+		// V2 stores ref=>rowid|true; legacy V1 callers may pass the array_keys()
+		// result (auto-int keys, ref-string values).
+		$items = array();
+		foreach ($refs as $key => $val) {
+			if (is_int($key)) {
+				$ref = (string) $val;
+				$id = 0;
+			} else {
+				$ref = (string) $key;
+				$id = (is_int($val) && $val !== true && $val > 0) ? (int) $val : 0;
+			}
+			$items[$ref] = $id;
+		}
+		ksort($items);
+
+		$cnt = count($items);
 		print '<li style="margin:6px 0;"><b>'.$label.':</b> <span style="color:#dc3545;"><b>'.$cnt.'</b></span> ';
 		$parts = array();
-		foreach ($refs as $ref) {
-			$ref = (string) $ref;
-			$url = '';
-			if ($datasetKey === 'so_details') {
-				$url = DOL_URL_ROOT.'/commande/list.php?search_ref='.urlencode($ref);
-			} elseif ($datasetKey === 'so_inv_details') {
-				$url = DOL_URL_ROOT.'/compta/facture/list.php?search_ref='.urlencode($ref);
-			} elseif ($datasetKey === 'po_details') {
-				$url = DOL_URL_ROOT.'/fourn/commande/list.php?search_ref='.urlencode($ref);
-			} elseif ($datasetKey === 'po_inv_details') {
-				$url = DOL_URL_ROOT.'/fourn/facture/list.php?search_ref='.urlencode($ref);
-			} elseif ($datasetKey === 'shipment_details') {
-				$url = DOL_URL_ROOT.'/expedition/list.php?search_ref='.urlencode($ref);
-			}
-			if (!empty($url)) {
-				$parts[] = '<a href="'.dol_escape_htmltag($url).'">'.dol_escape_htmltag($ref).'</a>';
+		foreach ($items as $ref => $id) {
+			$refEsc = dol_escape_htmltag($ref);
+			if ($id > 0 && isset($cardUrlByDataset[$datasetKey])) {
+				$url = $cardUrlByDataset[$datasetKey].((int) $id);
+				$parts[] = '<a href="'.dol_escape_htmltag($url).'">'.$refEsc.'</a>';
+			} elseif (isset($listUrlByDataset[$datasetKey])) {
+				$url = $listUrlByDataset[$datasetKey].urlencode($ref);
+				$parts[] = '<a href="'.dol_escape_htmltag($url).'">'.$refEsc.'</a>';
 			} else {
-				$parts[] = dol_escape_htmltag($ref);
+				$parts[] = $refEsc;
 			}
 		}
 		print '<span>'.implode(', ', $parts).'</span>';

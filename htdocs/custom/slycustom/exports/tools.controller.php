@@ -7,12 +7,11 @@
 /**
  * Controller: orchestrate request, filtering, CSV download, and call view renderer.
  *
- * Note: underlying service/formatting helpers are still provided by tools.php
- * (slyFormatExportCellValue, fetchDatasetRows, filterDatasetRows, outputDatasetCsv, etc.)
+ * Formatting/fetch/filter helpers are declared in tools.php
+ * (slyFormatExportCellValue, fetchDatasetRows, filterDatasetRows, outputDatasetCsv, etc.).
  */
 function slyExportsControllerHandle($db, $langs, $conf)
 {
-	require_once __DIR__.'/tools.service.php';
 	require_once __DIR__.'/sly_export_tabs.lib.php';
 
 	$datasets = getSlyExportDatasets();
@@ -113,19 +112,19 @@ function slyExportsControllerHandle($db, $langs, $conf)
 
 		$downloadAll = (int) GETPOST('download_all', 'int');
 		$sqlError = '';
-		$rows = slyExportsServiceFetchRows($db, $targetDataset, $sqlError);
+		$rows = fetchDatasetRows($db, $targetDataset, $sqlError);
 		if (empty($downloadAll)) {
-			$rows = slyExportsServiceFilterRows($rows, $targetFilters);
+			$rows = filterDatasetRows($rows, $targetFilters);
 		}
 
-		slyExportsServiceOutputCsv($targetDataset['filename'], $targetDataset['columns'], $rows, $targetDatasetKey);
+		outputDatasetCsv($targetDataset['filename'], $targetDataset['columns'], $rows, $targetDatasetKey);
 		$db->close();
 		exit;
 	}
 
 	$sqlError = '';
-	$allRows = slyExportsServiceFetchRows($db, $activeDataset, $sqlError);
-	$filteredRows = slyExportsServiceFilterRows($allRows, $filters);
+	$allRows = fetchDatasetRows($db, $activeDataset, $sqlError);
+	$filteredRows = filterDatasetRows($allRows, $filters);
 	$totalFiltered = count($filteredRows);
 	$allRowsCount = count($allRows);
 

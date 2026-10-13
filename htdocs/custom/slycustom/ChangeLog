@@ -84,6 +84,19 @@ first version managed through this file.
   (APPLY-ON-24.md #15) captures the diff. Production verified on
   slyfood.com 2026-10-08: create + edit both display today.
 
+- Tools/exports: ALL-in-One "有误对象" links now jump straight to the
+  card (e.g. /expedition/card.php?id=<rowid>) when the rowid is known
+  instead of dumping the user at a list.php?search_ref= page. The previous
+  URL was ambiguous under multicompany where refs can collide across
+  entities (Shipment Details in particular was unsearchable). $pushRef
+  now stores ref => rowid; renderRow picks the card URL when an id
+  exists and falls back to the list search otherwise. Same change applied
+  across all five datasets (SO/SO Invoice/Shipment/PO/PO Invoice Details).
+  Dead-code sweep along the way: dropped the V1 slyAllInOneValidate(),
+  getSlyExportDatasets__legacy() (commented-out old implementation),
+  the tools.service.php pass-through shims, and the unused @deprecated
+  slyExportsPrintDualTabNavigation() — net -997/+73 lines (-924).
+
 2.3.5 (2026-10-06)
 - Hooks: the ShipsGo date-key pre-defaulting (2.3.3) is now unconditional
   on the page-global object instead of enumerating elements. Reports kept

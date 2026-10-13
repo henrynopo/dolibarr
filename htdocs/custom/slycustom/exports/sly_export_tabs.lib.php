@@ -135,11 +135,3 @@ function slyExportsPrintTabNavigation($langs, array $datasets, $activeTab, $base
 	print '<div class="opacitymedium" style="margin: 4px 0 2px 0;">'.$langs->trans('SLYExportTabGroupDetails').'</div>'."\n";
 	print dol_get_fiche_head($headCore, $activeCore, '', -1, '', 0, '', '', 0, '_sly_details');
 }
-
-/**
- * @deprecated Use {@see slyExportsPrintTabNavigation()}
- */
-function slyExportsPrintDualTabNavigation($langs, array $datasets, $activeTab, $baseUrl = null)
-{
-	slyExportsPrintTabNavigation($langs, $datasets, $activeTab, $baseUrl);
-}
