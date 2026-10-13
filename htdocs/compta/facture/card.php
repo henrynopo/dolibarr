@@ -1909,7 +1909,7 @@ if (empty($reshook)) {
 									}
 								}
 
-								$amount_ttc_diff = $amountdeposit[0];
+								$amount_ttc_diff = empty($amountdeposit[0]) ? 0 : $amountdeposit[0];
 							}
 
 							foreach ($amountdeposit as $tva => $amount) {
@@ -1942,13 +1942,13 @@ if (empty($reshook)) {
 									0, // date_start
 									0, // date_end
 									0,
-									$i >= 0 ? $lines[$i]->info_bits : 0, // info_bits
+									0, // info_bits
 									0,
 									'HT',
 									0,
 									0, // product_type
 									1,
-									$i >= 0 ? $lines[$i]->special_code : 0,
+									0,
 									$object->origin_type,
 									0,
 									0,
@@ -2946,7 +2946,7 @@ if (empty($reshook)) {
 							$newlang = GETPOST('lang_id', 'aZ09');
 						}
 						if (getDolGlobalInt('MAIN_MULTILANGS') && empty($newlang)) {
-							$newlang = $object->thirdparty->default_lang;
+							$newlang = is_object($object->thirdparty) ? $object->thirdparty->default_lang : '';
 						}
 						if (!empty($newlang)) {
 							$outputlangs = new Translate("", $conf);

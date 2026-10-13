@@ -163,7 +163,7 @@ index aa3d5eeae3c..6d57a43fe3e 100644
  include DOL_DOCUMENT_ROOT.'/core/tpl/list_print_total.tpl.php';
  
 diff --git a/htdocs/compta/facture/card.php b/htdocs/compta/facture/card.php
-index 6459b777913..eeee2603526 100644
+index 6459b777913..3a6e7abb008 100644
 --- a/htdocs/compta/facture/card.php
 +++ b/htdocs/compta/facture/card.php
 @@ -387,10 +387,33 @@ if (empty($reshook)) {
@@ -204,15 +204,6 @@ index 6459b777913..eeee2603526 100644
  	} elseif ($action == 'valid' && $usercancreate) {
  		// Validation
  		$object->fetch($id);
-@@ -819,7 +842,7 @@
- 						$newlang = GETPOST('lang_id', 'aZ09');
- 					}
- 					if (getDolGlobalInt('MAIN_MULTILANGS') && empty($newlang)) {
--						$newlang = $object->thirdparty->default_lang;
-+						$newlang = is_object($object->thirdparty) ? $object->thirdparty->default_lang : '';
- 					}
- 					if (!empty($newlang)) {
- 						$outputlangs = new Translate("", $conf);
 @@ -675,20 +698,18 @@ if (empty($reshook)) {
  			setEventMessages($object->error, $object->errors, 'errors');
  		}
@@ -271,11 +262,11 @@ index 6459b777913..eeee2603526 100644
 -			$newlang = '';
 -			if (getDolGlobalInt('MAIN_MULTILANGS') /* && empty($newlang) */ && GETPOST('lang_id', 'aZ09')) {
 -				$newlang = GETPOST('lang_id', 'aZ09');
--			}
+ 			}
 -			if (getDolGlobalInt('MAIN_MULTILANGS') && empty($newlang)) {
 -				$object->fetch_thirdparty();
 -				$newlang = $object->thirdparty->default_lang;
- 			}
+-			}
 -			if (!empty($newlang)) {
 -				$outputlangs = new Translate("", $conf);
 -				$outputlangs->setDefaultLang($newlang);
@@ -313,7 +304,50 @@ index 6459b777913..eeee2603526 100644
  			}
  		}
  	} elseif ($action == 'setref' && $usercancreate) {
-@@ -3374,7 +3396,7 @@
+@@ -817,7 +839,7 @@ if (empty($reshook)) {
+ 						$newlang = GETPOST('lang_id', 'aZ09');
+ 					}
+ 					if (getDolGlobalInt('MAIN_MULTILANGS') && empty($newlang)) {
+-						$newlang = $object->thirdparty->default_lang;
++						$newlang = is_object($object->thirdparty) ? $object->thirdparty->default_lang : '';
+ 					}
+ 					if (!empty($newlang)) {
+ 						$outputlangs = new Translate("", $conf);
+@@ -1887,7 +1909,7 @@ if (empty($reshook)) {
+ 									}
+ 								}
+ 
+-								$amount_ttc_diff = $amountdeposit[0];
++								$amount_ttc_diff = empty($amountdeposit[0]) ? 0 : $amountdeposit[0];
+ 							}
+ 
+ 							foreach ($amountdeposit as $tva => $amount) {
+@@ -1920,13 +1942,13 @@ if (empty($reshook)) {
+ 									0, // date_start
+ 									0, // date_end
+ 									0,
+-									$i >= 0 ? $lines[$i]->info_bits : 0, // info_bits
++									0, // info_bits
+ 									0,
+ 									'HT',
+ 									0,
+ 									0, // product_type
+ 									1,
+-									$i >= 0 ? $lines[$i]->special_code : 0,
++									0,
+ 									$object->origin_type,
+ 									0,
+ 									0,
+@@ -2924,7 +2946,7 @@ if (empty($reshook)) {
+ 							$newlang = GETPOST('lang_id', 'aZ09');
+ 						}
+ 						if (getDolGlobalInt('MAIN_MULTILANGS') && empty($newlang)) {
+-							$newlang = $object->thirdparty->default_lang;
++							$newlang = is_object($object->thirdparty) ? $object->thirdparty->default_lang : '';
+ 						}
+ 						if (!empty($newlang)) {
+ 							$outputlangs = new Translate("", $conf);
+@@ -3371,7 +3393,7 @@ if (empty($reshook)) {
  						$newlang = GETPOST('lang_id', 'aZ09');
  					}
  					if (getDolGlobalInt('MAIN_MULTILANGS') && empty($newlang)) {

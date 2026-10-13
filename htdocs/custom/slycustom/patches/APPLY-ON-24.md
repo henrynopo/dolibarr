@@ -493,3 +493,39 @@ PHP 8 警告。**官方不对称 bug**：客户侧 compta/facture/card.php:1896-
 
 **处置**：补上与客户侧完全一致的官方模式守卫（3 行）。`sly24.0-fourn-linkedobject.patch` 该文件
 section 新增 hunk `@@ -1273,6 +1292,9 @@`，其后 26 个 hunk new 起点 +3。正反 dry-run + `php -l` 通过。
+
+### 6.16 compta/facture/card.php 定金发票（variable）三处告警 + addline 后 default_lang 守卫（2026-10-13）
+
+**症状**：生产 `compta/facture/error_log` 单请求连刷四条（10-12 15:04）+ 次日一条（10-13 09:27）：
+1912 `Undefined array key 0`；1945 `Undefined array key 1` + `Attempt to read property "info_bits" on null`；
+1951 同款 + `"special_code" on null`；2949 `Attempt to read property "default_lang" on null`。
+入口：从订单创建定金发票（`TYPE_DEPOSIT` + `typeamount=variable` 可变百分比），源订单 1 行、9% GST；
+次日那条为 addline 成功后的 PDF 自动重生成路径。
+
+**根因**（官方 24.0.1 原版缺陷，三处独立）：
+
+1. **1912** `$amount_ttc_diff = $amountdeposit[0];` —— `typeamount=variable` 时 `$amountdeposit`
+   按**实际税率值**建键（1884-1901 循环以 `$lines[$i]->tva_tx` 为键），源单全为 9% 行时键为 9、键 0
+   不存在 → 告警（PHP 7 静默 null、算术按 0）。**纯噪音**：该值仅在 `MAIN_DEPOSIT_MULTI_TVA`
+   开启时被消费（1970 行 `$diff` 调整块），本 else 分支（multi-TVA 关闭）中 `$diff` 无任何消费者。
+2. **1945/1951** `$i >= 0 ? $lines[$i]->info_bits : 0`（special_code 同）—— `$i` 是 1884 行 for
+   循环的遗留变量，循环正常退出后 `$i == $numlines` **恒越界**，`$i >= 0` 守卫形同虚设（仅循环
+   从未执行、`$i` 保持 1841 行的 -1 时才落到 0）。`$lines[$numlines]` 无键 → null 解引用。
+   定金 addline 无继承源行 info_bits/special_code 的语义，PHP 7 起实际运行效果两参即为 0/null。
+3. **2949** —— 推翻 §6.12 对该处的 YAGNI 判定：addline 成功后 **2940 行 `$object->fetch($id)`
+   重载对象，把页面早期 `fetch_thirdparty()` 已加载的 thirdparty 抹掉**，PDF 重生成块随即解引用
+   null。updateline 等块（3088/3129）在重载后有重新 `fetch_thirdparty()`，唯独 addline 块漏了；
+   §6.12 其余 11 处判定维持不变、仅此处破防。
+
+**处置**：1912 改 `empty($amountdeposit[0]) ? 0 : $amountdeposit[0]`（与官方 1896-1897 的 empty
+守卫同模式，行为等价：null→0）；1945/1951 硬编码 `0`（与 `$i=-1` 路径及 PHP7 实际运行效果一致）；
+2949 套用 §6.12 同款 `is_object($object->thirdparty) ? $object->thirdparty->default_lang : ''`
+（行为等价：告警时本就回退 `$langs`）。四处净增 0 行。
+
+`sly24.0-compta-multicurrency.patch` 重生成：9 文件节不变，card.php 节净 +3 hunk
+（`@@ -1887,7`、`@@ -1920,13`（1945/1951 合并一 hunk）、`@@ -2924,7`；§6.12 的 842/3396 两 hunk
+随上下文重切平移至 `@@ -817,7 +839,7` / `@@ -3371,7 +3393,7`，内容不变）。校验：干净 24.0.1
+worktree 正向 `git apply --check -p2` 通过；当前树（htdocs 目录）反向 `--check -R -p2` 通过；
+旧版 patch 对 24.0.1 复测仍干净（排除历史漂移）；`php -l` 通过。
+**注意**：d-test2 / 生产已应用旧版 patch 的需 `-R` 卸载后重放（或对 card.php 单文件直接覆盖），
+bundle 需重新生成。
