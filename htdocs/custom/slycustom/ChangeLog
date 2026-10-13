@@ -97,6 +97,45 @@ first version managed through this file.
   the tools.service.php pass-through shims, and the unused @deprecated
   slyExportsPrintDualTabNavigation() — net -997/+73 lines (-924).
 
+- 2.3.6 收尾（2026-10-13 批量提交）——Wise 链路关键修复：
+  * “仅银行对账”只读匹配（WiseIncomingPayment::findBankMatches /
+    findPaiementMatches / markReconciled）。匹配窗取 最早发生时间-3d
+    … 最晚+3d，金额 ABS（b.amount）±30 USD 容谱手续费，
+    UPPER(currency_code)一致。区分 fk_paiement 已设（✓ Linked 绿）/
+    未设（⚠ Bank only 黄）/无候选（—）。列表一批 IN
+    查询，循环内零 SQL；详情页对账面板最多 5 条候选，
+    mark_reconciled POST + CSRF，行置 IGNORED 与 note_private 追加审计备注。
+    不写 bank/paiement/facture，遵守银行→付款→发票的单向不变式。
+    权限：mark_reconciled 与 record/save_draft/auto_record 一致，校验 wise->write。
+  * PREPARED 草稿（WiseIncomingPayment::saveDraft / discardDraft）。match_data.allocation
+    持久化、不产生会计数据。“确认入账”才真创 Paiement +
+    银行流水 + 关票，表单未勾选时按已存草稿确认。与 recordPayment
+    共用独立的 validateAllocations()。
+  * “自动入账”一键（autoRecord）：仅匹配无歧义时才建 Paiement，
+    需要猜的条件（无参考号/未命中订单/多候选/币种不符/
+    超额/已处理）一律拒绝，行留队列走人工分摊。带确认弹窗与
+    CSRF，PRG 后跳原生付款卡。
+  * getRemainToPay 多币种修正（reconcile.php 3 处）。原代码用
+    f.total_ttc - SUM(pf.amount)（本位币 SGD），外币发票总余额按汇率乱一遍。改为
+    f.getRemainToPay(1)，本位币与外币走同一个渠道。
+  * wise_profile_id 列（slycustom_wise_incoming）。补明细用收款行自己的 profile
+    调对账单 API：balance id 只在所属 profile 下有效，多 profile 账号与代码中
+    WISE_PROFILE_ID 不一致时补明永远查不到。webhook 入队写 payload.profile_id，cron
+    兑底入队写读取所用 profile，enrichRow() 优先用行内 profile，为空才回退到
+    配置值。列以 SHOW COLUMNS 卫兵后 ALTER TABLE 幂等补齐。
+  * webhook/wise.php：IP 白名单放宽到 AWS /16（18.184/185/188/197.0.0/16），从
+    4 个 /32 升级；dump 证据表明 Wise 在 /16 内轮换出口，钉单 IP
+    会静默拒掉真实投递。不启用 IP 检查时 bootstrap 默认不入库，
+    与 “从未推送” 不可区分的场景修复。白名单被拒的投递
+    也会写 dump（accepted/ + rejected/ 两桶，各自 50 个轮转）。
+  * wise/dumps.php — webhook 投递存档的手动重放/清理页。列出
+    accepted/rejected 两桶 dump，实体隔离；md5 去重幂等；查看需 wise->read，
+    重放/删除需 wise->write，POST + CSRF，PRG。文件名严格正则防路径穿越。
+  * admin/setup.php — Wise 诊断面板与 “运行 webhook 自检”按钮（cPanel 上也能诊断）。
+    含被白名单拒绝的投递计数与 dumps 文件数、最新文件名、日志可读性。
+  * README — 2.3.6 描述同步（bootstrap/profile_id/诊断面板/AWS /16），模块版本号
+    2.3.4 → 2.3.6，主力版本 14.0/22.0 → 24.0。
+
 2.3.5 (2026-10-06)
 - Hooks: the ShipsGo date-key pre-defaulting (2.3.3) is now unconditional
   on the page-global object instead of enumerating elements. Reports kept

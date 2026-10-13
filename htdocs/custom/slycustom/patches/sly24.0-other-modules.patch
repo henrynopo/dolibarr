@@ -234,6 +234,22 @@ index 1a465b1d591..633145f574b 100644
  
  
  $origin = GETPOST('origin', 'alpha'); // Example: commande, propal
+diff --git a/htdocs/expedition/class/expedition.class.php b/htdocs/expedition/class/expedition.class.php
+index cdd994d311c..a8270d69002 100644
+--- a/htdocs/expedition/class/expedition.class.php
++++ b/htdocs/expedition/class/expedition.class.php
+@@ -2971,9 +2971,9 @@ class Expedition extends CommonObject
+ 				foreach ($order->lines as $line) {
+ 					$lineid = $line->id;
+ 					$qty = $line->qty;
+-					if (($line->product_type == 0 || getDolGlobalString('STOCK_SUPPORTS_SERVICES')) && $order->expeditions[$lineid] != $qty) {
++					if (($line->product_type == 0 || getDolGlobalString('STOCK_SUPPORTS_SERVICES')) && ($order->expeditions[$lineid] ?? 0) != $qty) {
+ 						$shipments_match_order = 0;
+-						$text = 'Qty for order line id '.$lineid.' is '.$qty.'. However in the shipments with status Expedition::STATUS_CLOSED='.self::STATUS_CLOSED.' we have qty = '.$order->expeditions[$lineid].', so we can t close order';
++						$text = 'Qty for order line id '.$lineid.' is '.$qty.'. However in the shipments with status Expedition::STATUS_CLOSED='.self::STATUS_CLOSED.' we have qty = '.($order->expeditions[$lineid] ?? 0).', so we can t close order';
+ 						dol_syslog($text);
+ 						break;
+ 					}
 diff --git a/htdocs/expedition/class/expeditionstats.class.php b/htdocs/expedition/class/expeditionstats.class.php
 index 45446bddaf3..4a21d6e9d99 100644
 --- a/htdocs/expedition/class/expeditionstats.class.php

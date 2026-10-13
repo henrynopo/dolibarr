@@ -63,7 +63,19 @@ if (isModEnabled('slycustom')) {
 		}
 	}
 
+// Wise_API is referenced at the top of the Wise-tab save block (line ~345)
+// by Wise_API::normalizeIplist, so it must be loaded before any $action
+// handler runs. The other require_once sites in this file are inside
+// action handlers and do not help when the handler IS the Wise save. Loaded
+// outside the isModEnabled('slycustom') guard so a disabled module still
+// produces a clean error rather than a fatal on the same line.
+require_once DOL_DOCUMENT_ROOT.'/custom/slycustom/class/Wise_API.class.php';
+require_once DOL_DOCUMENT_ROOT.'/custom/slycustom/class/Wise_Incoming.class.php';
+
 $action = GETPOST('action', 'aZ09');
+// Filled by the wise_diag handler below and rendered in the Wise tab. Declared
+// here so the template never reads an undefined variable on a normal GET.
+$diagResult = array();
 $error = 0;
 $backtopage = GETPOST('backtopage', 'none');
 $save_lastsearch_values = GETPOST('save_lastsearch_values', 'int');
@@ -335,6 +347,11 @@ if ($action == 'update_wise' && !GETPOST('cancel', 'alpha')) {
 			'WISE_INCOMING_ENABLED' => (string) (int) GETPOST('WISE_INCOMING_ENABLED', 'int'),
 			'WISE_OUTGOING_ENABLED' => (string) (int) GETPOST('WISE_OUTGOING_ENABLED', 'int'),
 			'WISE_WEBHOOK_IPCHECK' => (string) (int) GETPOST('WISE_WEBHOOK_IPCHECK', 'int'),
+			// Newline-separated CIDR/IP list. Whitelisted above getDolGlobalString
+			// below to a normalized form (trim, drop blanks, drop `# comments`,
+			// drop invalid lines) so that odd input never widens the allowlist
+			// to garbage. The hardcoded fallback in webhook/wise.php still applies.
+			'WISE_WEBHOOK_IPLIST' => Wise_API::normalizeIplist((string) GETPOST('WISE_WEBHOOK_IPLIST', 'none')),
 			'WISE_API_TOKEN' => GETPOST('WISE_API_TOKEN', 'alphanohtml'),
 			'WISE_PROFILE_ID' => GETPOST('WISE_PROFILE_ID', 'alphanohtml'),
 			'WISE_SO_REF_PATTERN' => GETPOST('WISE_SO_REF_PATTERN', 'alphanohtml'),
@@ -404,6 +421,69 @@ if ($action == 'wise_test') {
 	}
 	header('Location: '.$_SERVER["PHP_SELF"].'?tab=wise'.$urlparams_str);
 	exit;
+}
+
+// Wise webhook self-test: POST a synthetic body from the server to its own
+// public webhook URL. Proves the whole chain (DNS -> TLS -> web server routing
+// -> PHP -> main.inc.php -> DB) for the exact URL registered in Wise, which is
+// the only thing a cPanel host without shell access can still verify.
+//
+// The body is intentionally NOT a valid Wise event and carries no signature:
+//  - IPCHECK on  -> rejected with 403 by the allowlist (expected, and it proves
+//                   the allowlist is armed).
+//  - IPCHECK off -> bootstrap mode answers 200 and writes a diagnostic dump
+//                   (which is itself useful evidence that dumps work).
+// Nothing is ever ingested, so this cannot pollute the payments tables.
+if ($action == 'wise_diag') {
+	$diagResult = array();
+	if (GETPOST('token', 'none') !== newToken()) {
+		setEventMessages($langs->trans("Error"), null, 'errors');
+	} else {
+		$diagUrl = DOL_MAIN_URL_ROOT.'/custom/slycustom/webhook/wise.php';
+		$diagBody = json_encode(array('event_type' => 'slycustom.self-test', 'data' => array('id' => 0)));
+		$diagStarted = microtime(true);
+		$diagResp = '';
+		$diagHttp = 0;
+		$diagErr = '';
+		if (function_exists('curl_init')) {
+			$curl = curl_init($diagUrl);
+			curl_setopt($curl, CURLOPT_RETURNTRANSFER, 1);
+			curl_setopt($curl, CURLOPT_POST, true);
+			curl_setopt($curl, CURLOPT_POSTFIELDS, $diagBody);
+			curl_setopt($curl, CURLOPT_HTTPHEADER, array('Content-Type: application/json'));
+			curl_setopt($curl, CURLOPT_TIMEOUT, 20);
+			curl_setopt($curl, CURLOPT_CONNECTTIMEOUT, 10);
+			// Self-signed / mismatched cert must not mask a routing problem
+			curl_setopt($curl, CURLOPT_SSL_VERIFYPEER, false);
+			curl_setopt($curl, CURLOPT_SSL_VERIFYHOST, 0);
+			$diagResp = curl_exec($curl);
+			$diagHttp = (int) curl_getinfo($curl, CURLINFO_HTTP_CODE);
+			$diagErr = curl_error($curl);
+			curl_close($curl);
+		} else {
+			$diagErr = 'curl extension not available';
+		}
+		$diagMs = (int) round((microtime(true) - $diagStarted) * 1000);
+
+		$diagResult[] = '<b>'.$langs->trans("WiseDiagUrl").':</b> '.dol_escape_htmltag($diagUrl);
+		if ($diagErr !== '') {
+			// Timeout / DNS / TLS / connection refused: the request never reached PHP.
+			$diagResult[] = '<b>'.$langs->trans("WiseDiagResult").':</b> <span class="warning">'.dol_escape_htmltag($diagErr).'</span> ('.$diagMs.' ms)';
+			$diagResult[] = $langs->trans("WiseDiagErrHelp");
+		} else {
+			$diagResult[] = '<b>'.$langs->trans("WiseDiagResult").':</b> HTTP '.$diagHttp.' ('.$diagMs.' ms)';
+			$diagResult[] = '<b>'.$langs->trans("WiseDiagBody").':</b> <code>'.dol_escape_htmltag(substr((string) $diagResp, 0, 400)).'</code>';
+			if ($diagHttp === 200) {
+				$diagResult[] = '<span class="opacitymedium">'.($langs->trans("WiseDiagHttp200Help")).'</span>';
+			} elseif ($diagHttp === 403) {
+				$diagResult[] = '<span class="opacitymedium">'.($langs->trans("WiseDiagHttp403Help")).'</span>';
+			} elseif ($diagHttp === 404) {
+				$diagResult[] = '<span class="warning">'.($langs->trans("WiseDiagHttp404Help")).'</span>';
+			} elseif ($diagHttp >= 500) {
+				$diagResult[] = '<span class="warning">'.($langs->trans("WiseDiagHttp5xxHelp")).'</span>';
+			}
+		}
+	}
 }
 
 // Wise: fetch webhook subscriptions and persist the signature public key to
@@ -1161,13 +1241,161 @@ if ($tab == 'wise') {
 	print '<tr class="oddeven"><td>'.$form->textwithpicto($langs->trans("WISE_SO_REF_PATTERN_EFFECTIVE"), $langs->transnoentities("WISE_SO_REF_PATTERNTooltip")).'</td>';
 	print '<td><code>'.dol_escape_htmltag($wiseEffectivePattern).'</code><br><span class="opacitymedium">'.$wisePatternSource.(($wiseManualPattern === '' && $wiseDerivedPattern !== '') ? ' — '.dol_escape_htmltag($wiseDerivedPattern) : '').'</span></td></tr>';
 	$queueLine = array();
-	foreach (array(WiseIncomingPayment::STATUS_NEW, WiseIncomingPayment::STATUS_ENRICHED, WiseIncomingPayment::STATUS_RECORDED, WiseIncomingPayment::STATUS_IGNORED) as $st) {
+	foreach (array(WiseIncomingPayment::STATUS_PREPARED, WiseIncomingPayment::STATUS_NEW, WiseIncomingPayment::STATUS_ENRICHED, WiseIncomingPayment::STATUS_RECORDED, WiseIncomingPayment::STATUS_IGNORED) as $st) {
 		if (isset($queueCounts[$st])) {
 			$queueLine[] = $st.': '.$queueCounts[$st]['n'];
 		}
 	}
 	print '<tr class="oddeven"><td>'.$langs->trans("WISE_QUEUE_STATUS").'</td><td>'.(empty($queueLine) ? '<span class="opacitymedium">'.$langs->trans("None").'</span>' : implode(' &nbsp;|&nbsp; ', $queueLine)).'</td></tr>';
+
+	// Events ever stored (webhook ingestion counter). Zero here with a non-empty
+	// queue is impossible; both zero means no delivery was ever ingested.
+	$eventTotal = 0;
+	$eventLast = '';
+	$sql = 'SELECT COUNT(*) AS n, MAX(date_creation) AS last FROM '.MAIN_DB_PREFIX.'slycustom_wise_event';
+	$sql .= ' WHERE entity = '.(int) $conf->entity;
+	$resql = $db->query($sql);
+	if ($resql) {
+		$obj = $db->fetch_object($resql);
+		if ($obj) {
+			$eventTotal = (int) $obj->n;
+			$eventLast = empty($obj->last) ? '' : dol_print_date($db->jdate($obj->last), 'dayhour');
+		}
+		$db->free($resql);
+	}
+
+	// Enrichment cron: shipped disabled (status=0), so it must be turned on in
+	// 首页 → 配置 → 计划任务 or credits stay NEW forever.
+
+		$cronState = '';
+		// Core matches cron jobs on label+entity (DolibarrModules::insert_cronjobs), so
+		// the label is the reliable key here; classesname is a fallback in case the
+		// job was renamed in the descriptor. Column names come from llx_cronjob:
+		// datenextrun / datelastrun (there is no date_next or last_maintenance).
+		$sql = 'SELECT c.status, c.datenextrun, c.datelastrun, c.nbrun FROM '.MAIN_DB_PREFIX.'cronjob c';
+		$sql .= ' WHERE c.entity = '.(int) $conf->entity;
+		$sql .= ' AND (c.label = \'Wise incoming payments enrichment\'';
+		$sql .= ' OR c.classesname = \'custom/slycustom/class/Wise_Incoming.class.php\')';
+		$resql = $db->query($sql);
+		$obj = $resql ? $db->fetch_object($resql) : null;
+		if ($obj) {
+			$cronEnabled = ((int) $obj->status === 1);
+			$cronState = '<span class="'.($cronEnabled ? 'opacitymedium' : 'warning').'">'
+				.$langs->trans("WiseCronState").': '.($cronEnabled ? $langs->trans("Enabled") : $langs->trans("Disabled"))
+				.'</span> <span class="opacitymedium">('.$langs->trans("WiseCronRuns").': '.(int) $obj->nbrun;
+			$cronState .= ' &mdash; '.$langs->trans("WiseCronLastRun").': ';
+			$cronState .= empty($obj->datelastrun) ? $langs->trans("Never") : dol_print_date($db->jdate($obj->datelastrun), 'dayhour');
+			$cronState .= ' &mdash; '.$langs->trans("WiseCronNextRun").': ';
+			$cronState .= empty($obj->datenextrun) ? '-' : dol_print_date($db->jdate($obj->datenextrun), 'dayhour');
+			$cronState .= ')</span>';
+			$db->free($resql);
+		} else {
+			$cronState = '<span class="warning">'.$langs->trans("WiseCronMissing").'</span>';
+		}
+
+	print '<tr class="oddeven"><td>'.($form->textwithpicto($langs->trans("WISE_EVENTS_STORED"), $langs->transnoentities("WISE_EVENTS_STOREDTooltip"))).'</td>';
+	print '<td>'.($eventTotal > 0
+		? $eventTotal.' <span class="opacitymedium">('.$langs->trans("WiseLastEvent").': '.dol_escape_htmltag($eventLast).')</span>'
+		: '<span class="warning">'.$langs->trans("WISE_EVENTS_NONE").'</span>').'</td></tr>';
+	print '<tr class="oddeven"><td>'.($form->textwithpicto($langs->trans("WISE_CRON_STATUS"), $langs->transnoentities("WISE_CRON_STATUSTooltip"))).'</td><td>'.$cronState.'</td></tr>';
+
+	// Diagnostic dumps written by webhook/wise.php (2.3.6+). This is the only
+	// evidence that survives when a delivery is dropped before ingestion.
+	$wiseDumpDir = DOL_DATA_ROOT.'/wise_webhook';
+	$dumpInfo = '';
+	$dumpFiles = array();
+	$rejectedCount = 0;
+	if (is_dir($wiseDumpDir)) {
+		// Accepted deliveries live in <dir>/accepted, IP-rejected ones in
+		// <dir>/rejected; both count as "a delivery reached us". Files directly
+		// under <dir> are pre-2.3.6 dumps and are still listed.
+		$dumpFiles = glob($wiseDumpDir.'/*.json');
+		if (!is_array($dumpFiles)) {
+			$dumpFiles = array();
+		}
+		$rejected = glob($wiseDumpDir.'/rejected/*.json');
+		$rejectedCount = is_array($rejected) ? count($rejected) : 0;
+		if (is_array($rejected)) {
+			$dumpFiles = array_merge($dumpFiles, $rejected);
+		}
+		$accepted = glob($wiseDumpDir.'/accepted/*.json');
+		if (is_array($accepted)) {
+			$dumpFiles = array_merge($dumpFiles, $accepted);
+		}
+		usort($dumpFiles, function ($a, $b) {
+			return filemtime($b) - filemtime($a);
+		});
+		$newest = $dumpFiles ? dol_print_date(filemtime($dumpFiles[0]), 'dayhour') : '';
+		$dumpInfo = count($dumpFiles).' '.$langs->trans("WiseFiles");
+		// Always show the absolute directory: on cPanel the operator has to find
+		// this folder in the File Manager and DOL_DATA_ROOT is frequently outside
+		// public_html and not derivable from the URL.
+		$dumpInfo .= '<br><span class="opacitymedium"><code style="user-select:all;">'.dol_escape_htmltag($wiseDumpDir).'</code></span>';
+		if ($newest !== '') {
+			$dumpInfo .= ' <span class="opacitymedium">('.$langs->trans("WiseNewestFile").': '.dol_escape_htmltag($newest).')</span>';
+		}
+		if ($dumpFiles) {
+			$dumpInfo .= '<br><span class="opacitymedium">'.dol_escape_htmltag(basename($dumpFiles[0])).'</span>';
+		}
+		// A non-zero count means Wise (or someone) is hitting the endpoint from an
+		// address outside the allowlist — the exact failure mode that is
+		// otherwise invisible, since the endpoint answers 403 either way.
+		if ($rejectedCount > 0) {
+			$dumpInfo .= '<br><span class="warning">'.$langs->trans("WiseRejectedCount", $rejectedCount).'</span>';
+		}
+	} else {
+		$dumpInfo = '<span class="opacitymedium">'.$langs->trans("WiseDumpDirMissing", DOL_DATA_ROOT).'</span>';
+	}
+	print '<tr class="oddeven"><td>'.($form->textwithpicto($langs->trans("WISE_DUMP_DIR"), $langs->transnoentities("WISE_DUMP_DIRTooltip"))).'</td><td>'.$dumpInfo.'</td></tr>';
+
+	// dol_syslog() is a no-op unless the syslog module is enabled, so a missing
+	// log file means the webhook produced no evidence at all.
+	$wiseLogFile = '';
+	if (getDolGlobalString('SYSLOG_FILE')) {
+		$wiseLogFile = str_replace('DOL_DATA_ROOT', DOL_DATA_ROOT, $conf->global->SYSLOG_FILE);
+	} else {
+		$wiseLogFile = DOL_DATA_ROOT.'/dolibarr.log';
+	}
+	$wiseLogFile = preg_replace('/\.log$/i', '_wise_webhook.log', $wiseLogFile);
+	$syslogOn = isModEnabled('syslog');
+	print '<tr class="oddeven"><td>'.($form->textwithpicto($langs->trans("WISE_SYSLOG"), $langs->transnoentities("WISE_SYSLOGTooltip"))).'</td>';
+	print '<td>'.($syslogOn ? $langs->trans("Enabled") : '<span class="warning">'.$langs->trans("Disabled").'</span>');
+	print ' <span class="opacitymedium">'.dol_escape_htmltag($wiseLogFile).' — '.($syslogOn && is_readable($wiseLogFile)
+		? $langs->trans("WiseLogReadable")
+		: $langs->trans("WiseLogUnreadable")).'</span></td></tr>';
+
 	print '</table></div>';
+
+	// Live self-test: POST a synthetic event from the server to its own public
+	// webhook URL. Proves DNS + TLS + routing + PHP + DB all work for that URL.
+	// Runs only on explicit click (CSRF-protected) and never ingests anything
+	// real: the body is not a valid Wise event, so it is stored as an unknown
+	// event_type only when the receiver is signature-verified (it is not, without
+	// a key), and the IP allowlist will reject it outright when enabled.
+	if (!empty($diagResult)) {
+		print '<div class="warning" style="margin-top:8px;">'.implode('<br>', $diagResult).'</div>';
+	}
+
+	// Step-by-step instructions: the only checks that need a browser.
+	print '<br><div class="div-table-responsive-no-min">';
+	print '<table class="noborder centpercent">';
+	print '<tr class="liste_titre"><td colspan="2">'.$langs->trans("WISE_DIAG_GUIDE").'</td></tr>';
+	print '<tr class="oddeven"><td class="titlefield">'.$langs->trans("WiseDiagStep1").'</td><td>';
+	print $langs->trans("WiseDiagStep1Desc", '<code>'.dol_escape_htmltag($wiseWebhookUrl).'</code>');
+	print '</td></tr>';
+	print '<tr class="oddeven"><td>'.$langs->trans("WiseDiagStep2").'</td><td>'.$langs->trans("WiseDiagStep2Desc").'</td></tr>';
+	print '<tr class="oddeven"><td>'.$langs->trans("WiseDiagStep3").'</td><td>'.$langs->trans("WiseDiagStep3Desc").'</td></tr>';
+	print '<tr class="oddeven"><td>'.$langs->trans("WiseDiagStep4").'</td><td>'.$langs->trans("WiseDiagStep4Desc").'</td></tr>';
+	print '</table></div>';
+
+	print '<br><div class="tabsAction">';
+	print '<form method="POST" action="'.$_SERVER["PHP_SELF"].'">';
+	print '<input type="hidden" name="token" value="'.newToken().'">';
+	print '<input type="hidden" name="action" value="wise_diag">';
+	print '<input type="hidden" name="tab" value="wise">';
+	print '<input class="button button-save" type="submit" value="'.dol_escape_htmltag($langs->trans("WISE_RUN_SELF_TEST")).'">';
+	print '</form>';
+	print '</div>';
 
 	// Settings form
 	print '<br>';
@@ -1189,6 +1417,19 @@ if ($tab == 'wise') {
 	print '<td>'.$form->selectyesno('WISE_OUTGOING_ENABLED', WiseIncomingPayment::isOutgoingEnabled($db, (int) $conf->entity) ? 1 : 0, 1).'</td></tr>';
 	print '<tr class="oddeven"><td class="titlefield">'.$form->textwithpicto($langs->trans("WISE_WEBHOOK_IPCHECK"), $langs->transnoentities("WISE_WEBHOOK_IPCHECKTooltip")).'</td>';
 	print '<td>'.$form->selectyesno('WISE_WEBHOOK_IPCHECK', (string) getDolGlobalString('WISE_WEBHOOK_IPCHECK') === '1' ? 1 : 0, 1).'</td></tr>';
+	// Operator-editable allowlist. Renders only when the IP check is on: with
+	// the check off, the textarea is dead config and only confuses the operator.
+	// The hardcoded list in webhook/wise.php always stays in effect, so this
+	// textarea is for "in addition to" entries, not a replacement.
+	print '<tr class="oddeven"><td class="titlefield">'.$form->textwithpicto($langs->trans("WISE_WEBHOOK_IPLIST"), $langs->transnoentities("WISE_WEBHOOK_IPLISTTooltip")).'</td>';
+	print '<td>';
+	if ((string) getDolGlobalString('WISE_WEBHOOK_IPCHECK') === '1') {
+		$ipListValue = (string) getDolGlobalString('WISE_WEBHOOK_IPLIST');
+		print '<textarea name="WISE_WEBHOOK_IPLIST" class="flat" rows="6" cols="60" placeholder="18.184.0.0/16&#10;52.58.0.0/16">'.dol_escape_htmltag($ipListValue).'</textarea>';
+	} else {
+		print '<span class="opacitymedium">'.$langs->trans("WiseIplistInactive").'</span>';
+	}
+	print '</td></tr>';
 
 	$wiseTokenTooltip = $langs->trans("WISE_API_TOKENTooltip");
 	print '<tr class="oddeven"><td class="titlefield">'.$form->textwithpicto($langs->trans("WISE_API_TOKEN"), $wiseTokenTooltip).'</td>';

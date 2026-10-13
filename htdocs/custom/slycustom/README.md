@@ -42,10 +42,11 @@
 
 设置入口：**设置 → 模块/应用 → SLY Custom 设置 → "Wise 收款" 标签**；核对入口：**工具 → Wise 收款核对**（需授权 slycustom 的 "Wise incoming payment reconciliation" 权限，管理员自动可访问页面）。
 
-- **收纳入账**（`WISE_INCOMING_ENABLED`，默认开）：Wise `balances#credit` webhook 推送进入 `llx_slycustom_wise_incoming` 待核对队列；报文不含付款参考号，由系统调用对账单 API（±5 分钟窗口）回补参考号/对方/手续费；匹配引擎按 **SO 编号 → 关联客户发票**（`llx_element_element`）给候选；**核对页**（`wise/reconcile.php`）中人工勾选分摊、确认后生成付款 + 银行流水 + 自动关票；仅金额匹配的候选带警告标记。cron 每轮先做 2 天对账单兜底同步（找回被 4xx 丢弃的事件），再补明细。
+- **收纳入账**（`WISE_INCOMING_ENABLED`，默认开）：Wise `balances#credit` webhook 推送进入 `llx_slycustom_wise_incoming` 待核对队列；报文不含付款参考号，由系统调用对账单 API（±5 分钟窗口）回补参考号/对方/手续费；匹配引擎按 **SO 编号 → 关联客户发票**（`llx_element_element`）给候选；**核对页**（`wise/reconcile.php`）中人工勾选分摊，可先 **保存为草稿**（状态转 `PREPARED`，分摊存 `match_data.allocation`，**不写任何会计数据**：不建付款、不写银行流水、不关票），草稿会一直留在队列里等复核，改分摊或丢弃都不影响已发生的业务；点 **确认入账** 才生成付款 + 银行流水 + 自动关票。草稿与入账走同一套校验（`-5`/`-6`/`-7`/`-8`/`-9`），所以能存下的草稿一定能入账；表单未勾选时按已存草稿确认。仅金额匹配的候选带警告标记。**引擎认不出发票时**（如该发票已有手工付款而 `paye=1`、对账单参考号为空、或只付了部分金额），详情页提供 **手动指定发票** 选择器：按 **SO 号或发票号**筛选（SO 号分隔符无关，`SO2501-0012`/`SO25010012`/`SO2501_0012` 互通），列表显示每张发票的来源 SO；手动指定的发票与自动候选走完全相同的状态、币种、超额校验。分摊金额默认留空需手工填，仅筛选到唯一一张时自动预填。cron 每轮先做 2 天对账单兜底同步（找回被 4xx 丢弃的事件），再补明细；重新补明细不会冲掉已存草稿。
 - **付款准备**（`WISE_OUTGOING_ENABLED`，默认关）：供应商发票卡片出现 **"通过 Wise 付款"** → `wise/prepare.php` 预览（收款人 IBAN、金额币种、**发给供应商的参考号 = 供应商自己的订单号**，优先级 PO ref_supplier → 发票 ref_supplier → 我方 ref）→ 确认创建**未注资**转账（幂等 uuid 防重复）；在 **Wise 后台人工注资 = 审批**（5 个工作日未注资自动取消）；`transfers#state-change` 推送（需另订阅）或页面手动刷新推进状态，`outgoing_payment_sent` 自动生成供应商付款 + 银行流水 + 自动关票（webhook 丢失时页面有手动兜底按钮）。映射表 `llx_slycustom_wise_transfer`。
-- 接收端 `custom/slycustom/webhook/wise.php`（无登录；RSA-SHA256 验签公钥存 `DOL_DATA_ROOT/wise_webhook/verification_key.pem`，拿不到公钥时启用"来源 IP 白名单"过渡加固——含旧版 AWS 出口段）。
+- 接收端 `custom/slycustom/webhook/wise.php`（无登录）。**验签状态决定推送是否入库**：拿到公钥（存 `DOL_DATA_ROOT/wise_webhook/verification_key.pem`）后走 RSA-SHA256 强制验签；拿不到时处于 bootstrap 模式（业务账号的订阅 API 返回 `403 unauthorized`，取不到公钥，这是常态），**默认只回 200、不入库**——此时必须把 `WISE_WEBHOOK_IPCHECK` 打开，Wise 出口网段白名单通过后才会入库。白名单覆盖文档化的 `45.129.54.0/24`、`45.129.55.0/24` 与实测在用的 AWS `18.184.0.0/16`、`18.185.0.0/16`、`18.188.0.0/16`、`18.197.0.0/16`（Wise 在整个 `/16` 内轮换出口，钉单 IP 会静默拒掉真实投递），属**过渡措施**，拿到公钥后应关掉。站点前面有反向代理/CDN 时白名单会拒掉全部推送（只认 `REMOTE_ADDR`）。所有推送都会留下诊断 JSON：`DOL_DATA_ROOT/wise_webhook/accepted/`（到达并通过白名单）与 `rejected/`（被白名单拒绝），未验签的只留 2 KB 头部，各自按 50 个文件轮转。
 - SO 编号提取正则自动从订单编号掩码（`COMMANDE_<NAME>_MASK`）派生，`WISE_SO_REF_PATTERN` 仅作手工覆盖。
+- **排查"没有推送"（无 SSH 的 cPanel 也能做）**：设置页 Wise 标签底部有诊断面板 + 「运行 webhook 自检」。面板直接显示事件入库数、明细补全计划任务状态、诊断 dump 文件数与最新文件、**被白名单拒绝的投递数**、日志文件可读性；自检按钮从服务器 POST 一个假 body 到接收端，按 200/403/404/5xx/超时给出对应方向。页面上还有四步指引。**一个 Wise 账号可以同时持有多套 profile**（按币种、按地区），推送报文里的 `profile_id` 每笔可能不同；收款行会记下自己那笔的 `wise_profile_id`（`llx_slycustom_wise_incoming`），补明细按它调用对账单 API——balance id 只在所属 profile 下有效，用错 profile 查不到流水，补明细会一直停在 `NEW`。
 - 多公司：配置常量按实体保存，webhook 按 payload 的 profile_id 路由实体；多币种：外币收款走原币通道，本币收外币发票走本币+发票汇率通道。
 
 ## 22.0 部署说明（策略 B 移植，零 core 补丁）
@@ -97,7 +98,9 @@ custom/slycustom/
 
 ## 版本
 
-- 模块版本：**2.1.0**（变更明细见 **ChangeLog**；2.0.0 起由该文件管理）
-- 针对 Dolibarr：**14.0 与 22.0**（22.0 为主力）
+- 模块版本：**2.3.6**（变更明细见 **ChangeLog.md**）
+- 针对 Dolibarr：**24.0**（主力）
+- 2.3.6：修 Wise webhook bootstrap 模式空转——无验签公钥时改为按 `WISE_WEBHOOK_IPCHECK` 决定是否入库（业务 token 订阅 API 返回 403，公钥取不到，白名单是唯一通道）；补明细改用收款行自己的 `profile_id`（新增 `wise_profile_id` 列），修"一个账号多套 profile 时对账单永远查不到流水"；被白名单拒绝的投递也会留下证据（dump 分 `accepted/`、`rejected/` 两桶，诊断面板显示拒绝计数）；白名单放宽到实测在用的 AWS `/16`。设置页含 webhook 诊断面板与自检按钮。
+- 2.3.5：shipment extrafield 日期默认值取当天。
 - 2.1.0：新增 Wise 付款准备（未注资转账 + Vendor Order reference + 状态回写自动记供应商付款）。
 - 2.0.0：Wise 收款集成端到端（webhook 收款核对、SO 匹配、银行映射、核对页、对账单兜底 cron）。

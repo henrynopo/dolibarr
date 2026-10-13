@@ -341,5 +341,46 @@ class Wise_API
 	{
 		return $this->request('GET', '/v1/transfers/'.(int) $transferId);
 	}
+
+	/**
+	 * Normalize a newline-separated allowlist textarea input to the canonical
+	 * form stored in the WISE_WEBHOOK_IPLIST const. Used by the setup page to
+	 * guarantee odd input never widens the runtime allowlist to garbage.
+	 *
+	 * Rules (intentionally permissive, never permissive in the dangerous
+	 * direction):
+	 *  - blank lines dropped
+	 *  - lines starting with `#` treated as comments
+	 *  - invalid IPs / CIDRs dropped silently (they are never matched, so
+	 *    keeping them would mislead the operator about the active list)
+	 *  - duplicates removed (stable order preserved)
+	 *
+	 * The same parser is mirrored inline in webhook/wise.php because the webhook
+	 * runs without a Dolibarr class loader. They must stay byte-identical.
+	 *
+	 * @param  string $raw  Raw textarea content
+	 * @return string       Normalized newline-separated list
+	 */
+	public static function normalizeIplist(string $raw): string
+	{
+		$out = array();
+		foreach (preg_split('/\r\n|\r|\n/', $raw) as $line) {
+			$line = trim((string) $line);
+			if ($line === '' || strpos($line, '#') === 0) {
+				continue;
+			}
+			if (strpos($line, '/') === false) {
+				if (ip2long($line) !== false) {
+					$out[$line] = true;
+				}
+				continue;
+			}
+			list($net, $bits) = explode('/', $line, 2);
+			if (ip2long($net) !== false && ctype_digit((string) $bits) && (int) $bits >= 0 && (int) $bits <= 32) {
+				$out[$line] = true;
+			}
+		}
+		return implode("\n", array_keys($out));
+	}
 }
 }

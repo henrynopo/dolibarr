@@ -17,6 +17,8 @@ require_once DOL_DOCUMENT_ROOT.'/core/triggers/dolibarrtriggers.class.php';
 
 /**
  * Class of triggers for SLY Custom module
+ *
+ * @phan-forbid-undeclared-magic-properties
  */
 class InterfaceSlyCustomTriggers extends DolibarrTriggers
 {

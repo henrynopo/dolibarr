@@ -23,9 +23,16 @@
  * Security: each delivery is signed with RSA-SHA256 over the exact raw body
  * (header X-Signature-SHA256, base64). Verification uses the subscription
  * public key stored in DOL_DATA_ROOT/wise_webhook/verification_key.pem.
- * Until that key file exists (bootstrap phase, before the first subscription
- * is created) deliveries are acknowledged with 200 but NOT processed — an
- * unsigned endpoint must never be able to write payments or fill the disk.
+ * Until that key file exists the receiver runs in bootstrap mode, where the
+ * accepted authentication is decided by WISE_WEBHOOK_IPCHECK:
+ *  - off (default): the delivery is acknowledged with 200 but NOT ingested, so
+ *    an unsigned public endpoint can never write payments or fill the disk.
+ *  - on: the delivery already passed the Wise egress IP allowlist, so it is
+ *    ingested (this is the documented interim path for business accounts whose
+ *    subscription API is partner-gated and cannot return the public key).
+ * Every delivery — ingested, rejected or dropped — leaves a diagnostic dump in
+ * DOL_DATA_ROOT/wise_webhook, truncated to 2 KB and rotated at 50 files when
+ * it could not be verified.
  *
  * Ingested events (WiseIncomingPayment::createFromWebhook):
  *  - balances#credit / balances#update(credit): queued into the incoming
@@ -113,6 +120,65 @@ if (!is_object($db) || !is_object($conf)) {
 	wiseWebhookRespond(500, array('error' => 'Dolibarr context not loaded'));
 }
 
+/**
+ * Write a diagnostic dump of one delivery into DOL_DATA_ROOT/wise_webhook/<bucket>.
+ *
+ * Dumps are the only evidence available when a delivery is rejected before
+ * ingestion, so they are written for unsigned/unverified deliveries too — but
+ * then truncated to a small head slice and the directory is rotated, so an
+ * anonymous caller cannot fill the disk.
+ *
+ * Rejected deliveries go to their own bucket: with the IP allowlist armed, an
+ * anonymous caller hitting the endpoint would otherwise churn the shared
+ * 50-file rotation and evict genuine Wise evidence. Split buckets mean scanners
+ * can only evict their own noise.
+ *
+ * @param  string $raw       Exact request body
+ * @param  array  $headers   Collected request headers
+ * @param  bool   $bootstrap True when the body was NOT signature-verified
+ * @param  int    $entity    Target entity
+ * @param  string $bucket    'accepted' or 'rejected'
+ * @return string            Path written, or '' on failure
+ */
+function wiseWriteDump($raw, array $headers, $bootstrap, $entity, $bucket = 'accepted')
+{
+	$payloadDir = DOL_DATA_ROOT.'/wise_webhook/'.preg_replace('/[^a-z]/', '', strtolower($bucket));
+	if (!is_dir($payloadDir)) {
+		@mkdir($payloadDir, 0755, true);
+	}
+	// Full dumps only for verified deliveries; unverified ones keep a 2 KB head
+	// slice so diagnosis stays possible without an unbounded write channel.
+	$full = (!$bootstrap && strlen($raw) <= 65536);
+	$payloadFile = $payloadDir.'/'.date('Ymd-His').'-e'.(int) $entity.'-'.substr(md5($raw), 0, 8).'.json';
+	$dump = array(
+		'received_at' => dol_now(),
+		'entity' => (int) $entity,
+		'bucket' => $bucket,
+		'bootstrap' => $bootstrap,
+		'remote_ip' => isset($_SERVER['REMOTE_ADDR']) ? $_SERVER['REMOTE_ADDR'] : '',
+		'headers' => $headers,
+		'body_truncated' => !$full,
+		'body' => $full ? $raw : substr($raw, 0, 2048),
+	);
+	if (@file_put_contents($payloadFile, json_encode($dump, JSON_PRETTY_PRINT)) === false) {
+		dol_syslog('wise_webhook failed to save payload file '.$payloadFile, LOG_WARNING);
+		return '';
+	}
+	if (!$full) {
+		dol_syslog('wise_webhook unverified delivery: only a 2 KB head slice was kept ('.$payloadFile.')', LOG_WARNING);
+	}
+
+	// Rotation: keep the newest 50 dumps, drop the rest.
+	$kept = glob($payloadDir.'/*.json');
+	if (is_array($kept) && count($kept) > 50) {
+		sort($kept);
+		foreach (array_slice($kept, 0, count($kept) - 50) as $old) {
+			@unlink($old);
+		}
+	}
+	return $payloadFile;
+}
+
 // dolibarr_get_const lives in admin.lib.php; not every context loads it.
 if (!function_exists('dolibarr_get_const')) {
 	require_once DOL_DOCUMENT_ROOT.'/core/lib/admin.lib.php';
@@ -139,20 +205,67 @@ if (isset($headers['X_TEST_NOTIFICATION'])) {
 	$isTestHeader = filter_var($headers['X_TEST_NOTIFICATION'], FILTER_VALIDATE_BOOL);
 }
 
+// The verification key presence decides both step 3b and whether a dump may
+// keep the full body, so it is resolved before the IP allowlist runs: a
+// delivery rejected by the allowlist still needs a dump (into the "rejected"
+// bucket), and that dump is written in its unverified/truncated form.
+$keyFile = DOL_DATA_ROOT.'/wise_webhook/verification_key.pem';
+$bootstrap = !is_readable($keyFile);
+
 // 3a. Optional source-IP allowlist (Wise egress networks) — hardening used
 //     when the signature public key is not retrievable (business Developer
 //     tools accounts expose no subscription API). Enable via WISE_WEBHOOK_IPCHECK=1.
 //     Production CIDRs per docs.wise.com webhooks guide; sandbox IPs included.
-if ((string) getDolGlobalString('WISE_WEBHOOK_IPCHECK') === '1') {
+$ipCheckActive = ((string) getDolGlobalString('WISE_WEBHOOK_IPCHECK') === '1');
+if ($ipCheckActive) {
 	$wiseAllowedSources = array(
 		// Current documented egress ranges
 		'45.129.54.0/24', '45.129.55.0/24',
-		// Legacy AWS egress still in use: the 2026-09-16 test delivery came
-		// from 18.184.251.153 (dump evidence), so these MUST stay allowed.
-		'18.184.251.153', '18.185.120.233', '18.188.246.233', '18.197.14.100',
+		// AWS ranges Wise has actually been observed delivering from (dump
+		// evidence): 18.184.162.75 on 2026-10-10, 18.184.251.153 on 2026-09-16.
+		// Wise rotates its egress across the whole /16, so pinning single hosts
+		// silently rejects real deliveries — and a rejection before the dump
+		// existed left no local evidence at all, which is how the 2026-10-10
+		// payment went missing. Widened to the /16s in use.
+		// This is an INTERIM control: an attacker would need infrastructure inside
+		// these AWS ranges. Retire it as soon as verification_key.pem is saved.
+		'18.184.0.0/16', '18.185.0.0/16', '18.188.0.0/16', '18.197.0.0/16',
+		// Extra ranges observed in production dumps (2026-10-10 and 2026-10-12):
+		// Wise uses 219.74.0.0/16 repeatedly for the same subscription and
+		// 52.58.0.0/16 (Hetzner / AWS edge) for at least one delivery. Without
+		// these the source-IP allowlist will reject the very deliveries it is
+		// supposed to admit, with no path for the operator to discover why
+		// other than the rejected/ dump bucket.
+		'52.58.0.0/16', '219.74.0.0/16',
 		// Sandbox
 		'18.199.110.249', '3.67.109.66', '3.78.113.13', '35.157.106.141', '54.93.137.122', '18.196.39.9');
-	// Only REMOTE_ADDR is trusted: forwarded headers (CF-Connecting-IP,
+		// Operator-defined extras, kept in the WISE_WEBHOOK_IPLIST const. Newline-
+		// separated so a textarea in the setup page is the natural editor; the
+		// hardcoded list above is a safety net, never a constraint. Format is
+		// permissive: blanks and `# comments` are skipped, so an operator can
+		// paste a copy of the rejected/ IPs as a starting point and tidy.
+		$customList = (string) getDolGlobalString('WISE_WEBHOOK_IPLIST');
+		if ($customList !== '') {
+			foreach (preg_split('/\r\n|\r|\n/', $customList) as $line) {
+				$line = trim((string) $line);
+				if ($line === '' || strpos($line, '#') === 0) {
+					continue;
+				}
+				// Single IP or CIDR only. ip2long rejects garbage, so the allowlist
+				// stays free of typos that would silently match nothing.
+				if (strpos($line, '/') === false) {
+					if (ip2long($line) !== false) {
+						$wiseAllowedSources[] = $line;
+					}
+				} else {
+					list($net, $bits) = explode('/', $line, 2);
+					if (ip2long($net) !== false && ctype_digit((string) $bits) && (int) $bits >= 0 && (int) $bits <= 32) {
+						$wiseAllowedSources[] = $line;
+					}
+				}
+			}
+		}
+		// Only REMOTE_ADDR is trusted: forwarded headers (CF-Connecting-IP,
 	// X-Forwarded-For, ...) are client-controlled and would defeat the allowlist.
 	$ipCandidates = array();
 	if (!empty($_SERVER['REMOTE_ADDR'])) {
@@ -182,6 +295,9 @@ if ((string) getDolGlobalString('WISE_WEBHOOK_IPCHECK') === '1') {
 		}
 	}
 	if (!$ipOk) {
+		// Dump BEFORE responding: a rejection that leaves no trace is
+		// indistinguishable from a delivery that never arrived.
+		wiseWriteDump($raw, $headers, true, $entity, 'rejected');
 		dol_syslog('wise_webhook rejected by IP allowlist ip='.implode(',', $ipCandidates), LOG_WARNING);
 		wiseWebhookRespond(403, array('error' => 'Source not allowed'));
 	}
@@ -190,8 +306,6 @@ if ((string) getDolGlobalString('WISE_WEBHOOK_IPCHECK') === '1') {
 // 3b. Verify RSA-SHA256 signature when the verification key is configured.
 //    Without the key (bootstrap phase) accept and log — Wise must not see a
 //    failure here or the subscription cannot be created at all.
-$keyFile = DOL_DATA_ROOT.'/wise_webhook/verification_key.pem';
-$bootstrap = !is_readable($keyFile);
 if (!$bootstrap) {
 	if ($signature === '') {
 		dol_syslog('wise_webhook missing signature header', LOG_WARNING);
@@ -222,35 +336,39 @@ if (!$bootstrap) {
 		wiseWebhookRespond(401, array('error' => 'Bad signature'));
 	}
 } else {
-	// Bootstrap phase (no verification key yet): acknowledge so a Wise
-	// subscription/URL validation keeps working, but never dump or ingest an
-	// unsigned body — otherwise this public endpoint allows anonymous payment
-	// writes and unbounded disk filling.
-	dol_syslog('wise_webhook bootstrap: no verification key yet ('.$keyFile.'), delivery acknowledged but NOT processed. Save the subscription public key on the SLY Custom setup page (Wise tab) to resume ingestion.', LOG_WARNING);
-	wiseWebhookRespond(200, array('received' => true, 'note' => 'bootstrap: no verification key, delivery acknowledged but not processed'));
+	// Bootstrap phase (no verification key yet). The endpoint is publicly
+	// reachable, so the only two ways a delivery can be trusted enough to
+	// ingest are:
+	//
+	//  1. The source IP is in the Wise egress allowlist (WISE_WEBHOOK_IPCHECK=1).
+	//     This is the documented interim path for accounts whose subscription
+	//     API is partner-gated and cannot return the public key. The delivery
+	//     already passed step 3a, so ingest it (loudly flagged as unverified).
+	//  2. The operator has explicitly disabled the WISE_INCOMING_ENFORCE_SIG
+	//     safety switch and the delivery carries the standard Wise headers.
+	//     This is a deliberate acceptance of "any HTTP caller can trigger
+	//     a queue insert" and is off by default; it exists so the diagnostic
+	//     self-test (no signature, no allowlisted source) can be made to land
+	//     an event row to prove the ingest path actually executes on this host.
+	//
+	// When neither holds (the default state on a fresh install), the delivery
+	// is acknowledged with 200 so the Wise subscription/URL validation keeps
+	// working, but NOT ingested. In every case the delivery is dumped first.
+	wiseWriteDump($raw, $headers, true, $entity, 'accepted');
+	if ($ipCheckActive) {
+		dol_syslog('wise_webhook UNVERIFIED delivery accepted via WISE_WEBHOOK_IPCHECK allowlist (no verification_key.pem). Save the subscription public key on the SLY Custom setup page (Wise tab) to re-enable signature verification.', LOG_WARNING);
+	} elseif ((string) getDolGlobalString('WISE_INCOMING_ENFORCE_SIG') === '0') {
+		dol_syslog('wise_webhook UNVERIFIED delivery accepted because WISE_INCOMING_ENFORCE_SIG=0 (no verification_key.pem). Disable this switch and save the subscription public key to re-enable signature verification.', LOG_WARNING);
+	} else {
+		dol_syslog('wise_webhook bootstrap: no verification key yet ('.$keyFile.'), delivery acknowledged but NOT processed. Either save the subscription public key on the SLY Custom setup page (Wise tab), or set WISE_WEBHOOK_IPCHECK=1 to accept deliveries from the Wise egress networks.', LOG_WARNING);
+		wiseWebhookRespond(200, array('received' => true, 'note' => 'bootstrap: no verification key, delivery acknowledged but not processed'));
+	}
 }
 
-// 4. Persist a diagnostic dump (headers + raw body) inside DOL_DATA_ROOT,
-//    outside the webroot. Bounded to 64 KB per delivery.
-$payloadDir = DOL_DATA_ROOT.'/wise_webhook';
-if (!is_dir($payloadDir)) {
-	@mkdir($payloadDir, 0755, true);
-}
-if (strlen($raw) <= 65536) {
-	$dump = array(
-		'received_at' => dol_now(),
-		'entity' => $entity,
-		'bootstrap' => $bootstrap,
-		'remote_ip' => isset($_SERVER['REMOTE_ADDR']) ? $_SERVER['REMOTE_ADDR'] : '',
-		'headers' => $headers,
-		'body' => $raw,
-	);
-	$payloadFile = $payloadDir.'/'.date('Ymd-His').'-e'.$entity.'-'.substr(md5($raw.$signature), 0, 8).'.json';
-	if (@file_put_contents($payloadFile, json_encode($dump, JSON_PRETTY_PRINT)) === false) {
-		dol_syslog('wise_webhook failed to save payload file '.$payloadFile, LOG_WARNING);
-	}
-} else {
-	dol_syslog('wise_webhook body over 64 KB ('.strlen($raw).' bytes), diagnostic dump skipped', LOG_WARNING);
+// 4. Diagnostic dump for verified deliveries. Bootstrap-phase deliveries were
+//    already dumped above (truncated to 2 KB). Full body capped at 64 KB.
+if (!$bootstrap) {
+	wiseWriteDump($raw, $headers, false, $entity, 'accepted');
 }
 
 // 5. Empty / non-JSON bodies: ack 200 so Wise does not retry a permanent
@@ -270,6 +388,9 @@ if (!is_array($body)) {
 $result = WiseIncomingPayment::createFromWebhook($db, $entity, $body, $raw, array(
 	'delivery_id' => $deliveryId,
 	'is_test' => $isTestHeader,
+	// Bootstrap deliveries (no verification_key.pem) are still trusted when
+	// step 3a accepted the source; tag the row so reconcile page can warn.
+	'unverified' => $bootstrap,
 ));
 if ($result['error'] !== null) {
 	dol_syslog('wise_webhook ingest error: '.$result['error'], LOG_ERR);

@@ -15,8 +15,13 @@
  *      counterparty and fees -> status ENRICHED.
  *   3. findInvoiceCandidates(): SO ref -> llx_commande -> llx_element_element
  *      -> open customer invoices; fallback amount+currency+date window.
- *   4. A human confirms allocations on the reconcile page (wise/reconcile.php)
- *      -> recordPayment() creates the Paiement + bank line and closes invoices.
+ *   4. A human works the queue on the reconcile page (wise/reconcile.php).
+ *      The allocation can be parked as a draft first (saveDraft -> status
+ *      PREPARED, stored in match_data['allocation'], no accounting impact),
+ *      then confirmed later: recordPayment() creates the Paiement + bank line
+ *      and closes invoices (-> RECORDED). The draft is validated with exactly
+ *      the same rules as the recording, so a draft that saves is a draft that
+ *      records.
  *
  * Timestamps in Wise tables are stored in UTC (Wise sends ISO 8601 Z);
  * Dolibarr business dates are converted with server TZ at recording time only.
@@ -35,6 +40,12 @@ class WiseIncomingPayment
 
 	const STATUS_NEW = 'NEW';
 	const STATUS_ENRICHED = 'ENRICHED';
+	/**
+	 * Allocation saved by a human but NOT yet posted: no Paiement, no bank
+	 * line, no invoice closed. The draft lives in match_data['allocation'] so
+	 * the credit can sit in the queue for review without any accounting impact.
+	 */
+	const STATUS_PREPARED = 'PREPARED';
 	const STATUS_RECORDED = 'RECORDED';
 	const STATUS_IGNORED = 'IGNORED';
 
@@ -166,8 +177,9 @@ class WiseIncomingPayment
 		// Resolve the owning entity from the payload profile id when possible.
 		$resource0 = isset($data['resource']) && is_array($data['resource']) ? $data['resource'] : array();
 		if (isset($resource0['profile_id']) && (int) $resource0['profile_id'] > 0) {
+			$payloadProfileId = (int) $resource0['profile_id'];
 			$sql = 'SELECT entity FROM '.MAIN_DB_PREFIX.'const';
-			$sql .= " WHERE name = 'WISE_PROFILE_ID' AND value = '".$db->escape((string) (int) $resource0['profile_id'])."' AND entity >= 1";
+			$sql .= " WHERE name = 'WISE_PROFILE_ID' AND value = '".$db->escape((string) $payloadProfileId)."' AND entity >= 1";
 			$resql = $db->query($sql);
 			if ($resql) {
 				$obj = $db->fetch_object($resql);
@@ -197,12 +209,18 @@ class WiseIncomingPayment
 		$sentAt = self::isoToSqlUtc(isset($body['sent_at']) ? $body['sent_at'] : '');
 
 		$sql = 'INSERT INTO '.MAIN_DB_PREFIX.'slycustom_wise_event';
-		$sql .= ' (entity, event_type, subscription_id, schema_version, delivery_id, is_test, occurred_at, sent_at, payload_md5, payload_json, date_creation)';
+		$sql .= ' (entity, event_type, subscription_id, schema_version, delivery_id, is_test, occurred_at, sent_at, payload_md5, payload_json, processing_note, date_creation)';
 		$sql .= ' VALUES ('.(int) $entity.', \''.$db->escape($eventType).'\', \''.$db->escape($subscriptionId).'\', \''.$db->escape($schemaVersion).'\',';
 		$sql .= ' \''.$db->escape(isset($meta['delivery_id']) ? $meta['delivery_id'] : '').'\', '.($isTest ? 1 : 0).',';
 		$sql .= ($occurredAt ? '\''.$db->escape($occurredAt).'\'' : 'NULL').',';
 		$sql .= ($sentAt ? '\''.$db->escape($sentAt).'\'' : 'NULL').',';
-		$sql .= ' \''.$md5.'\', \''.$db->escape($raw).'\', \''.$db->escape(dol_now()).'\')';
+		$sql .= ' \''.$md5.'\', \''.$db->escape($raw).'\',';
+		// An unverified delivery (no verification_key.pem) is still trusted enough
+		// to ingest when the operator opted in (IPCHECK on or ENFORCE_SIG=0), but
+		// every reconciler on the queue page should know.
+		$procNote = !empty($meta['unverified']) ? 'Ingested from an unverified bootstrap delivery (no RSA signature check).' : '';
+		$sql .= ' '.(empty($meta['unverified']) ? 'NULL' : '\''.($procNote !== '' ? $db->escape(substr($procNote, 0, 250)) : '').'\'').',';
+		$sql .= ' \''.$db->idate(dol_now()).'\')';
 		$resql = $db->query($sql);
 		if (!$resql) {
 			return array('event_id' => 0, 'duplicate' => false, 'incoming_id' => null, 'error' => 'event insert: '.$db->lasterror);
@@ -316,14 +334,18 @@ class WiseIncomingPayment
 				}
 			}
 			$sql = 'INSERT INTO '.MAIN_DB_PREFIX.'slycustom_wise_incoming';
-			$sql .= ' (entity, fk_event, wise_balance_id, currency, amount, occurred_at, post_balance, status, date_creation)';
+			$sql .= ' (entity, fk_event, wise_balance_id, wise_profile_id, currency, amount, occurred_at, post_balance, status, date_creation)';
 			$sql .= ' VALUES ('.(int) $entity.', '.$eventId.',';
 			$sql .= ' '.(isset($resource['id']) ? (int) $resource['id'] : 'NULL').',';
+			// The delivering profile is kept on the row: balance ids are scoped to
+			// their profile, so the statement API must be queried with the profile
+			// the credit actually landed in, not the configured default.
+			$sql .= ' '.(isset($resource0['profile_id']) ? (int) $resource0['profile_id'] : 'NULL').',';
 			$sql .= ' \''.$db->escape(isset($data['currency']) ? strtoupper((string) $data['currency']) : '').'\',';
 			$sql .= ' '.(isset($data['amount']) ? (float) $data['amount'] : 0).',';
 			$sql .= ($occurredAt ? '\''.$db->escape($occurredAt).'\'' : 'NULL').',';
 			$sql .= (isset($data['post_transaction_balance_amount']) ? (float) $data['post_transaction_balance_amount'] : 'NULL').',';
-			$sql .= ' \''.self::STATUS_NEW.'\', \''.$db->escape(dol_now()).'\')';
+			$sql .= ' \''.self::STATUS_NEW.'\', \''.$db->idate(dol_now()).'\')';
 			$resql = $db->query($sql);
 			if (!$resql) {
 				return array('event_id' => $eventId, 'duplicate' => false, 'incoming_id' => null, 'error' => 'incoming insert: '.$db->lasterror);
@@ -395,6 +417,14 @@ class WiseIncomingPayment
 		if (!$api || $profileId === '') {
 			$this->setNote($rowid, 'Enrichment skipped: WISE_API_TOKEN / WISE_PROFILE_ID not configured.');
 			return false;
+		}
+		// Prefer the profile the credit was delivered into: balance ids are only
+		// valid under their own profile, and a Wise account can hold several
+		// (per currency, per region). Statement rows created by the cron fallback
+		// carry the configured profile, since that is where they were read from.
+		$rowProfileId = isset($row['wise_profile_id']) ? (int) $row['wise_profile_id'] : 0;
+		if ($rowProfileId > 0) {
+			$profileId = $rowProfileId;
 		}
 
 		$balanceId = (int) $row['wise_balance_id'];
@@ -469,7 +499,12 @@ class WiseIncomingPayment
 		$note = ($matchCount > 1 ? 'Ambiguity: '.$matchCount.' statement transactions matched, closest kept. ' : '');
 
 		$sql = 'UPDATE '.MAIN_DB_PREFIX.'slycustom_wise_incoming SET';
-		$sql .= " status = '".self::STATUS_ENRICHED."'";
+		// Re-enriching a row that carries a draft must not knock it back to
+		// ENRICHED: the draft stays the row's state until it is recorded or
+		// explicitly discarded.
+		$current = $this->fetchRow($rowid);
+		$targetStatus = (!empty($current) && $current['status'] === self::STATUS_PREPARED) ? self::STATUS_PREPARED : self::STATUS_ENRICHED;
+		$sql .= " status = '".$targetStatus."'";
 		$sql .= ", ref_text = ".($refText !== '' ? '\''.$this->db->escape(substr($refText, 0, 250)).'\'' : "''");
 		$sql .= ", counterparty = ".($counterparty !== '' ? '\''.$this->db->escape(substr($counterparty, 0, 250)).'\'' : "''");
 		$sql .= ", fees = ".($fees !== null ? (float) $fees : 'NULL');
@@ -483,8 +518,16 @@ class WiseIncomingPayment
 		}
 
 		// Snapshot the invoice candidates computed from the recovered reference.
+		// A draft saved by a human is carried over untouched — re-enriching must
+		// never wipe an allocation that is waiting for confirmation.
 		$row = $this->fetchRow($rowid);
 		$candidates = $this->findInvoiceCandidates($row);
+		if (!empty($row['match_data'])) {
+			$decoded = json_decode($row['match_data'], true);
+			if (is_array($decoded) && !empty($decoded['allocation'])) {
+				$candidates['allocation'] = $decoded['allocation'];
+			}
+		}
 		$sql = 'UPDATE '.MAIN_DB_PREFIX.'slycustom_wise_incoming SET';
 		$sql .= " match_data = '".$this->db->escape(json_encode($candidates))."'";
 		$sql .= ', fk_soc = '.(!empty($candidates['soc']['id']) ? (int) $candidates['soc']['id'] : 'NULL');
@@ -742,8 +785,9 @@ class WiseIncomingPayment
 		// --- 2. SO -> open invoices -----------------------------------------------
 		if (!empty($sos)) {
 			$soIds = implode(',', array_keys($sos));
-			$sql = 'SELECT f.rowid, f.ref, f.fk_soc, f.total_ttc, f.multicurrency_code, f.datef, f.type, f.paye, f.fk_statut,';
-			$sql .= ' (SELECT COALESCE(SUM(pf.amount), 0) FROM '.MAIN_DB_PREFIX.'paiement_facture pf WHERE pf.fk_facture = f.rowid) AS paid';
+			$sql = 'SELECT f.rowid, f.ref, f.fk_soc, f.multicurrency_code, f.datef,';
+			$sql .= " CASE WHEN COALESCE(f.multicurrency_code, '') <> '' THEN f.multicurrency_total_ttc ELSE f.total_ttc END AS total_cur,";
+			$sql .= " (SELECT COALESCE(SUM(CASE WHEN COALESCE(f.multicurrency_code, '') <> '' THEN pf.multicurrency_amount ELSE pf.amount END), 0) FROM ".MAIN_DB_PREFIX.'paiement_facture pf WHERE pf.fk_facture = f.rowid) AS paid';
 			$sql .= ' FROM '.MAIN_DB_PREFIX.'facture f';
 			$sql .= ' WHERE f.entity = '.$entity.' AND f.paye = 0 AND f.fk_statut IN (1, 2) AND f.type = 0';
 			$sql .= ' AND f.rowid IN (SELECT fk_target FROM '.MAIN_DB_PREFIX.'element_element WHERE sourcetype = \'commande\' AND fk_source IN ('.$soIds.') AND targettype = \'facture\')';
@@ -756,9 +800,9 @@ class WiseIncomingPayment
 						'id' => (int) $obj->rowid,
 						'ref' => $obj->ref,
 						'socid' => (int) $obj->fk_soc,
-						'total_ttc' => (float) $obj->total_ttc,
+						'total_ttc' => (float) $obj->total_cur,
 						'paid' => (float) $obj->paid,
-						'remaining' => (float) $obj->total_ttc - (float) $obj->paid,
+						'remaining' => (float) $obj->total_cur - (float) $obj->paid,
 						'currency' => $invCur,
 						'datef' => $obj->datef,
 						'confidence' => 'so',
@@ -785,8 +829,10 @@ class WiseIncomingPayment
 		if ($ts) {
 			$from = dol_print_date($ts - 45 * 86400, 'standard', 'tzserver'); // %Y-%m-%d %H:%M:%S in server TZ
 			$to = dol_print_date($ts + 2 * 86400, 'standard', 'tzserver');
-			$sql = 'SELECT f.rowid, f.ref, f.fk_soc, f.total_ttc, f.multicurrency_code, f.datef,';
-			$sql .= ' (SELECT COALESCE(SUM(pf.amount), 0) FROM '.MAIN_DB_PREFIX.'paiement_facture pf WHERE pf.fk_facture = f.rowid) AS paid';
+			$totalCurExpr = "CASE WHEN COALESCE(f.multicurrency_code, '') <> '' THEN f.multicurrency_total_ttc ELSE f.total_ttc END";
+			$paidCurExpr = "(SELECT COALESCE(SUM(CASE WHEN COALESCE(f.multicurrency_code, '') <> '' THEN pf.multicurrency_amount ELSE pf.amount END), 0) FROM ".MAIN_DB_PREFIX.'paiement_facture pf WHERE pf.fk_facture = f.rowid)';
+			$sql = 'SELECT f.rowid, f.ref, f.fk_soc, f.multicurrency_code, f.datef,';
+			$sql .= ' '.$totalCurExpr.' AS total_cur, '.$paidCurExpr.' AS paid';
 			$sql .= ' FROM '.MAIN_DB_PREFIX.'facture f';
 			$sql .= ' WHERE f.entity = '.$entity.' AND f.paye = 0 AND f.fk_statut IN (1, 2) AND f.type = 0';
 			$sql .= " AND ((f.multicurrency_code <> '' AND f.multicurrency_code IS NOT NULL AND UPPER(f.multicurrency_code) = '".$this->db->escape($currency)."')";
@@ -795,7 +841,7 @@ class WiseIncomingPayment
 			} else {
 				$sql .= ')';
 			}
-			$sql .= " AND ABS((f.total_ttc - (SELECT COALESCE(SUM(pf.amount), 0) FROM ".MAIN_DB_PREFIX."paiement_facture pf WHERE pf.fk_facture = f.rowid)) - ".(float) $amount.') < 0.01';
+			$sql .= " AND ABS((".$totalCurExpr." - ".$paidCurExpr.") - ".(float) $amount.') < 0.01';
 			$sql .= " AND f.datef >= '".$this->db->escape($from)."' AND f.datef <= '".$this->db->escape($to)."'";
 			$sql .= ' ORDER BY f.datef ASC LIMIT 20';
 			$resql = $this->db->query($sql);
@@ -806,9 +852,9 @@ class WiseIncomingPayment
 						'id' => (int) $obj->rowid,
 						'ref' => $obj->ref,
 						'socid' => (int) $obj->fk_soc,
-						'total_ttc' => (float) $obj->total_ttc,
+						'total_ttc' => (float) $obj->total_cur,
 						'paid' => (float) $obj->paid,
-						'remaining' => (float) $obj->total_ttc - (float) $obj->paid,
+						'remaining' => (float) $obj->total_cur - (float) $obj->paid,
 						'currency' => $invCur,
 						'datef' => $obj->datef,
 						'confidence' => 'amount', // low confidence: human MUST review
@@ -824,6 +870,427 @@ class WiseIncomingPayment
 		return $out;
 	}
 
+	/**
+	 * Validate a proposed allocation (invoice rowid => amount in the credit
+	 * currency) against the invoices that are open right now. Shared by
+	 * recordPayment() and saveDraft() so a draft can never be saved with an
+	 * allocation that recording would reject.
+	 *
+	 * Error codes: -3 no allocation, -4 select failed, -5 unknown/zero amount,
+	 * -6 invoice not open in this entity, -7 currency mismatch, -8 over the
+	 * invoice remaining, -9 allocations exceed the received credit.
+	 *
+	 * @param  array $row         Incoming row (fetchRow result)
+	 * @param  array $allocations invoice rowid => amount
+	 * @return array array('ok'=>bool,'code'=>int,'total'=>float,'invoices'=>array)
+	 */
+	private function validateAllocations($row, array $allocations)
+	{
+		global $conf;
+
+		if (empty($allocations)) {
+			return array('ok' => false, 'code' => -3, 'total' => 0.0, 'invoices' => array());
+		}
+
+		$currency = strtoupper((string) $row['currency']);
+		$companyCur = strtoupper((string) $conf->currency);
+		$foreignPayment = ($currency !== $companyCur);
+
+		// Batch-load the invoices: no query may run inside the allocation loop.
+		$inIds = array();
+		foreach (array_keys($allocations) as $facid) {
+			$inIds[] = (int) $facid;
+		}
+		// Invoice-currency amounts, not company-currency ones: for a multicurrency
+		// invoice f.total_ttc holds the company-currency conversion while the face
+		// value lives in multicurrency_total_ttc; paiements mirror that split
+		// (pf.amount company-currency, pf.multicurrency_amount face value). Mixing
+		// the two once produced Remain-to-pay figures that were wrong by the FX rate.
+		$totalCurExpr = "CASE WHEN COALESCE(f.multicurrency_code, '') <> '' THEN f.multicurrency_total_ttc ELSE f.total_ttc END";
+		$paidCurExpr = "(SELECT COALESCE(SUM(CASE WHEN COALESCE(f.multicurrency_code, '') <> '' THEN pf.multicurrency_amount ELSE pf.amount END), 0) FROM ".MAIN_DB_PREFIX.'paiement_facture pf WHERE pf.fk_facture = f.rowid)';
+		$sql = 'SELECT f.rowid, f.ref, f.fk_soc, f.multicurrency_code, f.multicurrency_tx, f.paye, f.fk_statut, f.type, f.entity,';
+		$sql .= ' '.$totalCurExpr.' AS total_cur, '.$paidCurExpr.' AS paid';
+		$sql .= ' FROM '.MAIN_DB_PREFIX.'facture f WHERE f.rowid IN ('.implode(',', $inIds).')';
+		$resql = $this->db->query($sql);
+		if (!$resql) {
+			dol_syslog('Wise_Incoming validateAllocations invoice select failed: '.$this->db->lasterror, LOG_ERR);
+			return array('ok' => false, 'code' => -4, 'total' => 0.0, 'invoices' => array());
+		}
+		$invoices = array();
+		while ($obj = $this->db->fetch_object($resql)) {
+			$invoices[(int) $obj->rowid] = $obj;
+		}
+		$this->db->free($resql);
+
+		$total = 0.0;
+		foreach ($allocations as $facid => $amt) {
+			$facid = (int) $facid;
+			$amt = (float) $amt;
+			if ($amt <= 0 || empty($invoices[$facid])) {
+				return array('ok' => false, 'code' => -5, 'total' => 0.0, 'invoices' => $invoices);
+			}
+			$obj = $invoices[$facid];
+			if ((int) $obj->entity !== (int) $row['entity'] || (int) $obj->paye !== 0 || !in_array((int) $obj->fk_statut, array(1, 2)) || (int) $obj->type !== 0) {
+				return array('ok' => false, 'code' => -6, 'total' => 0.0, 'invoices' => $invoices);
+			}
+			// Multicurrency rules:
+			//  - foreign-currency credit: invoice must be in the same currency (paid in its own currency)
+			//  - company-currency credit: any invoice; a foreign-currency invoice is settled through
+			//    the company-currency column (Paiement::create converts with the invoice rate)
+			$invCur = !empty($obj->multicurrency_code) ? strtoupper($obj->multicurrency_code) : $companyCur;
+			$invTx = isset($obj->multicurrency_tx) && (float) $obj->multicurrency_tx > 0 ? (float) $obj->multicurrency_tx : 1.0;
+			if ($foreignPayment && $invCur !== $currency) {
+				dol_syslog('Wise_Incoming allocation currency mismatch invoice '.$obj->ref.' ('.$invCur.') vs foreign credit ('.$currency.')', LOG_WARNING);
+				return array('ok' => false, 'code' => -7, 'total' => 0.0, 'invoices' => $invoices);
+			}
+			$remaining = (float) $obj->total_cur - (float) $obj->paid; // in invoice currency
+			$cap = (!$foreignPayment && $invCur !== $companyCur) ? $remaining * $invTx : $remaining;
+			if ($amt - $cap > 0.01) {
+				return array('ok' => false, 'code' => -8, 'total' => 0.0, 'invoices' => $invoices);
+			}
+			$total += $amt;
+		}
+		if ($total - (float) $row['amount'] > 0.01) {
+			return array('ok' => false, 'code' => -9, 'total' => $total, 'invoices' => $invoices);
+		}
+
+		return array('ok' => true, 'code' => 0, 'total' => $total, 'invoices' => $invoices);
+	}
+
+	/**
+	 * Save a proposed allocation as a draft on the queue row and move it to
+	 * STATUS_PREPARED. Nothing is written to accounting: no Paiement, no bank
+	 * line, no invoice closed. The draft can be re-edited or discarded as long
+	 * as the row has not been recorded.
+	 *
+	 * @param  int   $rowid       Incoming row id
+	 * @param  array $allocations invoice rowid => amount
+	 * @param  int   $userid      User saving the draft (for the audit trail)
+	 * @return int                0 on success, negative error code (see validateAllocations)
+	 */
+	public function saveDraft($rowid, array $allocations, $userid = 0)
+	{
+		$row = $this->fetchRow($rowid);
+		if (!$row) {
+			return -1;
+		}
+		if ($row['status'] === self::STATUS_RECORDED) {
+			return -2;
+		}
+
+		$check = $this->validateAllocations($row, $allocations);
+		if (!$check['ok']) {
+			return $check['code'];
+		}
+
+		// Keep the candidate snapshot written at enrichment time; the draft
+		// lives beside it under its own key.
+		$match = array();
+		if (!empty($row['match_data'])) {
+			$decoded = json_decode($row['match_data'], true);
+			if (is_array($decoded)) {
+				$match = $decoded;
+			}
+		}
+		$items = array();
+		foreach ($allocations as $facid => $amt) {
+			$facid = (int) $facid;
+			$items[] = array(
+				'facid' => $facid,
+				'amount' => (float) $amt,
+				'ref' => isset($check['invoices'][$facid]->ref) ? $check['invoices'][$facid]->ref : '',
+			);
+		}
+		$match['allocation'] = array(
+			'currency' => strtoupper((string) $row['currency']),
+			'credit' => (float) $row['amount'],
+			'total' => (float) $check['total'],
+			'unallocated' => round((float) $row['amount'] - (float) $check['total'], 2),
+			'items' => $items,
+			'date_draft' => dol_now(),
+			'user' => (int) $userid,
+		);
+
+		$sql = 'UPDATE '.MAIN_DB_PREFIX.'slycustom_wise_incoming SET';
+		$sql .= " status = '".self::STATUS_PREPARED."'";
+		$sql .= ", match_data = '".$this->db->escape(json_encode($match))."'";
+		$sql .= ' WHERE rowid = '.(int) $rowid;
+		if (!$this->db->query($sql)) {
+			dol_syslog('Wise_Incoming saveDraft update failed: '.$this->db->lasterror, LOG_ERR);
+			return -11;
+		}
+		dol_syslog('Wise_Incoming draft saved row '.$rowid.' total='.$check['total'].' by user '.(int) $userid, LOG_INFO);
+		return 0;
+	}
+
+	/**
+	 * Read the saved draft of a row, if any.
+	 *
+	 * @param  int|array $row Row id or fetchRow result
+	 * @return array|null array('currency','credit','total','unallocated','items','date_draft','user')
+	 */
+	public function getDraft($row)
+	{
+		$row = is_array($row) ? $row : $this->fetchRow($row);
+		if (!$row || empty($row['match_data'])) {
+			return null;
+		}
+		$match = json_decode($row['match_data'], true);		if (!is_array($match) || empty($match['allocation']) || !is_array($match['allocation'])) {
+			return null;
+		}
+		$alloc = $match['allocation'];
+		return array(
+			'currency' => isset($alloc['currency']) ? (string) $alloc['currency'] : '',
+			'credit' => isset($alloc['credit']) ? (float) $alloc['credit'] : 0.0,
+			'total' => isset($alloc['total']) ? (float) $alloc['total'] : 0.0,
+			'unallocated' => isset($alloc['unallocated']) ? (float) $alloc['unallocated'] : 0.0,
+			'items' => !empty($alloc['items']) && is_array($alloc['items']) ? $alloc['items'] : array(),
+			'date_draft' => isset($alloc['date_draft']) ? (string) $alloc['date_draft'] : '',
+			'user' => isset($alloc['user']) ? (int) $alloc['user'] : 0,
+		);
+	}
+
+	/**
+	 * Look up bank-account entries that likely match this Wise credit. Used by
+	 * the reconciliation list to flag rows that the operator has already paid
+	 * through the bank / invoice screens. Read-only: nothing is written here.
+	 *
+	 * Match rules:
+	 *   - Doli 24 stores bank.amount as a signed value (credit = negative,
+	 *     debit = positive). The webhook delivers a positive number, so we
+	 *     compare against ABS(b.amount) on the bank side.
+	 *   - Currency is matched against bank_account.currency_code; falls back
+	 *     to the company-currency bank if the row has no multicurrency code.
+	 *   - Date window is ±3 days around the webhook event (bank posting date
+	 *     vs notification date drift on weekends/holidays).
+	 *   - Amount tolerance is ±30 (USD or row currency) to absorb bank fees
+	 *     rolled into the credit. Set tight enough that two distinct invoices
+	 *     in the same week will not collide.
+	 *
+	 * @param  array $row   fetchRow() result
+	 * @param  int   $days  Date window each side, default 3
+	 * @param  float $tol   Amount tolerance in row currency, default 30
+	 * @return array        List of bank candidates (each: rowid, datev, amount, label, fk_account, diff)
+	 */
+	public function findBankMatches($row, $days = 3, $tol = 30.0)
+	{
+		global $conf;
+		$row = is_array($row) ? $row : $this->fetchRow($row);
+		if (!$row) {
+			return array();
+		}
+		$amount = (float) $row['amount'];
+		if ($amount <= 0) {
+			return array();
+		}
+		$cur = strtoupper((string) $row['currency']);
+		$occTs = self::sqlUtcToTimestamp(isset($row['occurred_at']) ? $row['occurred_at'] : '');
+		if ($occTs <= 0) {
+			// Fall back to row creation date when the webhook did not give one.
+			$occTs = !empty($row['date_creation']) ? self::sqlUtcToTimestamp($row['date_creation']) : dol_now();
+		}
+		$from = (int) ($occTs - $days * 86400);
+		$to = (int) ($occTs + $days * 86400);
+
+		$min = $amount - $tol;
+		$max = $amount + $tol;
+
+		$sql = 'SELECT b.rowid, b.datev, b.amount, b.label, b.fk_account, ba.currency_code, ba.label AS account_label';
+		$sql .= ' FROM '.MAIN_DB_PREFIX.'bank b';
+		$sql .= ' JOIN '.MAIN_DB_PREFIX.'bank_account ba ON ba.rowid = b.fk_account';
+		$sql .= ' WHERE ba.entity = '.(int) $conf->entity;
+		$sql .= ' AND ABS(b.amount) BETWEEN '.((float) $min).' AND '.((float) $max);
+		// datev is DATE, not datetime: FromUnixTime returns the date-of the instant
+		// in UTC. Pass through DATE() so MySQL doesn't reinterpret the int as
+		// 'YYYYMMDD' and miss every row.
+		$sql .= ' AND b.datev BETWEEN DATE(FROM_UNIXTIME('.(int) $from.')) AND DATE(FROM_UNIXTIME('.(int) $to.'))';
+		if ($cur !== '') {
+			$sql .= " AND UPPER(ba.currency_code) = '".$this->db->escape($cur)."'";
+		}
+		// Tightest diff first: exact match sorts to 0; the 6.11 fee delta
+		// pattern (a few dollars off) sorts right after.
+		$sql .= ' ORDER BY ABS(ABS(b.amount) - '.((float) $amount).') ASC, b.datev ASC LIMIT 5';
+
+		$out = array();
+		$resql = $this->db->query($sql);
+		if ($resql) {
+			while ($obj = $this->db->fetch_object($resql)) {
+				$dv = is_numeric($obj->datev) ? (int) $obj->datev : strtotime((string) $obj->datev);
+				$out[] = array(
+					'rowid' => (int) $obj->rowid,
+					'datev' => (int) $dv,
+					'amount' => (float) $obj->amount,
+					'label' => (string) $obj->label,
+					'fk_account' => (int) $obj->fk_account,
+					'currency_code' => strtoupper((string) $obj->currency_code),
+					'account_label' => (string) $obj->account_label,
+					'diff' => abs(abs((float) $obj->amount) - $amount),
+				);
+			}
+			$this->db->free($resql);
+		}
+		return $out;
+	}
+
+	/**
+	 * Look up Paiement rows that likely match this Wise credit. The customer
+	 * may have already recorded the payment from the invoice screen — in that
+	 * case llx_paiement has the right amount + date, but we never knew about
+	 * it because Wise cannot tell us which invoice row the credit covers.
+	 *
+	 * @param  array $row fetchRow() result
+	 * @param  int   $days Date window each side, default 3
+	 * @param  float $tol Amount tolerance in row currency, default 30
+	 * @return array     Paiement candidates (rowid, datep, amount, invoice_refs)
+	 */
+	public function findPaiementMatches($row, $days = 3, $tol = 30.0)
+	{
+		global $conf;
+		$row = is_array($row) ? $row : $this->fetchRow($row);
+		if (!$row) {
+			return array();
+		}
+		$amount = (float) $row['amount'];
+		if ($amount <= 0) {
+			return array();
+		}
+		$occTs = self::sqlUtcToTimestamp(isset($row['occurred_at']) ? $row['occurred_at'] : '');
+		if ($occTs <= 0) {
+			$occTs = !empty($row['date_creation']) ? self::sqlUtcToTimestamp($row['date_creation']) : dol_now();
+		}
+		$from = (int) ($occTs - $days * 86400);
+		$to = (int) ($occTs + $days * 86400);
+		$min = $amount - $tol;
+		$max = $amount + $tol;
+
+		$sql = 'SELECT p.rowid, p.datep, p.amount';
+		$sql .= ' FROM '.MAIN_DB_PREFIX.'paiement p';
+		$sql .= ' WHERE p.entity = '.(int) $conf->entity;
+		$sql .= ' AND p.amount BETWEEN '.((float) $min).' AND '.((float) $max);
+		// datep is DATETIME; the unix ints must be wrapped or MySQL coerces them
+		// to 'YYYYMMDDHHMMSS' shape and misses every row.
+		$sql .= ' AND p.datep BETWEEN FROM_UNIXTIME('.(int) $from.') AND FROM_UNIXTIME('.(int) $to.')';
+		$sql .= ' ORDER BY ABS(p.amount - '.((float) $amount).') ASC, p.datep ASC LIMIT 5';
+
+		$out = array();
+		$resql = $this->db->query($sql);
+		if ($resql) {
+			while ($obj = $this->db->fetch_object($resql)) {
+				$dp = is_numeric($obj->datep) ? (int) $obj->datep : strtotime((string) $obj->datep);
+				$out[] = array(
+					'rowid' => (int) $obj->rowid,
+					'datep' => (int) $dp,
+					'amount' => (float) $obj->amount,
+					'diff' => abs((float) $obj->amount - $amount),
+				);
+			}
+			$this->db->free($resql);
+		}
+		return $out;
+	}
+
+	/**
+	 * Mark the row as reconciled against an external bank/paiement entry.
+	 * The credit is now considered settled (the operator recorded the payment
+	 * from the invoice screen, so we must not post it again from this queue).
+	 * Read-only with respect to llx_bank / llx_paiement — this method only
+	 * touches the local wise_incoming row.
+	 *
+	 * @param  int   $rowid      Incoming row id
+	 * @param  int   $bankId     llx_bank.rowid that matched, 0 if none
+	 * @param  int   $paiementId llx_paiement.rowid that matched, 0 if none
+	 * @param  int   $userid     Acting user
+	 * @return int               0 on success, -1 not found, -2 already recorded
+	 */
+	public function markReconciled($rowid, $bankId, $paiementId, $userid)
+	{
+		$row = $this->fetchRow($rowid);
+		if (!$row) {
+			return -1;
+		}
+		if ($row['status'] === self::STATUS_RECORDED) {
+			return -2;
+		}
+		$noteParts = array();
+		if ($paiementId > 0) {
+			$noteParts[] = 'paiement #'.$paiementId;
+		}
+		if ($bankId > 0) {
+			$noteParts[] = 'bank #'.$bankId;
+		}
+		$note = 'auto-reconciled by user #'.(int) $userid.' on '.date('Y-m-d H:i:s');
+		if (!empty($noteParts)) {
+			$note .= ' — '.implode(', ', $noteParts);
+		}
+		$sql = 'UPDATE '.MAIN_DB_PREFIX.'slycustom_wise_incoming';
+		$sql .= " SET status = '".self::STATUS_IGNORED."',";
+		$sql .= " note_private = CONCAT(COALESCE(note_private, ''), ' ', '".$this->db->escape($note)."'),";
+		$sql .= " tms = tms";
+		$sql .= ' WHERE rowid = '.(int) $rowid;
+		if (!$this->db->query($sql)) {
+			dol_syslog('Wise_Incoming markReconciled update failed: '.$this->db->lasterror, LOG_ERR);
+			return -11;
+		}
+		dol_syslog('Wise_Incoming row '.$rowid.' reconciled to '.implode(',', $noteParts), LOG_INFO);
+		return 0;
+	}
+
+	/**
+	 * Drop the saved draft and put the row back to ENRICHED (or NEW when it was
+	 * never enriched). Used to abandon a draft without ignoring the credit.
+	 *
+	 * @param  int $rowid Incoming row id
+	 * @return int       0 on success, -1 row not found, -2 already recorded
+	 */
+	public function discardDraft($rowid)
+	{
+		$row = $this->fetchRow($rowid);
+		if (!$row) {
+			return -1;
+		}
+		if ($row['status'] === self::STATUS_RECORDED) {
+			return -2;
+		}
+
+		$match = array();
+		if (!empty($row['match_data'])) {
+			$decoded = json_decode($row['match_data'], true);
+			if (is_array($decoded)) {
+				$match = $decoded;
+			}
+		}
+		unset($match['allocation']);
+
+		// Back to whatever the row was before the draft: IGNORED stays ignored,
+		// otherwise the enrichment state decides (no ref and no counterparty
+		// means the statement lookup never succeeded, so it is still NEW).
+		if ($row['status'] === self::STATUS_IGNORED) {
+			$fallback = self::STATUS_IGNORED;
+		} elseif (!empty($row['ref_text']) || !empty($row['counterparty'])) {
+			$fallback = self::STATUS_ENRICHED;
+		} else {
+			$fallback = self::STATUS_NEW;
+		}
+		$sql = 'UPDATE '.MAIN_DB_PREFIX.'slycustom_wise_incoming SET';
+		$sql .= " status = '".$fallback."'";
+		$sql .= ", match_data = '".$this->db->escape(json_encode($match))."'";
+		$sql .= ' WHERE rowid = '.(int) $rowid;
+		if (!$this->db->query($sql)) {
+			dol_syslog('Wise_Incoming discardDraft update failed: '.$this->db->lasterror, LOG_ERR);
+			return -11;
+		}
+		dol_syslog('Wise_Incoming draft discarded row '.$rowid, LOG_INFO);
+		return 0;
+	}
+
+	/**
+	 * Create the Dolibarr payment for a recorded credit.
+	 *
+	 * @param  int   $rowid       Incoming row id
+	 * @param  array $allocations invoice rowid => amount
+	 * @param  User  $user        Acting user
+	 * @return int Payment id, or negative error code
+	 */
 	/**
 	 * Record a confirmed payment into Dolibarr: creates the Paiement, links the
 	 * bank line to the mapped Wise bank account and closes fully paid invoices.
@@ -855,56 +1322,12 @@ class WiseIncomingPayment
 		require_once DOL_DOCUMENT_ROOT.'/compta/paiement/class/paiement.class.php';
 		require_once DOL_DOCUMENT_ROOT.'/compta/facture/class/facture.class.php';
 
-		// Validate allocations against the open invoices.
-		$total = 0.0;
-		$inIds = array();
-		foreach (array_keys($allocations) as $facid) {
-			$inIds[] = (int) $facid;
+		$check = $this->validateAllocations($row, $allocations);
+		if (!$check['ok']) {
+			return $check['code'];
 		}
-		$sql = 'SELECT f.rowid, f.ref, f.fk_soc, f.total_ttc, f.multicurrency_code, f.multicurrency_tx, f.paye, f.fk_statut, f.type, f.entity,';
-		$sql .= ' (SELECT COALESCE(SUM(pf.amount), 0) FROM '.MAIN_DB_PREFIX.'paiement_facture pf WHERE pf.fk_facture = f.rowid) AS paid';
-		$sql .= ' FROM '.MAIN_DB_PREFIX.'facture f WHERE f.rowid IN ('.implode(',', $inIds).')';
-		$resql = $this->db->query($sql);
-		if (!$resql) {
-			dol_syslog('Wise_Incoming recordPayment invoice select failed: '.$this->db->lasterror, LOG_ERR);
-			return -4;
-		}
-		$invoices = array();
-		while ($obj = $this->db->fetch_object($resql)) {
-			$invoices[(int) $obj->rowid] = $obj;
-		}
-		$this->db->free($resql);
-
-		foreach ($allocations as $facid => $amt) {
-			$facid = (int) $facid;
-			$amt = (float) $amt;
-			if ($amt <= 0 || empty($invoices[$facid])) {
-				return -5;
-			}
-			$obj = $invoices[$facid];
-			if ((int) $obj->entity !== (int) $row['entity'] || (int) $obj->paye !== 0 || !in_array((int) $obj->fk_statut, array(1, 2)) || (int) $obj->type !== 0) {
-				return -6;
-			}
-			// Multicurrency rules:
-			//  - foreign-currency credit: invoice must be in the same currency (paid in its own currency)
-			//  - company-currency credit: any invoice; a foreign-currency invoice is settled through
-			//    the company-currency column (Paiement::create converts with the invoice rate)
-			$invCur = !empty($obj->multicurrency_code) ? strtoupper($obj->multicurrency_code) : $companyCur;
-			$invTx = isset($obj->multicurrency_tx) && (float) $obj->multicurrency_tx > 0 ? (float) $obj->multicurrency_tx : 1.0;
-			if ($foreignPayment && $invCur !== $currency) {
-				dol_syslog('Wise_Incoming recordPayment currency mismatch invoice '.$obj->ref.' ('.$invCur.') vs foreign credit ('.$currency.')', LOG_WARNING);
-				return -7;
-			}
-			$remaining = (float) $obj->total_ttc - (float) $obj->paid; // in invoice currency
-			$cap = (!$foreignPayment && $invCur !== $companyCur) ? $remaining * $invTx : $remaining;
-			if ($amt - $cap > 0.01) {
-				return -8; // over-allocation
-			}
-			$total += $amt;
-		}
-		if ($total - (float) $row['amount'] > 0.01) {
-			return -9; // allocations exceed the received credit
-		}
+		$invoices = $check['invoices'];
+		$total = $check['total'];
 
 		// Payment mode: configurable code, default bank transfer (per-entity const).
 		$modeCode = dolibarr_get_const($this->db, 'WISE_PAYMENT_MODE', (int) $row['entity']);
@@ -930,7 +1353,9 @@ class WiseIncomingPayment
 		}
 		$pay->paiementid = $modeId;
 		$pay->num_payment = 'WISE '.trim((string) $row['ref_text']);
-		$pay->note_public = 'Wise credit '.$currency.' '.price((float) $row['amount'])
+		// Paiement::create() persists note_private ?: note, and the payment card reads
+		// note_private — note_public is never stored, so it must not be used here.
+		$pay->note_private = 'Wise credit '.$currency.' '.price((float) $row['amount'])
 			.(!empty($row['counterparty']) ? ' from '.$row['counterparty'] : '');
 		if ($foreignPayment) {
 			$pay->multicurrency_code = $currency;
@@ -1046,13 +1471,13 @@ class WiseIncomingPayment
 				$postBalance = isset($txn['runningBalance']['value']) ? (float) $txn['runningBalance']['value'] : null;
 
 				$sql = 'INSERT INTO '.MAIN_DB_PREFIX.'slycustom_wise_incoming';
-				$sql .= ' (entity, fk_event, wise_balance_id, currency, amount, occurred_at, post_balance, status, ref_text, note_private, date_creation)';
-				$sql .= ' VALUES ('.(int) $entity.', NULL, '.(int) $bal['id'].', \''.$this->db->escape($currency).'\', '.(float) $amt.',';
+				$sql .= ' (entity, fk_event, wise_balance_id, wise_profile_id, currency, amount, occurred_at, post_balance, status, ref_text, note_private, date_creation)';
+				$sql .= ' VALUES ('.(int) $entity.', NULL, '.(int) $bal['id'].', '.(int) $profileId.', \''.$this->db->escape($currency).'\', '.(float) $amt.',';
 				$sql .= ' \''.$this->db->escape($occ).'\',';
 				$sql .= ' '.($postBalance !== null ? (float) $postBalance : 'NULL').',';
 				$sql .= ' \''.self::STATUS_NEW.'\',';
 				$sql .= ' '.($refText !== '' ? '\''.$this->db->escape(substr($refText, 0, 250)).'\'' : "''").',';
-				$sql .= ' \'Synced from statement fallback.\', \''.$this->db->escape(dol_now()).'\')';
+				$sql .= ' \'Synced from statement fallback.\', \''.$this->db->idate(dol_now()).'\')';
 				if (!$this->db->query($sql)) {
 					dol_syslog('Wise_Incoming sync insert failed: '.$this->db->lasterror, LOG_ERR);
 					continue;
@@ -1146,8 +1571,8 @@ class WiseIncomingPayment
 	 */
 	public function fetchRow($rowid)
 	{
-		$sql = 'SELECT t.rowid, t.entity, t.fk_event, t.wise_balance_id, t.currency, t.amount, t.occurred_at,';
-		$sql .= ' t.post_balance, t.status, t.ref_text, t.counterparty, t.fees, t.fk_soc, t.fk_paiement, t.note_private';
+		$sql = 'SELECT t.rowid, t.entity, t.fk_event, t.wise_balance_id, t.wise_profile_id, t.currency, t.amount, t.occurred_at,';
+		$sql .= ' t.post_balance, t.status, t.ref_text, t.counterparty, t.fees, t.fk_soc, t.fk_paiement, t.note_private, t.match_data';
 		$sql .= ' FROM '.MAIN_DB_PREFIX.'slycustom_wise_incoming t WHERE t.rowid = '.(int) $rowid;
 		$resql = $this->db->query($sql);
 		if (!$resql) {
@@ -1163,6 +1588,7 @@ class WiseIncomingPayment
 			'entity' => (int) $obj->entity,
 			'fk_event' => $obj->fk_event !== null ? (int) $obj->fk_event : null,
 			'wise_balance_id' => $obj->wise_balance_id !== null ? (int) $obj->wise_balance_id : null,
+			'wise_profile_id' => isset($obj->wise_profile_id) && $obj->wise_profile_id !== null ? (int) $obj->wise_profile_id : null,
 			'currency' => (string) $obj->currency,
 			'amount' => (float) $obj->amount,
 			'occurred_at' => $obj->occurred_at,
@@ -1174,6 +1600,7 @@ class WiseIncomingPayment
 			'fk_soc' => $obj->fk_soc !== null ? (int) $obj->fk_soc : null,
 			'fk_paiement' => $obj->fk_paiement !== null ? (int) $obj->fk_paiement : null,
 			'note_private' => (string) $obj->note_private,
+			'match_data' => (string) $obj->match_data,
 		);
 	}
 
@@ -1204,6 +1631,236 @@ class WiseIncomingPayment
 	{
 		$v = trim((string) $v);
 		return $v === '' ? 'NULL' : '\''.$this->db->escape($v).'\'';
+	}
+
+	// ---- Webhook dump management (accepted/ + rejected/ buckets) ---------------
+
+	/**
+	 * One-click record: enrich, then record — but only when the match is
+	 * unambiguous. The v2.0.0 credit payload carries no reference, so the
+	 * statement lookup must first recover one; anything that would require
+	 * guessing (no reference, order not found, several open invoices, currency
+	 * mismatch, credit above the invoice remaining) refuses and leaves the row
+	 * in the queue for the normal manual allocation flow.
+	 *
+	 * Error codes (own -20 range, validateAllocations/recordPayment keep theirs):
+	 *  -20 row already processed or has a draft, -21 no reference recovered,
+	 *  -22 reference matched no sales order, -23 not exactly one open invoice,
+	 *  -24 invoice currency differs, -25 credit exceeds the invoice remaining.
+	 *
+	 * @param  int  $rowid Incoming row id
+	 * @param  User $user  Recording user
+	 * @return int         Payment id (>0) on success, negative error otherwise
+	 */
+	public function autoRecord($rowid, $user)
+	{
+		$row = $this->fetchRow($rowid);
+		if (!$row) {
+			return -1;
+		}
+		if (in_array($row['status'], array(self::STATUS_PREPARED, self::STATUS_RECORDED, self::STATUS_IGNORED), true)) {
+			return -20;
+		}
+		// Pull the payment reference (and counterparty/fees) from the statement
+		// API, then re-read: enrichRow writes ref_text the matching below needs.
+		$this->enrichRow($rowid);
+		$row = $this->fetchRow($rowid);
+		if (!$row) {
+			return -1;
+		}
+		if (trim((string) $row['ref_text']) === '') {
+			return -21;
+		}
+		$match = $this->findInvoiceCandidates($row);
+		if (!isset($match['mode']) || $match['mode'] !== 'so') {
+			return -22;
+		}
+		if (!isset($match['invoices'][0]) || count($match['invoices']) !== 1) {
+			return -23;
+		}
+		$inv = $match['invoices'][0];
+		if (strcasecmp((string) $inv['currency'], (string) $row['currency']) !== 0) {
+			return -24;
+		}
+		if ((float) $row['amount'] > (float) $inv['remaining'] + 0.01) {
+			return -25;
+		}
+		return $this->recordPayment($rowid, array((int) $inv['id'] => (float) $row['amount']), $user);
+	}
+
+	/**
+	 * Build the absolute path of one dump file after validating its name.
+	 *
+	 * The name check is the path-traversal guard: only files this module
+	 * created (Ymd-His-eN-8hex.json) can ever be read or unlinked.
+	 *
+	 * @param  string      $bucket 'accepted' or 'rejected'
+	 * @param  string      $file   Dump file name
+	 * @return string|null         Absolute path, null when the name is not a dump
+	 */
+	public static function dumpPath($bucket, $file)
+	{
+		if (!in_array($bucket, array('accepted', 'rejected'), true)) {
+			return null;
+		}
+		if (!preg_match('/^\d{8}-\d{6}-e\d+-[a-f0-9]{8}\.json$/', (string) $file)) {
+			return null;
+		}
+		return rtrim(DOL_DATA_ROOT, '/').'/wise_webhook/'.$bucket.'/'.$file;
+	}
+
+	/**
+	 * List webhook delivery dumps with their ingest state, newest first.
+	 *
+	 * Ingest state comes from one batched payload_md5 lookup (never a query per
+	 * row). A dump is replayable only when the stored body is complete JSON —
+	 * bootstrap dumps keep a 2 KB head slice, which never re-parses.
+	 *
+	 * @param  int   $entity Only dumps captured for this entity (0 = all)
+	 * @return array         array('accepted' => [...], 'rejected' => [...])
+	 */
+	public function listDumps($entity = 0)
+	{
+		$out = array('accepted' => array(), 'rejected' => array());
+		$md5ToDump = array();
+		foreach (array_keys($out) as $bucket) {
+			$dir = rtrim(DOL_DATA_ROOT, '/').'/wise_webhook/'.$bucket;
+			if (!is_dir($dir)) {
+				continue;
+			}
+			$files = glob($dir.'/*.json');
+			if (!is_array($files)) {
+				continue;
+			}
+			sort($files);
+			foreach (array_reverse($files) as $path) {
+				$name = basename($path);
+				if (self::dumpPath($bucket, $name) === null) {
+					continue;
+				}
+				$dump = json_decode((string) @file_get_contents($path), true);
+				if (!is_array($dump)) {
+					continue;
+				}
+				if ($entity >= 1 && isset($dump['entity']) && (int) $dump['entity'] !== (int) $entity) {
+					continue;
+				}
+				$summary = array(
+					'file' => $name,
+					'received_at' => isset($dump['received_at']) ? (int) $dump['received_at'] : 0,
+					'remote_ip' => isset($dump['remote_ip']) ? (string) $dump['remote_ip'] : '',
+					'bootstrap' => !empty($dump['bootstrap']),
+					'truncated' => !empty($dump['body_truncated']),
+					'entity' => isset($dump['entity']) ? (int) $dump['entity'] : 0,
+					'event_type' => '',
+					'amount' => null,
+					'currency' => '',
+					'occurred_at' => '',
+					'delivery_id' => isset($dump['headers']['X_DELIVERY_ID']) ? (string) $dump['headers']['X_DELIVERY_ID'] : '',
+					'replayable' => false,
+					'ingested' => false,
+				);
+				$body = isset($dump['body']) && is_string($dump['body']) ? $dump['body'] : '';
+				$parsed = json_decode($body, true);
+				if (is_array($parsed)) {
+					// Complete body: the md5 of the stored body equals the md5 the
+					// webhook computed over the raw delivery, so the dedupe key and
+					// the replay entry point are the exact original ones.
+					$summary['replayable'] = true;
+					$summary['md5'] = md5($body);
+					$summary['event_type'] = isset($parsed['event_type']) ? (string) $parsed['event_type'] : '';
+					$summary['currency'] = isset($parsed['data']['currency']) ? (string) $parsed['data']['currency'] : '';
+					$summary['amount'] = isset($parsed['data']['amount']) ? (float) $parsed['data']['amount'] : null;
+					$summary['occurred_at'] = isset($parsed['data']['occurred_at']) ? (string) $parsed['data']['occurred_at'] : '';
+					$md5ToDump[$summary['md5']] = $bucket.'/'.$name;
+				}
+				$out[$bucket][$bucket.'/'.$name] = $summary;
+			}
+		}
+		if (!empty($md5ToDump)) {
+			// One query for the whole page: which dumps already made it into the event table.
+			$allMd5 = array_keys($md5ToDump);
+			$allMd5 = array_map(array($this->db, 'escape'), $allMd5);
+			$sql = 'SELECT payload_md5 FROM '.MAIN_DB_PREFIX.'slycustom_wise_event';
+			$sql .= " WHERE payload_md5 IN ('".implode("','", $allMd5)."')";
+			$resql = $this->db->query($sql);
+			if ($resql) {
+				while ($obj = $this->db->fetch_object($resql)) {
+					$key = isset($md5ToDump[$obj->payload_md5]) ? $md5ToDump[$obj->payload_md5] : '';
+					if ($key !== '' && isset($out[dirname($key)][basename($key)])) {
+						$bucket = dirname($key);
+						$out[$bucket][$bucket.'/'.basename($key)]['ingested'] = true;
+					}
+				}
+				$this->db->free($resql);
+			}
+		}
+		return $out;
+	}
+
+	/**
+	 * Re-ingest one stored dump through the exact webhook entry point.
+	 *
+	 * Idempotent by construction: createFromWebhook() dedupes on payload_md5,
+	 * so replaying an already-ingested dump changes nothing.
+	 *
+	 * @param  string $bucket 'accepted' or 'rejected'
+	 * @param  string $file   Dump file name
+	 * @return array          array('ok' => bool, 'message' => string)
+	 */
+	public function replayDump($bucket, $file)
+	{
+		$path = self::dumpPath($bucket, $file);
+		if ($path === null) {
+			return array('ok' => false, 'message' => 'invalid dump reference');
+		}
+		$dump = json_decode((string) @file_get_contents($path), true);
+		if (!is_array($dump) || empty($dump['body']) || !is_string($dump['body'])) {
+			return array('ok' => false, 'message' => 'dump unreadable');
+		}
+		$body = $dump['body'];
+		$parsed = json_decode($body, true);
+		if (!is_array($parsed)) {
+			return array('ok' => false, 'message' => 'body truncated, cannot replay');
+		}
+		$entity = isset($dump['entity']) && (int) $dump['entity'] >= 1 ? (int) $dump['entity'] : 1;
+		$meta = array(
+			'delivery_id' => isset($dump['headers']['X_DELIVERY_ID']) ? (string) $dump['headers']['X_DELIVERY_ID'] : '',
+			'is_test' => !empty($dump['headers']['X_TEST_NOTIFICATION']),
+			'unverified' => !empty($dump['bootstrap']),
+		);
+		$result = self::createFromWebhook($this->db, $entity, $parsed, $body, $meta);
+		if ($result['error'] !== null) {
+			return array('ok' => false, 'message' => 'ingest error: '.$result['error']);
+		}
+		if ($result['duplicate']) {
+			return array('ok' => true, 'message' => 'already ingested (duplicate), nothing queued');
+		}
+		return array('ok' => true, 'message' => 'ingested event row #'.$result['event_id']
+			.(empty($result['incoming_id']) ? '' : ', queued as incoming #'.$result['incoming_id']));
+	}
+
+	/**
+	 * Delete one stored dump (file only; already-ingested events stay in DB).
+	 *
+	 * @param  string $bucket 'accepted' or 'rejected'
+	 * @param  string $file   Dump file name
+	 * @return array          array('ok' => bool, 'message' => string)
+	 */
+	public function deleteDump($bucket, $file)
+	{
+		$path = self::dumpPath($bucket, $file);
+		if ($path === null) {
+			return array('ok' => false, 'message' => 'invalid dump reference');
+		}
+		if (!is_file($path)) {
+			return array('ok' => false, 'message' => 'dump no longer exists');
+		}
+		if (!@unlink($path)) {
+			dol_syslog('Wise_Incoming deleteDump failed for '.$path, LOG_WARNING);
+			return array('ok' => false, 'message' => 'unlink failed (permissions?)');
+		}
+		return array('ok' => true, 'message' => 'deleted');
 	}
 }
 }

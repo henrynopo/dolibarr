@@ -26,6 +26,8 @@ include_once DOL_DOCUMENT_ROOT.'/core/modules/DolibarrModules.class.php';
 
 /**
  *	Description and activation class for module SLY Custom
+ *
+ * @phan-forbid-undeclared-magic-properties
  */
 class modSlyCustom extends DolibarrModules
 {
@@ -49,7 +51,7 @@ class modSlyCustom extends DolibarrModules
 		$this->descriptionlong = 'SLYCustomDescriptionLong';
 		$this->editor_name = 'SLY';
 		$this->editor_url = '';
-		$this->version = '2.3.4';
+		$this->version = '2.3.6';
 		$this->const_name = 'MAIN_MODULE_'.strtoupper($this->name);
 		$this->picto = 'generic';
 
@@ -546,7 +548,7 @@ class modSlyCustom extends DolibarrModules
 				."UNIQUE KEY uk_payload (payload_md5)) ENGINE=innodb",
 			"CREATE TABLE IF NOT EXISTS ".MAIN_DB_PREFIX."slycustom_wise_incoming ("
 				."rowid integer AUTO_INCREMENT PRIMARY KEY, entity integer NOT NULL DEFAULT 1,"
-				."fk_event integer NULL, wise_balance_id bigint NULL, currency varchar(3) NOT NULL DEFAULT '',"
+				."fk_event integer NULL, wise_balance_id bigint NULL, wise_profile_id bigint NULL, currency varchar(3) NOT NULL DEFAULT '',"
 				."amount double(24,8) DEFAULT 0, occurred_at datetime NULL, post_balance double(24,8) DEFAULT NULL,"
 				."status varchar(24) NOT NULL DEFAULT 'NEW', ref_text varchar(255) DEFAULT '',"
 				."counterparty varchar(255) DEFAULT '', fees double(24,8) DEFAULT NULL, match_data text,"
@@ -583,6 +585,19 @@ class modSlyCustom extends DolibarrModules
 			array('sql' => "INSERT INTO ".MAIN_DB_PREFIX."overwrite_trans (lang, transkey, transvalue, entity) VALUES('en_SG', 'FormatDateHourText', '%d/%m/%Y %H:%M', __ENTITY__)", 'ignoreerror' => 1),
 			array('sql' => "INSERT INTO ".MAIN_DB_PREFIX."overwrite_trans (lang, transkey, transvalue, entity) VALUES('en_SG', 'FormatDateHourTextShort', '%d/%m/%Y %H:%M', __ENTITY__)", 'ignoreerror' => 1),
 		);
+
+		// Column added after the table shipped: CREATE TABLE IF NOT EXISTS above
+		// never touches an existing table, so installations already carrying the
+		// Wise tables would otherwise miss it. Guarded on the column list so
+		// re-enabling the module stays idempotent.
+		$resql = $this->db->query("SHOW COLUMNS FROM ".MAIN_DB_PREFIX."slycustom_wise_incoming LIKE 'wise_profile_id'");
+		if ($resql) {
+			$objcol = $this->db->fetch_object($resql);
+			$this->db->free($resql);
+			if (!$objcol) {
+				$this->db->query("ALTER TABLE ".MAIN_DB_PREFIX."slycustom_wise_incoming ADD COLUMN wise_profile_id bigint NULL");
+			}
+		}
 
 		$result = $this->_init($sql, $options);
 		if ($result) {

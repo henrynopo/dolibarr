@@ -294,7 +294,7 @@ class WiseOutgoingPayment
 		$sql .= ' '.(isset($quote['fee']) && is_numeric($quote['fee']) ? (float) $quote['fee'] : 0).',';
 		$sql .= ' \''.$this->db->escape($refInfo['reference']).'\', \''.$this->db->escape($refInfo['source']).'\',';
 		$sql .= ' \''.$this->db->escape(isset($transfer['status']) ? (string) $transfer['status'] : '').'\',';
-		$sql .= ' \''.self::STATUS_DRAFT.'\', \''.$this->db->escape(dol_now()).'\')';
+		$sql .= ' \''.self::STATUS_DRAFT.'\', \''.$this->db->idate(dol_now()).'\')';
 		if (!$this->db->query($sql)) {
 			// Transfer exists at Wise but mapping failed: surface loudly, keep ids in the message
 			$out['error'] = 'Transfer created at Wise (#'.$transfer['id'].') but mapping row failed: '.$this->db->lasterror;
@@ -462,7 +462,9 @@ class WiseOutgoingPayment
 		$pay->datepaye = dol_now();
 		$pay->paiementid = $modeId;
 		$pay->num_payment = 'WISE '.trim((string) $row->reference_sent);
-		$pay->note_public = 'Wise transfer #'.$row->wise_transfer_id.' ('.$row->target_currency.' '.price2num((float) $row->target_amount).')';
+		// PaiementFourn::create() persists note_private only, and the payment card
+		// reads note_private — note_public is never stored, so it must not be used here.
+		$pay->note_private = 'Wise transfer #'.$row->wise_transfer_id.' ('.$row->target_currency.' '.price2num((float) $row->target_amount).')';
 		$pay->fk_account = $bankId; // used by create() for the bank-currency check
 		if ($invCur !== $companyCur) {
 			// Foreign-currency invoice: pay in its own currency (arrays keyed by invoice id)

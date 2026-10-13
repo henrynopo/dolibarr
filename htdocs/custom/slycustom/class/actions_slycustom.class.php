@@ -32,6 +32,9 @@ require_once DOL_DOCUMENT_ROOT.'/custom/slycustom/class/ActionsSlycustomBuilddoc
 require_once DOL_DOCUMENT_ROOT.'/custom/slycustom/class/ActionsSlycustomWisePaymentTrait.php';
 require_once DOL_DOCUMENT_ROOT.'/custom/slycustom/class/ActionsSlycustomIndexHooksTrait.php';
 
+/**
+ * @phan-forbid-undeclared-magic-properties
+ */
 class ActionsSlycustom
 {
 	/**
@@ -175,19 +178,23 @@ class ActionsSlycustom
 	{
 		global $conf, $user, $langs;
 
-		// Pre-default ShipsGo date extrafields on any expedition/shipment object
-		// that enters doActions (covers both view and edit paths).
+		// Live shipment line totals (v24 replacement for the aggregated
+		// computed extrafields); date-key pre-defaulting happens further down
+		// for every page object, shipments included.
 		if (is_object($object) && !empty($object->element) && in_array($object->element, array('shipping', 'expedition'), true)) {
-			$this->ensureShipmentDateOptionKeys($object);
-			// Live line totals (v24 replacement for the aggregated computed extrafields)
 			$this->injectShipmentLineTotals($object);
 		}
 
-		// Customer invoice page: creating an invoice from a shipment makes core
-		// Expedition::fetch() evaluate the ShipsGo delay formulas, and dol_eval()
-		// resolves the formula's $object to the page global — the Facture, whose
-		// array_options carries no shipment keys. Pre-set them there.
-		if (is_object($object) && !empty($object->element) && $object->element === 'facture') {
+		// Pre-default ShipsGo date extrafields on the page-global object.
+		// Whenever rendering fetches an Expedition (linked-objects block
+		// fetchObjectLinked(), workflow triggers, create-from-shipment
+		// flows...), dol_eval() resolves the ShipsGo delay formulas' $object
+		// to the PAGE global, which carries no shipment keys and cannot guard
+		// itself. Pre-set the keys on whatever page object is present — keys
+		// are only added when absent and are never persisted (core saves only
+		// extrafields declared for the element). Confirmed on facture card/
+		// list, order card and supplier order card so far.
+		if (is_object($object)) {
 			$this->ensureShipmentDateOptionKeys($object);
 		}
 

@@ -263,8 +263,21 @@ trait ActionsSlycustomListHooksFacadeTrait
 		// dol_eval() resolves computed formulas against the page global $object
 		// (raw rows carry extrafields as plain properties, not in array_options),
 		// so the keys must exist there before the per-row evaluation.
-		if (is_object($object) && !empty($object->element) && in_array($object->element, array('shipping', 'expedition'), true)) {
+		// Guard was widened (was: shipping/expedition only) because commande /
+		// facture / fournisseur-fourn lists also evaluate computed extrafields
+		// against the page global $object, and the ShipsGo ATD/ATA delay
+		// formula is declared for the 'commande' element — production logs
+		// confirmed warnings on commande/facture lists even after the
+		// shipping/expedition-only hook had been deployed.
+		if (is_object($object) && property_exists($object, 'array_options')) {
 			$this->ensureShipmentDateOptionKeys($object);
+		}
+		// Also pre-default on the per-row $obj (passed via $parameters['obj']):
+		// printExtraFields() in Dolibarr 24 binds dol_eval() to whichever
+		// object it iterates — usually the row, not the page global. Without
+		// this the warning survives the page-global pre-default.
+		if (is_object($obj) && property_exists($obj, 'array_options')) {
+			$this->ensureShipmentDateOptionKeys($obj);
 		}
 
 		if ($this->slyListPayment_shouldPrintListValue($parameters, $object)) {

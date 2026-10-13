@@ -40,6 +40,11 @@ create table if not exists llx_slycustom_wise_incoming
   entity             integer       NOT NULL DEFAULT 1,
   fk_event           integer       NULL,                 -- llx_slycustom_wise_event.rowid (NULL for cron-sourced rows)
   wise_balance_id    bigint        NULL,                 -- resource.id of the credited balance (0/NULL in test events)
+  wise_profile_id    bigint        NULL,                 -- resource.profile_id the credit was delivered into; balance ids are
+                                                        -- only valid under their own profile, and one Wise account can hold
+                                                        -- several (per currency/region), so the statement API must be called
+                                                        -- with the profile the money actually landed in. NULL on cron-sourced
+                                                        -- rows predating this column: they fall back to WISE_PROFILE_ID.
   currency           varchar(3)    NOT NULL DEFAULT '',
   amount             double(24,8)  DEFAULT 0,            -- credited amount, in payment currency
   occurred_at        datetime      NULL,                 -- UTC
