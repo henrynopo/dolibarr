@@ -227,7 +227,7 @@ if(!empty($id_ecv)){
     dol_fiche_head($head,'experiences','',	0,"cv@sghr");
 }
 
-print '<link rel="stylesheet" href= "'.dol_buildpath('/sghr/cv/js/cv.js',2).'">';
+print '<script src="'.dol_buildpath('/sghr/cv/js/ecv.js', 2).'"></script>';
 
 print '<form method="get" action="'.$_SERVER["PHP_SELF"].'" class="form_ecv">'."\n";
 print '<input style="width:95%" name="pagem" type="hidden" value="'.$page.'">';

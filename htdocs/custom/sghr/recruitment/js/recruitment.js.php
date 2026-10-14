@@ -62,7 +62,7 @@ jQuery(document).ready(function() {
 	$('.tablerecrutement #select_srch_poste').select2();
 	$('#add_major').click(function(){
 		id = $('#tab_level').find('tr').length;
-		$('#tab_level').append('<tr><td style="text-align:center;" class=""><select onchange="GetMajors(this)" class="select_degrees"  name="leveled['+id+'][degree]"><?php echo $candidature->select_degrees(0); ?> </select></td><td style="text-align:center;" class=""><select class="select_majors" name="leveled['+id+'][major]"></select></td><td style="text-align:center;"><input type="number" name="leveled['+id+'][year]" min="0" class="select_years maxwidth75imp" value="<?php echo date('Y')?>"></td><td style="text-align:center;" class="width50"><a class="deletelevel" onclick="DeleteLevel(this)"><?php echo img_delete()?></a></td></tr>');
+		$('#tab_level').append('<tr><td style="text-align:center;" class=""><select onchange="GetMajors(this)" class="select_degrees"  name="leveled['+id+'][degree]"><?php echo dol_escape_js($candidature->select_degrees(0)); ?> </select></td><td style="text-align:center;" class=""><select class="select_majors" name="leveled['+id+'][major]"></select></td><td style="text-align:center;"><input type="number" name="leveled['+id+'][year]" min="0" class="select_years maxwidth75imp" value="<?php echo date('Y')?>"></td><td style="text-align:center;" class="width50"><a class="deletelevel" onclick="DeleteLevel(this)"><?php echo dol_escape_js(img_delete()) ?></a></td></tr>');
     	$('.select_degrees').select2();
 		$('.select_majors').select2();
     });

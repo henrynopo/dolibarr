@@ -665,12 +665,12 @@ class Candidate extends Commonobject{
 		$resql = $this->db->query($sql);
 		if($resql){
 			while ($obj=$this->db->fetch_object($resql)) {
-				$select .= '<option value="'.$obj->rowid.'">'.$obj->label.'</option>';
+				$select .= '<option value="'.(int) $obj->rowid.'">'.dol_escape_htmltag($obj->label, 0).'</option>';
 			}
 		}
 		// $select .= '</select>';
-		$select = str_replace('value="'.$value.'"','value="'.$value.'" selected', $select);
-		
+		$select = str_replace('value="'.(int) $value.'"','value="'.(int) $value.'" selected', $select);
+
 		return $select;
 	}
 

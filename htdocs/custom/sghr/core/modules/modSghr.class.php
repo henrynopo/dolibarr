@@ -49,6 +49,8 @@ include_once DOL_DOCUMENT_ROOT.'/core/modules/DolibarrModules.class.php';
 
 /**
  *  Description and activation class for module Sgpayroll
+ *
+ * @phan-forbid-undeclared-magic-properties
  */
 class modSghr extends DolibarrModules
 {
@@ -80,8 +82,8 @@ class modSghr extends DolibarrModules
 			'triggers' => 1,
 			'menus' => 1,
 			'hooks' => array('usercard', 'employeedocsindex', 'employeedocscard', 'completetabs', 'main'),
-			'css' => array('/sghr/css/sghr.css', '/sghr/employeedocs/css/employeedocs.css', '/sghr/cv/css/cv.css', '/sghr/recruitment/css/recruitment.css'),
-			'js' => array('/sghr/employeedocs/js/employeedocs.js', '/sghr/cv/js/cv.js', '/sghr/recruitment/js/recruitment.js.php'),
+			'css' => array('/sghr/css/sghr.css', '/sghr/employeedocs/css/employeedocs.css', '/sghr/cv/css/ecv.css', '/sghr/recruitment/css/recruitment.css'),
+			'js' => array('/sghr/employeedocs/js/employeedocs.js', '/sghr/cv/js/ecv.js', '/sghr/recruitment/js/recruitment.js.php'),
 		);
 
 		// Employee documents tab (absorbed from docsemployes module, phase 2)
