@@ -21,8 +21,12 @@
  * 	\brief	  Fichier de la classe des actions/hooks des customlink
  */
 
-class ActionsCustomlink // extends CommonObject 
-{	
+class ActionsCustomlink // extends CommonObject
+{
+	/** @var string Output for list hooks (used by HookManager) */
+	public $resprints;
+	/** @var array Hook return data */
+	public $results = array();
 
 	/** Overloading the doActions function : replacing the parent's function with the one below 
 	 *  @param	  parameters  meta datas of the hook (context, etc...) 
