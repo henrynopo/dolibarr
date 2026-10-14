@@ -34,14 +34,23 @@
  * DOL_DATA_ROOT/wise_webhook, truncated to 2 KB and rotated at 50 files when
  * it could not be verified.
  *
+ * 2.5.0: the reconcile list is now a file-system view of
+ * wise_webhook/accepted/*.json, with per-dump state stored in a sidecar
+ * (<basename>.meta.json) next to each dump. The event table is kept only as
+ * a dedupe store for re-deliveries + the transfers#state-change outgoing
+ * flow (applyTransferState + recordSupplierPayment still need it). The
+ * incoming-payments table is GONE.
+ *
  * Ingested events (WiseIncomingPayment::createFromWebhook):
- *  - balances#credit / balances#update(credit): queued into the incoming
- *    payments reconcile table. The v2.0.0 credit payload carries no payment
- *    reference — details are recovered from the statement API at enrichment.
+ *  - balances#credit / balances#update(credit): event-table dedupe only.
+ *    The reconcile-list row materialises when the receiver writes the dump
+ *    (step 4) + the sidecar (step 4b) to disk. No DB row backs it.
+ *  - transfers#state-change: event row + applyTransferState (outgoing flow A).
+ *    If the new state is SENT, also calls recordSupplierPayment to record the
+ *    payment in llx_paiement_fourn under the transfer's own entity.
  *  - X-Test-Notification: true deliveries (and zero-uuid subscriptions) are
- *    stored with is_test=1 and NOT queued.
- *  - Other event types are stored only (transfers#state-change will drive the
- *    outbound-payment flow later).
+ *    stored with is_test=1 and NOT enqueued.
+ *  - Other event types are stored only.
  */
 
 if (!defined('NOLOGIN')) {
@@ -383,31 +392,106 @@ if (!is_array($body)) {
 	wiseWebhookRespond(200, array('received' => true, 'note' => 'non-JSON body'));
 }
 
-// 6. Ingest: dedupe on raw-body md5, store the event, queue credits.
-//    DB failures return 500 so Wise retries the delivery later.
-$result = WiseIncomingPayment::createFromWebhook($db, $entity, $body, $raw, array(
-	'delivery_id' => $deliveryId,
-	'is_test' => $isTestHeader,
-	// Bootstrap deliveries (no verification_key.pem) are still trusted when
-	// step 3a accepted the source; tag the row so reconcile page can warn.
-	'unverified' => $bootstrap,
-));
-if ($result['error'] !== null) {
-	dol_syslog('wise_webhook ingest error: '.$result['error'], LOG_ERR);
-	wiseWebhookRespond(500, array('error' => 'Ingest failed'));
+// 6. Per-dump sidecar: a sidecar <basename>.meta.json is written next to
+//    every accepted dump so the reconcile list knows the row's status, source
+//    and (later) enriched fields without a DB row. dumpPath()'s regex
+//    deliberately does not match .meta.json so listDumps() never returns
+//    sidecar entries.
+//
+//    Dedupe: Wise re-delivers the same payload on transient errors. The dump
+//    name is md5(raw)[0:8], so a re-delivery writes the same filename. To
+//    keep user decisions (enrich / ignore / mark_reconciled) from being
+//    reverted by a re-delivery, the sidecar write is skipped when the
+//    existing sidecar's status is anything other than NEW.
+//
+//    Failure to read / write the sidecar is logged at WARNING — the main
+//    dump still serves the reconcile list (just without the explicit
+//    status / source fields, which the list falls back to NEW / webhook
+//    defaults for).
+$eventTypeForLog = isset($body['event_type']) ? (string) $body['event_type'] : '';
+$deliveryFile = '';
+$acceptedDir = DOL_DATA_ROOT.'/wise_webhook/accepted';
+$acceptedFiles = glob($acceptedDir.'/*.json');
+if (is_array($acceptedFiles)) {
+	sort($acceptedFiles);
+	$deliveryFile = (string) end($acceptedFiles);
 }
-if ($result['duplicate']) {
-	wiseWebhookRespond(200, array('received' => true, 'duplicate' => true, 'event' => isset($body['event_type']) ? $body['event_type'] : ''));
+$dumpBase = $deliveryFile !== '' ? basename($deliveryFile) : '';
+$sidecarWritten = false;
+if ($dumpBase !== '' && preg_match('/^\d{8}-\d{6}-e\d+-[a-f0-9]{8}\.json$/', $dumpBase)) {
+	$sidecar = $acceptedDir.'/'.preg_replace('/\.json$/', '.meta.json', $dumpBase);
+	$existing = array();
+	$preserved = false;
+	if (is_file($sidecar)) {
+		$decoded = json_decode((string) @file_get_contents($sidecar), true);
+		if (is_array($decoded)) {
+			$existing = $decoded;
+			$existingStatus = isset($decoded['status']) ? (string) $decoded['status'] : '';
+			if ($existingStatus !== '' && $existingStatus !== WiseIncomingPayment::STATUS_NEW) {
+				$preserved = true;
+			}
+		}
+	}
+	if (!$preserved) {
+		$sidecarPayload = array_merge($existing, array(
+			'status' => WiseIncomingPayment::STATUS_NEW,
+			'source' => 'webhook',
+			'note' => $bootstrap ? 'Unverified bootstrap delivery (no RSA signature check).' : (isset($existing['note']) ? $existing['note'] : ''),
+			'event_type' => $eventTypeForLog,
+			'occurrence_count' => isset($existing['occurrence_count']) ? ((int) $existing['occurrence_count'] + 1) : 1,
+			'enriched' => isset($existing['enriched']) && is_array($existing['enriched']) ? $existing['enriched'] : new stdClass(),
+			'match' => isset($existing['match']) && is_array($existing['match']) ? $existing['match'] : new stdClass(),
+			'fk_paiement' => isset($existing['fk_paiement']) ? (int) $existing['fk_paiement'] : 0,
+			'bootstrap' => $bootstrap,
+			'tms' => date('Y-m-d H:i:s'),
+		));
+		$sidecarJson = json_encode($sidecarPayload, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+		if ($sidecarJson !== false) {
+			$tmp = $sidecar.'.tmp.'.getmypid();
+			if (@file_put_contents($tmp, $sidecarJson) !== false) {
+				if (@rename($tmp, $sidecar)) {
+					$sidecarWritten = true;
+				} else {
+					@unlink($tmp);
+					dol_syslog('wise_webhook sidecar rename failed for '.$sidecar, LOG_WARNING);
+				}
+			} else {
+				dol_syslog('wise_webhook sidecar temp write failed for '.$tmp, LOG_WARNING);
+			}
+		} else {
+			dol_syslog('wise_webhook sidecar json_encode failed: '.json_last_error_msg(), LOG_WARNING);
+		}
+	} else {
+		dol_syslog('wise_webhook re-delivery preserved sidecar status='.$existingStatus.' for '.$dumpBase, LOG_INFO);
+	}
+}
+
+// 7. Outgoing flow A: handle transfers#state-change directly. No event-table
+//    dedupe — the sidecar's per-row occurrence_count + the transfer row's
+//    last_state together act as the dedupe store: a second delivery after
+//    SENT will hit applyTransferState and find the state already at SENT,
+//    so the row.tms update is a no-op and recordSupplierPayment will see
+//    fk_paiement_fourn already set and skip. Failures are logged but do
+//    not affect the 200 ack (Wise is happy with any 2xx).
+$handledTransferRow = 0;
+if ($eventTypeForLog === 'transfers#state-change') {
+	$handledTransferRow = WiseIncomingPayment::handleTransferStateChange($db, $entity, $body);
+	if ($handledTransferRow > 0) {
+		dol_syslog('wise_webhook handled transfer state change → transfer row '.$handledTransferRow, LOG_INFO);
+	} else {
+		dol_syslog('wise_webhook transfer state change did not match any slycustom_wise_transfer row (state='.(isset($body['data']['current_state']) ? $body['data']['current_state'] : '').')', LOG_INFO);
+	}
 }
 
 dol_syslog(
-	'wise_webhook ingested event='.(isset($body['event_type']) ? $body['event_type'] : '')
-	.' id='.$result['event_id'].' queued='.(empty($result['incoming_id']) ? 'no' : $result['incoming_id'])
-	.' test='.($isTestHeader ? 1 : 0),
+	'wise_webhook ingested event='.$eventTypeForLog
+	.' test='.($isTestHeader ? 1 : 0)
+	.' sidecar='.($sidecarWritten ? 'written' : 'preserved/absent')
+	.' transfer_row='.$handledTransferRow,
 	LOG_INFO
 );
 wiseWebhookRespond(200, array(
 	'received' => true,
-	'event' => isset($body['event_type']) ? $body['event_type'] : '',
-	'queued' => !empty($result['incoming_id']),
+	'event' => $eventTypeForLog,
+	'transfer_row' => $handledTransferRow,
 ));

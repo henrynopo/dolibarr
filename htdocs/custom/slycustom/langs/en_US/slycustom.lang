@@ -181,9 +181,11 @@ CustomsCodeHelp=Plant number / factory code (SLY override of customs nomenclatur
 CapitalCurrency=Capital currency
 
 # Wise incoming payments integration
-SLYCUSTOM_TAB_WISE=Wise
-WISE_STATUS_SECTION=Wise integration status
-SLYCUSTOM_WISE_SECTION=Wise connection and matching
+SLYCUSTOM_TAB_WISE=Bank Email Notification
+SLYCUSTOM_TAB_BANKEMAIL=Bank Email Notification
+WISE_STATUS_SECTION=Bank email notification integration status
+SLYCUSTOM_WISE_SECTION=Bank email notification connection and matching
+SLYCUSTOM_BANKEMAIL_SECTION=Bank email notification connection and matching
 WISE_WEBHOOK_URL=Webhook receiver URL
 WISE_API_TOKEN=Wise API token
 WISE_API_TOKENTooltip=Token created in Wise Settings > Developer tools > API tokens. Stored per company/entity. Used to pull balance statements (payment references) and, later, to create transfers.
@@ -231,17 +233,18 @@ WiseIplistInactive=Enable the source IP allowlist above to edit the additional a
 WISE_IPCHECK_ACTIVE=Source IP allowlist active: deliveries from the Wise egress networks are ingested even without signature verification (interim mode).
 WISE_SIGNATURE_KEYTooltip=The subscription public key Wise generates automatically. Look for it on the subscription detail page in Wise Settings > Developer tools > Webhooks, then save it to DOL_DATA_ROOT/wise_webhook/verification_key.pem (or use the fetch button when the subscriptions API is reachable).
 
-# Wise reconcile page
-SLYWiseReconcile=Wise reconcile
-WiseReconcileTitle=Wise incoming payments
+# Bank email notification inbox (webhook no longer auto-records)
+SLYWiseNotify=Bank email notification inbox
+SLYWiseInbox=Bank email notification inbox
+SLYBankEmailInbox=Bank email notification inbox
+# Legacy alias: 2.4.0 pre-deploy code still has modSlyCustom.menu[$r]['titre']='SLYWiseReconcile'.
+# Keep this so d-test / slyfood.com old build shows translated text, not the raw key.
+SLYWiseReconcile=Bank email notification inbox
+WiseReconcileTitle=Bank email notification inbox
+BankEmailInboxTitle=Bank email notification inbox
 WiseCreditDetail=Credit detail
-WiseAllocate=Allocate
-WiseConfirmRecord=Confirm and record payment
 WiseIgnore=Ignore this credit
 WiseReenrich=Re-fetch statement details
-WiseNoCandidate=No invoice candidate found. Pick the invoice yourself below, or ignore this credit.
-WiseMatchedSOs=Matched sales orders
-WiseLowConfidence=Amount-only match - review carefully
 WiseRecordedAs=Recorded as payment
 WiseIgnoredOk=Credit marked as ignored.
 WiseEnrichedOk=Statement details refreshed.
@@ -251,12 +254,8 @@ WiseStatusNew=Pending
 WiseStatusEnriched=Ready to review
 WiseStatusRecorded=Recorded
 WiseStatusIgnored=Ignored
-WiseErrAlloc=Invalid or missing allocation amounts.
 WiseErrNotOpen=Selected invoice not found or not open.
 WiseErrCurrency=Currency mismatch between credit and selected invoice.
-WiseErrOverAlloc=Allocation exceeds the invoice remaining amount.
-WiseErrOverCredit=Allocations exceed the received amount.
-WiseErrCreate=Payment creation failed (see system log).
 WiseErrAlready=This credit is already recorded.
 
 # Wise outgoing (transfer preparation)
@@ -380,19 +379,6 @@ SlyPatchCreateBundleConfirmText=Bundle every file touched by any sly24 patch (de
 SlyPatchRestoreBundleConfirmText=Extract every file from the latest bundle (%s) back into DOL_DOCUMENT_ROOT? (One-tar.gz rollback to the pre-applyall state — designed for the case when multiple patches touch the same file.)
 ModuleFamilyHaoSG=HaoSG
 SLYSendingStatusInProgress=In transit
-WiseStatusPrepared=Drafts pending confirmation
-WiseSaveDraft=Save as draft
-WiseDiscardDraft=Discard draft
-WiseDraftSaved=Draft saved. Nothing was posted to accounting yet.
-WiseDraftDiscarded=Draft discarded.
-WiseDraft=Draft allocation
-WiseDraftUnallocated=unallocated
-WiseDraftSavedOn=Saved on
-WiseDraftSavedBy=by user
-WiseDraftSectionTitle=Current draft allocation (editable)
-WiseDraftRowMissing=Invoice no longer open in this entity — re-pick before recording
-WiseGoToPaymentCard=Open in native payment card
-WiseAllocateFill=Fill the remainder of this invoice with the credit amount
 WiseErrNotFound=This credit no longer exists in this entity.
 WISE_EVENTS_STORED=Webhook events stored
 WISE_EVENTS_STOREDTooltip=Count of rows in the Wise webhook event table for this entity. Zero means no delivery was ever ingested — but it cannot tell you whether Wise sent anything, because a delivery dropped before ingestion leaves no row.
@@ -434,53 +420,55 @@ WiseFiles=files
 WiseRejectedCount=%s deliveries were rejected by the source IP allowlist (see the rejected/ subfolder) — add the sender's address to the list in webhook/wise.php
 WiseCronNextRun=Next run
 Configured=Configured
-WiseManualPick=Pick the invoice manually
-WiseManualNote=Only open customer invoices (unpaid, status validated or in progress) are listed, most recent first. Filter by SO ref or invoice ref - SO2501-0012, SO25010012 and SO2501_0012 all match. A manual pick goes through exactly the same status, currency and over-allocation checks as an automatic candidate. Amounts are left blank unless the filter narrows the list to a single invoice; leave one blank to skip that invoice.
-WiseManualFilterRef=Invoice ref or SO ref
-WiseManualFilterSoc=Thirdparty
-WiseManualFilter=Filter
-WiseManualNone=No open invoice matches this filter.
-WiseManualCount=open invoice(s) listed
-WiseManualTruncated=More than 200 open invoices exist. Narrow the filter to reach older ones.
-WiseManualShow=Pick the invoice manually instead
-WiseManualSoCol=Sales order
 RecordNotFound=Credit not found in this entity.
 Fees=Fees
-WiseDumpsTitle=Wise webhook dumps
-WiseDumpsHelp=Every delivery Wise sent is kept here (newest first) for diagnosis and recovery. Replay re-ingests the stored body through the normal webhook path (idempotent - duplicates are skipped). Delete only removes the dump file; already-ingested events stay in the database. Truncated dumps (unverified deliveries kept as a 2 KB head slice) cannot be replayed.
+WiseDumpsTitle=Webhook delivery dumps
+BankEmailDumpsTitle=Webhook delivery dumps
 WiseDumpBucketAccepted=Accepted deliveries
 WiseDumpBucketRejected=Rejected deliveries (blocked by IP allowlist)
-WiseDumpDelivery=Delivery ID
-WiseDumpSourceIp=Source IP
-WiseDumpReplay=Replay
 WiseDumpDelete=Delete
 WiseDumpIngested=Already ingested
-WiseDumpTruncated=Truncated
-WiseDumpTruncatedHelp=This unverified delivery was stored as a 2 KB head slice, so the body is incomplete and cannot be replayed.
 WiseDumpPending=Not ingested
-WiseDumpReplayedOk=Replay OK:
-WiseDumpReplayFailed=Replay failed:
 WiseDumpDeleted=Dump deleted.
 WiseDumpDeleteFailed=Delete failed:
 WiseDumpNoDumps=No dumps stored for this entity.
 WiseDumpConfirmDelete=Delete this dump file? (already-ingested events are NOT touched)
+WiseDumpSelectAll=Select all
+WiseDumpBulkDelete=Bulk delete selected
+WiseDumpBulkConfirm=Delete the %s selected dump(s)?
+WiseDumpBulkDeletedOk=Deleted %s dump(s).
+WiseDumpBulkPartial=Bulk delete: %s succeeded, %s failed.
+WiseDumpBulkNoSelection=Select at least one dump first.
 WiseProcess=Process
-WiseOpenDraft=Open draft
 WiseView=View
-WiseAutoRecord=Auto-record
-WiseAutoRecordConfirm=Enrich from the statement API and record this credit against its single matched invoice?
-WiseAutoRecordOk=Auto-recorded, payment
-WiseErrAutoState=Row already processed or has a saved draft.
-WiseErrAutoNoRef=Statement lookup found no payment reference - record manually.
-WiseErrAutoNoSo=The reference matched no sales order - record manually.
-WiseErrAutoMulti=The sales order has more than one open invoice - allocate manually.
-WiseErrAutoCur=The invoice currency differs from the credit currency.
-WiseErrAutoOver=The credit exceeds the invoice remaining balance - allocate manually.
+
+# 2.4.1: retire reconciled notifications directly from the reconcile page
+# (also cleans up the matched accepted-bucket dump file)
+WiseIncomingDelete=Delete notification
+WiseIncomingDeleteConfirm=Delete this notification? The linked Paiement / bank line are NOT touched, but the matching accepted-bucket dump file will be cleaned up.
+WiseIncomingDeleted=Notification deleted.
+WiseIncomingDeletedWithDump=Notification deleted and %s accepted-bucket dump file(s) cleaned up.
+WiseIncomingDeleteNotAllowed=Only already-reconciled (RECORDED) or ignored (IGNORED) notifications can be deleted.
+WiseIncomingDeleteFailed=Delete notification failed:
+# 2.4.1+：bulk-select on the reconcile page
+WiseIncomingSelectAll=Select all
+WiseIncomingBulkDelete=Bulk delete selected
+WiseIncomingBulkConfirm=Delete the %s selected notification(s)? The linked Paiement / bank line are NOT touched, but the matching accepted-bucket dump file(s) will be cleaned up.
+WiseIncomingBulkDeletedOk=Deleted %s notification(s).
+WiseIncomingBulkDeletedWithDump=Deleted %s notification(s) and cleaned up %s accepted-bucket dump file(s).
+WiseIncomingBulkPartial=Bulk delete: %s succeeded, %s failed.
+WiseIncomingBulkNoSelection=Select at least one notification first.
+# 2.4.2+：peer-count summary (reconcile ↔ dumps)
+WiseIncomingQueueCount=%s notification(s) in queue for this entity
+WiseIncomingDumpsCount=view %s accepted dump(s)
+WiseDumpsQueueCount=%s notification(s) in queue (open reconcile)
+WiseDumpsAcceptedCount=%s accepted dump(s)
+WiseDumpsRejectedCount=%s rejected dump(s)
 
 # Bank reconciliation: read-only matching against llx_bank / llx_paiement
-# (±3 days, ±30 USD to absorb bank fees). The mark_reconciled action only
-# flips the Wise row to IGNORED + appends a note — nothing is written to
-# the bank or payment tables from here.
+# (±3 days, ±30 USD to absorb bank fees). After 2.4.0 the page is read-only —
+# only the chip (Linked / 1 candidate / N candidates) and the bank/payment
+# tables are rendered. The mark_reconciled action has been removed.
 WiseBankMatch=Bank match
 WiseBankMatchTitle=Reconcile against existing bank entries
 WiseBankMatchNone=No matching bank entry or payment on the same day (±3 days, ±30 USD tolerance).
@@ -489,9 +477,94 @@ WiseBankOnly=Bank only
 WiseBankOnlyHint=Matched a bank entry but no Dolibarr payment from this side. Confirm below.
 WiseBankMatchedPayment=Already linked to a Dolibarr payment from this side.
 WiseBankLinkedDetail=Recorded through Dolibarr's payment UI on the same day.
-WiseBankRow=Bank entry
-WisePaiementRow=Dolibarr payment
-WiseMarkReconciled=Mark this row as reconciled
-WiseMarkReconciledShort=Mark ✓
-WiseMarkReconciledConfirm=Mark this Wise credit as already handled in the bank? Nothing is written to the bank or payment tables.
-WiseMarkReconciledOk=Row marked as reconciled (status set to IGNORED, audit note appended).
+
+# 2.5.0 — file-based inbox + email collector
+WiseInboxTitle=Bank email notification inbox
+WiseInboxCount=Inbox: %s rows
+BankEmailInboxCount=Inbox: %s rows
+WiseDumpsInboxLink=View inbox
+BankEmailInboxLink=View inbox
+WiseView=View
+BankEmailView=View
+WiseIncomingSelectAll=Select all
+BankEmailSelectAll=Select all
+WiseIncomingDelete=Delete row
+BankEmailDelete=Delete row
+WiseIncomingDeleteConfirm=Delete this dump file and its sidecar?
+BankEmailDeleteConfirm=Delete this dump file and its sidecar?
+WiseIncomingDeleteNotAllowed=Only reconciled or ignored rows can be deleted. Ignore or mark_reconciled first.
+BankEmailDeleteNotAllowed=Only reconciled or ignored rows can be deleted. Ignore or mark_reconciled first.
+WiseMarkReconciled=Mark reconciled
+BankEmailMarkReconciled=Mark reconciled
+WiseReconciledOk=Marked as reconciled.
+BankEmailReconciledOk=Marked as reconciled.
+WiseReconciledPickOne=Pick one bank row or payment to link.
+BankEmailReconciledPickOne=Pick one bank row or payment to link.
+WiseDumpBody=Raw body (pretty JSON)
+BankEmailDumpBody=Raw body (pretty JSON)
+WiseSource=Source
+BankEmailSource=Source
+WiseSourceFilter=Source filter
+BankEmailSourceFilter=Source filter
+WiseSourceWebhook=Webhook
+BankEmailSourceWebhook=Webhook
+WiseSourceEmail=Email
+BankEmailSourceEmail=Email
+WiseStatusReconciled=Reconciled
+BankEmailStatusReconciled=Reconciled
+WiseStatusIgnored=Ignored
+BankEmailStatusIgnored=Ignored
+# 2.5.0: status badge displays use BankEmailStatus* with fallback to WiseStatus* — add the two new aliases
+BankEmailStatusNEW=Pending
+BankEmailStatusENRICHED=Ready to review
+BankEmailCollectorSetup=Configure email collector
+WISE_INBOX_TOTAL=Inbox total
+WISE_INBOX_TOTALTooltip=2.5.0 onwards: the inbox is purely file-based (no more llx_slycustom_wise_incoming / _event tables). Renders wise_webhook/accepted/*.json + sidecar <basename>.meta.json.
+BANKEMAIL_INBOX_TOTAL=Inbox total
+BANKEMAIL_INBOX_TOTALTooltip=2.5.0 onwards: the inbox is purely file-based. Renders wise_webhook/accepted/*.json + sidecar <basename>.meta.json.
+WISE_INBOX_BY_SOURCE=Inbox by source
+BANKEMAIL_INBOX_BY_SOURCE=Inbox by source
+WISE_EMAIL_CRON_STATUS=Bank email collector cron
+WISE_EMAIL_CRON_STATUSTooltip=Every 5 minutes: pull bank credit notification emails from the configured IMAP mailbox and write them to the same accepted bucket as the webhook. Configure IMAP host/user/pass/port/folder in the Bank email tab and enable the cron.
+BANKEMAIL_EMAIL_CRON_STATUS=Bank email collector cron
+BANKEMAIL_EMAIL_CRON_STATUSTooltip=Every 5 minutes: pull bank credit notification emails from the configured IMAP mailbox and write them to the same accepted bucket as the webhook. Configure IMAP host/user/pass/port/folder in the Bank email tab and enable the cron.
+EmailCollectorTitle=Bank Email Collector
+BankEmailCollectorTitle=Bank Email Collector
+EmailCollectorOverview=Bank email collector state
+BankEmailCollectorOverview=Bank email collector state
+EmailCollectorEnabled=Enabled
+BankEmailCollectorEnabled=Enabled
+EmailCollectorLastPull=Last pull
+BankEmailCollectorLastPull=Last pull
+EmailCollectorLastPullOk=Accepted
+BankEmailCollectorLastPullOk=Accepted
+EmailCollectorLastPullRejected=Template miss
+BankEmailCollectorLastPullRejected=Template miss
+EmailCollectorLastPullError=Errors
+BankEmailCollectorLastPullError=Errors
+EmailCollectorLastPullSkipped=Skipped
+BankEmailCollectorLastPullSkipped=Skipped
+EmailCollectorPullNow=Pull now
+BankEmailCollectorPullNow=Pull now
+EmailCollectorTestPullDone=Done. ok=%s rejected=%s error=%s skipped=%s.
+BankEmailCollectorTestPullDone=Done. ok=%s rejected=%s error=%s skipped=%s.
+# Bank email tab: IMAP config form
+SLYBankEmailImapEnabled=Enable bank email collector
+SLYBankEmailImapEnabledTooltip=When enabled, the cron (every 5 min) IMAP-polls the configured mailbox and ingests credit notification emails into the same accepted bucket as the Wise webhook. Disable to stop ingestion without losing the IMAP credentials.
+SLYBankEmailImapHost=IMAP host
+SLYBankEmailImapHostTooltip=IMAP server hostname, e.g. imap.gmail.com. SSL is implicit; port 993 by default.
+SLYBankEmailImapPort=IMAP port
+SLYBankEmailImapPortTooltip=Default 993 (IMAPS).
+SLYBankEmailImapUser=IMAP user
+SLYBankEmailImapUserTooltip=Full mailbox address, e.g. receipts@example.com.
+SLYBankEmailImapPass=IMAP password (app password)
+SLYBankEmailImapPassTooltip=App password, not the account password. Stored encrypted by Dolibarr.
+SLYBankEmailImapFolder=IMAP folder
+SLYBankEmailImapFolderTooltip=Default INBOX. Use a dedicated folder if you forward bank notifications into it.
+SLYBankEmailSave=Save IMAP config
+SLYBankEmailSaved=IMAP configuration saved.
+SLYBankEmailImapTest=Test pull now
+SLYBankEmailImapTestTooltip=Manually trigger one pull cycle for the active entity. Writes accepted/rejected dumps under wise_webhook/.
+SLYBankEmailImapMissing=IMAP host / user / pass are all required.
+SLYBankEmailImapNoImap=PHP imap extension is not installed on this host — the email collector cannot run.
+SLYBankEmailCronHelp=After saving IMAP config, enable the cron in Home → Setup → Scheduled jobs ("Bank email collector pull").

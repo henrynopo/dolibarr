@@ -8,60 +8,17 @@
 -- idempotent (CREATE TABLE IF NOT EXISTS), so a module re-activation
 -- is an alternative way to install them.
 --
+-- 2.5.0 slim-down: the previous llx_slycustom_wise_event and
+-- llx_slycustom_wise_incoming tables are dropped. Webhook deliveries and
+-- email-collector messages now live as JSON files under
+-- DOL_DATA_ROOT/wise_webhook/accepted/ with a per-dump sidecar
+-- <basename>.meta.json carrying the status / source / note fields.
+-- Re-deliveries dedupe on filename (md5[0:8] of the raw body); there's
+-- no need for a payload_md5 column.
+--
 -- Notes:
 --  - occurred_at / sent_at are stored in UTC (Wise sends ISO 8601 Z).
---  - payload_md5 dedupes re-deliveries: Wise retries on non-2xx and may
---    deliver the same event body more than once. balances#credit (v2.0.0)
---    carries no transaction id, so the raw body hash is the dedupe key.
 -- ===================================================================
-
-create table if not exists llx_slycustom_wise_event
-(
-  rowid             integer AUTO_INCREMENT PRIMARY KEY,
-  entity            integer       NOT NULL DEFAULT 1,
-  event_type        varchar(64)   NOT NULL DEFAULT '',
-  subscription_id   varchar(64)   NOT NULL DEFAULT '',
-  schema_version    varchar(16)   NOT NULL DEFAULT '',
-  delivery_id       varchar(64)   NOT NULL DEFAULT '',   -- X-Delivery-Id header
-  is_test           tinyint       DEFAULT 0,             -- X-Test-Notification: true or zero subscription_id
-  occurred_at       datetime      NULL,                  -- UTC, from data.occurred_at (ordering field per docs)
-  sent_at           datetime      NULL,                  -- UTC, from envelope sent_at (diagnostic only)
-  payload_md5       varchar(32)   NOT NULL DEFAULT '',
-  payload_json      mediumtext,
-  processed         tinyint       DEFAULT 0,
-  processing_note   varchar(255)  DEFAULT '',
-  date_creation     datetime,
-  unique key uk_payload (payload_md5)
-) ENGINE=innodb;
-
-create table if not exists llx_slycustom_wise_incoming
-(
-  rowid              integer AUTO_INCREMENT PRIMARY KEY,
-  entity             integer       NOT NULL DEFAULT 1,
-  fk_event           integer       NULL,                 -- llx_slycustom_wise_event.rowid (NULL for cron-sourced rows)
-  wise_balance_id    bigint        NULL,                 -- resource.id of the credited balance (0/NULL in test events)
-  wise_profile_id    bigint        NULL,                 -- resource.profile_id the credit was delivered into; balance ids are
-                                                        -- only valid under their own profile, and one Wise account can hold
-                                                        -- several (per currency/region), so the statement API must be called
-                                                        -- with the profile the money actually landed in. NULL on cron-sourced
-                                                        -- rows predating this column: they fall back to WISE_PROFILE_ID.
-  currency           varchar(3)    NOT NULL DEFAULT '',
-  amount             double(24,8)  DEFAULT 0,            -- credited amount, in payment currency
-  occurred_at        datetime      NULL,                 -- UTC
-  post_balance       double(24,8)  DEFAULT NULL,         -- post_transaction_balance_amount
-  status             varchar(24)   NOT NULL DEFAULT 'NEW',
-  ref_text           varchar(255)  DEFAULT '',           -- payment reference from statement (usually the SO number)
-  counterparty       varchar(255)  DEFAULT '',           -- sender name from statement, when available
-  fees               double(24,8)  DEFAULT NULL,
-  match_data         text,                              -- JSON snapshot of computed invoice candidates
-  fk_soc             integer       NULL,
-  fk_paiement        integer       NULL,
-  statement_txn_json mediumtext,                         -- raw matched statement transaction (audit)
-  note_private       text,
-  date_creation      datetime,
-  tms                timestamp,
-  unique key uk_event (fk_event)
-) ENGINE=innodb;
 
 -- Wise outgoing transfers mapping (flow A). A transfer is created UNFUNDED;
 -- funding manually in the Wise dashboard is the approval gate.

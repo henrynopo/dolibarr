@@ -387,6 +387,52 @@ if ($action == 'update_wise' && !GETPOST('cancel', 'alpha')) {
 	exit;
 }
 
+// Bank email collector (2.5.0): saves the IMAP config that the cron
+// reads via dolibarr_get_const. The collector itself is shipped disabled
+// in modSlyCustom (status=0) — turning it on after the config is filled
+// in is a 1-click operation from the cron widget below.
+if ($action == 'update_bankemail' && !GETPOST('cancel', 'alpha')) {
+	if (GETPOST('token', 'none') !== newToken()) {
+		setEventMessages($langs->trans("Error"), null, 'errors');
+	} else {
+		$db->begin();
+		$ecConsts = array(
+			'SLYEMAIL_COLLECTOR_ENABLED' => (string) (int) GETPOST('SLYEMAIL_COLLECTOR_ENABLED', 'int'),
+			'SLYEMAIL_IMAP_HOST' => trim((string) GETPOST('SLYEMAIL_IMAP_HOST', 'alphanohtml')),
+			'SLYEMAIL_IMAP_PORT' => (string) (int) GETPOST('SLYEMAIL_IMAP_PORT', 'int'),
+			'SLYEMAIL_IMAP_USER' => trim((string) GETPOST('SLYEMAIL_IMAP_USER', 'alphanohtml')),
+			'SLYEMAIL_IMAP_FOLDER' => trim((string) GETPOST('SLYEMAIL_IMAP_FOLDER', 'alphanohtml')),
+		);
+		// Password is allowed to be empty in the form (it stays at the
+		// existing value). Only overwrite if a non-empty value is posted —
+		// empty POST == keep existing.
+		$passPosted = (string) GETPOST('SLYEMAIL_IMAP_PASS', 'none');
+		if ($passPosted !== '') {
+			$ecConsts['SLYEMAIL_IMAP_PASS'] = $passPosted;
+		}
+		$error = 0;
+		foreach ($ecConsts as $name => $value) {
+			// entity = 0 so a single IMAP mailbox can serve the whole
+			// multicompany tree. The inbox then filters dumps per
+			// entity via the file's `entity` field.
+			$result = dolibarr_set_const($db, $name, $value, 'chaine', 0, '', 0);
+			if ($result < 0) {
+				$error++;
+				break;
+			}
+		}
+		if (!$error) {
+			$db->commit();
+			setEventMessages($langs->trans("SLYBankEmailSaved"), null, 'mesgs');
+		} else {
+			$db->rollback();
+			setEventMessages($langs->trans("SetupNotSaved"), null, 'errors');
+		}
+	}
+	header('Location: '.$_SERVER["PHP_SELF"].'?tab=wise'.$urlparams_str);
+	exit;
+}
+
 // Wise: test the API token, list profiles and auto-fill WISE_PROFILE_ID when empty.
 if ($action == 'wise_test') {
 	if (GETPOST('token', 'none') !== newToken()) {
@@ -607,8 +653,8 @@ if (!in_array($tab, array('general', 'shipsgo', 'pdf', 'boxes', 'rubis', 'wise')
 $langs->load("slycustom@slycustom", 0, 0, '', 0, 1);
 // Tab labels: use trans() and fallback to inline strings when key is not translated (no dependency on file path)
 $tab_fallbacks = array(
-	'en_US' => array('General', 'ShipsGo', 'PDF templates', 'Dashboard', 'Terms & conditions', 'Wise'),
-	'zh_CN' => array('常规', 'ShipsGo 物流', 'PDF 模板', '仪表盘', '销售条款', 'Wise 收款'),
+	'en_US' => array('General', 'ShipsGo', 'PDF templates', 'Dashboard', 'Terms & conditions', 'Bank Email Notification'),
+	'zh_CN' => array('常规', 'ShipsGo 物流', 'PDF 模板', '仪表盘', '销售条款', '银行邮件通知'),
 );
 $tab_keys = array('SLYCUSTOM_TAB_GENERAL', 'SLYCUSTOM_TAB_SHIPSGO', 'SLYCUSTOM_TAB_PDF', 'SLYCUSTOM_TAB_BOXES', 'SLYCUSTOM_TAB_RUBIS', 'SLYCUSTOM_TAB_WISE');
 $langcode = (!empty($langs->defaultlang) ? $langs->defaultlang : 'en_US');
@@ -1156,6 +1202,7 @@ if ($tab == 'rubis') {
 if ($tab == 'wise') {
 	require_once DOL_DOCUMENT_ROOT.'/custom/slycustom/class/Wise_API.class.php';
 	require_once DOL_DOCUMENT_ROOT.'/custom/slycustom/class/Wise_Incoming.class.php';
+	$wp = new WiseIncomingPayment($db);
 
 	$wiseToken = trim((string) getDolGlobalString('WISE_API_TOKEN'));
 	$wiseProfileId = trim((string) getDolGlobalString('WISE_PROFILE_ID'));
@@ -1197,16 +1244,24 @@ if ($tab == 'wise') {
 		$db->free($resql);
 	}
 
-	// Incoming queue status
-	$queueCounts = array();
-	$sql = 'SELECT status, COUNT(*) AS n, SUM(amount) AS total FROM '.MAIN_DB_PREFIX.'slycustom_wise_incoming';
-	$sql .= ' WHERE entity = '.(int) $conf->entity.' GROUP BY status';
-	$resql = $db->query($sql);
-	if ($resql) {
-		while ($obj = $db->fetch_object($resql)) {
-			$queueCounts[$obj->status] = array('n' => (int) $obj->n, 'total' => (float) $obj->total);
-		}
-		$db->free($resql);
+	// Inbox overview (2.5.0 file-based). listDumps scans
+	// wise_webhook/accepted/*.json and reads the sidecar for status. We
+	// don't hit the database for this — the inbox lives on disk.
+	$inboxCounts = array(
+		WiseIncomingPayment::STATUS_NEW => 0,
+		WiseIncomingPayment::STATUS_ENRICHED => 0,
+		WiseIncomingPayment::STATUS_RECONCILED => 0,
+		WiseIncomingPayment::STATUS_IGNORED => 0,
+	);
+	$inboxBySource = array('webhook' => 0, 'email' => 0);
+	$inboxDumps = $wp->listDumps((int) $conf->entity);
+	$inboxRows = isset($inboxDumps['accepted']) ? $inboxDumps['accepted'] : array();
+	foreach ($inboxRows as $r) {
+		$st = isset($r['status']) ? $r['status'] : WiseIncomingPayment::STATUS_NEW;
+		if (!isset($inboxCounts[$st])) $inboxCounts[$st] = 0;
+		$inboxCounts[$st]++;
+		$src = isset($r['source']) ? $r['source'] : 'webhook';
+		if (isset($inboxBySource[$src])) $inboxBySource[$src]++;
 	}
 
 	print '<div class="div-table-responsive-no-min">';
@@ -1240,64 +1295,55 @@ if ($tab == 'wise') {
 	}
 	print '<tr class="oddeven"><td>'.$form->textwithpicto($langs->trans("WISE_SO_REF_PATTERN_EFFECTIVE"), $langs->transnoentities("WISE_SO_REF_PATTERNTooltip")).'</td>';
 	print '<td><code>'.dol_escape_htmltag($wiseEffectivePattern).'</code><br><span class="opacitymedium">'.$wisePatternSource.(($wiseManualPattern === '' && $wiseDerivedPattern !== '') ? ' — '.dol_escape_htmltag($wiseDerivedPattern) : '').'</span></td></tr>';
-	$queueLine = array();
-	foreach (array(WiseIncomingPayment::STATUS_PREPARED, WiseIncomingPayment::STATUS_NEW, WiseIncomingPayment::STATUS_ENRICHED, WiseIncomingPayment::STATUS_RECORDED, WiseIncomingPayment::STATUS_IGNORED) as $st) {
-		if (isset($queueCounts[$st])) {
-			$queueLine[] = $st.': '.$queueCounts[$st]['n'];
-		}
-	}
-	print '<tr class="oddeven"><td>'.$langs->trans("WISE_QUEUE_STATUS").'</td><td>'.(empty($queueLine) ? '<span class="opacitymedium">'.$langs->trans("None").'</span>' : implode(' &nbsp;|&nbsp; ', $queueLine)).'</td></tr>';
 
-	// Events ever stored (webhook ingestion counter). Zero here with a non-empty
-	// queue is impossible; both zero means no delivery was ever ingested.
-	$eventTotal = 0;
-	$eventLast = '';
-	$sql = 'SELECT COUNT(*) AS n, MAX(date_creation) AS last FROM '.MAIN_DB_PREFIX.'slycustom_wise_event';
-	$sql .= ' WHERE entity = '.(int) $conf->entity;
+	// Inbox: per-status + per-source breakdown. Replaces the 2.4.x SQL
+	// queue widget (which has no source in 2.5.0 — the table is gone).
+	$inboxLine = array();
+	foreach (array(WiseIncomingPayment::STATUS_NEW, WiseIncomingPayment::STATUS_ENRICHED, WiseIncomingPayment::STATUS_RECONCILED, WiseIncomingPayment::STATUS_IGNORED) as $st) {
+		$n = (int) $inboxCounts[$st];
+		if ($n > 0) $inboxLine[] = $st.': '.$n;
+	}
+	$inboxTotal = array_sum($inboxCounts);
+	$inboxReconcileLink = '<a href="'.dol_buildpath('/custom/slycustom/wise/reconcile.php', 1).'?mainmenu=tools">'.$langs->trans("WiseInboxTitle").'</a>';
+	print '<tr class="oddeven"><td>'.$form->textwithpicto($langs->trans("WISE_INBOX_TOTAL"), $langs->transnoentities("WISE_INBOX_TOTALTooltip")).'</td><td>'
+		.($inboxTotal === 0
+			? '<span class="opacitymedium">'.$langs->trans("None").'</span>'
+			: $inboxReconcileLink.' &mdash; '.(empty($inboxLine) ? '' : implode(' &nbsp;|&nbsp; ', $inboxLine)))
+		.'</td></tr>';
+	print '<tr class="oddeven"><td>'.$langs->trans("WISE_INBOX_BY_SOURCE").'</td><td>'
+		.$langs->trans("WiseSourceWebhook").': '.(int) $inboxBySource['webhook']
+		.' &nbsp;|&nbsp; '.$langs->trans("WiseSourceEmail").': '.(int) $inboxBySource['email']
+		.'</td></tr>';
+
+	// Email collector cron: shipped disabled (status=0) so it must be
+	// turned on after the IMAP config is filled in. Cron row label is
+	// "Bank email collector pull" (matches modSlyCustom cron entry 1, was
+	// "Wise email collector pull" pre-2.5.0 — the OR-classesname clause
+	// keeps the lookup robust across upgrades).
+	$cronState = '';
+	$sql = 'SELECT c.status, c.datenextrun, c.datelastrun, c.nbrun FROM '.MAIN_DB_PREFIX.'cronjob c';
+	$sql .= ' WHERE c.entity = '.(int) $conf->entity;
+	$sql .= ' AND (c.label = \'Bank email collector pull\'';
+	$sql .= ' OR c.label = \'Wise email collector pull\'';
+	$sql .= ' OR c.classesname = \'custom/slycustom/class/slyemailcollector/EmailCollector.class.php\')';
 	$resql = $db->query($sql);
-	if ($resql) {
-		$obj = $db->fetch_object($resql);
-		if ($obj) {
-			$eventTotal = (int) $obj->n;
-			$eventLast = empty($obj->last) ? '' : dol_print_date($db->jdate($obj->last), 'dayhour');
-		}
+	$obj = $resql ? $db->fetch_object($resql) : null;
+	if ($obj) {
+		$cronEnabled = ((int) $obj->status === 1);
+		$cronState = '<span class="'.($cronEnabled ? 'opacitymedium' : 'warning').'">'
+			.$langs->trans("WiseCronState").': '.($cronEnabled ? $langs->trans("Enabled") : $langs->trans("Disabled"))
+			.'</span> <span class="opacitymedium">('.$langs->trans("WiseCronRuns").': '.(int) $obj->nbrun;
+		$cronState .= ' &mdash; '.$langs->trans("WiseCronLastRun").': ';
+		$cronState .= empty($obj->datelastrun) ? $langs->trans("Never") : dol_print_date($db->jdate($obj->datelastrun), 'dayhour');
+		$cronState .= ' &mdash; '.$langs->trans("WiseCronNextRun").': ';
+		$cronState .= empty($obj->datenextrun) ? '-' : dol_print_date($db->jdate($obj->datenextrun), 'dayhour');
+		$cronState .= ')</span>';
 		$db->free($resql);
+	} else {
+		$cronState = '<span class="warning">'.$langs->trans("WiseCronMissing").'</span>';
 	}
 
-	// Enrichment cron: shipped disabled (status=0), so it must be turned on in
-	// 首页 → 配置 → 计划任务 or credits stay NEW forever.
-
-		$cronState = '';
-		// Core matches cron jobs on label+entity (DolibarrModules::insert_cronjobs), so
-		// the label is the reliable key here; classesname is a fallback in case the
-		// job was renamed in the descriptor. Column names come from llx_cronjob:
-		// datenextrun / datelastrun (there is no date_next or last_maintenance).
-		$sql = 'SELECT c.status, c.datenextrun, c.datelastrun, c.nbrun FROM '.MAIN_DB_PREFIX.'cronjob c';
-		$sql .= ' WHERE c.entity = '.(int) $conf->entity;
-		$sql .= ' AND (c.label = \'Wise incoming payments enrichment\'';
-		$sql .= ' OR c.classesname = \'custom/slycustom/class/Wise_Incoming.class.php\')';
-		$resql = $db->query($sql);
-		$obj = $resql ? $db->fetch_object($resql) : null;
-		if ($obj) {
-			$cronEnabled = ((int) $obj->status === 1);
-			$cronState = '<span class="'.($cronEnabled ? 'opacitymedium' : 'warning').'">'
-				.$langs->trans("WiseCronState").': '.($cronEnabled ? $langs->trans("Enabled") : $langs->trans("Disabled"))
-				.'</span> <span class="opacitymedium">('.$langs->trans("WiseCronRuns").': '.(int) $obj->nbrun;
-			$cronState .= ' &mdash; '.$langs->trans("WiseCronLastRun").': ';
-			$cronState .= empty($obj->datelastrun) ? $langs->trans("Never") : dol_print_date($db->jdate($obj->datelastrun), 'dayhour');
-			$cronState .= ' &mdash; '.$langs->trans("WiseCronNextRun").': ';
-			$cronState .= empty($obj->datenextrun) ? '-' : dol_print_date($db->jdate($obj->datenextrun), 'dayhour');
-			$cronState .= ')</span>';
-			$db->free($resql);
-		} else {
-			$cronState = '<span class="warning">'.$langs->trans("WiseCronMissing").'</span>';
-		}
-
-	print '<tr class="oddeven"><td>'.($form->textwithpicto($langs->trans("WISE_EVENTS_STORED"), $langs->transnoentities("WISE_EVENTS_STOREDTooltip"))).'</td>';
-	print '<td>'.($eventTotal > 0
-		? $eventTotal.' <span class="opacitymedium">('.$langs->trans("WiseLastEvent").': '.dol_escape_htmltag($eventLast).')</span>'
-		: '<span class="warning">'.$langs->trans("WISE_EVENTS_NONE").'</span>').'</td></tr>';
-	print '<tr class="oddeven"><td>'.($form->textwithpicto($langs->trans("WISE_CRON_STATUS"), $langs->transnoentities("WISE_CRON_STATUSTooltip"))).'</td><td>'.$cronState.'</td></tr>';
+	print '<tr class="oddeven"><td>'.($form->textwithpicto($langs->trans("WISE_EMAIL_CRON_STATUS"), $langs->transnoentities("WISE_EMAIL_CRON_STATUSTooltip"))).'</td><td>'.$cronState.'</td></tr>';
 
 	// Diagnostic dumps written by webhook/wise.php (2.3.6+). This is the only
 	// evidence that survives when a delivery is dropped before ingestion.
@@ -1493,6 +1539,90 @@ if ($tab == 'wise') {
 	print '<input type="hidden" name="action" value="wise_save_signature_key">';
 	print '<input type="hidden" name="tab" value="wise">';
 	print '<input type="submit" class="butAction" value="'.$langs->trans("WISE_SAVE_SIGNATURE_KEY").'">';
+	print '</form>';
+	print '</div>';
+
+	// 2.5.0: Bank email collector IMAP form. Replaces the raw-SQL setup
+	// path that lived in APPLY-ON-24-2.5.0.md before. Single form, six
+	// fields, all saved via `update_bankemail` (entity=0, shared mailbox).
+	// Password field is intentionally pre-filled blank so the existing
+	// value is never echoed back to the browser.
+	$imapEnabled = (string) getDolGlobalString('SLYEMAIL_COLLECTOR_ENABLED') === '1' ? 1 : 0;
+	$imapHost = (string) getDolGlobalString('SLYEMAIL_IMAP_HOST');
+	$imapPort = (int) getDolGlobalString('SLYEMAIL_IMAP_PORT');
+	$imapUser = (string) getDolGlobalString('SLYEMAIL_IMAP_USER');
+	$imapFolder = (string) getDolGlobalString('SLYEMAIL_IMAP_FOLDER');
+	if ($imapPort <= 0) $imapPort = 993;
+	if ($imapFolder === '') $imapFolder = 'INBOX';
+	$hasImapExt = function_exists('imap_open');
+
+	print '<br><form method="POST" action="'.$_SERVER["PHP_SELF"].'">';
+	print '<input type="hidden" name="token" value="'.newToken().'">';
+	print '<input type="hidden" name="action" value="update_bankemail">';
+	print '<input type="hidden" name="tab" value="wise">';
+	print '<div class="div-table-responsive-no-min">';
+	print '<table class="noborder centpercent">';
+	print '<tr class="liste_titre"><td colspan="2">'
+		.$langs->trans("SLYCUSTOM_BANKEMAIL_SECTION")
+		.' <span class="opacitymedium">— '
+		.$langs->trans("SLYBankEmailCronHelp")
+		.'</span></td></tr>';
+
+	print '<tr class="oddeven"><td class="titlefield">'
+		.$form->textwithpicto($langs->trans("SLYBankEmailImapEnabled"), $langs->transnoentities("SLYBankEmailImapEnabledTooltip"))
+		.'</td>';
+	print '<td>'.$form->selectyesno('SLYEMAIL_COLLECTOR_ENABLED', $imapEnabled, 1).'</td></tr>';
+
+	print '<tr class="oddeven"><td class="titlefield">'
+		.$form->textwithpicto($langs->trans("SLYBankEmailImapHost"), $langs->transnoentities("SLYBankEmailImapHostTooltip"))
+		.'</td>';
+	print '<td><input type="text" name="SLYEMAIL_IMAP_HOST" class="flat minwidth300" value="'.dol_escape_htmltag($imapHost).'" placeholder="imap.example.com" autocomplete="off"></td></tr>';
+
+	print '<tr class="oddeven"><td class="titlefield">'
+		.$form->textwithpicto($langs->trans("SLYBankEmailImapPort"), $langs->transnoentities("SLYBankEmailImapPortTooltip"))
+		.'</td>';
+	print '<td><input type="number" name="SLYEMAIL_IMAP_PORT" class="flat" style="width:90px;" value="'.$imapPort.'" min="1" max="65535"></td></tr>';
+
+	print '<tr class="oddeven"><td class="titlefield">'
+		.$form->textwithpicto($langs->trans("SLYBankEmailImapUser"), $langs->transnoentities("SLYBankEmailImapUserTooltip"))
+		.'</td>';
+	print '<td><input type="text" name="SLYEMAIL_IMAP_USER" class="flat minwidth300" value="'.dol_escape_htmltag($imapUser).'" autocomplete="off"></td></tr>';
+
+	print '<tr class="oddeven"><td class="titlefield">'
+		.$form->textwithpicto($langs->trans("SLYBankEmailImapPass"), $langs->transnoentities("SLYBankEmailImapPassTooltip"))
+		.'</td>';
+	print '<td><input type="password" name="SLYEMAIL_IMAP_PASS" class="flat minwidth300" value="" placeholder="'.$langs->trans("SLYBankEmailImapPass").'" autocomplete="new-password"></td></tr>';
+
+	print '<tr class="oddeven"><td class="titlefield">'
+		.$form->textwithpicto($langs->trans("SLYBankEmailImapFolder"), $langs->transnoentities("SLYBankEmailImapFolderTooltip"))
+		.'</td>';
+	print '<td><input type="text" name="SLYEMAIL_IMAP_FOLDER" class="flat" style="width:160px;" value="'.dol_escape_htmltag($imapFolder).'" placeholder="INBOX" autocomplete="off"></td></tr>';
+
+	if (!$hasImapExt) {
+		print '<tr class="oddeven"><td colspan="2" class="warning">'
+			.$langs->trans("SLYBankEmailImapNoImap")
+			.'</td></tr>';
+	} elseif ($imapHost === '' || $imapUser === '') {
+		print '<tr class="oddeven"><td colspan="2" class="opacitymedium">'
+			.$langs->trans("SLYBankEmailImapMissing")
+			.'</td></tr>';
+	}
+
+	print '</table>';
+	print '<br><div class="center">';
+	print '<input class="button button-save" type="submit" value="'.$langs->trans("SLYBankEmailSave").'">';
+	print '</div>';
+	print '</form>';
+
+	// "Test pull now" form: hits the email_collector.php manual pull endpoint
+	// in the same window. The endpoint shows the result of the single pull
+	// (ok / rejected / error / skipped) inline.
+	print '<br><div class="tabsAction">';
+	print '<form method="GET" action="'.dol_buildpath('/custom/slycustom/wise/email_collector.php', 1).'" style="display:inline;">';
+	print '<input type="hidden" name="action" value="test_pull">';
+	print '<input type="hidden" name="token" value="'.newToken().'">';
+	print '<input type="hidden" name="tab" value="wise">';
+	print '<input type="submit" class="butAction'.($hasImapExt && $imapHost !== '' ? '' : ' butActionRefused').'" value="'.$langs->trans("SLYBankEmailImapTest").'"'.($hasImapExt && $imapHost !== '' ? '' : ' disabled').'>';
 	print '</form>';
 	print '</div>';
 }

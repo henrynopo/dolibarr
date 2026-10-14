@@ -51,7 +51,7 @@ class modSlyCustom extends DolibarrModules
 		$this->descriptionlong = 'SLYCustomDescriptionLong';
 		$this->editor_name = 'SLY';
 		$this->editor_url = '';
-		$this->version = '2.3.6';
+		$this->version = '2.5.0';
 		$this->const_name = 'MAIN_MODULE_'.strtoupper($this->name);
 		$this->picto = 'generic';
 
@@ -130,16 +130,15 @@ class modSlyCustom extends DolibarrModules
 			),
 			1 => array(
 				'entity' => 0,
-				'label' => 'Wise incoming payments enrichment',
+				'label' => 'Bank email collector pull',
 				'jobtype' => 'method',
-				'class' => 'custom/slycustom/class/Wise_Incoming.class.php',
-				'objectname' => 'WiseIncomingPayment',
-				'method' => 'enrichPendingCron',
-				// "<entity>,<rows per run>" — on multicompany clone the job per entity
-				'parameters' => '1,10',
-				'comment' => 'SLY Wise: pull statement details (reference/counterparty) for queued credits',
-				'frequency' => 1,
-				'unitfrequency' => 900, // every 15 min; DB is queried first, Wise API is hit only when NEW rows exist
+				'class' => 'custom/slycustom/class/slyemailcollector/EmailCollector.class.php',
+				'objectname' => 'EmailCollector',
+				'method' => 'pullCron',
+				'parameters' => '0', // 0 = all enabled entities; per-entity run is wired separately
+				'comment' => 'SLY Bank Email: IMAP-poll the configured mailbox and ingest credit notifications into the file-based inbox',
+				'frequency' => 5,
+				'unitfrequency' => 60, // every 5 min; IMAP is the cheap path
 				'status' => 0,
 				'test' => '$conf->slycustom->enabled',
 				'priority' => 51,
@@ -154,13 +153,23 @@ class modSlyCustom extends DolibarrModules
 		$this->rights[$r][5] = 'read';
 		$r++;
 		$this->rights[$r][0] = $this->numero.sprintf("%02d", $r + 1);
-		$this->rights[$r][1] = 'Wise incoming payment reconciliation';
+		$this->rights[$r][1] = 'Read bank email notification inbox (queue + dumps)';
 		$this->rights[$r][4] = 'wise';
 		$this->rights[$r][5] = 'read';
 		$r++;
 		$this->rights[$r][0] = $this->numero.sprintf("%02d", $r + 1);
-		$this->rights[$r][1] = 'Wise payment create and record (outgoing transfers)';
+		$this->rights[$r][1] = 'Mutate bank email notification inbox (ignore / enrich / dumps delete)';
 		$this->rights[$r][4] = 'wise';
+		$this->rights[$r][5] = 'write';
+		$r++;
+		$this->rights[$r][0] = $this->numero.sprintf("%02d", $r + 1);
+		$this->rights[$r][1] = 'Read bank email collector state (last pull + stats)';
+		$this->rights[$r][4] = 'email';
+		$this->rights[$r][5] = 'read';
+		$r++;
+		$this->rights[$r][0] = $this->numero.sprintf("%02d", $r + 1);
+		$this->rights[$r][1] = 'Mutate bank email collector (manual pull / IMAP config)';
+		$this->rights[$r][4] = 'email';
 		$this->rights[$r][5] = 'write';
 		$r++;
 
@@ -182,15 +191,15 @@ class modSlyCustom extends DolibarrModules
 			'user' => 2,
 		);
 		$r++;
-		// Tools → Wise reconcile (incoming payments queue)
+		// Tools → Bank email notification inbox (replaces the 2.4.2 "Wise" menu)
 		$this->menu[$r] = array(
 			'fk_menu' => 'fk_mainmenu=tools',
 			'type' => 'left',
-			'titre' => 'SLYWiseReconcile',
+			'titre' => 'SLYBankEmailInbox',
 			'prefix' => img_picto('', 'payment', 'class="paddingright pictofixedwidth valignmiddle"'),
 			'mainmenu' => 'tools',
-			'leftmenu' => 'sly_wise_reconcile',
-			'url' => '/custom/slycustom/wise/reconcile.php?mainmenu=tools&leftmenu=sly_wise_reconcile',
+			'leftmenu' => 'sly_bankemail_inbox',
+			'url' => '/custom/slycustom/wise/reconcile.php?mainmenu=tools&leftmenu=sly_bankemail_inbox',
 			'langs' => 'slycustom@slycustom',
 			'position' => 420,
 			'enabled' => '$conf->slycustom->enabled',
@@ -537,23 +546,11 @@ class modSlyCustom extends DolibarrModules
 			"INSERT INTO ".MAIN_DB_PREFIX."document_model (nom, type, entity) VALUES('sly_debitnote', 'invoice_supplier', ".((int) $conf->entity).")",
 			"DELETE FROM ".MAIN_DB_PREFIX."document_model WHERE nom = 'cornas_SLY' AND type = 'order_supplier' AND entity = ".((int) $conf->entity),
 			"INSERT INTO ".MAIN_DB_PREFIX."document_model (nom, type, entity) VALUES('cornas_SLY', 'order_supplier', ".((int) $conf->entity).")",
-			// Wise integration tables (idempotent; manual install file: sql/llx_slycustom_wise.sql)
-			"CREATE TABLE IF NOT EXISTS ".MAIN_DB_PREFIX."slycustom_wise_event ("
-				."rowid integer AUTO_INCREMENT PRIMARY KEY, entity integer NOT NULL DEFAULT 1,"
-				."event_type varchar(64) NOT NULL DEFAULT '', subscription_id varchar(64) NOT NULL DEFAULT '',"
-				."schema_version varchar(16) NOT NULL DEFAULT '', delivery_id varchar(64) NOT NULL DEFAULT '',"
-				."is_test tinyint DEFAULT 0, occurred_at datetime NULL, sent_at datetime NULL,"
-				."payload_md5 varchar(32) NOT NULL DEFAULT '', payload_json mediumtext,"
-				."processed tinyint DEFAULT 0, processing_note varchar(255) DEFAULT '', date_creation datetime,"
-				."UNIQUE KEY uk_payload (payload_md5)) ENGINE=innodb",
-			"CREATE TABLE IF NOT EXISTS ".MAIN_DB_PREFIX."slycustom_wise_incoming ("
-				."rowid integer AUTO_INCREMENT PRIMARY KEY, entity integer NOT NULL DEFAULT 1,"
-				."fk_event integer NULL, wise_balance_id bigint NULL, wise_profile_id bigint NULL, currency varchar(3) NOT NULL DEFAULT '',"
-				."amount double(24,8) DEFAULT 0, occurred_at datetime NULL, post_balance double(24,8) DEFAULT NULL,"
-				."status varchar(24) NOT NULL DEFAULT 'NEW', ref_text varchar(255) DEFAULT '',"
-				."counterparty varchar(255) DEFAULT '', fees double(24,8) DEFAULT NULL, match_data text,"
-				."fk_soc integer NULL, fk_paiement integer NULL, statement_txn_json mediumtext,"
-				."note_private text, date_creation datetime, tms timestamp, UNIQUE KEY uk_event (fk_event)) ENGINE=innodb",
+			// 2.5.0: only the outgoing-flow-A transfer table remains. The
+			// incoming-payments + event tables are gone (reconcile list is
+			// now a file-system view). The transfer table is required by
+			// Wise_Payment::recordSupplierPayment (writes
+			// fk_paiement_fourn when the Wise transfer hits SENT).
 			"CREATE TABLE IF NOT EXISTS ".MAIN_DB_PREFIX."slycustom_wise_transfer ("
 				."rowid integer AUTO_INCREMENT PRIMARY KEY, entity integer NOT NULL DEFAULT 1,"
 				."fk_facture_fourn integer NOT NULL, fk_user_creat integer NULL,"
@@ -586,18 +583,9 @@ class modSlyCustom extends DolibarrModules
 			array('sql' => "INSERT INTO ".MAIN_DB_PREFIX."overwrite_trans (lang, transkey, transvalue, entity) VALUES('en_SG', 'FormatDateHourTextShort', '%d/%m/%Y %H:%M', __ENTITY__)", 'ignoreerror' => 1),
 		);
 
-		// Column added after the table shipped: CREATE TABLE IF NOT EXISTS above
-		// never touches an existing table, so installations already carrying the
-		// Wise tables would otherwise miss it. Guarded on the column list so
-		// re-enabling the module stays idempotent.
-		$resql = $this->db->query("SHOW COLUMNS FROM ".MAIN_DB_PREFIX."slycustom_wise_incoming LIKE 'wise_profile_id'");
-		if ($resql) {
-			$objcol = $this->db->fetch_object($resql);
-			$this->db->free($resql);
-			if (!$objcol) {
-				$this->db->query("ALTER TABLE ".MAIN_DB_PREFIX."slycustom_wise_incoming ADD COLUMN wise_profile_id bigint NULL");
-			}
-		}
+		// 2.5.0: the wise_profile_id column guard for slycustom_wise_incoming
+		// is gone (the table is gone). No other column guards are needed in
+		// this version; any future migrations add their own blocks here.
 
 		$result = $this->_init($sql, $options);
 		if ($result) {
