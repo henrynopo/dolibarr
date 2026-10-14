@@ -115,7 +115,7 @@ docs/superpowers/
 .phan/output/
 
 # IDE backup files (e.g. "*-Henry's MacBook Air.php" from Sublime/VSCode)
-htdocs/webportal/class/*-*'s*
+htdocs/webportal/class/*-*.php
 
 # Agent-managed git worktrees
 .worktrees/
