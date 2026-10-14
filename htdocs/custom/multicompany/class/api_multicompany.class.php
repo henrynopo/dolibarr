@@ -27,6 +27,9 @@ dol_include_once('/multicompany/class/dao_multicompany.class.php', 'DaoMulticomp
  */
 class Multicompany extends DolibarrApi
 {
+    /** @var DoliDB Database handler (set in constructor) */
+    public $db;
+
     /**
      * @var array   $FIELDS     Mandatory fields, checked when create and update object
      */
