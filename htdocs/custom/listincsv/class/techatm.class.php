@@ -9,6 +9,8 @@ namespace listincsv;
 
 class TechATM
 {
+	/** @var array Data payload for technical updates */
+	public $data = array();
 
 	/**
 	 * @var DoliDb		Database handler (result of a new DoliDB)

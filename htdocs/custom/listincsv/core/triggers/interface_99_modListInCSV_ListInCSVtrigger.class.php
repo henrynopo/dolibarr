@@ -35,6 +35,11 @@
  */
 class InterfaceListInCSVtrigger
 {
+    public $name;
+    public $family;
+    public $description;
+    public $version;
+    public $picto;
 
     private $db;
 
