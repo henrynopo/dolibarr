@@ -5,6 +5,8 @@
  */
 class ActionsLangPicker
 {
+	/** @var string Output for list hooks (used by HookManager) */
+	public $resprints;
 	/**
 	 * Return default language from LangPicker order (position ASC).
 	 *
