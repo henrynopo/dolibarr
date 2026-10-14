@@ -2,6 +2,8 @@
 dol_include_once('/grh/db/nx_db.class.php');
 
 class salaire_user extends NX_db{
+	/** @var int Current entity (multicompany) */
+	public $entity;
 
 	/**
 	 * @var string Error code (or message)

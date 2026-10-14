@@ -3,6 +3,8 @@
 dol_include_once('/grh/db/nx_db.class.php');
 
 class pointage extends NX_db{
+	/** @var int Current entity (multicompany) */
+	public $entity;
 
 	/**
 	 * @var string Error code (or message)

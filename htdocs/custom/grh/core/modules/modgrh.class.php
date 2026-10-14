@@ -6,6 +6,8 @@ include_once DOL_DOCUMENT_ROOT .'/core/modules/DolibarrModules.class.php';
 
 /**
  *  Description and activation class for module MyModule
+ *
+ * @phan-forbid-undeclared-magic-properties
  */
 class modgrh extends DolibarrModules
 {
