@@ -103,8 +103,16 @@ phpstan_custom.neon
 .claude
 /.claudeignore
 
+# AI Agent rule files (local only, not pushed)
+/CLAUDE.md
+/.agents/AGENTS.md
+
 # Agent workflow artifacts (specs/plans), not product documentation
 docs/superpowers/
+
+# Phan static analysis outputs (local only)
+/scan-out.txt
+.phan/output/
 
 # Agent-managed git worktrees
 .worktrees/
