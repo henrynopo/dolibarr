@@ -97,9 +97,9 @@ $page->newOptionsTable();
 
 $page->addSwitchOption('AddToLoginPage', 'LANG_PICKER_ADD_TO_LOGIN_PAGE');
 
-if ($conf->global->LANG_PICKER_ADD_TO_LOGIN_PAGE)
+if (getDolGlobalString('LANG_PICKER_ADD_TO_LOGIN_PAGE', ''))
 {
-	$default_lang = $conf->global->LANG_PICKER_LOGIN_PAGE_DEFAULT_LANG;
+	$default_lang = getDolGlobalString('LANG_PICKER_LOGIN_PAGE_DEFAULT_LANG', '');
 
 	if (empty($default_lang)) {
 		$default_lang = 'en_US';

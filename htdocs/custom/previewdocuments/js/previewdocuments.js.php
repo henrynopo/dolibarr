@@ -17,7 +17,9 @@ if (! $res && file_exists("../../main.inc.php")) $res=@include("../../main.inc.p
 if (! $res && file_exists("../../../main.inc.php")) $res=@include("../../../main.inc.php"); // For "custom" 
 
 // Ensure $customtxt is always defined, even if optional logic below is commented out
-$customtxt = '';
+if (!isset($customtxt)) {
+	$customtxt = '';
+}
 
 $langs->load('previewdocuments@previewdocuments');
 top_httphead('text/javascript; charset=UTF-8');
@@ -375,9 +377,9 @@ function previewdocuments_pop(filename, extention=null, urldoc=null) {
 
 	?>
 
-	// $('#previewdocuments iframe').attr('src', '<div style="text-align:center;"><?php echo DOL_MAIN_URL_ROOT.$customtxt; ?>/previewdocuments/img/loading.gif</div>');
+	// $('#previewdocuments iframe').attr('src', '<div style="text-align:center;"><?php echo DOL_MAIN_URL_ROOT.(isset($customtxt) ? $customtxt : ''); ?>/previewdocuments/img/loading.gif</div>');
 
-	// $('div#previewdocuments').css({"background":"url(<?php echo DOL_MAIN_URL_ROOT.$customtxt; ?>/previewdocuments/img/loading.gif) center center no-repeat"});
+	// $('div#previewdocuments').css({"background":"url(<?php echo DOL_MAIN_URL_ROOT.(isset($customtxt) ? $customtxt : ''); ?>/previewdocuments/img/loading.gif) center center no-repeat"});
 
 	var data = {
 
@@ -410,7 +412,7 @@ function previewdocuments_pop(filename, extention=null, urldoc=null) {
 
 				}
 
-				// $('div#previewdocuments').css({"background":"url(<?php echo DOL_MAIN_URL_ROOT.$customtxt; ?>/previewdocuments/img/loading.gif) center center no-repeat"});
+				// $('div#previewdocuments').css({"background":"url(<?php echo DOL_MAIN_URL_ROOT.(isset($customtxt) ? $customtxt : ''); ?>/previewdocuments/img/loading.gif) center center no-repeat"});
 
 				// console.log("new link : "+found);
 

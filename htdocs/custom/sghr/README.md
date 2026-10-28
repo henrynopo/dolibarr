@@ -59,3 +59,31 @@ Payslip working-day count and public-holiday OT (2.0×) use **Dolibarr’s Publi
 
 - Module version: 1.6
 - Declared minimum Dolibarr version via `need_dolibarr_version` in `core/modules/modSGPayroll.class.php`.
+
+## Fixes (2026-10-28)
+
+- **Payslip approval no longer fails with an empty "Approval failed" message.**
+  Root cause: the payroll -> accounting trigger posted its journal lines with
+  `doc_type='sghr'`, `fk_doc=0` and an empty `label_operation`. Those three fields
+  form the duplicate-detection key of `BookKeeping::create()`, so any two lines
+  sharing a GL account (gross salary + employer CPF on the salary account,
+  employee + employer CPF on the CPF account) were refused as duplicates and the
+  whole approval was rolled back. The trigger now posts with `fk_doc` = payslip
+  line id and `label_operation` = entry label, so every line of every payslip is
+  accepted (re-approval of an already posted payslip is detected and skipped).
+- **Accounting failures no longer block a payroll approval.** A closed / missing
+  fiscal period or a chart-of-accounts problem is a finance issue: it is now
+  logged (`LOG_ERR`) and shown as a warning, while the payslip still gets approved.
+  Entry date falls back to today when the payroll month is not on an active
+  fiscal period.
+- **Error messages are no longer empty.** `SghrRecord::saveStatus()` now reports
+  the trigger/SQL error instead of the (usually empty) DB error, and the page uses
+  the `PayslipApproveFailed` / `PayslipUnapproveFailed` language keys.
+- New dry-run: `php htdocs/custom/sghr/test/test_accounting_keys.php` replays the
+  journal key computation and shows the old/new collision behaviour.
+- **Deployment:** the fix only touches files of this module (no core file), so it is
+  deployed by uploading the changed files:
+  `class/payrollrecord.class.php`, `core/triggers/interface_99_modSghr_AccountingHook.class.php`,
+  `payslip_card.php`, `langs/en_US/sghr.lang`, `langs/zh_CN/sghr.lang`
+  (plus the new `test/test_accounting_keys.php` dry-run). The module is
+  self-contained: it does not require the `slycustom` module to be installed.

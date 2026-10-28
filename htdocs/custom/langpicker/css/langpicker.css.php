@@ -11,7 +11,7 @@ if (false === (@include '../../main.inc.php')) {  // From htdocs directory
 
 global $langs, $user, $conf;
 
-$default_lang = (isset($user->conf->MAIN_LANG_DEFAULT) ? $user->conf->MAIN_LANG_DEFAULT : $conf->global->MAIN_LANG_DEFAULT);
+$default_lang = (isset($user->conf->MAIN_LANG_DEFAULT) ? $user->conf->MAIN_LANG_DEFAULT : getDolGlobalString('MAIN_LANG_DEFAULT', ''));
 
 $position = 130; // Legacy "pixel position" setting removed in Dolibarr 22-compatible layout
 

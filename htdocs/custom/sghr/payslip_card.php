@@ -323,7 +323,7 @@ if ($action === 'approve' && $user->hasRight('sghr', 'payroll', 'approve') && $i
 		}
 	} else {
 		$db->rollback();
-		setEventMessages('Approval failed: '.$payLine->error, null, 'errors');
+		setEventMessages($langs->trans('PayslipApproveFailed').($payLine->error ? ': '.$payLine->error : ''), null, 'errors');
 	}
 	header('Location: payslip_card.php?id='.$id);
 	exit;
@@ -423,7 +423,10 @@ if ($action === 'unapprove' && $user->hasRight('sghr', 'payroll', 'approve') && 
 	if ($res >= 0) {
 		$db->commit();
 		setEventMessages($langs->trans('PayslipUnapproved'), null, 'mesgs');
-	} else $db->rollback();
+	} else {
+		$db->rollback();
+		setEventMessages($langs->trans('PayslipUnapproveFailed').($payLine->error ? ': '.$payLine->error : ''), null, 'errors');
+	}
 	header('Location: payslip_card.php?id='.$id); exit;
 }
 

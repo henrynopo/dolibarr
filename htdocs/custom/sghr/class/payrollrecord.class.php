@@ -173,10 +173,16 @@ class SghrRecord extends CommonObject
 		$sql = "UPDATE ".MAIN_DB_PREFIX."sgpayroll_payroll_line SET status='".$this->db->escape($this->status)."'";
 		$sql .= ", tms=NOW() WHERE rowid=".(int)$this->id;
 		$res = $this->db->query($sql);
+		if (!$res) {
+			// Keep the SQL error: without it the page would show a blank "Approval failed".
+			$this->error = $this->db->lasterror();
+			return -1;
+		}
 		if ($res && $this->status === 'approved') {
 			$res_trigger = $this->call_trigger('SGHR_PAYROLLLINE_APPROVED', $user);
 			if ($res_trigger < 0) {
-				$this->error = $this->db->lasterror();
+				// Trigger messages are far more precise than the (usually empty) DB error.
+				$this->error = !empty($this->errors) ? implode(' | ', $this->errors) : $this->db->lasterror();
 				$res = -1;
 			}
 		}
@@ -185,7 +191,7 @@ class SghrRecord extends CommonObject
 		if ($res >= 0 && $this->status === 'draft') {
 			$res_trigger = $this->call_trigger('SGHR_PAYROLLLINE_UNAPPROVED', $user);
 			if ($res_trigger < 0) {
-				$this->error = $this->db->lasterror();
+				$this->error = !empty($this->errors) ? implode(' | ', $this->errors) : $this->db->lasterror();
 				$res = -1;
 			}
 		}

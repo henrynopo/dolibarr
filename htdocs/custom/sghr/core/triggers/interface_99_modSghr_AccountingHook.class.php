@@ -55,6 +55,8 @@ class InterfaceAccountingHook extends DolibarrTriggers
 		// Only act on our custom events
 		if ($action !== 'SGHR_PAYROLLLINE_APPROVED' && $action !== 'SGHR_PAYROLLLINE_UNAPPROVED') return 0;
 
+		$langs->load('sghr@sghr');
+
 		// ── Payroll line values (used by accounting, Salary sync and PDF) ───────
 		$gross        = (float)($object->gross_salary    ?? 0);
 		$empCpf       = (float)($object->employee_cpf    ?? 0);
@@ -71,18 +73,18 @@ class InterfaceAccountingHook extends DolibarrTriggers
 			return $this->syncCpfLeviesSociales($object, $user);
 		}
 
-		$error = 0;
-
 		// ── 1. Accounting: post journal entries (only if accounting module enabled) ─
+		// Accounting never blocks a payroll approval: a closed fiscal period or a chart of
+		// accounts problem is a finance issue, not a payroll one. Failures are logged (LOG_ERR)
+		// and pushed to the user as a warning; the payslip still gets approved.
 		if (!empty($conf->accounting->enabled)) {
 			require_once DOL_DOCUMENT_ROOT.'/accountancy/class/accountingjournal.class.php';
 			require_once DOL_DOCUMENT_ROOT.'/accountancy/class/bookkeeping.class.php';
 
-			$glSalary    = getDolGlobalString('SGHR_GL_SALARY');
-			$glCpfEmplyee= getDolGlobalString('SGHR_GL_CPF_PAYABLE') ?: getDolGlobalString('SGHR_GL_CPF_PAYABLE');
-			$glCpfEr     = getDolGlobalString('SGHR_GL_CPF_PAYABLE');
-			$glSdl       = getDolGlobalString('SGHR_GL_SDL_PAYABLE');
-			$glBank      = getDolGlobalString('SGHR_GL_BANK');
+			$glSalary = getDolGlobalString('SGHR_GL_SALARY');
+			$glCpf    = getDolGlobalString('SGHR_GL_CPF_PAYABLE');
+			$glSdl    = getDolGlobalString('SGHR_GL_SDL_PAYABLE');
+			$glBank   = getDolGlobalString('SGHR_GL_BANK');
 
 			if ($glSalary && $glBank) {
 				$entries = array();
@@ -90,47 +92,73 @@ class InterfaceAccountingHook extends DolibarrTriggers
 					$entries[] = array($glSalary, 'Salary '.$payRef.' - '.sgpayroll_format_employee_name($object->firstname, $object->lastname), $gross, 0);
 				}
 				if ($empCpf > 0) {
-					$entries[] = array($glCpfEmplyee, 'CPF Employee '.$payRef, 0, $empCpf);
+					$entries[] = array($glCpf, 'CPF Employee '.$payRef, 0, $empCpf);
 				}
 				if ($erCpf > 0) {
 					$entries[] = array($glSalary, 'Employer CPF '.$payRef, $erCpf, 0);
-					$entries[] = array($glCpfEr,  'CPF Employer '.$payRef, 0, $erCpf);
+					$entries[] = array($glCpf,    'CPF Employer '.$payRef, 0, $erCpf);
 				}
 				if ($sdl > 0 && $glSdl) {
 					$entries[] = array($glSalary, 'SDL '.$payRef, $sdl, 0);
-					$entries[] = array($glSdl,   'SDL Payable '.$payRef, 0, $sdl);
+					$entries[] = array($glSdl,    'SDL Payable '.$payRef, 0, $sdl);
 				}
 				if ($netPay > 0) {
 					$entries[] = array($glBank, 'Net Salary '.$payRef, 0, $netPay);
 				}
 
-				foreach ($entries as $e) {
-					list($acct, $label, $debit, $credit) = $e;
-					$bk = new BookKeeping($this->db);
-					$bk->doc_date            = $docDateTs;
-					$bk->doc_ref             = $payRef;
-					$bk->doc_type            = 'sghr';
-					$bk->numero_compte       = $acct;
-					$bk->label_compte        = $label;
-					$bk->debit               = $debit;
-					$bk->credit              = $credit;
-					$bk->montant             = $debit > 0 ? $debit : -$credit;
-					$bk->sens                = $debit > 0 ? 'D' : 'C';
-					$bk->fk_user_author      = $user->id;
-					$bk->entity              = $conf->entity;
+				// Entry date: end of the payroll month, falling back to today when that date is
+				// not on an active fiscal period (Dolibarr refuses to post on a closed period).
+				$bkDate  = $docDateTs;
+				$bkCheck = new BookKeeping($this->db);
+				$dateOk  = method_exists($bkCheck, 'validBookkeepingDate') ? $bkCheck->validBookkeepingDate($bkDate) : 1;
+				if ($dateOk === 0) {
+					$bkDate = dol_now();
+					$dateOk = method_exists($bkCheck, 'validBookkeepingDate') ? $bkCheck->validBookkeepingDate($bkDate) : 1;
+				}
 
-					if ($bk->create($user) < 0) {
-						$this->errors = array_merge($this->errors, $bk->errors);
-						$error++;
-						break;
+				if ($dateOk !== 1) {
+					$msg = 'SGPayroll: no active accounting fiscal period - journal entries for '.$payRef.' skipped';
+					dol_syslog($msg, LOG_ERR);
+					$this->pushUserWarning($langs, $msg);
+				} else {
+					foreach ($entries as $e) {
+						list($acct, $label, $debit, $credit) = $e;
+						$bk = new BookKeeping($this->db);
+						$bk->doc_date            = $bkDate;
+						$bk->doc_ref             = $payRef;
+						$bk->doc_type            = 'sghr';
+						// fk_doc + label_operation are part of the duplicate detection key of
+						// BookKeeping::create(). Without them, every line sharing a GL account is
+						// seen as a duplicate of the previous one and the whole posting fails.
+						$bk->fk_doc              = (int) $object->id;
+						$bk->label_operation     = $label;
+						$bk->numero_compte       = $acct;
+						$bk->label_compte        = $label;
+						$bk->debit               = $debit;
+						$bk->credit              = $credit;
+						$bk->montant             = $debit > 0 ? $debit : -$credit;
+						$bk->sens                = $debit > 0 ? 'D' : 'C';
+						$bk->fk_user_author      = $user->id;
+						$bk->entity              = $conf->entity;
+
+						if ($bk->create($user) < 0) {
+							if ($bk->error === 'BookkeepingRecordAlreadyExists') {
+								// Already posted (re-approval of the same payslip): nothing to do.
+								continue;
+							}
+							$errs = !empty($bk->errors) ? $bk->errors : array($bk->error ?: 'unknown error');
+							$msg  = 'SGPayroll: journal entry failed for '.$payRef.' ('.$label.'): '.implode(' | ', $errs);
+							dol_syslog($msg, LOG_ERR);
+							$this->errors = array_merge($this->errors, $errs);
+							$this->pushUserWarning($langs, $msg);
+							break;
+						}
 					}
 				}
 			} else {
 				dol_syslog('SGPayroll: GL accounts not configured – skipping journal entry.', LOG_WARNING);
 			}
 		}
-
-		if ($error) return -1;
 
 		// ── 2. Sync to Core Salary Module (Finance) ─────────────────────────
 		// So finance can pay salaries from Salaries -> Salary Payments (Finance)
@@ -242,6 +270,20 @@ class InterfaceAccountingHook extends DolibarrTriggers
 
 		// $this->db->commit(); // Removed - handled by caller
 		return 1;
+	}
+
+	/**
+	 * Push a warning message into the user message stack.
+	 * The caller usually ends with a redirect, so the message is shown on the next page load.
+	 *
+	 * @param	string	$msg	Message to display
+	 * @return	void
+	 */
+	private function pushUserWarning($langs, $msg)
+	{
+		if (function_exists('setEventMessages')) {
+			setEventMessages($langs->trans('PayslipApproveAccountingFailed', $msg), null, 'warnings');
+		}
 	}
 
 	/**

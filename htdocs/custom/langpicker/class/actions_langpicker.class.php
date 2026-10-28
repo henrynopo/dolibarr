@@ -98,7 +98,7 @@ class ActionsLangPicker
 
 		$error = 0; // Error counter
 
-		if (in_array('login', explode(':', $parameters['context'])) && $conf->global->LANG_PICKER_ADD_TO_LOGIN_PAGE)
+		if (in_array('login', explode(':', $parameters['context'])) && getDolGlobalString('LANG_PICKER_ADD_TO_LOGIN_PAGE', ''))
 		{
 			require_once DOL_DOCUMENT_ROOT.'/core/lib/functions2.lib.php';
 
@@ -150,7 +150,7 @@ class ActionsLangPicker
 
 		$error = 0; // Error counter
 
-		if (in_array('mainloginpage', explode(':', $parameters['context'])) && $conf->global->LANG_PICKER_ADD_TO_LOGIN_PAGE)
+		if (in_array('mainloginpage', explode(':', $parameters['context'])) && getDolGlobalString('LANG_PICKER_ADD_TO_LOGIN_PAGE', ''))
 		{
 			require_once DOL_DOCUMENT_ROOT.'/core/class/html.formadmin.class.php';
 
@@ -217,7 +217,7 @@ class ActionsLangPicker
 			$langpicker->fetchAll(0, 0, 't.position', 'ASC');
 
 			// Add language picker
-			$default_lang = (isset($user->conf->MAIN_LANG_DEFAULT) ? $user->conf->MAIN_LANG_DEFAULT : $conf->global->MAIN_LANG_DEFAULT);
+			$default_lang = (isset($user->conf->MAIN_LANG_DEFAULT) ? $user->conf->MAIN_LANG_DEFAULT : getDolGlobalString('MAIN_LANG_DEFAULT', ''));
 			$default_lang_picto = picto_from_langcode($default_lang);
 			$default_lang_code = explode('_', $default_lang);
 			$default_lang_abbr = strtoupper($default_lang_code[0]);
