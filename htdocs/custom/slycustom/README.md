@@ -49,6 +49,23 @@
 - **排查"没有推送"（无 SSH 的 cPanel 也能做）**：设置页 Wise 标签底部有诊断面板 + 「运行 webhook 自检」。面板直接显示事件入库数、明细补全计划任务状态、诊断 dump 文件数与最新文件、**被白名单拒绝的投递数**、日志文件可读性；自检按钮从服务器 POST 一个假 body 到接收端，按 200/403/404/5xx/超时给出对应方向。页面上还有四步指引。**一个 Wise 账号可以同时持有多套 profile**（按币种、按地区），推送报文里的 `profile_id` 每笔可能不同；收款行会记下自己那笔的 `wise_profile_id`（`llx_slycustom_wise_incoming`），补明细按它调用对账单 API——balance id 只在所属 profile 下有效，用错 profile 查不到流水，补明细会一直停在 `NEW`。
 - 多公司：配置常量按实体保存，webhook 按 payload 的 profile_id 路由实体；多币种：外币收款走原币通道，本币收外币发票走本币+发票汇率通道。
 
+### 6. Search Order 多维度单据检索
+
+入口：**工具 → Search Order**（`custom/slycustom/orderstatus.php`）。检索下拉框可切换 5 种单据号码，**任何一种入口检索出来的内容完全一致**（同一套销售订单卡片 + 采购订单卡片 + 关联文件 + Related Objects + Shipment 表）：
+
+| 检索类型 | 匹配字段 | 解析链路 |
+| --- | --- | --- |
+| 销售订单（SO） | `llx_commande.ref` | 直接命中 |
+| 采购订单（PO） | `llx_commande_fournisseur.ref` / `ref_supplier` | PO → SO |
+| 销售发票 | `llx_facture.ref` | 发票 → SO |
+| 采购发票 | `llx_facture_fourn.ref` / `ref_supplier` | 采购发票 → PO → SO（两跳） |
+| 发货单（Shipment） | `llx_expedition.ref` / `tracking_number` | Shipment → SO（并以 `expeditiondet` 行项目关联兜底） |
+
+- **业务逻辑全部在类里**（`class/SlycustomOrderSearch.class.php`），视图层只负责渲染；外部脚本 / AI Agent 可直接 `new SlycustomOrderSearch($db, $user)` 调用 `searchPrimaries()` / `resolveOrders()` / `canReadType()` 等方法取得结构化结果。
+- **权限分级**：下拉框只列出当前用户有权读取的类型；销售订单卡片需 `commande.lire`，采购订单卡片需 PO 读取权，Shipment 表需 `expedition.lire`；Related Objects 按类型逐类过滤（核心 `fetchObjectLinked()` 本身不按权限过滤）。
+- **类型标签统一**：Related Objects 的 "Type" 列由 `SlycustomOrderSearch::getLinkedTypeLabel()` 统一映射（`shipping`→Shipment、`facture`→Customer Invoice、`order_supplier`→Supplier Order、`invoice_supplier`→Supplier Invoice…），SO 卡片与 PO 卡片显示一致，不会漏出英文小写的内部 element 名。
+- **多公司**：所有查询强制带 `entity` 过滤；外部第三方用户（`socid` 非空）额外按 `fk_soc` 限制在其名下单据。
+
 ## 22.0 部署说明（策略 B 移植，零 core 补丁）
 
 若部署在**官方 Dolibarr 22.0.x** 上，本模块采用**零 core 补丁**方式：
@@ -75,6 +92,7 @@ custom/slycustom/
 │   ├── actions_slycustom.class.php + Actions*Trait.php   # 全部界面 hooks
 │   ├── ShipsGo_API / ShipsGo_Update                       # ShipsGo 客户端与回写
 │   ├── Wise_API / Wise_Incoming                           # Wise 客户端 / 收款队列+匹配+入账
+│   ├── SlycustomOrderSearch.class.php                      # Search Order 多维度单据检索（SO/PO/发票/Shipment）
 │   └── SLY_AccountingDate.class.php
 ├── core/
 │   ├── modules/modSlyCustom.class.php       # 模块描述符（cron：ShipsGo 同步、Wise 明细补全）
@@ -98,8 +116,9 @@ custom/slycustom/
 
 ## 版本
 
-- 模块版本：**2.3.6**（变更明细见 **ChangeLog.md**）
+- 模块版本：**2.6.0**（变更明细见 **ChangeLog.md**）
 - 针对 Dolibarr：**24.0**（主力）
+- 2.6.0：Search Order 页新增 4 种检索入口（PO / 销售发票 / 采购发票 / Shipment），业务逻辑抽到 `SlycustomOrderSearch` 类，输出与按 SO 检索时一致；新增按权限分级渲染与 Related Objects 权限过滤；附离线 dry-run 测试。
 - 2.3.6：修 Wise webhook bootstrap 模式空转——无验签公钥时改为按 `WISE_WEBHOOK_IPCHECK` 决定是否入库（业务 token 订阅 API 返回 403，公钥取不到，白名单是唯一通道）；补明细改用收款行自己的 `profile_id`（新增 `wise_profile_id` 列），修"一个账号多套 profile 时对账单永远查不到流水"；被白名单拒绝的投递也会留下证据（dump 分 `accepted/`、`rejected/` 两桶，诊断面板显示拒绝计数）；白名单放宽到实测在用的 AWS `/16`。设置页含 webhook 诊断面板与自检按钮。
 - 2.3.5：shipment extrafield 日期默认值取当天。
 - 2.1.0：新增 Wise 付款准备（未注资转账 + Vendor Order reference + 状态回写自动记供应商付款）。

@@ -2,6 +2,42 @@
 
 本文件仅记录 SLY Custom 模块自身的增删改查。**严禁**修改 Dolibarr 上游目录下的 `ChangeLog`。
 
+## 2.6.0
+
+### Search Order 页支持多维度单据检索（PO / 销售发票 / 采购发票 / Shipment）
+
+原 `orderstatus.php`（工具 → Search Order）只能按 **销售订单号（SO）** 检索。本轮把入口扩展到 5 种单据号码，**检索结果内容完全一致**（同一套 SO 卡片 + PO 卡片 + 关联文件 + Related Objects + Shipment 表）。
+
+**新增业务逻辑类**（[class/SlycustomOrderSearch.class.php](custom/slycustom/class/SlycustomOrderSearch.class.php)）：把全部检索与解析逻辑从视图层剥离到模型类，外部脚本 / AI Agent 可直接实例化调用。
+
+- **防直接访问守卫**：本核心版本（24.0.1）已废弃 `ISLOADEDBYDOLIBARR` 约定（整个代码树中该常量已不存在，核心类文件也一律没有此守卫），因此类的防直访判定改用 `defined('DOL_DOCUMENT_ROOT')`——沿用核心 `filefunc.inc.php` / `install/inc.php` 的现行写法。**若沿用 `ISLOADEDBYDOLIBARR`，该守卫会恒为真，页面直接 `die` 输出 "This file must be included by a Dolibarr script"。**
+
+- 检索类型常量：`TYPE_SO` / `TYPE_PO` / `TYPE_INVOICE` / `TYPE_SUPPLIER_INVOICE` / `TYPE_SHIPMENT`。
+- `searchPrimaries($type, $ref)`：按号码模糊匹配主表（PO 同时匹配系统号与供应商单号 `ref_supplier`；Shipment 同时匹配 `ref` 与 `tracking_number`），全部查询强制带 `entity` 过滤（multicompany）；外部第三方用户（`socid` 非空）强制按 `fk_soc` 过滤。
+- `resolveOrders($type, $primaries)`：把命中的主单据**统一解析回销售订单**，之后一律复用原 SO 渲染逻辑，因此输出与按 SO 检索时逐字一致。关联关系全部走 `llx_element_element`，且**同时兼容两个存储方向**（A 为 source / A 为 target，用 UNION 实现），并兼容历史遗留 element 别名（`facture_fourn` ↔ `invoice_supplier`）。
+  - PO → SO：`order_supplier` ↔ `commande`
+  - 销售发票 → SO：`facture` ↔ `commande`
+  - 采购发票 → PO → SO：`invoice_supplier`/`facture_fourn` ↔ `order_supplier` → `commande`（两跳）
+  - Shipment → SO：`shipping` ↔ `commande`，并以 `expeditiondet` → `commandedet` 行项目关联作**兜底**（部分发货单未写 element_element）
+- `canReadType($user, $type)`：检索类型 → Dolibarr 模块权限映射（`commande.lire` / `fournisseur.commande.lire` 或 `supplier_order.lire` / `facture.lire` / `fournisseur.facture.lire` 或 `supplier_invoice.lire` / `expedition.lire`）。
+- `filterLinkedObjectsForUser($linkedObjects, $user)`：核心 `fetchObjectLinked()` **不按权限过滤**关联对象，此方法按 element 类型逐类剔除无权查看的类型，避免只有销售订单读取权的用户看到发票 / 采购订单 / 发货单的号码与金额。
+- `fetchThirdPartyNames()` / `fetchShipments()`：批量读取第三方名称与发货单（含 `expedition_extrafields` 的 POL/POD/ATA/ATD/ETD/ETA），**严禁循环内查询**。
+- 发货单状态标签**直接复用核心 `Expedition::LibStatut()`**（含 signed_status 处理，与核心发货单页面一致）；shipping 模块不可用时按核心映射（1→status4 / 2→status6 / -1→status9）降级生成，保证离线自测可跑。
+- **关联对象类型标签统一**（`SlycustomOrderSearch::getLinkedTypeLabel()`）：核心 `fetchObjectLinked()` 返回的 `linkedObjects` 以 element 类型串为键（`shipping` / `commande` / `facture` ...），直接输出会是英文小写内部名。销售订单卡片与采购订单卡片原各写一份映射，导致 **PO 卡片下显示 "shipping" 而 SO 卡片显示 "Shipment"**；现统一到类中，两处显示一致。
+- **解析结果按 SO id 去重**：同一个主单据可能经**多条关联路径**解析到同一张 SO —— Shipment 既写入了 `element_element`、又有 `expeditiondet` 行项目关联；采购发票的两个 PO 也可能指向同一张 SO。合并两条路径的结果时未去重，会导致候选列表里**同一个单据被列成多行**（实测：只关联 1 个 SO 的 Shipment 显示 2 行相同记录）。现已在 `resolveOrders()` 汇总后统一按 SO id 去重（保持首次出现顺序）。
+
+**页面改造**（[orderstatus.php](custom/slycustom/orderstatus.php)）：
+
+- 检索表单加 "检索类型" 下拉框，**只列出当前用户有权读取的类型**（权限不足的类型不出现）。
+- 多结果时列出候选表（类型 / 单号 / 关联销售订单 / 第三方 / 选择），点击后带 `so_id` + `sel_id` 回跳。
+- 沿用原 IDOR 防护：`so_id` 只在**已按 entity + socid 过滤**的候选集内取值，否则回退到首个结果，杜绝跨实体越权读取。
+- **权限分级渲染**：销售订单卡片（基本信息 / 关联文件 / Related Objects）需 `commande.lire`；采购订单卡片需 PO 读取权；Shipment 表需 `expedition.lire`；Related Objects 按上表逐类过滤。页面入口要求至少具备 5 种读取权之一，否则 `accessforbidden()`。
+- 输出顶部增加"命中单据 → 关联销售订单"提示行，便于确认本次检索命中的是哪张单据。
+
+**lang 增改**：[langs/{en_US,zh_CN}/slycustom.lang](custom/slycustom/langs/) 新增 `MultipleDocumentsFound` / `SearchType` / `SearchRefSO` / `SearchRefPO` / `SearchRefInvoice` / `SearchRefSupplierInvoice` / `SearchRefShipment` / `RelatedSalesOrder` / `MatchedDocument`。
+
+**模块版本** `2.5.0` → `2.6.0`。
+
 ## 2.5.1
 
 ### 收件箱列表加 Match chip（一键跳银行行卡片）
