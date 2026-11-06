@@ -140,7 +140,9 @@ Entity mapping: Dolibarr entity 1 ↔ Odoo company ID 1 (SLY Food Pte. Ltd.), fi
   - **core/triggers/interface_99_modOdooConnector_OdooConnector.class.php**: event entry
     points — validate pushes (`BILL_VALIDATE` / `BILL_SUPPLIER_VALIDATE` →
     `OdooSync::syncDocumentNow`), reopen resets (`BILL_UNVALIDATE` /
-    `BILL_SUPPLIER_UNVALIDATE` → `OdooSync::syncDocumentUnvalidate`).
+    `BILL_SUPPLIER_UNVALIDATE` → `OdooSync::syncDocumentUnvalidate`), expense report
+    submissions/approvals (`EXPENSE_REPORT_VALIDATE` / `EXPENSE_REPORT_APPROVE` →
+    `OdooSync::syncExpenseNow`).
   - **class/OdooConnector.class.php**: Odoo **JSON-RPC client** (authenticate, execute_kw,
     searchRead, create, write, unlink).
   - **class/OdooSync.class.php**: Sync logic (event handlers above + `runSync` for cron /
@@ -148,7 +150,11 @@ Entity mapping: Dolibarr entity 1 ↔ Odoo company ID 1 (SLY Food Pte. Ltd.), fi
   - **admin/setup.php**: Configuration and the sync failure log.
   - **Cron (optional)**: `OdooSync::runSync()` every hour (retry/fallback) and
     `OdooSync::runShipmentDateSync()` (required when the accounting date follows shipment
-    ATA/ETA, since those updates fire no invoice event).
+    ATA/ETA, since those updates fire no invoice event). Both jobs are created with
+    `status = 1`; **the rows already present in `llx_cronjob` are never updated by
+    `insert_cronjobs()`** (it only dedups on label+entity), so an existing installation must
+    enable them in *Home → Setup → Cron jobs*, or run the job on demand from the module
+    setup page ("Refresh shipment dates now" / "Sync now").
 
 ### 3.2 Config (stored in Dolibarr const or conf)
 
@@ -162,8 +168,40 @@ Entity mapping: Dolibarr entity 1 ↔ Odoo company ID 1 (SLY Food Pte. Ltd.), fi
 - `ODOO_CONNECTOR_SYNC_INVOICES` (yes/no)
 - `ODOO_CONNECTOR_SYNC_SUPPLIER_BILLS` (yes/no)
 - `ODOO_CONNECTOR_SYNC_EXPENSES` (yes/no)
+- `ODOO_CONNECTOR_ACCOUNTING_DATE_SOURCE` (`invoice_date` | `due_date` | `delivery_reception`)
+- `ODOO_CONNECTOR_DELIVERY_DATE_FIELD` / `ODOO_CONNECTOR_DELIVERY_DATE_FIELD_CUSTOM`
+  (shipment extrafields column used as ATA/ETA: `ata`, `eta`, `atd`, `etd`, `updatedtime`,
+  `other` + custom column)
+- `ODOO_CONNECTOR_SYNC_SHIPMENT_DATES` (yes/no, default 1) — shipment date refresh cron
+- `ODOO_CONNECTOR_SHIPMENT_DATE_SCAN_HOURS` (lookback window, default 25)
+- `ODOO_CONNECTOR_SHIPMENT_DATE_UPDATE_POSTED` (yes/no, default 1) — the shipment date
+  refresh may reset a **posted** Odoo entry to draft (`button_draft`), write the new
+  accounting date and flag it To Review (same policy as the main sync on a Dolibarr change)
+- `ODOO_CONNECTOR_DUE_DATE_RULE` (`ata_offset` | `accounting_date` | `ata_then_eta` | `none`,
+  default `ata_offset`) — how the Odoo due date (`account.move.invoice_date_due`) is computed:
+  ATA minus N days (default 10, fallback on the accounting date when the shipment has no
+  ATA), the accounting date, ATA then ETA (historical), or never written.
+- `ODOO_CONNECTOR_DUE_DATE_OFFSET_DAYS` (number of days, default 10) — the "N days" of the
+  `ata_offset` rule.
 
-### 3.3 Mapping table (optional but recommended)
+### 3.3 Run lock (anti-duplicate)
+
+All connector runs are serialized by an exclusive `flock()` lock stored in
+`DOL_DATA_DIR/odooconnector/sync_lock_e<entity>.lock` (one lock per entity).
+
+The duplicate guard of section 4.2 (adopt an existing Odoo move found by ref) only applies
+when the document has **no mapping row yet**. Without the lock, a cron run, the manual
+"Sync now" button and the "validate" trigger could handle the same not-yet-pushed document
+at the same time, each creating its own Odoo draft.
+
+- Cron runs skip immediately when the lock is held (`another run (…) is in progress`).
+- Manual buttons and triggers wait a few seconds (15 / 10 s) before giving up; the
+  document is picked up by the next cron run anyway.
+- The lock is released in a `finally` block (plus a `__destruct()` safety net).
+- If the lock file cannot be created (read-only data dir), the sync still runs: the lock
+  is an extra protection, it must never block the connector.
+
+### 3.4 Mapping table (optional but recommended)
 
 ```sql
 CREATE TABLE llx_odoo_connector_sync (
@@ -192,11 +230,18 @@ Use this to know which Dolibarr record corresponds to which Odoo id and to avoid
    (crash recovery) instead of creating a second copy.
 3. **Reopen** ("Modify", trigger, immediate): a posted Odoo entry is reset to draft and
    flagged To Review, so step 2 can push the changes into it on the next validation.
-4. **Cron / manual "Sync now"** (retry & fallback): re-pushes everything changed since its
+4. **Cron / manual "Sync now" / "Refresh shipment dates now"** (retry & fallback): re-pushes everything changed since its
    last run (`tms` > `last_sync`), cleans moves of deleted/abandoned documents, flags
    paid-in-Dolibarr posted entries To Review. The shipment date cron refreshes the
-   accounting date of drafts linked to shipments whose ATA/ETA changed.
-5. **Logs**: failures are recorded per document in `llx_odoo_connector_synclog` (listed in
+   accounting date of documents linked to shipments whose ATA/ETA changed. The date
+   comes from the shipment (ATA → ETA, or the configured extrafields column); posted
+   Odoo entries are reset to draft first when `ODOO_CONNECTOR_SHIPMENT_DATE_UPDATE_POSTED`
+   is enabled. The due date is written in the same call, following
+   `ODOO_CONNECTOR_DUE_DATE_RULE` (both fields are written after the reset because Odoo
+   recomputes the due date from the payment terms when an entry goes back to draft).
+5. **Run lock**: every run (cron, manual button, trigger) takes the same exclusive lock
+   (section 3.3), so two runs never push the same document to Odoo at the same time.
+6. **Logs**: failures are recorded per document in `llx_odoo_connector_synclog` (listed in
    the module setup page) and cleared automatically when a retry succeeds.
 
 ---
@@ -209,7 +254,10 @@ Use this to know which Dolibarr record corresponds to which Odoo id and to avoid
 - [ ] Day-to-day: just **Validate** in Dolibarr — the push is immediate (event-driven);
   reopening with **Modify** resets the linked Odoo entry so the next validation updates it.
 - [ ] Optionally enable the hourly sync cron as an automatic retry channel, and the
-  shipment date cron when the accounting date follows shipment ATA/ETA.
+  shipment date cron when the accounting date follows shipment ATA/ETA. If a cron is not
+  enabled (or its output looks empty), run the job from the module setup page: the output
+  lists, for every shipment whose ATA/ETA changed, the dates read, the number of linked
+  invoices/bills and the action taken on each document.
 - [ ] Partner duplicates from the pre-connector Odoo base: run one sync (VAT/email matches
   get their `ref` backfilled automatically), then merge the leftovers in Odoo
   (Contacts → Merge) — the sync output lists the same-name candidates.

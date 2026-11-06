@@ -44,6 +44,16 @@ class OdooSync
 	/** @var string Messages for cron/manual-run output (one line per entry, "\n" separated) */
 	public $output = '';
 
+	/**
+	 * @var array Expedition id of the documents already looked up (key: c/s + document id)
+	 */
+	protected $expIdCache = array();
+
+	/**
+	 * @var resource|null Lock file handle, released at the end of the run
+	 */
+	protected $lockFp = null;
+
 	/** @var int Result count for cron */
 	public $result = 0;
 
@@ -147,6 +157,124 @@ class OdooSync
 	}
 
 	/**
+	 * Path of the lock file used to serialize the connector runs.
+	 * One lock per entity: two runs of the same entity must never push the
+	 * same document to Odoo at the same time.
+	 *
+	 * @return string '' when no writable lock file can be used
+	 */
+	protected function getLockFilePath()
+	{
+		if (!defined('DOL_DATA_DIR') || empty(DOL_DATA_DIR)) {
+			return '';
+		}
+		$dir = rtrim(DOL_DATA_DIR, '/\\') . '/odooconnector';
+		if (!is_dir($dir)) {
+			@mkdir($dir, 0755, true);
+		}
+		if (!is_dir($dir) || !is_writable($dir)) {
+			return '';
+		}
+
+		global $conf;
+		$entity = 1;
+		if (is_object($conf) && !empty($conf->entity)) {
+			$entity = (int) $conf->entity;
+		}
+
+		return $dir . '/sync_lock_e' . ($entity > 0 ? $entity : 1) . '.lock';
+	}
+
+	/**
+	 * Try to take the exclusive connector lock.
+	 *
+	 * @param int $waitSeconds How long to wait for the lock before giving up
+	 * @return bool True when the lock is held (or when locking is not possible at all)
+	 */
+	protected function acquireLock($waitSeconds = 0)
+	{
+		if ($this->lockFp !== null) {
+			return true; // already held by this instance
+		}
+		$path = $this->getLockFilePath();
+		if ($path === '') {
+			return true; // no writable data dir: run without lock (never fatal)
+		}
+		$fp = @fopen($path, 'c');
+		if ($fp === false) {
+			return true; // lock file not usable: run without lock
+		}
+		$deadline = time() + max(0, (int) $waitSeconds);
+		while (true) {
+			if (@flock($fp, LOCK_EX | LOCK_NB)) {
+				$this->lockFp = $fp;
+				return true;
+			}
+			if (time() >= $deadline) {
+				break;
+			}
+			usleep(300000);
+		}
+		@fclose($fp);
+		return false;
+	}
+
+	/**
+	 * Release the connector lock (if held).
+	 *
+	 * @return void
+	 */
+	protected function releaseLock()
+	{
+		if ($this->lockFp === null) {
+			return;
+		}
+		@flock($this->lockFp, LOCK_UN);
+		@fclose($this->lockFp);
+		$this->lockFp = null;
+	}
+
+	/**
+	 * Run $callback while holding the connector lock.
+	 *
+	 * Why: the anti-duplicate guard (searching Odoo by ref) only applies when the
+	 * document has no mapping row yet. A cron run, the manual "Sync now" button
+	 * and the "validate" trigger running at the same time would both see no
+	 * mapping row and both create an Odoo move -> duplicate draft in Odoo.
+	 * The lock makes the runs mutually exclusive.
+	 *
+	 * @param string   $label       Name of the run, for the log
+	 * @param int      $waitSeconds How long to wait for the lock before giving up
+	 * @param callable $callback    The code to run while holding the lock
+	 * @return mixed  Result of the callback, 0 when the run was skipped
+	 */
+	protected function withLock($label, $waitSeconds, $callback)
+	{
+		if (!$this->acquireLock($waitSeconds)) {
+			$this->output .= 'Odoo Connector: another run (' . $label . ') is in progress, this run is skipped to avoid pushing the same document twice.' . "\n";
+			if (function_exists('dol_syslog')) {
+				dol_syslog(__METHOD__ . ': lock busy, run skipped (' . $label . ')', LOG_INFO);
+			}
+			return 0;
+		}
+		try {
+			return call_user_func($callback);
+		} finally {
+			$this->releaseLock();
+		}
+	}
+
+	/**
+	 * Release the lock when the object dies without an explicit release.
+	 *
+	 * @return void
+	 */
+	public function __destruct()
+	{
+		$this->releaseLock();
+	}
+
+	/**
 	 * Main entry: run full sync (invoices, vendor bills, expenses).
 	 * Used by cron and by "Sync now" in setup.
 	 *
@@ -154,13 +282,30 @@ class OdooSync
 	 * @param string $dateTo    Optional range end (Y-m-d, inclusive), '' = no upper bound
 	 * @param string $dateField Which Dolibarr date column the range applies to: invoice_date, due_date, creation, last_update
 	 * @param string $only      Restrict to one entity type: '', invoices, bills, expenses
+	 * @param int    $waitSeconds How long to wait for the connector lock when another run holds it
 	 * @return int 0 on success (or nothing to do), <0 on error
 	 */
-	public function runSync($dateFrom = '', $dateTo = '', $dateField = 'invoice_date', $only = '')
+	public function runSync($dateFrom = '', $dateTo = '', $dateField = 'invoice_date', $only = '', $waitSeconds = 0)
 	{
 		$this->output = '';
 		$this->result = 0;
 
+		return $this->withLock('full sync', $waitSeconds, function () use ($dateFrom, $dateTo, $dateField, $only) {
+			return $this->doRunSync($dateFrom, $dateTo, $dateField, $only);
+		});
+	}
+
+	/**
+	 * Body of the full sync, always run under the connector lock.
+	 *
+	 * @param string $dateFrom  Optional range start (Y-m-d), '' = no lower bound
+	 * @param string $dateTo    Optional range end (Y-m-d, inclusive), '' = no upper bound
+	 * @param string $dateField Which Dolibarr date column the range applies to: invoice_date, due_date, creation, last_update
+	 * @param string $only      Restrict to one entity type: '', invoices, bills, expenses
+	 * @return int 0 on success (or nothing to do)
+	 */
+	protected function doRunSync($dateFrom, $dateTo, $dateField, $only)
+	{
 		if (!$this->loadConfig()) {
 			return 0; // cron expects 0 when disabled/misconfigured
 		}
@@ -172,7 +317,7 @@ class OdooSync
 		}
 
 		$syncInvoices = getDolGlobalInt('ODOO_CONNECTOR_SYNC_INVOICES', 1);
-		$syncBills = getDolGlobalInt('ODOO_CONNECTOR_SUPPLIER_BILLS', 1);
+		$syncBills = getDolGlobalInt('ODOO_CONNECTOR_SYNC_SUPPLIER_BILLS', 1);
 		$syncExpenses = getDolGlobalInt('ODOO_CONNECTOR_SYNC_EXPENSES', 1);
 
 		if (($only === '' || $only === 'invoices') && $syncInvoices) {
@@ -213,6 +358,22 @@ class OdooSync
 		$this->output = '';
 		$this->result = 0;
 
+		// A cron run may be in progress: wait a bit, then give up (the cron
+		// picks the document up anyway) rather than pushing it twice.
+		$this->withLock('push after validate', 10, function () use ($type, $sourceId) {
+			$this->doSyncDocumentNow($type, $sourceId);
+		});
+	}
+
+	/**
+	 * Body of the "push one validated document" path, always run under the lock.
+	 *
+	 * @param string $type     'invoice' (Facture) or 'bill' (FactureFournisseur)
+	 * @param int    $sourceId Dolibarr rowid of the validated document
+	 * @return void
+	 */
+	protected function doSyncDocumentNow($type, $sourceId)
+	{
 		if (!$this->loadConfig()) {
 			return; // connector disabled/misconfigured: cron will pick the document up later
 		}
@@ -249,6 +410,20 @@ class OdooSync
 		$this->output = '';
 		$this->result = 0;
 
+		$this->withLock('reopen document', 10, function () use ($type, $sourceId) {
+			$this->doSyncDocumentUnvalidate($type, $sourceId);
+		});
+	}
+
+	/**
+	 * Body of the "document reopened" path, always run under the lock.
+	 *
+	 * @param string $type     'invoice' (Facture) or 'bill' (FactureFournisseur)
+	 * @param int    $sourceId Dolibarr rowid of the reopened document
+	 * @return void
+	 */
+	protected function doSyncDocumentUnvalidate($type, $sourceId)
+	{
 		if (!$this->loadConfig()) {
 			return; // connector disabled/misconfigured: the sync-time fallback still covers it
 		}
@@ -299,6 +474,48 @@ class OdooSync
 	}
 
 	/**
+	 * Push one just-submitted or approved expense report to Odoo right away.
+	 * Reuses the same pipeline as the cron batch, restricted to a single record,
+	 * so dedup rules and failure logging behave identically.
+	 *
+	 * @param int $sourceId Dolibarr rowid of the expense report
+	 * @return void
+	 */
+	public function syncExpenseNow($sourceId)
+	{
+		$sourceId = (int) $sourceId;
+		if ($sourceId <= 0) {
+			return;
+		}
+
+		$this->output = '';
+		$this->result = 0;
+
+		$this->withLock('push expense after validate', 10, function () use ($sourceId) {
+			$this->doSyncExpenseNow($sourceId);
+		});
+	}
+
+	/**
+	 * Body of the "push one expense report" path, always run under the lock.
+	 *
+	 * @param int $sourceId Dolibarr rowid of the expense report
+	 * @return void
+	 */
+	protected function doSyncExpenseNow($sourceId)
+	{
+		if (!$this->loadConfig()) {
+			return; // connector disabled/misconfigured: the cron will pick it up later
+		}
+
+		$this->syncExpenses('', '', 'last_update', $sourceId);
+
+		if (function_exists('dol_syslog')) {
+			dol_syslog(__METHOD__ . ': push after validate. ' . $this->output, LOG_DEBUG);
+		}
+	}
+
+	/**
 	 * Independent cron entry: refresh the accounting date of the Odoo DRAFT
 	 * invoices and vendor bills linked to shipments whose data changed within
 	 * the lookback window (ATA/ETA updates, e.g. ShipsGo). The main sync also
@@ -308,13 +525,26 @@ class OdooSync
 	 * alignment. Only draft moves are touched: posted entries are never
 	 * modified here.
 	 *
+	 * @param int $waitSeconds How long to wait for the connector lock when another run holds it
 	 * @return int 0 (count of updated moves is in $this->result)
 	 */
-	public function runShipmentDateSync()
+	public function runShipmentDateSync($waitSeconds = 0)
 	{
 		$this->output = '';
 		$this->result = 0;
 
+		return $this->withLock('shipment date refresh', $waitSeconds, function () {
+			return $this->doRunShipmentDateSync();
+		});
+	}
+
+	/**
+	 * Body of the shipment date refresh, always run under the connector lock.
+	 *
+	 * @return int 0 (count of updated moves is in $this->result)
+	 */
+	protected function doRunShipmentDateSync()
+	{
 		if (!$this->loadConfig()) {
 			return 0; // cron expects 0 when disabled/misconfigured
 		}
@@ -339,7 +569,11 @@ class OdooSync
 		}
 		// Every run leaves a trace in the cron output, so "empty output" can
 		// always be distinguished from "job did not run".
-		$this->output .= 'Shipment date refresh: ' . count($expIds) . ' shipment(s) changed within the last ' . $hours . ' h.' . "\n";
+		$usedField = $this->getDeliveryDateField();
+		$this->output .= 'Shipment date refresh: ' . count($expIds) . ' shipment(s) changed within the last ' . $hours . ' h.'
+			. ' (accounting date source: ' . $this->getAccountingDateSource()
+			. ', shipment date field: ' . ($usedField !== '' ? $usedField : 'ATA then ETA')
+			. ', update posted entries: ' . (getDolGlobalInt('ODOO_CONNECTOR_SHIPMENT_DATE_UPDATE_POSTED', 1) ? 'yes' : 'no') . ')' . "\n";
 		if (empty($expIds)) {
 			return 0; // no shipment changed
 		}
@@ -349,17 +583,37 @@ class OdooSync
 		require_once DOL_DOCUMENT_ROOT . '/compta/facture/class/facture.class.php';
 		require_once DOL_DOCUMENT_ROOT . '/fourn/class/fournisseur.facture.class.php';
 		$candidates = array('facture' => array(), 'facture_fourn' => array());
-		foreach (array_keys($expIds) as $expId) {
+		// getRecentlyUpdatedExpeditionIds() returns a list whose VALUES are the
+		// expedition ids (array_keys of an id=>true map): iterate the values.
+		// Iterating array_keys() here would look up expeditions 0, 1, 2... and
+		// find no linked document at all.
+		foreach ($expIds as $expId) {
+			$expId = (int) $expId;
+			$nbInv = 0;
+			$nbBill = 0;
 			if ($syncInvoices) {
-				foreach ($this->getInvoiceIdsForExpedition((int) $expId, true) as $id) {
+				foreach ($this->getInvoiceIdsForExpedition($expId, true) as $id) {
 					$candidates['facture'][(int) $id] = true;
+					$nbInv++;
 				}
 			}
 			if ($syncBills) {
-				foreach ($this->getInvoiceIdsForExpedition((int) $expId, false) as $id) {
+				foreach ($this->getInvoiceIdsForExpedition($expId, false) as $id) {
 					$candidates['facture_fourn'][(int) $id] = true;
+					$nbBill++;
 				}
 			}
+			// Per-shipment trace: shows the dates actually read from the extrafields
+			// and how many documents are linked. A shipment with 0 linked document
+			// means the invoice/bill is not linked to it (origin / element_element),
+			// which is the most common reason for a date that never changes.
+			$dbg = $this->getShipmentDebugInfo($expId);
+			$this->output .= '  Shipment #' . $expId . ($dbg['ref'] !== '' ? ' (' . $dbg['ref'] . ')' : '')
+				. ': ATA=' . ($dbg['ata'] !== '' ? $dbg['ata'] : '-')
+				. ', ETA=' . ($dbg['eta'] !== '' ? $dbg['eta'] : '-')
+				. ', extrafields updated=' . ($dbg['tms'] !== '' ? $dbg['tms'] : '-')
+				. ' -> ' . $nbInv . ' invoice(s), ' . $nbBill . ' bill(s) linked.'
+				. ($nbInv + $nbBill == 0 ? ' No linked document: nothing to update for this shipment.' : '') . "\n";
 		}
 
 		// 3) Recompute the accounting date and align the mapped Odoo drafts.
@@ -383,26 +637,69 @@ class OdooSync
 				$mapped = $this->getMapping($elementType, (int) $invoiceId);
 				if ($mapped === null || !isset($odooInfo[(int) $mapped->odoo_id])) {
 					$statNotPushed++; // not pushed yet (the main sync will create it) or deleted in Odoo
+					$this->output .= '  ' . ($isCustomer ? 'Invoice' : 'Vendor bill') . ' #' . (int) $invoiceId . ': not pushed to Odoo yet (or deleted there), skipped.' . "\n";
 					continue;
 				}
 				$info = $odooInfo[(int) $mapped->odoo_id];
-				if ($info['state'] !== 'draft') {
-					$statPosted++; // posted moves are never modified by this job
-					continue;
-				}
 				$obj = $isCustomer ? $invoice : $bill;
 				if ($obj->fetch((int) $invoiceId) <= 0) {
 					$this->output .= 'Shipment date refresh: FAILED to fetch ' . $elementType . ' #' . (int) $invoiceId . ', skipped.' . "\n";
 					continue;
 				}
-				$dateInv = $isCustomer ? $this->getAccountingDateForCustomerInvoice($obj) : $this->getAccountingDateForSupplierInvoice($obj);
-				if ($dateInv === $info['date']) {
-					$statCorrect++; // already correct (overlapping runs are no-ops)
+				$dispRef = $isCustomer ? $obj->ref : ($obj->ref_supplier ?: $obj->ref);
+				// A posted entry cannot be edited. When the option is enabled, the job
+				// resets it to draft (same policy as the main sync when the Dolibarr
+				// document changed) and pushes the new date right away.
+				$wasPosted = ($info['state'] !== 'draft');
+				if ($wasPosted && !getDolGlobalInt('ODOO_CONNECTOR_SHIPMENT_DATE_UPDATE_POSTED', 1)) {
+					$statPosted++; // posted moves are left untouched
+					$this->output .= '  ' . ($isCustomer ? 'Invoice ' : 'Vendor bill ') . $dispRef . ': Odoo entry is posted and the "update posted entries" option is off, skipped.' . "\n";
 					continue;
 				}
+				// The date comes from the shipment (ATA/ETA) when the document is linked
+				// to one, so this job really refreshes the accounting date even when the
+				// accounting date source is the invoice date.
+				$isMoneyDoc = (!$isCustomer && ($obj->type == FactureFournisseur::TYPE_DEPOSIT || $obj->type == FactureFournisseur::TYPE_CREDIT_NOTE));
+				$shipDates = $isMoneyDoc ? array('ata' => null, 'eta' => null, 'exp_id' => 0) : $this->getShipmentDates($obj, $isCustomer);
+				$dateShip = $isMoneyDoc ? null : $this->getShipmentDateForDocument($obj, $isCustomer);
+				$dateInv = ($dateShip !== null) ? $dateShip : ($isCustomer ? $this->getAccountingDateForCustomerInvoice($obj) : $this->getAccountingDateForSupplierInvoice($obj));
+				$dateSrc = ($dateShip !== null) ? 'shipment date' : 'document date';
+				// Due date: same rule as the full push (ATA - N days / accounting date /
+				// ATA then ETA), so the two paths never fight over the same field.
+				$dueDate = $this->computeDueDate($shipDates, $dateInv);
 				$dispRef = $isCustomer ? $obj->ref : ($obj->ref_supplier ?: $obj->ref);
-				if ($this->odoo->write('account.move', array((int) $mapped->odoo_id), array('date' => $dateInv))) {
-					$this->output .= ($isCustomer ? 'Invoice ' : 'Vendor bill ') . $dispRef . ': accounting date ' . ($info['date'] !== '' ? $info['date'] : 'not set') . ' -> ' . $dateInv . ' (Odoo move ' . (int) $mapped->odoo_id . ', shipment data changed).' . "\n";
+				if ($dateInv === $info['date'] && ($dueDate === null || $dueDate === $info['invoice_date_due'])) {
+					$statCorrect++; // already correct (overlapping runs are no-ops)
+					$this->output .= '  ' . ($isCustomer ? 'Invoice ' : 'Vendor bill ') . $dispRef . ': already correct (accounting date ' . $dateInv
+						. ($dueDate !== null ? ', due date ' . $dueDate : '') . ', from the ' . $dateSrc . ').' . "\n";
+					continue;
+				}
+				if ($wasPosted) {
+					// Posted entry: reset it to draft before writing the new date
+					$reset = $this->odoo->executeKw('account.move', 'button_draft', array(array((int) $mapped->odoo_id)));
+					if ($reset === false) {
+						$msg = 'Odoo move is posted and could not be reset to draft (' . $this->odoo->error . '), manual review required.';
+						$this->output .= ($isCustomer ? 'Invoice ' : 'Vendor bill ') . $dispRef . ': ' . $msg . "\n";
+						$this->notifyPostedMoveChanged($elementType, (int) $invoiceId, $dispRef, (int) $mapped->odoo_id, 'new accounting date ' . $dateInv);
+						$this->logFailure($elementType, (int) $invoiceId, $dispRef, (int) $mapped->odoo_id, 'update_posted', $msg);
+						$statPosted++;
+						continue;
+					}
+					$this->odoo->write('account.move', array((int) $mapped->odoo_id), array('review_state' => 'todo'));
+					$this->postChatterNote((int) $mapped->odoo_id, 'Auto reset to draft: the accounting date was refreshed from the shipment data (' . $dateInv . '). Review it then re-post.');
+				}
+				// Write the accounting date and, when the rule produces one, the due
+				// date. Both are written in a single call: resetting a posted entry
+				// makes Odoo recompute the due date from the payment terms, so the
+				// due date has to be written after the reset, with the accounting date.
+				$writeVals = array('date' => $dateInv);
+				if ($dueDate !== null) {
+					$writeVals['invoice_date_due'] = $dueDate;
+				}
+				if ($this->odoo->write('account.move', array((int) $mapped->odoo_id), $writeVals)) {
+					$this->output .= ($isCustomer ? 'Invoice ' : 'Vendor bill ') . $dispRef . ': accounting date ' . ($info['date'] !== '' ? $info['date'] : 'not set') . ' -> ' . $dateInv
+						. ($dueDate !== null ? ', due date ' . ($info['invoice_date_due'] !== '' ? $info['invoice_date_due'] : 'not set') . ' -> ' . $dueDate : '')
+						. ' (Odoo move ' . (int) $mapped->odoo_id . ', shipment data changed).' . "\n";
 					$this->result++;
 				} else {
 					$this->output .= ($isCustomer ? 'Invoice ' : 'Vendor bill ') . $dispRef . ': accounting date update failed - ' . $this->odoo->error . "\n";
@@ -1324,8 +1621,7 @@ class OdooSync
 		// arrives months after the invoice date). Same window and settings as
 		// the shipment date refresh cron job.
 		if ($singleId <= 0
-			&& $this->getAccountingDateSource() === 'delivery_reception'
-			&& getDolGlobalInt('ODOO_CONNECTOR_SYNC_SHIPMENT_DATES', 1)) {
+			&& $this->useShipmentDateAsAccountingDate()) {
 			$hours = (int) getDolGlobalInt('ODOO_CONNECTOR_SHIPMENT_DATE_SCAN_HOURS', 25);
 			if ($hours < 1) {
 				$hours = 25;
@@ -1370,7 +1666,7 @@ class OdooSync
 		// dates currently stored in the Odoo drafts and resync the moves whose
 		// computed date no longer matches. The states are also used to skip updates
 		// of moves already posted in Odoo.
-		$checkOdooDate = ($this->getAccountingDateSource() === 'delivery_reception');
+		$checkOdooDate = $this->useShipmentDateAsAccountingDate();
 		$odooInfo = $this->getOdooMoveInfo($elementType, array_keys($rows));
 		if ($odooInfo === null) {
 			return;
@@ -1401,7 +1697,9 @@ class OdooSync
 			// belongs to the goods bill).
 			$shipDates = null;
 			$isVendorMoneyDoc = !$customer && ($invoice->type == FactureFournisseur::TYPE_DEPOSIT || $invoice->type == FactureFournisseur::TYPE_CREDIT_NOTE);
-			if ($this->getAccountingDateSource() === 'delivery_reception' && !$isVendorMoneyDoc) {
+			if (!$isVendorMoneyDoc) {
+				// Shipment dates are needed by the due date rule even when the
+				// accounting date does not follow the shipment.
 				$shipDates = $this->getShipmentDates($invoice, $customer);
 			}
 			if ($unchanged && isset($odooInfo[(int) $mapped->odoo_id]) && $odooInfo[(int) $mapped->odoo_id]['date'] === $dateInv && $odooInfo[(int) $mapped->odoo_id]['invoice_date'] === $dateInvoice) {
@@ -1578,13 +1876,15 @@ class OdooSync
 				'ref' => $ref,
 			);
 			if ($shipDates !== null) {
-				// Due date and delivery date follow the linked shipment:
-				// due = ATA then ETA, delivery = ETA
-				if ($shipDates['ata'] !== null || $shipDates['eta'] !== null) {
-					$moveData['invoice_date_due'] = $shipDates['ata'] !== null ? $shipDates['ata'] : $shipDates['eta'];
+				// Due date follows the configured rule (ATA - N days / accounting
+				// date / ATA then ETA), the same rule as the shipment date refresh
+				// job, so both paths always agree on the Odoo entry.
+				$dueDate = $this->computeDueDate($shipDates, $dateInv);
+				if ($dueDate !== null) {
+					$moveData['invoice_date_due'] = $dueDate;
 				}
 				// delivery_date: not on every Odoo version/accounting setup - write only when the model has it
-				if ($shipDates['eta'] !== null && $this->odooFieldExists('account.move', 'delivery_date')) {
+				if ($this->useShipmentDateAsAccountingDate() && $shipDates['eta'] !== null && $this->odooFieldExists('account.move', 'delivery_date')) {
 					$moveData['delivery_date'] = $shipDates['eta'];
 				}
 			}
@@ -1833,7 +2133,7 @@ class OdooSync
 	 * @param array  $fkSourceIds   Optional Dolibarr rowids: restrict the mapping
 	 *                              lookup to the current batch instead of loading
 	 *                              every odoo_id ever mapped (grows without bound)
-	 * @return array|null odoo_id => array('date' => Y-m-d, 'state' => draft|posted); null on Odoo API failure
+	 * @return array|null odoo_id => array('date' => Y-m-d, 'invoice_date' => Y-m-d, 'invoice_date_due' => Y-m-d, 'state' => draft|posted); null on Odoo API failure
 	 */
 	protected function getOdooMoveInfo($elementType, $fkSourceIds = array())
 	{
@@ -1852,7 +2152,7 @@ class OdooSync
 		if (empty($ids)) {
 			return $info;
 		}
-		$moves = $this->odoo->searchRead('account.move', array(array('id', 'in', $ids)), array('id', 'date', 'invoice_date', 'state'), 0);
+		$moves = $this->odoo->searchRead('account.move', array(array('id', 'in', $ids)), array('id', 'date', 'invoice_date', 'invoice_date_due', 'state'), 0);
 		if ($moves === false) {
 			$this->output .= 'Odoo Connector: failed to preload move info (API error), aborting this batch to avoid stale mappings.' . "\n";
 			return null;
@@ -1862,6 +2162,7 @@ class OdooSync
 				$info[(int) $m['id']] = array(
 					'date' => isset($m['date']) ? $m['date'] : '',
 					'invoice_date' => isset($m['invoice_date']) ? $m['invoice_date'] : '',
+					'invoice_date_due' => isset($m['invoice_date_due']) ? $m['invoice_date_due'] : '',
 					'state' => isset($m['state']) ? $m['state'] : '',
 				);
 			}
@@ -1948,7 +2249,7 @@ class OdooSync
 	 * @param string $dateTo    Optional date filter (Y-m-d, inclusive), '' = no limit
 	 * @param string $dateField Date field used by the filter: invoice_date, due_date, creation, last_update
 	 */
-	protected function syncExpenses($dateFrom = '', $dateTo = '', $dateField = 'invoice_date')
+	protected function syncExpenses($dateFrom = '', $dateTo = '', $dateField = 'invoice_date', $singleId = 0)
 	{
 		if (!isModEnabled('expensereport')) {
 			return;
@@ -1958,13 +2259,23 @@ class OdooSync
 
 		$sql = 'SELECT e.rowid, e.tms FROM ' . MAIN_DB_PREFIX . 'expensereport e';
 		$sql .= ' WHERE e.entity IN (' . getEntity('expensereport') . ')';
-		$sql .= " AND e.fk_statut >= 1"; // at least submitted
-		// Expense reports have no due date: due_date falls back to the period start
-		$dateColumn = 'e.date_debut';
+		// Only the statuses of a report that really is an accounting document:
+		// 2 = validated (submitted), 5 = approved, 6 = paid/closed.
+		// 0 = draft, 4 = cancelled and 99 = refused are never pushed.
+		$sql .= " AND e.fk_statut IN (2, 5, 6)";
+		if ($singleId > 0) {
+			$sql .= ' AND e.rowid = ' . (int) $singleId;
+		}
+		// Expense reports have no invoice date: the report creation date is the
+		// closest equivalent (date_debut is the start of the expense period and
+		// is used for the "due date" filter)
+		$dateColumn = 'e.date_create';
 		if ($dateField === 'creation') {
 			$dateColumn = 'e.date_create';
 		} elseif ($dateField === 'last_update') {
 			$dateColumn = 'e.tms';
+		} elseif ($dateField === 'due_date') {
+			$dateColumn = 'e.date_debut';
 		}
 		if ($dateFrom !== '') {
 			$sql .= " AND " . $dateColumn . " >= '" . $this->db->escape($dateFrom) . "'";
@@ -2129,6 +2440,55 @@ class OdooSync
 	}
 
 	/**
+	 * Is the "refresh accounting dates from shipment updates" feature enabled?
+	 *
+	 * @return bool
+	 */
+	protected function shipmentDatesEnabled()
+	{
+		return (bool) getDolGlobalInt('ODOO_CONNECTOR_SYNC_SHIPMENT_DATES', 1);
+	}
+
+	/**
+	 * Must the accounting date follow the shipment delivery dates (ATA/ETA)?
+	 *
+	 * True when the accounting date source is explicitly "delivery_reception",
+	 * or when the source is the default "invoice_date" AND the shipment date
+	 * refresh is enabled: in that case the shipment job exists exactly to align
+	 * the accounting date on the shipment dates, so the main sync and the
+	 * shipment job must compute the same date, otherwise the two jobs would
+	 * fight over the same Odoo field.
+	 *
+	 * @return bool
+	 */
+	protected function useShipmentDateAsAccountingDate()
+	{
+		$source = $this->getAccountingDateSource();
+		if ($source === 'delivery_reception') {
+			return true;
+		}
+		return ($source === 'invoice_date' && $this->shipmentDatesEnabled());
+	}
+
+	/**
+	 * Get the shipment date (ATA/ETA, or the configured shipment date field) of
+	 * the shipment linked to an invoice (Y-m-d).
+	 *
+	 * @param Facture|FactureFournisseur $invoice  Loaded invoice
+	 * @param bool                       $customer True for customer invoice
+	 * @return string|null Y-m-d, or null when no shipment or no usable date
+	 */
+	protected function getShipmentDateForDocument($invoice, $customer)
+	{
+		$expId = $this->getShipmentIdForDocument($invoice, $customer);
+		if ($expId <= 0) {
+			return null;
+		}
+		$ts = $this->getDeliveryDateFromExpedition($expId, $this->getDeliveryDateField());
+		return ($ts === null) ? null : date('Y-m-d', $ts);
+	}
+
+	/**
 	 * Get configured delivery/reception date field (expedition_extrafields column name).
 	 * Empty = use ATA then ETA. Values: ata, eta, atd, etd, updatedtime, or custom when "other".
 	 *
@@ -2146,6 +2506,26 @@ class OdooSync
 			return $field;
 		}
 		return '';
+	}
+
+	/**
+	 * Expedition id linked to a document, cached per document.
+	 *
+	 * The date computation (accounting date, due date) needs the shipment of a
+	 * document several times: without the cache every document would run the
+	 * same element_element lookups again for each date.
+	 *
+	 * @param Facture|FactureFournisseur $invoice
+	 * @param bool                       $customer True for customer invoice
+	 * @return int 0 or expedition rowid
+	 */
+	protected function getShipmentIdForDocument($invoice, $customer)
+	{
+		$key = ($customer ? 'c' : 's') . (int) $invoice->id;
+		if (!isset($this->expIdCache[$key])) {
+			$this->expIdCache[$key] = $customer ? $this->getExpeditionIdForCustomerInvoice($invoice) : $this->getExpeditionIdForSupplierInvoice($invoice);
+		}
+		return (int) $this->expIdCache[$key];
 	}
 
 	/**
@@ -2339,6 +2719,35 @@ class OdooSync
 	}
 
 	/**
+	 * Read the shipment data (ref, ATA, ETA, extrafields update time) for the
+	 * job output. Diagnostic only: never used to compute a date.
+	 *
+	 * @param int $expId Expedition rowid
+	 * @return array array('id'=>, 'ref'=>, 'ata'=>, 'eta'=>, 'tms'=>)
+	 */
+	protected function getShipmentDebugInfo($expId)
+	{
+		$info = array('id' => (int) $expId, 'ref' => '', 'ata' => '', 'eta' => '', 'tms' => '');
+		$expId = (int) $expId;
+		if ($expId <= 0 || !is_object($this->db)) {
+			return $info;
+		}
+		$prefix = $this->db->prefix();
+		$sql = "SELECT e.ref AS exp_ref, x.ata AS ata, x.eta AS eta, x.tms AS tms FROM " . $prefix . "expedition e"
+			. " INNER JOIN " . $prefix . "expedition_extrafields x ON x.fk_object = e.rowid"
+			. " WHERE e.rowid = " . $expId;
+		$resql = $this->db->query($sql);
+		if (!$resql || !($obj = $this->db->fetch_object($resql))) {
+			return $info;
+		}
+		$info['ref'] = (string) $obj->exp_ref;
+		$info['ata'] = (string) $obj->ata;
+		$info['eta'] = (string) $obj->eta;
+		$info['tms'] = (string) $obj->tms;
+		return $info;
+	}
+
+	/**
 	 * Get delivery/reception date from expedition_extrafields. Column name must be alphanumeric + underscore.
 	 * If field is empty, uses ATA then ETA.
 	 *
@@ -2390,11 +2799,11 @@ class OdooSync
 	 *
 	 * @param Facture|FactureFournisseur $invoice  Loaded invoice
 	 * @param bool                       $customer True for customer invoice
-	 * @return array array('ata' => string|null, 'eta' => string|null)
+	 * @return array array('ata' => string|null, 'eta' => string|null, 'exp_id' => int)
 	 */
 	protected function getShipmentDates($invoice, $customer)
 	{
-		$expId = $customer ? $this->getExpeditionIdForCustomerInvoice($invoice) : $this->getExpeditionIdForSupplierInvoice($invoice);
+		$expId = $this->getShipmentIdForDocument($invoice, $customer);
 		$ata = null;
 		$eta = null;
 		if ($expId > 0) {
@@ -2412,7 +2821,60 @@ class OdooSync
 				}
 			}
 		}
-		return array('ata' => $ata, 'eta' => $eta);
+		return array('ata' => $ata, 'eta' => $eta, 'exp_id' => (int) $expId);
+	}
+
+	/**
+	 * Compute the Odoo due date (account.move.invoice_date_due) of a document.
+	 *
+	 * Rules (ODOO_CONNECTOR_DUE_DATE_RULE):
+	 *  - 'ata_offset'      : ATA minus N days (N = ODOO_CONNECTOR_DUE_DATE_OFFSET_DAYS,
+	 *                        default 10). When the shipment has no ATA, the accounting
+	 *                        date is used instead.
+	 *  - 'accounting_date' : the accounting date of the document (shipment ATA/ETA, or
+	 *                        the document's own date when there is no shipment).
+	 *  - 'ata_then_eta'    : ATA, else ETA (historical behaviour).
+	 *  - 'none'            : the connector never writes the due date.
+	 *
+	 * A document with no linked shipment gets no due date from the connector (except
+	 * with the 'accounting_date' rule): Odoo then keeps the due date it computed
+	 * from the partner payment terms.
+	 *
+	 * @param array       $shipDates array('ata'=>, 'eta'=>, 'exp_id'=>) from getShipmentDates()
+	 * @param string|null $dateInv   Accounting date of the document (Y-m-d)
+	 * @return string|null Y-m-d, or null when the due date must not be written
+	 */
+	protected function computeDueDate($shipDates, $dateInv)
+	{
+		$rule = getDolGlobalString('ODOO_CONNECTOR_DUE_DATE_RULE');
+		$rule = $rule ? trim($rule) : 'ata_offset';
+		if (!in_array($rule, array('ata_offset', 'accounting_date', 'ata_then_eta', 'none'))) {
+			$rule = 'ata_offset';
+		}
+		if ($rule === 'none') {
+			return null;
+		}
+		$ata = isset($shipDates['ata']) ? $shipDates['ata'] : null;
+		$eta = isset($shipDates['eta']) ? $shipDates['eta'] : null;
+		$expId = isset($shipDates['exp_id']) ? (int) $shipDates['exp_id'] : 0;
+		if ($expId <= 0 && $rule !== 'accounting_date') {
+			return null; // no shipment: leave the Odoo payment-term due date alone
+		}
+		if ($rule === 'accounting_date') {
+			return ($dateInv !== null && $dateInv !== '') ? $dateInv : null;
+		}
+		if ($rule === 'ata_then_eta') {
+			return ($ata !== null) ? $ata : $eta;
+		}
+		// ata_offset: ATA - N days, fallback on the accounting date when there is no ATA
+		if ($ata !== null) {
+			$days = (int) getDolGlobalInt('ODOO_CONNECTOR_DUE_DATE_OFFSET_DAYS', 10);
+			$ts = strtotime($ata);
+			if ($ts > 0) {
+				return date('Y-m-d', strtotime('-' . abs($days) . ' days', $ts));
+			}
+		}
+		return ($dateInv !== null && $dateInv !== '') ? $dateInv : null;
 	}
 
 	/**
@@ -2430,13 +2892,10 @@ class OdooSync
 				return date('Y-m-d', $ts);
 			}
 		}
-		if ($source === 'delivery_reception') {
-			$expId = $this->getExpeditionIdForCustomerInvoice($invoice);
-			if ($expId > 0) {
-				$ts = $this->getDeliveryDateFromExpedition($expId, $this->getDeliveryDateField());
-				if ($ts !== null) {
-					return date('Y-m-d', $ts);
-				}
+		if ($this->useShipmentDateAsAccountingDate()) {
+			$dateShip = $this->getShipmentDateForDocument($invoice, true);
+			if ($dateShip !== null) {
+				return $dateShip;
 			}
 		}
 		$ts = !empty($invoice->date) ? (is_numeric($invoice->date) ? $invoice->date : strtotime($invoice->date)) : 0;
@@ -2463,13 +2922,10 @@ class OdooSync
 				return date('Y-m-d', $ts);
 			}
 		}
-		if (!$isMoneyDoc && $source === 'delivery_reception') {
-			$expId = $this->getExpeditionIdForSupplierInvoice($invoice);
-			if ($expId > 0) {
-				$ts = $this->getDeliveryDateFromExpedition($expId, $this->getDeliveryDateField());
-				if ($ts !== null) {
-					return date('Y-m-d', $ts);
-				}
+		if (!$isMoneyDoc && $this->useShipmentDateAsAccountingDate()) {
+			$dateShip = $this->getShipmentDateForDocument($invoice, false);
+			if ($dateShip !== null) {
+				return $dateShip;
 			}
 		}
 		$ts = is_numeric($invoice->date) ? $invoice->date : ($invoice->date ? strtotime($invoice->date) : 0);

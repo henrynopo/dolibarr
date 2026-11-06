@@ -41,7 +41,11 @@ class modOdooConnector extends DolibarrModules
 
 		// Module unique id. 500200=EmbeddedBookkeeping; 500300=OdooConnector (SLY range 500100-500999).
 		$this->numero = 500300;
-		$this->rights_class = 'odoo_connector';
+		// Must be the module name (== directory name, strtolower($this->name)), like every other module
+		// of the SLY range. It is used as llx_cronjob.module_name (see DolibarrModules::insert_cronjobs),
+		// as llx_rights_def.module and as llx_menu.module, so a value like 'odoo_connector' would show up
+		// as a wrong module name in the cron job list, in the permission screen and in the menu manager.
+		$this->rights_class = 'odooconnector';
 		$this->family = 'HaoSG';
 		$this->module_position = '90';
 		$this->name = preg_replace('/^mod/i', '', get_class($this));
@@ -49,7 +53,7 @@ class modOdooConnector extends DolibarrModules
 		$this->descriptionlong = 'Synchronises accounting records between Dolibarr and Odoo Online: customer invoices (Facture), vendor bills (FactureFournisseur), and expense reports (ExpenseReport). Uses Odoo JSON-RPC API; configurable via Setup.';
 		$this->editor_name = 'Custom';
 		$this->editor_url = '';
-		$this->version = '1.0.0';
+		$this->version = '1.0.5';
 		$this->const_name = 'MAIN_MODULE_'.strtoupper($this->name);
 		$this->picto = 'generic';
 
@@ -93,7 +97,7 @@ class modOdooConnector extends DolibarrModules
 				'comment' => 'Sync Dolibarr invoices, vendor bills and expenses to Odoo Online',
 				'frequency' => 1,
 				'unitfrequency' => 3600,
-				'status' => 0,
+				'status' => 1,
 				'test' => '$conf->odooconnector->enabled',
 				'priority' => 50,
 			),
@@ -108,7 +112,7 @@ class modOdooConnector extends DolibarrModules
 				'comment' => 'Refresh the accounting date of Odoo draft invoices/bills linked to shipments updated recently',
 				'frequency' => 1,
 				'unitfrequency' => 3600,
-				'status' => 0,
+				'status' => 1,
 				'test' => '$conf->odooconnector->enabled',
 				'priority' => 50,
 			),

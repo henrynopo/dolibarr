@@ -17,7 +17,7 @@
 
 /**
  * \file    htdocs/custom/odooconnector/core/triggers/interface_99_modOdooConnector_OdooConnector.class.php
- * \ingroup odoo_connector
+ * \ingroup odooconnector
  * \brief   Odoo Connector trigger: push an invoice/vendor bill to Odoo right when it is validated.
  */
 
@@ -36,8 +36,8 @@ class InterfaceOdooConnector extends DolibarrTriggers
 	public function __construct($db)
 	{
 		parent::__construct($db);
-		$this->family = "odoo_connector";
-		$this->description = "Odoo Connector: push invoice/vendor bill to Odoo on validate.";
+		$this->family = "odooconnector";
+		$this->description = "Odoo Connector: push invoice/vendor bill/expense report to Odoo on validate.";
 		$this->version = self::VERSIONS['prod'];
 		$this->picto = 'generic';
 	}
@@ -62,10 +62,27 @@ class InterfaceOdooConnector extends DolibarrTriggers
 		// reopening for modification ("Modify", back to draft) = BILL_UNVALIDATE / BILL_SUPPLIER_UNVALIDATE.
 		$validates = array('BILL_VALIDATE', 'BILL_SUPPLIER_VALIDATE');
 		$unvalidates = array('BILL_UNVALIDATE', 'BILL_SUPPLIER_UNVALIDATE');
-		if (!in_array($action, $validates) && !in_array($action, $unvalidates)) {
+		// Expense reports (core trigger codes): EXPENSE_REPORT_VALIDATE = the report
+		// was submitted for approval, EXPENSE_REPORT_APPROVE = it was approved.
+		// Both make the report a real accounting document that must reach Odoo
+		// without waiting for the hourly cron.
+		$expenses = array('EXPENSE_REPORT_VALIDATE', 'EXPENSE_REPORT_APPROVE');
+		if (!in_array($action, $validates) && !in_array($action, $unvalidates) && !in_array($action, $expenses)) {
 			return 0;
 		}
 		if (empty($object) || (int) $object->id <= 0) {
+			return 0;
+		}
+
+		// Expense report: push it as soon as it is submitted/approved
+		if (in_array($action, $expenses)) {
+			require_once DOL_DOCUMENT_ROOT . '/expensereport/class/expensereport.class.php';
+			if (!($object instanceof ExpenseReport)) {
+				return 0;
+			}
+			dol_include_once('odooconnector/class/OdooSync.class.php');
+			$sync = new OdooSync($this->db);
+			$sync->syncExpenseNow((int) $object->id);
 			return 0;
 		}
 

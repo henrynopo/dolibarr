@@ -68,6 +68,9 @@ if ($action == 'update' && GETPOST('cancel', 'alpha') === '' && GETPOST('token',
 		'ODOO_CONNECTOR_DELIVERY_DATE_FIELD_CUSTOM' => GETPOST('ODOO_CONNECTOR_DELIVERY_DATE_FIELD_CUSTOM', 'alphanohtml'),
 		'ODOO_CONNECTOR_SYNC_SHIPMENT_DATES' => (string) GETPOST('ODOO_CONNECTOR_SYNC_SHIPMENT_DATES', 'int'),
 		'ODOO_CONNECTOR_SHIPMENT_DATE_SCAN_HOURS' => (string) GETPOST('ODOO_CONNECTOR_SHIPMENT_DATE_SCAN_HOURS', 'int'),
+		'ODOO_CONNECTOR_SHIPMENT_DATE_UPDATE_POSTED' => (string) GETPOST('ODOO_CONNECTOR_SHIPMENT_DATE_UPDATE_POSTED', 'int'),
+		'ODOO_CONNECTOR_DUE_DATE_RULE' => GETPOST('ODOO_CONNECTOR_DUE_DATE_RULE', 'alphanohtml'),
+		'ODOO_CONNECTOR_DUE_DATE_OFFSET_DAYS' => (string) GETPOST('ODOO_CONNECTOR_DUE_DATE_OFFSET_DAYS', 'int'),
 	);
 	foreach ($consts as $key => $val) {
 		if (dolibarr_set_const($db, $key, $val, 'chaine', 0, '', $conf->entity) < 0) {
@@ -144,7 +147,9 @@ if ($action == 'sync_now' && GETPOST('token', 'none') === newToken()) {
 	}
 	dol_include_once('odooconnector/class/OdooSync.class.php');
 	$sync = new OdooSync($db);
-	$sync->runSync($syncFrom, $syncTo, $syncField, $syncOnly);
+	// Wait a bit for the connector lock: a cron run may be in progress and the
+	// click would otherwise be skipped immediately.
+	$sync->runSync($syncFrom, $syncTo, $syncField, $syncOnly, 15);
 	// The output embeds Odoo error strings (which contain user-controlled names):
 	// escape it, setEventMessages renders its content as raw HTML
 	$msg = nl2br(dol_escape_htmltag($sync->output));
@@ -152,6 +157,29 @@ if ($action == 'sync_now' && GETPOST('token', 'none') === newToken()) {
 		setEventMessages($msg, null, 'mesgs');
 	} elseif (!empty($msg)) {
 		setEventMessages($msg, null, 'warnings');
+	} else {
+		setEventMessages($langs->trans('OdooConnectorSyncDone'), null, 'mesgs');
+	}
+	header('Location: '.$_SERVER['PHP_SELF']);
+	exit;
+}
+
+/*
+ * Shipment date refresh now (manual run).
+ * Same job as the cron "Odoo Connector shipment date refresh": recomputes the
+ * accounting date of every document linked to a shipment whose ATA/ETA changed
+ * and pushes it to Odoo. The output shows, for each shipment, the dates read
+ * and the number of linked documents, so a silent no-op can be diagnosed.
+ */
+if ($action == 'sync_shipment_now' && GETPOST('token', 'none') === newToken()) {
+	dol_include_once('odooconnector/class/OdooSync.class.php');
+	$sync = new OdooSync($db);
+	$sync->runShipmentDateSync(15);
+	// The output embeds Odoo error strings (which contain user-controlled names):
+	// escape it, setEventMessages renders its content as raw HTML
+	$msg = nl2br(dol_escape_htmltag($sync->output));
+	if (!empty($msg)) {
+		setEventMessages($msg, null, $sync->result > 0 ? 'mesgs' : 'warnings');
 	} else {
 		setEventMessages($langs->trans('OdooConnectorSyncDone'), null, 'mesgs');
 	}
@@ -432,6 +460,26 @@ print '<br><span class="opacitymedium">'.$langs->trans('OdooConnectorDeliveryDat
 $scanHours = (int) odoo_form_val('ODOO_CONNECTOR_SHIPMENT_DATE_SCAN_HOURS', (string) (getDolGlobalInt('ODOO_CONNECTOR_SHIPMENT_DATE_SCAN_HOURS') ?: 25));
 print '<tr class="oddeven"><td>'.$langs->trans('OdooConnectorSyncShipmentDates').'</td><td>'.$form->selectyesno('ODOO_CONNECTOR_SYNC_SHIPMENT_DATES', getDolGlobalInt('ODOO_CONNECTOR_SYNC_SHIPMENT_DATES', 1), 1).'<br><span class="opacitymedium">'.$langs->trans('OdooConnectorSyncShipmentDatesHelp').'</span></td></tr>';
 print '<tr class="oddeven"><td>'.$langs->trans('OdooConnectorShipmentDateScanHours').'</td><td><input type="text" name="ODOO_CONNECTOR_SHIPMENT_DATE_SCAN_HOURS" value="'.dol_escape_htmltag((string) $scanHours).'" class="minwidth100"><br><span class="opacitymedium">'.$langs->trans('OdooConnectorShipmentDateScanHoursHelp').'</span></td></tr>';
+print '<tr class="oddeven"><td>'.$langs->trans('OdooConnectorShipmentDateUpdatePosted').'</td><td>'.$form->selectyesno('ODOO_CONNECTOR_SHIPMENT_DATE_UPDATE_POSTED', getDolGlobalInt('ODOO_CONNECTOR_SHIPMENT_DATE_UPDATE_POSTED', 1), 1).'<br><span class="opacitymedium">'.$langs->trans('OdooConnectorShipmentDateUpdatePostedHelp').'</span></td></tr>';
+$dueRule = odoo_form_val('ODOO_CONNECTOR_DUE_DATE_RULE', getDolGlobalString('ODOO_CONNECTOR_DUE_DATE_RULE') ?: 'ata_offset');
+$dueRuleOptions = array(
+	'ata_offset' => $langs->trans('OdooConnectorDueDateRuleAtaOffset'),
+	'accounting_date' => $langs->trans('OdooConnectorDueDateRuleAccountingDate'),
+	'ata_then_eta' => $langs->trans('OdooConnectorDueDateRuleAtaThenEta'),
+	'none' => $langs->trans('OdooConnectorDueDateRuleNone'),
+);
+if (!isset($dueRuleOptions[$dueRule])) {
+	$dueRule = 'ata_offset';
+}
+$dueOffset = (int) odoo_form_val('ODOO_CONNECTOR_DUE_DATE_OFFSET_DAYS', (string) (getDolGlobalInt('ODOO_CONNECTOR_DUE_DATE_OFFSET_DAYS') ?: 10));
+print '<tr class="oddeven"><td>'.$langs->trans('OdooConnectorDueDateRule').'</td><td>';
+print '<select name="ODOO_CONNECTOR_DUE_DATE_RULE" class="flat">';
+foreach ($dueRuleOptions as $k => $label) {
+	print '<option value="'.dol_escape_htmltag($k).'"'.($dueRule === $k ? ' selected' : '').'>'.dol_escape_htmltag($label).'</option>';
+}
+print '</select>';
+print ' <input type="text" name="ODOO_CONNECTOR_DUE_DATE_OFFSET_DAYS" value="'.dol_escape_htmltag((string) $dueOffset).'" class="minwidth60" title="'.dol_escape_htmltag($langs->trans('OdooConnectorDueDateOffsetDays')).'">';
+print '<br><span class="opacitymedium">'.$langs->trans('OdooConnectorDueDateRuleHelp').'</span></td></tr>';
 print '</table></div>';
 print '<script type="text/javascript">';
 print 'document.getElementById("odoo_delivery_date_field").onchange=function(){ var w=document.getElementById("odoo_delivery_custom_wrap"); w.style.display=this.value==="other"?"":"none"; };';
@@ -477,6 +525,19 @@ foreach ($onlyOptions as $k => $label) {
 }
 print '</select></td></tr>';
 print '<tr class="oddeven"><td class="center" colspan="2"><input type="submit" class="button" value="'.$langs->trans('OdooConnectorSyncNow').'"></td></tr>';
+print '</table></div></form>';
+
+// Shipment date refresh on demand (same job as the cron of the same name).
+// The output lists, for every shipment whose ATA/ETA changed, the dates read
+// and the number of linked invoices/bills, so a silent no-op can be diagnosed.
+print '<br><form action="'.$_SERVER['PHP_SELF'].'" method="post">';
+print '<input type="hidden" name="token" value="'.newToken().'">';
+print '<input type="hidden" name="action" value="sync_shipment_now">';
+print '<div class="div-table-responsive-no-min">';
+print '<table class="noborder centpercent">';
+print '<tr class="liste_titre"><td colspan="2">'.$langs->trans('OdooConnectorShipmentDateRefreshNow').'</td></tr>';
+print '<tr class="oddeven"><td>'.$langs->trans('OdooConnectorShipmentDateRefreshNowHelp').'</td><td>';
+print '<input type="submit" class="button" value="'.$langs->trans('OdooConnectorShipmentDateRefreshNow').'"></td></tr>';
 print '</table></div></form>';
 
 // Sync failure log: documents whose last push attempt failed. Fix the cause in

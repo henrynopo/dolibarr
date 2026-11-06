@@ -84,3 +84,14 @@ OdooConnectorSyncShipmentDatesHelp=独立的计划任务。当货运单数据在
 OdooConnectorShipmentDateScanHours=货运更新回溯窗口（小时）
 OdooConnectorShipmentDateScanHoursHelp=检查最近多少小时内数据有变化的货运单。请保持不小于该刷新任务的执行间隔：重复扫描无害，日期已正确的草稿会被跳过。
 ModuleFamilyHaoSG=HaoSG
+OdooConnectorShipmentDateUpdatePosted=同步货运日期时也更新已过账的 Odoo 分录
+OdooConnectorShipmentDateUpdatePostedHelp=开启后，货运单（ATA/ETA）变化时，即使 Odoo 分录已过账，连接器也会先把它重置为草稿（button_draft），写入新的记账日期并标记为「待审核」，由会计复核后重新过账。若 Odoo 拒绝重置（期间已锁定、已核销），则在 Odoo 讨论区留言并记入失败日志。关闭后已过账分录一律跳过。
+OdooConnectorShipmentDateRefreshNow=立即刷新货运日期
+OdooConnectorShipmentDateRefreshNowHelp=立即执行一次「货运日期刷新」任务（与同名 cron 任务完全一致）：重新计算 ATA/ETA 发生变化后所关联单据的记账日期，并写回 Odoo。输出会逐条列出读到的 ATA/ETA、关联到的发票/账单数量和最终结果，便于排查「日期没有更新」的原因（未启用任务、单据未与货运单关联、Odoo 分录已过账等）。
+OdooConnectorDueDateRule=Odoo 到期日（Due Date）规则
+OdooConnectorDueDateRuleHelp=连接器写入 Odoo 的到期日规则。默认「ATA 减 N 天」：货运有 ATA 时到期日 = ATA − N 天（右侧填天数，默认 10），没有 ATA 时退回记账日期；选「跟随记账日期」则到期日始终等于记账日期；选「ATA，没有则 ETA」是旧行为；选「不写入」则连接器完全不碰到期日（Odoo 保留按付款条件算出的到期日）。没有关联货运单的单据默认不写到期日（跟随记账日期的规则除外）。整单推送与货运日期刷新任务用的是同一套规则。
+OdooConnectorDueDateRuleAtaOffset=ATA 减 N 天
+OdooConnectorDueDateRuleAccountingDate=跟随记账日期
+OdooConnectorDueDateRuleAtaThenEta=ATA，没有则 ETA（旧行为）
+OdooConnectorDueDateRuleNone=不写入到期日
+OdooConnectorDueDateOffsetDays=提前天数
